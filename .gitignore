@@ -1,0 +1,74 @@
+# ==========================================
+# SyncTime - Git Ignore Root
+# Frontend (React + Vite) & Backend (ASP.NET Core)
+# ==========================================
+
+# ─── Dependencias y Compilación Frontend ───
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Reportes y Artefactos de Pruebas ───
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+coverage/
+.nyc_output/
+.vitest/
+
+# ─── Compilación y Temporales .NET / C# ───
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.pidb
+*.booproj
+*.svclog
+*.opensdf
+*.sdf
+*.opendb
+packages/
+!packages/build/
+
+# ─── IDEs y Editores ───
+.vs/
+.vscode/
+.idea/
+*.sln.docstates
+*.ntvs*
+*.njsproj
+
+# ─── Variables de Entorno y Secretos ───
+.env
+.env.production
+.env.staging
+.env.local
+.env.*.local
+!*.example
+
+# ─── Bases de Datos Locales ───
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── Sistema Operativo ───
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store

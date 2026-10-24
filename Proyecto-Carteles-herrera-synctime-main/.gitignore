@@ -1,0 +1,22 @@
+# Visual Studio y archivos del editor
+.vs/
+*.user
+*.suo
+
+# Salidas generadas por .NET
+**/bin/
+**/obj/
+
+# Archivos locales de secretos/configuracion
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+*.pfx
+*.key
+*.pem
+
+# Logs y archivos temporales
+*.log
+*.tmp
+TestResults/
+**/.test-obj/
