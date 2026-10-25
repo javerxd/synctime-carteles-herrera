@@ -51,6 +51,9 @@ npm run dev
 # Ejecutar suite de pruebas unitarias y de componentes (Vitest)
 npm test
 
+# Ejecutar suite de pruebas end-to-end completas (Playwright)
+npm run test:e2e
+
 # Ejecutar linter estático
 npm run lint
 

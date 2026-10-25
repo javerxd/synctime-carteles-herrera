@@ -21,24 +21,49 @@ found 0 vulnerabilities
 
 ---
 
-## 2. Evidencia de Ejecución de Pruebas Automatizadas (`npm test`)
+## 2. Evidencia de Ejecución de Pruebas Automatizadas
 
-Se ejecutó la suite de pruebas automatizadas mediante **Vitest** y **Testing Library**:
-
+### 2.1 Pruebas de Componentes Frontend (`npm test` — Vitest + Testing Library)
 ```bash
 > synctimefront@0.0.0 test
 > vitest run
 
  RUN  v5.0.5 C:/Users/Admin/Desktop/ev2/Frontend/synctimefront
 
- ✓ src/test/RoleGuard.test.jsx (4 tests) 74ms
- ✓ src/test/ProtectedRoute.test.jsx (2 tests) 82ms
- ✓ src/test/Login.test.jsx (4 tests) 463ms
- ✓ src/test/SolicitudesCRUD.test.jsx (4 tests) 910ms
+ ✓ src/test/RoleGuard.test.jsx (4 tests) 56ms
+ ✓ src/test/ProtectedRoute.test.jsx (2 tests) 64ms
+ ✓ src/test/Login.test.jsx (4 tests) 293ms
+ ✓ src/test/SolicitudesCRUD.test.jsx (4 tests) 709ms
 
  Test Files  4 passed (4)
       Tests  14 passed (14)
-   Duration  3.21s
+   Duration  3.25s
+```
+
+### 2.2 Pruebas End-to-End Frontend (`npm run test:e2e` — Playwright)
+Prueba automatizada del flujo completo exigido por la pauta: Login -> Crear Solicitud -> Listar Solicitud -> Ver Detalle.
+```bash
+> synctimefront@0.0.0 test:e2e
+> playwright test
+
+Running 1 test using 1 worker
+
+  ok 1 [chromium] › e2e\flujo-solicitudes.spec.js:4:3 › Flujo E2E Obligatorio: Login -> Crear Solicitud -> Listar Solicitud › debe autenticarse, registrar una nueva solicitud y verificarla en la tabla (1.8s)
+
+  1 passed (3.8s)
+```
+
+### 2.3 Suite de Integración del Backend (.NET 10 — Evaluación 1)
+Verificación de que los endpoints protegidos y la suite de integración de ASP.NET Core continúan ejecutándose y pasando al 100%:
+```bash
+> dotnet run --project ../../Proyecto-Carteles-herrera-synctime-main/LetrerosHerreraSYNCTIMEapi.Tests
+
+  Discovering: LetrerosHerreraSYNCTIMEapi.Tests
+  Discovered:  LetrerosHerreraSYNCTIMEapi.Tests
+  Starting:    LetrerosHerreraSYNCTIMEapi.Tests
+  Finished:    LetrerosHerreraSYNCTIMEapi.Tests
+=== TEST EXECUTION SUMMARY ===
+   LetrerosHerreraSYNCTIMEapi.Tests  Total: 5, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 4,023s
 ```
 
 ### Detalle de Cobertura por Flujo:
@@ -54,11 +79,12 @@ Se ejecutó la suite de pruebas automatizadas mediante **Vitest** y **Testing Li
    - Renderizado condicional según rol (`dueno`, `disenador`, `operario`).
    - Ocultamiento de acciones no autorizadas (ej. botón eliminar solo para `dueno`).
    - Renderizado de interfaz de reemplazo (fallback) en caso de acceso no autorizado.
-4. **CRUD Completo de Solicitudes (`SolicitudesCRUD.test.jsx`):**
+4. **CRUD Completo de Solicitudes (`SolicitudesCRUD.test.jsx` y `flujo-solicitudes.spec.js`):**
    - Obtención y visualización de la lista de solicitudes desde el backend.
    - Filtrado en vivo por texto de búsqueda (nombre, teléfono, material).
    - Apertura de modal con trampa de foco y consumo de clientes y productos.
    - Creación exitosa mediante `solicitudService.create`.
+   - Visualización de la vista modal de detalle (Consultar).
    - Confirmación mediante modal accesible y eliminación mediante `solicitudService.remove`.
 
 ---
@@ -108,10 +134,33 @@ Se ejecutó la suite de pruebas automatizadas mediante **Vitest** y **Testing Li
     <button disabled title="Solo el dueño puede eliminar">...</button>
   )}
   ```
-- **Evidencia en Backend:**
-  Endpoint protegido en ASP.NET Core:
-  `[Authorize(Roles = "dueno")] [HttpDelete("{id}")]`
-  Si un atacante realiza la petición directa vía cURL/Postman sin rol de dueño, el servidor devuelve `403 Forbidden`.
+### 3.5 Verificación de Política CORS Restringida a Orígenes Explícitos
+- **Origen autorizado (`http://localhost:3000`):**
+  ```bash
+  > curl.exe -k -i -X OPTIONS https://localhost:7112/api/v1/solicitudes -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: GET"
+  
+  HTTP/1.1 204 No Content
+  Access-Control-Allow-Methods: GET
+  Access-Control-Allow-Origin: http://localhost:3000
+  ```
+- **Origen no autorizado (`http://evil.com`):**
+  ```bash
+  > curl.exe -k -i -X OPTIONS https://localhost:7112/api/v1/solicitudes -H "Origin: http://evil.com" -H "Access-Control-Request-Method: GET"
+  
+  HTTP/1.1 204 No Content
+  # El servidor NO incluye el encabezado Access-Control-Allow-Origin, bloqueando el acceso en el navegador.
+  ```
+
+### 3.6 Verificación de Rechazo por Falta de Token (401 Unauthorized)
+```bash
+> curl.exe -k -i https://localhost:7112/api/v1/solicitudes
+
+HTTP/1.1 401 Unauthorized
+Date: Sun, 25 Oct 2026 21:57:42 GMT
+Server: Kestrel
+WWW-Authenticate: Bearer
+```
+El servidor rechaza peticiones anónimas y exige el token Bearer emitido en el login.
 
 ---
 
