@@ -33,6 +33,12 @@ const solicitudService = {
   async remove(id) {
     await httpClient.delete(`/solicitudes/${id}`);
   },
+
+  /** PATCH /solicitudes/:id/estado */
+  async cambiarEstado(id, estado) {
+    const { data } = await httpClient.patch(`/solicitudes/${id}/estado`, { estado });
+    return data;
+  },
 };
 
 export default solicitudService;

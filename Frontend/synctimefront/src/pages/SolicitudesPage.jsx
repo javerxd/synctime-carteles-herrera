@@ -18,6 +18,7 @@ import SolicitudForm from './SolicitudForm';
 export default function SolicitudesPage() {
   const { hasRole } = useAuth();
   const { addToast } = useToast();
+  const isAdmin = hasRole(['dueno', 'admin']);
 
   // Datos
   const [solicitudes, setSolicitudes] = useState([]);
@@ -43,6 +44,9 @@ export default function SolicitudesPage() {
 
   // Modal detalle (Consultar)
   const [detailTarget, setDetailTarget] = useState(null);
+
+  // Estado de actualización de selector de estado (Admin)
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
 
   // Live region para anunciar cambios a screen readers
   const [liveMessage, setLiveMessage] = useState('');
@@ -99,7 +103,31 @@ export default function SolicitudesPage() {
     return true;
   });
 
-  const estados = ['todos', ...new Set(solicitudes.map((s) => s.estado))];
+  const estados = ['todos', 'pendiente', 'aceptado', 'rechazado'];
+
+  /* ───── Cambiar estado (exclusivo Admin) ───── */
+  const handleStatusChange = async (idSolicitud, nuevoEstado) => {
+    if (!isAdmin) return;
+    setUpdatingStatusId(idSolicitud);
+    try {
+      await solicitudService.cambiarEstado(idSolicitud, nuevoEstado);
+      setSolicitudes((prev) =>
+        prev.map((s) =>
+          s.idSolicitud === idSolicitud ? { ...s, estado: nuevoEstado } : s
+        )
+      );
+      addToast(`Estado de solicitud #${idSolicitud} actualizado a ${nuevoEstado}.`, 'success');
+      setLiveMessage(`Estado de solicitud #${idSolicitud} actualizado a ${nuevoEstado}.`);
+    } catch (err) {
+      if (err?.status === 403) {
+        addToast('No tiene permisos para modificar el estado de la solicitud.', 'error');
+      } else {
+        addToast(err?.message || 'Error al actualizar el estado de la solicitud.', 'error');
+      }
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
 
   /* ───── Helpers para nombres ───── */
   const getClienteName = (idCliente) => {
@@ -317,9 +345,28 @@ export default function SolicitudesPage() {
                   <td data-label="Teléfono">{s.telefonoContacto}</td>
                   <td data-label="Fecha">{formatDate(s.fechaSolicitud)}</td>
                   <td data-label="Estado">
-                    <span className={`badge badge-${s.estado}`}>
-                      {s.estado}
-                    </span>
+                    {isAdmin ? (
+                      <div className="status-select-container">
+                        <select
+                          className={`status-select status-select-${s.estado}`}
+                          value={s.estado}
+                          onChange={(e) => handleStatusChange(s.idSolicitud, e.target.value)}
+                          disabled={updatingStatusId === s.idSolicitud}
+                          aria-label={`Cambiar estado de solicitud #${s.idSolicitud}`}
+                        >
+                          <option value="pendiente">Pendiente</option>
+                          <option value="aceptado">Aceptado</option>
+                          <option value="rechazado">Rechazado</option>
+                        </select>
+                        {updatingStatusId === s.idSolicitud && (
+                          <span className="spinner-border spinner-border-sm" role="status" aria-label="Actualizando estado" />
+                        )}
+                      </div>
+                    ) : (
+                      <span className={`badge badge-${s.estado}`}>
+                        {s.estado}
+                      </span>
+                    )}
                   </td>
                   <td data-label="Acciones">
                     <div className="actions-cell">

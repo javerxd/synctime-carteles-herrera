@@ -14,6 +14,7 @@ vi.mock('../api/solicitudService', () => ({
     create: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
+    cambiarEstado: vi.fn(),
   },
 }));
 
@@ -167,5 +168,38 @@ describe('SolicitudesPage CRUD Component', () => {
     await waitFor(() => {
       expect(solicitudService.remove).toHaveBeenCalledWith(101);
     });
+  });
+
+  it('allows admin to change status via selector in grid', async () => {
+    solicitudService.cambiarEstado.mockResolvedValueOnce({
+      ...mockSolicitudes[0],
+      estado: 'aceptado',
+    });
+
+    renderSolicitudes({ id: 1, email: 'admin@test.cl', rol: 'dueno' });
+
+    await waitFor(() => {
+      expect(screen.getByText('#101')).toBeInTheDocument();
+    });
+
+    const statusSelect = screen.getByLabelText(/cambiar estado de solicitud #101/i);
+    expect(statusSelect).toBeInTheDocument();
+
+    fireEvent.change(statusSelect, { target: { value: 'aceptado' } });
+
+    await waitFor(() => {
+      expect(solicitudService.cambiarEstado).toHaveBeenCalledWith(101, 'aceptado');
+    });
+  });
+
+  it('renders static badge and does not allow non-admin to change status', async () => {
+    renderSolicitudes({ id: 2, email: 'operario@test.cl', rol: 'operario' });
+
+    await waitFor(() => {
+      expect(screen.getByText('#101')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText(/cambiar estado de solicitud #101/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Nueva')).toBeInTheDocument();
   });
 });

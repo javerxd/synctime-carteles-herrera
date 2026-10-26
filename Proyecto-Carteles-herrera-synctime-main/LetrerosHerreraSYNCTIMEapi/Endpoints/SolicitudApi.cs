@@ -81,6 +81,47 @@ public static class SolicitudApi
             solicitud.TelefonoContacto = request.TelefonoContacto.Trim();
             solicitud.NotasWhatsapp = request.NotasWhatsapp?.Trim();
 
+            if (!string.IsNullOrWhiteSpace(request.Estado))
+            {
+                var estadoNormalizado = request.Estado.Trim().ToLowerInvariant();
+                if (estadoNormalizado is "pendiente" or "aceptado" or "rechazado")
+                {
+                    solicitud.Estado = estadoNormalizado;
+                    solicitud.FechaDecision = estadoNormalizado is "aceptado" or "rechazado"
+                        ? DateTime.UtcNow
+                        : null;
+                }
+            }
+
+            await repository.SaveChangesAsync(cancellationToken);
+            return Results.Ok(ToResponse(solicitud));
+        });
+
+        // Cambio directo de estado restringido exclusivamente al rol de administración (dueno/admin)
+        solicitudes.MapPatch("/{id:int}/estado", [Authorize(Roles = "dueno,admin")] async (
+            int id,
+            CambiarEstadoRequest request,
+            ISolicitudRepository repository,
+            CancellationToken cancellationToken) =>
+        {
+            var solicitud = await repository.GetByIdAsync(id, cancellationToken);
+            if (solicitud is null)
+                return Results.NotFound(new { message = "La solicitud no existe." });
+
+            var estadoNormalizado = request.Estado?.Trim().ToLowerInvariant();
+            if (estadoNormalizado is not ("pendiente" or "aceptado" or "rechazado"))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["estado"] = ["El estado debe ser 'pendiente', 'aceptado' o 'rechazado'."]
+                });
+            }
+
+            solicitud.Estado = estadoNormalizado;
+            solicitud.FechaDecision = estadoNormalizado is "aceptado" or "rechazado"
+                ? DateTime.UtcNow
+                : null;
+
             await repository.SaveChangesAsync(cancellationToken);
             return Results.Ok(ToResponse(solicitud));
         });
@@ -131,6 +172,15 @@ public static class SolicitudApi
         if (request.NotasWhatsapp?.Trim().Length > 255)
             errors["notasWhatsapp"] = ["Las notas no pueden superar los 255 caracteres."];
 
+        if (!string.IsNullOrWhiteSpace(request.Estado))
+        {
+            var est = request.Estado.Trim().ToLowerInvariant();
+            if (est is not ("pendiente" or "aceptado" or "rechazado"))
+            {
+                errors["estado"] = ["El estado debe ser 'pendiente', 'aceptado' o 'rechazado'."];
+            }
+        }
+
         return errors.Count == 0 ? null : Results.ValidationProblem(errors);
     }
 
@@ -154,7 +204,10 @@ public static class SolicitudApi
         string? MaterialSolicitado,
         int Cantidad,
         string TelefonoContacto,
-        string? NotasWhatsapp);
+        string? NotasWhatsapp,
+        string? Estado = null);
+
+    public sealed record CambiarEstadoRequest(string Estado);
 
     public sealed record SolicitudResponse(
         int IdSolicitud,

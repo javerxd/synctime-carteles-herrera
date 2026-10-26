@@ -44,7 +44,10 @@ export default function AppLayout() {
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Navegación principal">
           <div className="sidebar-brand">
             <h1>
-              <span className="brand-icon" aria-hidden="true">⚡</span>
+              <svg viewBox="0 0 24 24" fill="none" className="brand-mark" aria-hidden="true">
+                <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M12 8v4l3 2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               SyncTime
             </h1>
             <p className="brand-subtitle">Letreros Herrera</p>

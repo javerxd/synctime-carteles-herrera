@@ -133,6 +133,25 @@ test.describe('Flujo E2E Obligatorio: Login -> Crear Solicitud -> Listar Solicit
       }
     });
 
+    await page.route('**/api/v1/solicitudes/*/estado', async (route) => {
+      if (route.request().method() === 'PATCH') {
+        const postData = JSON.parse(route.request().postData() || '{}');
+        const url = route.request().url();
+        const idMatch = url.match(/\/solicitudes\/(\d+)\/estado/);
+        const id = idMatch ? Number(idMatch[1]) : 102;
+        solicitudesList = solicitudesList.map((s) =>
+          s.idSolicitud === id ? { ...s, estado: postData.estado } : s
+        );
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ idSolicitud: id, estado: postData.estado }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
     // 1. Navegar al Login
     await page.goto('/login');
     await expect(page.getByRole('heading', { name: 'SyncTime' })).toBeVisible();
@@ -182,8 +201,14 @@ test.describe('Flujo E2E Obligatorio: Login -> Crear Solicitud -> Listar Solicit
     await expect(row.locator('td[data-label="Cliente"]')).toContainText('Empresa Alpha SpA');
     await expect(row.locator('td[data-label="Producto"]')).toContainText('Letrero Neón LED');
     await expect(row.locator('td[data-label="Cantidad"]')).toContainText('5');
-    await expect(row.locator('td[data-label="Teléfono"]')).toContainText('+56912345678');
-    await expect(row.locator('td[data-label="Estado"]')).toContainText('pendiente');
+    // Verificar que como admin tiene el selector de estado interactivo
+    const statusSelect = row.locator('select.status-select');
+    await expect(statusSelect).toBeVisible();
+    await expect(statusSelect).toHaveValue('pendiente');
+
+    // Cambiar estado a 'aceptado'
+    await statusSelect.selectOption('aceptado');
+    await expect(statusSelect).toHaveValue('aceptado');
 
     // 10. Probar Modal de Detalle (Consultar)
     const detailBtn = row.locator('button[title="Ver detalle"]');
