@@ -120,10 +120,10 @@ public static class SolicitudApi
         if (string.IsNullOrWhiteSpace(request.TelefonoContacto))
             errors["telefonoContacto"] = ["El telefono de contacto es obligatorio."];
         else if (request.TelefonoContacto.Trim().Length > 20)
-            errors["telefonoContacto"] = ["El teléfono no puede superar los 20 caracteres."];
+            errors["telefonoContacto"] = ["El telefono no puede superar los 20 caracteres."];
 
         if (request.Tamano?.Trim().Length > 50)
-            errors["tamano"] = ["El tamaño no puede superar los 50 caracteres."];
+            errors["tamano"] = ["El tamano no puede superar los 50 caracteres."];
 
         if (request.MaterialSolicitado?.Trim().Length > 100)
             errors["materialSolicitado"] = ["El material no puede superar los 100 caracteres."];
