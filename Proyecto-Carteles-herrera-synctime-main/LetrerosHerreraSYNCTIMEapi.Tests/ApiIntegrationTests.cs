@@ -64,6 +64,17 @@ public sealed class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Pr
     }
 
     [Fact]
+    public async Task PatchSolicitudEstado_RequiresAuthentication()
+    {
+        var response = await client.PatchAsJsonAsync("/api/v1/solicitudes/1/estado", new
+        {
+            estado = "aceptado"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Login_AndAuthenticatedEndpoint_Work()
     {
         // Esta prueba recorre login, generacion de token y uso de una ruta protegida.
