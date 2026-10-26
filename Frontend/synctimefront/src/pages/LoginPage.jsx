@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import './LoginPage.css';
 
 /**
  * LoginPage
@@ -69,17 +70,40 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <div className="login-icon" aria-hidden="true">⚡</div>
+          <div className="login-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" className="brand-mark">
+              <path
+                d="M12 2L3 7v10l9 5 9-5V7l-9-5z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 8v4l3 2"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
           <h1>SyncTime</h1>
           <p>Letreros Herrera — Panel de Gestión</p>
         </div>
 
         {errors.form && (
-          <div className="alert alert-error" role="alert" style={{ marginBottom: '1.5rem' }}>
-            <svg className="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
+          <div className="alert alert-error" role="alert">
+            <svg
+              className="alert-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <line x1="12" y1="8" x2="12" y2="12.5" />
+              <circle cx="12" cy="15.5" r="0.5" fill="currentColor" />
             </svg>
             <span>{errors.form}</span>
           </div>

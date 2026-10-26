@@ -121,6 +121,16 @@ Conforme a las condiciones de realización establecidas en la pauta de evaluaci�
   - **Aceptado:** La convergencia de ambos modelos respecto a que el error requería Defensa en Profundidad (validar en cliente y servidor). Se aplicó la validación de `Length > 20` en el backend para retornar `400 ValidationProblem`.
   - **Corregido / Ampliado con Antigravity:** Se extendió el blindaje al frontend con filtrado numérico en tiempo real en `SolicitudForm.jsx`, límite estricto de 12 dígitos para formato chileno (`+56 9 1234 5678`), atributo físico `maxLength={16}`, y validaciones completas para el resto de entidades (límite de 50 caracteres en tamaño, 100 en material y 255 con contador visual en notas, más regex RFC 5322 en el login).
 
+### Etapa 10: Homogeneización de Diseño Glassmorphism Dark Enterprise y Gestión de Credenciales
+- **Herramienta / Modelo:** Antigravity (Gemini 3.8 Flash)
+- **Prompt Utilizado:**
+  > *"¿Podrías aplicar el estilo de LoginPage a las demás páginas del proyecto? También se me olvidó el correo y contraseña de los usuarios admin, ¿podrías entregármelos?"*
+- **Respuesta Recibida de la IA:**
+  Consultó directamente el catálogo de usuarios de SQL Server (`LetrerosHerreradb`), identificando las cuentas existentes (`admin@losherrera.com`, `admin.pruebas@synctime.test`, `operario@losherrera.com`, `usuario.pruebas@synctime.test`), y procedió a estandarizar los hashes BCrypt para proveer credenciales operativas inmediatas. Posteriormente, homogeneizó el sistema de diseño completo en `src/index.css`, replicando la estética Enterprise Dark Glassmorphism de `LoginPage` en toda la plataforma (Sidebar, Header, Dashboard, Tablas con efecto cristal, Modales esmerilados, Badges luminosos y Formularios oscuros), manteniendo un contraste WCAG 2.2 AA superior a 4.5:1 y validando con 100% de éxito en Vitest (14/14) y Playwright E2E.
+- **Decisión del Estudiante:**
+  - **Aceptado:** La aplicación transversal de tokens oscuros (`#07080a`), iluminación ambiental, efecto de cristal esmerilado (`backdrop-filter`) y la entrega clara de las credenciales de administración.
+  - **Corregido / Ajustado:** Se mantuvieron intactas las reglas de accesibilidad (`.sr-only`, `:focus-visible`, contraste de etiquetas de formulario y diseño responsive móvil con data-labels).
+
 ---
 
 ## 3. Resumen y Conclusiones del Uso de IA
