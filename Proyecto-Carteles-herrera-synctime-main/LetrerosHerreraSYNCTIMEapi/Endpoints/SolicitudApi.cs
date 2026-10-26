@@ -119,6 +119,17 @@ public static class SolicitudApi
 
         if (string.IsNullOrWhiteSpace(request.TelefonoContacto))
             errors["telefonoContacto"] = ["El telefono de contacto es obligatorio."];
+        else if (request.TelefonoContacto.Trim().Length > 20)
+            errors["telefonoContacto"] = ["El teléfono no puede superar los 20 caracteres."];
+
+        if (request.Tamano?.Trim().Length > 50)
+            errors["tamano"] = ["El tamaño no puede superar los 50 caracteres."];
+
+        if (request.MaterialSolicitado?.Trim().Length > 100)
+            errors["materialSolicitado"] = ["El material no puede superar los 100 caracteres."];
+
+        if (request.NotasWhatsapp?.Trim().Length > 255)
+            errors["notasWhatsapp"] = ["Las notas no pueden superar los 255 caracteres."];
 
         return errors.Count == 0 ? null : Results.ValidationProblem(errors);
     }

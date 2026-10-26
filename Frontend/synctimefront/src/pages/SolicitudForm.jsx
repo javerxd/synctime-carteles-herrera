@@ -72,6 +72,28 @@ export default function SolicitudForm({
   /* ───── Manejo de cambios ───── */
   const handleChange = (e) => {
     const { name, value, type } = e.target;
+
+    // Validación y filtrado especial en tiempo real para teléfono
+    if (name === 'telefonoContacto') {
+      // Solo permitir dígitos, espacios, guión y '+' inicial
+      let filtered = value.replace(/[^\d+ -]/g, '');
+      if (filtered.includes('+')) {
+        filtered = (filtered.startsWith('+') ? '+' : '') + filtered.slice(filtered.startsWith('+') ? 1 : 0).replace(/\+/g, '');
+      }
+      // Limitar a máximo 16 caracteres para no exceder la columna de BD
+      filtered = filtered.slice(0, 16);
+
+      setFormData((prev) => ({
+        ...prev,
+        [name]: filtered,
+      }));
+
+      if (errors[name]) {
+        setErrors((prev) => ({ ...prev, [name]: undefined }));
+      }
+      return;
+    }
+
     const parsedValue = type === 'number' ? (value === '' ? '' : Number(value)) : value;
 
     setFormData((prev) => ({
@@ -89,22 +111,54 @@ export default function SolicitudForm({
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.idCliente) {
-      newErrors.idCliente = 'Debe seleccionar un cliente.';
+    // 1. Cliente (obligatorio)
+    if (!formData.idCliente || Number(formData.idCliente) <= 0) {
+      newErrors.idCliente = 'Debe seleccionar un cliente de la lista.';
     }
 
-    if (!formData.idProducto) {
+    // 2. Producto / Servicio (obligatorio)
+    if (!formData.idProducto || Number(formData.idProducto) <= 0) {
       newErrors.idProducto = 'Debe seleccionar un producto o servicio.';
     }
 
-    if (!formData.cantidad || formData.cantidad < 1) {
-      newErrors.cantidad = 'La cantidad debe ser mayor o igual a 1.';
+    // 3. Cantidad (obligatorio, entero positivo entre 1 y 100.000)
+    if (formData.cantidad === '' || formData.cantidad === null || formData.cantidad === undefined) {
+      newErrors.cantidad = 'La cantidad es obligatoria.';
+    } else if (!Number.isInteger(Number(formData.cantidad)) || Number(formData.cantidad) < 1) {
+      newErrors.cantidad = 'La cantidad debe ser un número entero mayor o igual a 1.';
+    } else if (Number(formData.cantidad) > 100000) {
+      newErrors.cantidad = 'La cantidad no puede superar las 100.000 unidades.';
     }
 
+    // 4. Teléfono de Contacto (obligatorio, solo números y +, entre 8 y 12 dígitos, referencia Chile)
     if (!formData.telefonoContacto || !formData.telefonoContacto.trim()) {
       newErrors.telefonoContacto = 'El teléfono de contacto es obligatorio.';
-    } else if (formData.telefonoContacto.trim().length < 8) {
-      newErrors.telefonoContacto = 'El teléfono debe tener al menos 8 dígitos.';
+    } else {
+      const cleanPhone = formData.telefonoContacto.trim();
+      const digitsOnly = cleanPhone.replace(/\D/g, '');
+
+      if (!/^(\+?\d[\d\s-]*)$/.test(cleanPhone)) {
+        newErrors.telefonoContacto = 'El teléfono solo debe contener números (se permite prefijo "+").';
+      } else if (digitsOnly.length < 8) {
+        newErrors.telefonoContacto = 'El teléfono debe tener al menos 8 dígitos numéricos.';
+      } else if (digitsOnly.length > 12) {
+        newErrors.telefonoContacto = 'El teléfono no puede superar los 12 dígitos numéricos (referencia Chile: +56 9 1234 5678).';
+      }
+    }
+
+    // 5. Tamaño (opcional, máx 50 caracteres según esquema BD)
+    if (formData.tamano && formData.tamano.trim().length > 50) {
+      newErrors.tamano = 'El tamaño no puede superar los 50 caracteres.';
+    }
+
+    // 6. Material Solicitado (opcional, máx 100 caracteres según esquema BD)
+    if (formData.materialSolicitado && formData.materialSolicitado.trim().length > 100) {
+      newErrors.materialSolicitado = 'El material no puede superar los 100 caracteres.';
+    }
+
+    // 7. Notas WhatsApp (opcional, máx 255 caracteres según esquema BD)
+    if (formData.notasWhatsapp && formData.notasWhatsapp.trim().length > 255) {
+      newErrors.notasWhatsapp = 'Las notas no pueden superar los 255 caracteres.';
     }
 
     setErrors(newErrors);
@@ -281,13 +335,17 @@ export default function SolicitudForm({
                   id="field-telefonoContacto"
                   name="telefonoContacto"
                   placeholder="+56 9 1234 5678"
+                  maxLength={16}
                   className={`form-input ${errors.telefonoContacto ? 'is-invalid' : ''}`}
                   value={formData.telefonoContacto}
                   onChange={handleChange}
                   aria-invalid={Boolean(errors.telefonoContacto)}
-                  aria-describedby={errors.telefonoContacto ? 'error-telefonoContacto' : undefined}
+                  aria-describedby={errors.telefonoContacto ? 'error-telefonoContacto' : 'hint-telefonoContacto'}
                   required
                 />
+                <span id="hint-telefonoContacto" className="form-hint" style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                  Solo números (referencia Chile: +56 9 1234 5678, máx. 12 dígitos).
+                </span>
                 {errors.telefonoContacto && (
                   <span id="error-telefonoContacto" className="form-error" role="alert">
                     {errors.telefonoContacto}
@@ -297,51 +355,90 @@ export default function SolicitudForm({
 
               {/* Tamaño */}
               <div className="form-group">
-                <label htmlFor="field-tamano" className="form-label">
-                  Tamaño
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label htmlFor="field-tamano" className="form-label">
+                    Tamaño
+                  </label>
+                  <span style={{ fontSize: '0.75rem', color: (formData.tamano?.length || 0) > 45 ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>
+                    {formData.tamano?.length || 0}/50
+                  </span>
+                </div>
                 <input
                   type="text"
                   id="field-tamano"
                   name="tamano"
+                  maxLength={50}
                   placeholder="Ej: 2m x 1m"
-                  className="form-input"
+                  className={`form-input ${errors.tamano ? 'is-invalid' : ''}`}
                   value={formData.tamano}
                   onChange={handleChange}
+                  aria-invalid={Boolean(errors.tamano)}
+                  aria-describedby={errors.tamano ? 'error-tamano' : undefined}
                 />
+                {errors.tamano && (
+                  <span id="error-tamano" className="form-error" role="alert">
+                    {errors.tamano}
+                  </span>
+                )}
               </div>
 
               {/* Material Solicitado */}
               <div className="form-group">
-                <label htmlFor="field-materialSolicitado" className="form-label">
-                  Material Solicitado
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label htmlFor="field-materialSolicitado" className="form-label">
+                    Material Solicitado
+                  </label>
+                  <span style={{ fontSize: '0.75rem', color: (formData.materialSolicitado?.length || 0) > 90 ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>
+                    {formData.materialSolicitado?.length || 0}/100
+                  </span>
+                </div>
                 <input
                   type="text"
                   id="field-materialSolicitado"
                   name="materialSolicitado"
+                  maxLength={100}
                   placeholder="Ej: Acrílico 5mm con retroiluminación LED"
-                  className="form-input"
+                  className={`form-input ${errors.materialSolicitado ? 'is-invalid' : ''}`}
                   value={formData.materialSolicitado}
                   onChange={handleChange}
+                  aria-invalid={Boolean(errors.materialSolicitado)}
+                  aria-describedby={errors.materialSolicitado ? 'error-materialSolicitado' : undefined}
                 />
+                {errors.materialSolicitado && (
+                  <span id="error-materialSolicitado" className="form-error" role="alert">
+                    {errors.materialSolicitado}
+                  </span>
+                )}
               </div>
             </div>
 
             {/* Notas WhatsApp / Observaciones */}
             <div className="form-group" style={{ marginTop: 'var(--space-4)' }}>
-              <label htmlFor="field-notasWhatsapp" className="form-label">
-                Notas adicionales / WhatsApp
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label htmlFor="field-notasWhatsapp" className="form-label">
+                  Notas adicionales / WhatsApp
+                </label>
+                <span style={{ fontSize: '0.75rem', color: (formData.notasWhatsapp?.length || 0) > 240 ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>
+                  {formData.notasWhatsapp?.length || 0}/255
+                </span>
+              </div>
               <textarea
                 id="field-notasWhatsapp"
                 name="notasWhatsapp"
                 rows="3"
-                className="form-textarea"
+                maxLength={255}
+                className={`form-textarea ${errors.notasWhatsapp ? 'is-invalid' : ''}`}
                 placeholder="Detalles acordados con el cliente, dimensiones, colores..."
                 value={formData.notasWhatsapp}
                 onChange={handleChange}
+                aria-invalid={Boolean(errors.notasWhatsapp)}
+                aria-describedby={errors.notasWhatsapp ? 'error-notasWhatsapp' : undefined}
               />
+              {errors.notasWhatsapp && (
+                <span id="error-notasWhatsapp" className="form-error" role="alert">
+                  {errors.notasWhatsapp}
+                </span>
+              )}
             </div>
           </div>
 

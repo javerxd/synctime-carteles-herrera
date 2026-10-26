@@ -23,9 +23,21 @@ export default function LoginPage() {
 
   const validate = useCallback(() => {
     const errs = {};
-    if (!email.trim()) errs.email = 'El email es obligatorio.';
-    if (!password) errs.password = 'La contraseña es obligatoria.';
-    else if (password.length < 4) errs.password = 'La contraseña es demasiado corta.';
+    if (!email.trim()) {
+      errs.email = 'El email es obligatorio.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = 'Ingrese un correo electrónico válido (ej: usuario@letrerosherrera.cl).';
+    } else if (email.trim().length > 100) {
+      errs.email = 'El correo no puede superar los 100 caracteres.';
+    }
+
+    if (!password) {
+      errs.password = 'La contraseña es obligatoria.';
+    } else if (password.length < 4) {
+      errs.password = 'La contraseña es demasiado corta (mínimo 4 caracteres).';
+    } else if (password.length > 100) {
+      errs.password = 'La contraseña no puede superar los 100 caracteres.';
+    }
     return errs;
   }, [email, password]);
 
@@ -81,6 +93,7 @@ export default function LoginPage() {
             <input
               id="login-email"
               type="email"
+              maxLength={100}
               className={`form-input ${errors.email ? 'error' : ''}`}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -104,6 +117,7 @@ export default function LoginPage() {
             <input
               id="login-password"
               type="password"
+              maxLength={100}
               className={`form-input ${errors.password ? 'error' : ''}`}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
