@@ -109,9 +109,21 @@ Conforme a las condiciones de realización establecidas en la pauta de evaluaci�
   - **Aceptado:** La automatización E2E con Playwright simulando el flujo completo de usuario y la validación cruzada con el backend.
   - **Corregido / Ajustado:** Se ajustaron los selectores de encabezado en la prueba E2E para evitar ambigüedades con el menú lateral (`sidebar-brand`) y se sincronizó el texto esperado con el encabezado modal `Detalle de Solicitud #102`, garantizando una ejecución limpia y reproducible.
 
+### Etapa 9: Diagnóstico de Excepción SQL (Truncate de Teléfono) y Blindaje de Validaciones
+- **Herramienta / Modelo:** Microsoft Copilot (GPT-4o) & Antigravity (Gemini 3.8 Flash)
+- **Prompt Utilizado en Copilot:**
+  > *"Durante la ejecución del proyecto intenté agregar una solicitud y en el campo de teléfono le agregué un número que sobrepasaba el límite... me dio Microsoft.Data.SqlClient.SqlException: 'String or binary data would be truncated in table solicitudes, column telefono_contacto'. ¿Qué causa el error y cómo se soluciona?"*
+- **Prompt Utilizado en Antigravity:**
+  > *"¿Crees que es un error de parte de acá del frontend o de el otro proyecto de backend? Después de responder eso, quiero que le hagas validaciones a todos los campos que se puedan llenar en el sistema, contra campos vacíos, que los campos de teléfono solo acepten números y hasta 12 dígitos máximo usando el código de chile como referencia '+56 1 1111 1111', en general todas las validaciones que se le puedan realizar a campos de un formulario."*
+- **Respuestas Recibidas y Análisis Cruzado:**
+  Tanto Copilot como Antigravity coincidieron en la causa raíz: la base de datos define `telefono_contacto` como `VARCHAR(20)` y `SolicitudApi.cs` no limitaba la longitud máxima, permitiendo que la entrada llegara a SQL Server y detonara un error HTTP 500 (`DbUpdateException`).
+- **Decisión del Estudiante:**
+  - **Aceptado:** La convergencia de ambos modelos respecto a que el error requería Defensa en Profundidad (validar en cliente y servidor). Se aplicó la validación de `Length > 20` en el backend para retornar `400 ValidationProblem`.
+  - **Corregido / Ampliado con Antigravity:** Se extendió el blindaje al frontend con filtrado numérico en tiempo real en `SolicitudForm.jsx`, límite estricto de 12 dígitos para formato chileno (`+56 9 1234 5678`), atributo físico `maxLength={16}`, y validaciones completas para el resto de entidades (límite de 50 caracteres en tamaño, 100 en material y 255 con contador visual en notas, más regex RFC 5322 en el login).
+
 ---
 
 ## 3. Resumen y Conclusiones del Uso de IA
 
-El uso asistido y crítico de herramientas de IA generativa (Microsoft Copilot, Claude Opus y Gemini 3.8 Flash) permitió acelerar de forma sistemática el desarrollo del proyecto, la resolución de fallos de configuración en .NET 10, la cobertura completa de pruebas automatizadas (unitarias e integración E2E) y el cumplimiento estricto de los estándares WCAG 2.2 AA y OWASP Top 10. Todo el código fue inspeccionado, compilado y verificado en tiempo real mediante suites automatizadas (`npm test`, `playwright test`, `dotnet run --project Tests`, `npm run build`), garantizando que el estudiante domina con profundidad la solución y puede defender de forma autónoma cada componente implementado.
+El uso asistido y crítico de herramientas de IA generativa (Microsoft Copilot, Claude Opus y Gemini 3.8 Flash) permitió acelerar de forma sistemática el desarrollo del proyecto, la resolución de fallos de configuración en .NET 10, la cobertura completa de pruebas automatizadas (unitarias e integración E2E), la resolución colaborativa de discrepancias de esquema SQL y el cumplimiento estricto de los estándares WCAG 2.2 AA y OWASP Top 10. Todo el código fue inspeccionado, compilado y verificado en tiempo real mediante suites automatizadas (`npm test`, `playwright test`, `dotnet run --project Tests`, `npm run build`), garantizando que el estudiante domina con profundidad la solución y puede defender de forma autónoma cada componente implementado.
 
