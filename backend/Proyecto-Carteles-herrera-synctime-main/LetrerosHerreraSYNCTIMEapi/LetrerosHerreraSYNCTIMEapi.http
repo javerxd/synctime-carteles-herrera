@@ -1,0 +1,75 @@
+@LetrerosHerreraSYNCTIMEapi_HostAddress = http://localhost:5194
+@token = REEMPLAZAR_CON_EL_TOKEN_DEL_LOGIN
+@email = admin@losherrera.com
+@password = REEMPLAZAR_CON_LA_PASSWORD_DE_DESARROLLO
+
+### Login de demostracion
+POST {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+	"email": "{{email}}",
+	"password": "{{password}}"
+}
+
+### OpenAPI
+GET {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
+### Catalogo publico
+GET {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/productos/
+Accept: application/json
+
+###
+### Endpoint protegido sin token: debe responder 401
+GET {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/clientes/
+Accept: application/json
+
+###
+### Perfil autenticado: sustituir @token tras ejecutar el login
+GET {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/auth/me
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+### Solicitud online, sin cuenta
+POST {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/solicitudes/online
+Content-Type: application/json
+
+{
+	"cliente": { "nombre": "Ana", "apellido": "Rojas", "telefono": "+56912345678" },
+	"descripcionGeneral": "Letrero para mi local",
+	"detalles": [
+		{ "idProducto": 1, "descripcion": "Cartel de fachada", "anchoMm": 2000, "altoMm": 1000, "cantidad": 1 }
+	]
+}
+
+###
+### Solicitudes del cliente que inicio sesion: sustituir @token por el de /auth/login-cliente
+GET {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/mis/solicitudes
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+### Productos inactivos incluidos: solo tiene efecto con un token del personal
+GET {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/productos/?incluirInactivos=true
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+### Editar una solicitud: rowVersion es el valor que entrega su GET. Si otra persona la modifico antes, responde 409
+PUT {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/solicitudes/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"descripcionGeneral": "Letrero para mi local",
+	"rowVersion": "REEMPLAZAR_CON_EL_VALOR_DEL_GET"
+}
+
+###
+### Metrica de conversion online: requiere rol dueño o administrador
+GET {{LetrerosHerreraSYNCTIMEapi_HostAddress}}/api/v1/metricas/conversion-online
+Authorization: Bearer {{token}}
+Accept: application/json

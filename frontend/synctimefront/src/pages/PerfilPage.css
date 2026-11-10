@@ -1,0 +1,33 @@
+.perfil-rostro,
+.perfil-rostro form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.perfil-rostro p,
+.perfil-rostro ul {
+  margin: 0;
+}
+
+.perfil-rostro ul {
+  padding-left: 1.25rem;
+}
+
+.perfil-rostro li + li {
+  margin-top: 0.5rem;
+}
+
+.perfil-rostro .form-group {
+  width: 100%;
+  max-width: 420px;
+}
+
+.perfil-rostro .form-group-amplio {
+  max-width: none;
+}
+
+.perfil-rostro .captura-facial {
+  width: 100%;
+}
