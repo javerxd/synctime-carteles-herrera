@@ -2,15 +2,15 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 12-11-2026.
+Última actualización: 14-11-2026.
 
 ## Hecho
 
-_(ninguna todavía)_
+- **Fase 0 — Preparación del repositorio y documentos** · rama `fase-00-preparacion` · informe: `informes/fase-00.md` · aprobada el 12-11-2026
 
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 0 — Preparación del repositorio y documentos** · rama `fase-00-preparacion` · informe: `informes/fase-00.md`
+- **Fase 1 — Cimientos del backend y base demo** · rama `fase-01-cimientos-backend` · informe: `informes/fase-01.md`
 
 ## En curso
 
@@ -20,7 +20,6 @@ _(ninguna)_
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 1 | Cimientos del backend y base demo | 0 | Confirmar la matriz de permisos; contraseñas de los usuarios demo |
 | 2 | Sistema de diseño | 0 | — |
 | 3 | Estructura de la aplicación web | 1, 2 | Probar su ingreso con rostro |
 | 4 | Servicios comunes: correo, consentimientos e imágenes | 1 | — |

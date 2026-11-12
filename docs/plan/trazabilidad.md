@@ -31,7 +31,7 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | RFS20 | permitir mantener categorías, productos, publicaciones del catálogo, materiales y empleados con su rol. | 9 | Pendiente |  |
 | RFS21 | permitir actualizar el horario de cada día y el estado del local, registrando quién y cuándo lo modificó. | 9 | Pendiente |  |
 | RFS22 | calcular pedidos por mes, ingresos por mes, solicitudes en línea, solicitudes en línea concretadas y… | 12 | Pendiente |  |
-| RFS23 | permitir cada función solo a los roles autorizados. | 1 y cada fase | Pendiente |  |
+| RFS23 | permitir cada función solo a los roles autorizados. | 1 y cada fase | En curso | Fase 1: `docs/api/permisos.md`, verificada por `ContratoTests`. Faltan los ajustes de las fases 7 a 10 |
 | RFS24 | registrar el rostro de un empleado activo a partir de varias capturas, guardando solo los descriptores… | 10 | Pendiente |  |
 | RFS25 | identificar al empleado comparando el descriptor con los registrados, aceptando solo una coincidencia bajo el… | desviación | Desviación | Ver `desviaciones.md` |
 | RFS26 | ante una coincidencia, emitir el mismo token que el ingreso con contraseña y mostrar si ingresó como dueño… | 10 | Pendiente |  |
@@ -39,8 +39,8 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | RFS28 | método de recuperación de contraseña. | 6 | Pendiente |  |
 | RFS29 | validar las transiciones de estado en solicitudes, cotizaciones y pedidos para impedir saltos o retrocesos… | 7,8 | Pendiente |  |
 | RFS30 | registrar automáticamente en una bitácora de auditoría quién creó, modificó o eliminó registros en las… | 11 | Pendiente |  |
-| RFS31 | validar todos los datos de entrada en tres niveles (formularios del front end, endpoints de la API en el… | 1,3 | Pendiente |  |
-| RFS32 | permitir buscar, filtrar, ordenar y paginar los listados principales del sistema (solicitudes, cotizaciones,… | 1,5,7,8,9 | Pendiente |  |
+| RFS31 | validar todos los datos de entrada en tres niveles (formularios del front end, endpoints de la API en el… | 1,3 | En curso | Fase 1: error estándar y validadores (`Negocio/Validacion.cs`). Falta aplicarlos por módulo y el nivel de formulario (fase 3) |
+| RFS32 | permitir buscar, filtrar, ordenar y paginar los listados principales del sistema (solicitudes, cotizaciones,… | 1,5,7,8,9 | En curso | Fase 1: `ParametrosListado`, `PaginarAsync` y `Ordenar`, probados. Falta adaptar cada listado |
 | RFS33 | calcular al menos seis indicadores clave (sumando a pedidos por mes, ingresos por mes, solicitudes en línea,… | 12 | Pendiente |  |
 | RFS34 | alimentar un dashboard interactivo desde el backend con al menos cuatro visualizaciones actualizadas con los… | 12 | Pendiente |  |
 | RFS35 | generar al menos tres reportes del negocio: uno operativo (detalle de pedidos, entregas y solicitudes), uno… | 13 | Pendiente |  |
@@ -107,11 +107,11 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | RNFP04 | (Disponibilidad) 99 % de disponibilidad mensual, 24 horas, aunque el local esté cerrado. | 16 (externo) | Pendiente |  |
 | RNFP05 | (Compatibilidad) funcionar en las dos últimas versiones de Chrome, Edge, Firefox y Safari, sin complementos. | 15 | Pendiente |  |
 | RNFP06 | (Seguridad) guardar contraseñas solo como hash con sal. | 6 | Pendiente |  |
-| RNFP07 | (Seguridad) aplicar limitación de tasa (rate limiting) por dirección IP y por usuario en los endpoints de la API (con un… | 1,6 | Pendiente |  |
+| RNFP07 | (Seguridad) aplicar limitación de tasa (rate limiting) por dirección IP y por usuario en los endpoints de la API (con un… | 1,6 | En curso | Fase 1: límite por IP y por cuenta (`LimitadorPorCuenta`), 429 con cuerpo. Falta la recuperación de clave (fase 6) |
 | RNFP08 | (Seguridad) tokens de sesión que caduquen a los 15 minutos (configurable). | 6 | Pendiente |  |
 | RNFP09 | (Confiabilidad) respaldar la base de datos una vez al día y conservar cada respaldo 30 días, fuera del servidor principal. | 16 | Pendiente |  |
 | RNFP10 | (Integridad) rechazar, con aviso, el cambio de un registro que otro usuario modificó después de abrirlo. | 7,8,9 | Pendiente |  |
-| RNFP11 | (Mantenibilidad) documentar todas las rutas de la API en OpenAPI, consultables con Scalar o Swagger en desarrollo. | 1 | Pendiente |  |
+| RNFP11 | (Mantenibilidad) documentar todas las rutas de la API en OpenAPI, consultables con Scalar o Swagger en desarrollo. | 1 | Cumplido | OpenAPI y Scalar en desarrollo; contrato en `docs/api/openapi.json` |
 | RNFP12 | (Seguridad) resolver el ingreso facial en 3 s o menos, con el mismo límite de 10 intentos por minuto que el ingreso con… | 10 | Pendiente |  |
 | RNFP13 | (Seguridad) completar el flujo de recuperación de contraseña mediante un enlace o código temporal de un solo uso con… | 6 | Pendiente |  |
 | RNFP14 | (Facilidad de uso y Responsive) aplicar un diseño mobile first con sistema de diseño propio y consistente, adaptable sin desplazamiento… | 2,3 | Pendiente |  |
@@ -119,16 +119,16 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | RNFP16 | (Seguridad) autenticar mediante JWT en la API con autorización basada en al menos tres roles diferenciados y mitigar al… | 1,17 | Pendiente |  |
 | RNFP17 | (Confiabilidad e IA) gestionar las claves de APIs externas (IA, OAuth, SMTP) exclusivamente mediante variables de entorno (en… | 4,14 | Pendiente |  |
 | RNFP18 | (Rendimiento) ejecutar la generación y exportación de reportes grandes a Excel, PDF y CSV de forma asíncrona sin bloquear… | 13 | Pendiente |  |
-| RNFP19 | (Mantenibilidad) mantener el contrato OpenAPI actualizado y accesible desde la API, habiéndolo definido antes de la… | 1 y cada fase | Pendiente |  |
+| RNFP19 | (Mantenibilidad) mantener el contrato OpenAPI actualizado y accesible desde la API, habiéndolo definido antes de la… | 1 y cada fase | En curso | Fase 1: contrato con las 58 operaciones y prueba `ContratoTests`. Faltan los códigos de respuesta por operación |
 | RNFP20 | (Confiabilidad) contar con una estrategia de respaldo y restauración de la base de datos documentada y probada de principio a… | 16 | Pendiente |  |
 | RNFP21 | (Ética y usabilidad) diseñar todas las pantallas y flujos libres de patrones engañosos (dark patterns), garantizando que las… | 5 y cada fase | Pendiente |  |
 | RNFP22 | (Rendimiento de recursos y fuentes) servir las imágenes del catálogo y la interfaz optimizadas en formatos modernos (WebP o AVIF), aplicar carga… | 2,4,5 | Pendiente |  |
 | RNFP23 | (Rendimiento de red en cliente) evitar llamadas duplicadas a la API al enviar formularios o cargar vistas, aplicar `debounce` (por ejemplo,… | 3,15 | Pendiente |  |
 | RNFP24 | (Rendimiento de renderizado en cliente) dividir el código de React por ruta o página (`code splitting` con carga diferida de vistas), evitar… | 3,15 | Pendiente |  |
-| RNFP25 | (Caché y compresión HTTP) activar la compresión estándar (Gzip/Brotli) en las respuestas de ASP.NET Core y configurar cabeceras de… | 1,16 | Pendiente |  |
-| RNFP26 | (Eficiencia en base de datos) utilizar el pool de conexiones por defecto de ADO.NET / Entity Framework Core hacia SQL Server, evitar las… | 1 y cada fase | Pendiente |  |
+| RNFP25 | (Caché y compresión HTTP) activar la compresión estándar (Gzip/Brotli) en las respuestas de ASP.NET Core y configurar cabeceras de… | 1,16 | En curso | Fase 1: compresión Brotli y Gzip, probada. Falta la caché de archivos estáticos (fase 16) |
+| RNFP26 | (Eficiencia en base de datos) utilizar el pool de conexiones por defecto de ADO.NET / Entity Framework Core hacia SQL Server, evitar las… | 1 y cada fase | En curso | Fase 1: proyecciones y paginación disponibles. Se aplican por módulo |
 | RNFP27 | (Verificación en condiciones reales) comprobar el rendimiento y la usabilidad del sistema en dispositivos móviles y bajo simulación de redes… | 15 | Pendiente |  |
-| RNFP28 | (Seguridad en consultas y aislamiento de datos) utilizar exclusivamente consultas parametrizadas o LINQ en Entity Framework Core sin concatenar jamás… | 1 | Pendiente |  |
+| RNFP28 | (Seguridad en consultas y aislamiento de datos) utilizar exclusivamente consultas parametrizadas o LINQ en Entity Framework Core sin concatenar jamás… | 1 | En curso | Fase 1: orden solo por campos permitidos, probado contra inyección. `/mis` filtra por el token |
 | RNFP29 | (Seguridad de orígenes) configurar una política de CORS cerrada en la API que permita peticiones únicamente desde los orígenes… | 6,16 | Pendiente |  |
 
 ## Requisitos no funcionales organizacionales (17)
@@ -139,15 +139,15 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | RNFO02 | aplicar el flujo solicitud -> cotización -> aceptación y pago -> pedido; ningún pedido sin cotización… | 8 | Pendiente |  |
 | RNFO03 | publicar el horario que fije el dueño y permitir que solo el personal cambie el estado del local. | 9 | Pendiente |  |
 | RNFO04 | conservar solicitudes rechazadas y eliminadas al menos 12 meses, para estadísticas. | 7,11 | Pendiente |  |
-| RNFO05 | montos en pesos chilenos sin decimales y fechas en formato dd-mm-aaaa. | 1,3 | Pendiente |  |
-| RNFO06 | validar el RUT con su dígito verificador. | 1,3 | Pendiente |  |
+| RNFO05 | montos en pesos chilenos sin decimales y fechas en formato dd-mm-aaaa. | 1,3 | En curso | Fase 1: `Reglas.EsMontoEnPesos`. Falta aplicarlo y el formato en la interfaz (fase 3) |
+| RNFO06 | validar el RUT con su dígito verificador. | 1,3 | En curso | Fase 1: `Rut` con dígito verificador, 20 casos de prueba. Falta aplicarlo en cuentas, clientes y empleados |
 | RNFO07 | todas las pantallas y mensajes en español. | todas | Pendiente |  |
 | RNFO08 | permitir solo los roles administrador, dueño, diseñador y operario para el personal. | 9 | Pendiente |  |
 | RNFO09 | desarrollar con Kanban y mantener el código en un repositorio con control de versiones. | 0 | En curso | Repositorio único y tablero Kanban creados en la fase 0 (`tablero.md`) |
-| RNFO10 | estructurar el backend en cuatro capas claramente separadas (presentación, API, servicios de negocio y acceso… | 1, cada fase y 17 | Pendiente |  |
+| RNFO10 | estructurar el backend en cuatro capas claramente separadas (presentación, API, servicios de negocio y acceso… | 1, cada fase y 17 | En curso | Fase 1: capas, repositorio base y pruebas de arquitectura (`docs/arquitectura.md`). Quedan 8 módulos por migrar |
 | RNFO11 | normalizar el modelo de datos relacional con al menos seis entidades relacionadas, gestionando el esquema… | cada migración y 12 | Pendiente |  |
-| RNFO12 | poblar la base de datos para pruebas y demostración con datos sintéticos verosímiles (nunca datos personales… | 1 (reducido) | Pendiente |  |
-| RNFO13 | implementar pruebas unitarias automatizadas para la capa de negocio, pruebas de integración automatizadas… | 1,14,15 | Pendiente |  |
+| RNFO12 | poblar la base de datos para pruebas y demostración con datos sintéticos verosímiles (nunca datos personales… | 1 (reducido) | En curso | Fase 1: base `LetreriaLosHerreraDB_Demo` y comando `sembrar-demo`. Reducido por decisión del usuario |
+| RNFO13 | implementar pruebas unitarias automatizadas para la capa de negocio, pruebas de integración automatizadas… | 1,14,15 | En curso | Fase 1: 96 pruebas unitarias y 166 de integración. Faltan IA simulada, axe y prueba manual |
 | RNFO14 | contenerizar el sistema mediante `Dockerfile` multi-stage con imagen base ligera de versión fija y un archivo… | 16 | Pendiente |  |
 | RNFO15 | automatizar un pipeline CI/CD que construya las imágenes, ejecute las suites de pruebas y publique únicamente… | 0,16 | Pendiente |  |
 | RNFO16 | revisar las dependencias del proyecto para eliminar paquetes o librerías sin usar tanto en el front end como… | 3,16 | Pendiente |  |
@@ -220,6 +220,6 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | S18 | Reporte operativo, gerencial y parametrizable: documento descargable en Excel (`.xlsx` con encabezados,… | 13 | Pendiente |  |
 | S19 | Dashboard e indicadores (KPIs): al menos cuatro gráficos interactivos actualizados con su título, descripción… | 12 | Pendiente |  |
 | S20 | Bitácora de auditoría y consentimientos: historial de creación y modificación en entidades principales… | 11 | Pendiente |  |
-| S21 | Respuesta de error estándar: estructura uniforme de error de la API con código de estado HTTP, mensaje… | 1 | Pendiente |  |
+| S21 | Respuesta de error estándar: estructura uniforme de error de la API con código de estado HTTP, mensaje… | 1 | Cumplido | Fase 1: `Api/ErrorApi.cs`; pruebas `CimientosTests` (401, 403, 404, 400, 409, 429 y 500) |
 | S22 | Documentos legales y banner de cookies: vista de Términos y Condiciones, Política de Privacidad, inventario… | 5,16 | Pendiente |  |
 | S23 | Archivo de portabilidad y comprobante de borrado: archivo descargable (JSON o CSV) con todos los datos… | 11 | Pendiente |  |

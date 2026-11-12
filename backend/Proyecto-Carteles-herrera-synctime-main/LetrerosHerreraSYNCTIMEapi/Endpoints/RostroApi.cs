@@ -1,3 +1,4 @@
+using LetrerosHerreraSYNCTIMEapi.Api;
 using System.Diagnostics;
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
@@ -46,7 +47,11 @@ public static class RostroApi
 
         // El formato se revisa antes de consultar nada: este 400 no depende del email.
         if (string.IsNullOrWhiteSpace(req.Email) || !RostroFacialService.EsDescriptorValido(req.Descriptor))
-            return Results.BadRequest(new { error = "Faltan el email o un descriptor valido." });
+            return ErrorApi.Invalido("Faltan el email o un descriptor valido.");
+
+        // Aqui no se usa el limite por cuenta de los ingresos con contraseña: contaria tambien los intentos
+        // sin equipo autorizado, y un anonimo podria bloquear el rostro de otra persona. Este ingreso se
+        // protege con el limite por IP de la ruta y con el bloqueo propio del rostro, mas abajo.
 
         var inicio = Stopwatch.GetTimestamp();
         var ahora = DateTimeOffset.UtcNow;
@@ -101,13 +106,13 @@ public static class RostroApi
         if (!rostros.Configurado)
             return NoDisponible();
         if (req.Consentimiento != true)
-            return Results.BadRequest(new { error = "Debe aceptar el consentimiento para activar el acceso con rostro." });
+            return ErrorApi.Invalido("Debe aceptar el consentimiento para activar el acceso con rostro.");
         if (req.VersionConsentimiento != ConsentimientoFacial.Version)
-            return Results.BadRequest(new { error = "El texto del consentimiento cambio. Vuelva a leerlo." });
+            return ErrorApi.Invalido("El texto del consentimiento cambio. Vuelva a leerlo.");
 
         var promedio = rostros.Promediar(req.Descriptores);
         if (promedio is null)
-            return Results.BadRequest(new { error = "Las capturas no son validas o no parecen de la misma persona. Intente de nuevo." });
+            return ErrorApi.Invalido("Las capturas no son validas o no parecen de la misma persona. Intente de nuevo.");
 
         var empleado = await Reautenticacion.ConfirmarAsync(user, req.Password, db, auth);
         if (empleado is null)
@@ -157,11 +162,11 @@ public static class RostroApi
         if (empleado is null)
             return Reautenticacion.Rechazo();
         if (!RostroFacialService.RequiereEquipo(empleado.Rol))
-            return Results.BadRequest(new { error = "Su rol no necesita autorizar un equipo." });
+            return ErrorApi.Invalido("Su rol no necesita autorizar un equipo.");
 
         var rostro = await db.RostrosEmpleado.FirstOrDefaultAsync(r => r.IdEmpleado == empleado.IdEmpleado && r.FechaRevocacion == null);
         if (rostro is null)
-            return Results.BadRequest(new { error = "Primero active el acceso con rostro." });
+            return ErrorApi.Invalido("Primero active el acceso con rostro.");
 
         var token = RostroFacialService.CrearTokenEquipo();
         rostro.TokenEquipoHash = RostroFacialService.HashToken(token);
@@ -227,7 +232,7 @@ public static class RostroApi
 
     // No depende del email, asi que no revela nada de ninguna cuenta.
     private static IResult NoDisponible() =>
-        Results.Json(new { error = "El acceso con rostro no esta disponible. Use su contraseña." }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        ErrorApi.NoDisponible("El acceso con rostro no esta disponible. Use su contraseña.");
 }
 
 public record LoginFacialRequest(string? Email, float[]? Descriptor, string? TokenEquipo);

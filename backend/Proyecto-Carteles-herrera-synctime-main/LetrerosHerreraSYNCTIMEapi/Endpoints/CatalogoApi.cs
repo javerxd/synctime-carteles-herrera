@@ -1,3 +1,4 @@
+using LetrerosHerreraSYNCTIMEapi.Api;
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -27,7 +28,7 @@ public static class CatalogoApi
         clientes.MapPost("/", async (CrearClienteRequest req, LetrerosHerreradbContext db) =>
         {
             if (await db.Clientes.AnyAsync(c => c.Telefono == req.Telefono))
-                return Results.Conflict(new { error = "Ya existe un cliente con ese teléfono." });
+                return ErrorApi.Conflicto("Ya existe un cliente con ese teléfono.");
 
             var cliente = new Cliente
             {
@@ -71,7 +72,7 @@ public static class CatalogoApi
                 return Reautenticacion.Rechazo();
 
             if (!AuthService.EsPasswordValida(req.Password))
-                return Results.BadRequest(new { error = AuthService.MensajePasswordInvalida });
+                return ErrorApi.Invalido(AuthService.MensajePasswordInvalida);
 
             var cliente = await db.Clientes.FindAsync(id);
             if (cliente is null) return Results.NotFound();

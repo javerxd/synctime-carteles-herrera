@@ -1,3 +1,4 @@
+using LetrerosHerreraSYNCTIMEapi.Api;
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Repositories;
@@ -29,10 +30,10 @@ public static class SolicitudApi
         {
             var error = await SolicitudValidacion.ValidarAsync(req.DescripcionGeneral, req.Detalles, repo, ct);
             if (error is not null)
-                return Results.BadRequest(new { error });
+                return ErrorApi.Invalido(error);
 
             if (!await repo.ClienteExistsAsync(req.IdCliente, ct))
-                return Results.BadRequest(new { error = "Cliente no existe." });
+                return ErrorApi.Invalido("Cliente no existe.");
 
             var solicitud = new Solicitud
             {
@@ -58,7 +59,7 @@ public static class SolicitudApi
             if (conflicto is not null) return conflicto;
 
             if (string.IsNullOrWhiteSpace(req.DescripcionGeneral) && solicitud.Detalles.Count == 0)
-                return Results.BadRequest(new { error = "Indique una descripcion general: la solicitud no tiene detalles." });
+                return ErrorApi.Invalido("Indique una descripcion general: la solicitud no tiene detalles.");
 
             solicitud.DescripcionGeneral = req.DescripcionGeneral;
 
@@ -107,7 +108,7 @@ public static class SolicitudApi
     }
 
     private static IResult EstadoInvalido() =>
-        Results.BadRequest(new { error = $"Estado inválido. Valores: {string.Join(", ", EstadosValidos)}" });
+        ErrorApi.Invalido($"Estado inválido. Valores: {string.Join(", ", EstadosValidos)}");
 
     private static async Task<IResult> EliminarLogicoAsync(int id, ISolicitudRepository repo, CancellationToken ct, Func<Solicitud, IResult> respuesta)
     {
@@ -115,7 +116,7 @@ public static class SolicitudApi
         if (solicitud is null) return Results.NotFound();
 
         if (await repo.TienePedidoAsync(id, ct))
-            return Results.Conflict(new { error = "La solicitud ya tiene un pedido y no se puede eliminar." });
+            return ErrorApi.Conflicto("La solicitud ya tiene un pedido y no se puede eliminar.");
 
         solicitud.EliminadoLogico = true;
         solicitud.FechaEliminacionLogica = DateTime.Now;

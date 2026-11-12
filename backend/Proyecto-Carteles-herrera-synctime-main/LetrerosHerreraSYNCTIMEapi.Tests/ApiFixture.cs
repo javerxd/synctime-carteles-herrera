@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
+using LetrerosHerreraSYNCTIMEapi.Datos;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -21,14 +22,16 @@ public sealed class ApiCollection : ICollectionFixture<ApiFixture>
 }
 
 // Levanta la API contra una base propia creada por las migraciones, nunca contra la de desarrollo.
-// Usa LocalDB por defecto; la variable TEST_SQL_SERVER permite apuntar a otro servidor.
+// Usa la instancia local de SQL Server Express; la variable TEST_SQL_SERVER permite apuntar a otro servidor.
 public sealed class ApiFixture : IAsyncLifetime
 {
     public const string AdminEmail = "admin.pruebas@test.local";
     public static readonly string AdminPassword = $"Pr-{Guid.NewGuid():N}"[..24];
     public const int TiempoMinimoFalloMs = 60;
+    public const string ServidorPredeterminado = @"localhost\SQLEXPRESS";
 
-    private readonly string nombreBase = $"LetreriaLosHerreraDB_Test_{Guid.NewGuid():N}";
+    // El prefijo identifica las bases temporales: es lo unico que este codigo tiene permitido eliminar.
+    private readonly string nombreBase = $"{BasesDeDatos.PrefijoPruebas}{Guid.NewGuid():N}";
     private WebApplicationFactory<Program> factory = null!;
     private string? tokenAdmin;
     private int secuencia;
@@ -37,10 +40,12 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var servidor = Environment.GetEnvironmentVariable("TEST_SQL_SERVER") ?? @"(localdb)\MSSQLLocalDB";
+        var servidor = Environment.GetEnvironmentVariable("TEST_SQL_SERVER") ?? ServidorPredeterminado;
         var configuracion = new Dictionary<string, string>
         {
-            ["ConnectionStrings__DefaultConnection"] = $"Server={servidor};Database={nombreBase};Trusted_Connection=True;TrustServerCertificate=True;",
+            // Esperas amplias: en un equipo con poca memoria libre, SQL Server Express tarda en aceptar conexiones
+            // y en crear la base, y un fallo por tiempo de espera no dice nada sobre el codigo que se prueba.
+            ["ConnectionStrings__DefaultConnection"] = $"Server={servidor};Database={nombreBase};Trusted_Connection=True;TrustServerCertificate=True;Connect Timeout=60;Command Timeout=180;",
             ["Jwt__Key"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48)),
             ["Jwt__Issuer"] = "pruebas",
             ["Jwt__Audience"] = "pruebas",
@@ -55,6 +60,8 @@ public sealed class ApiFixture : IAsyncLifetime
             ["RateLimiting__LoginFacial"] = "100000",
             ["RateLimiting__Reautenticacion"] = "100000",
             ["RateLimiting__Publico"] = "100000",
+            ["RateLimiting__PorCuenta"] = "100000",
+            ["RateLimiting__Salud"] = "100000",
             ["RostroFacial__ClaveCifrado"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
             ["RostroFacial__TiempoMinimoFalloMs"] = TiempoMinimoFalloMs.ToString()
         };
@@ -74,8 +81,19 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await ConsultarAsync(db => db.Database.EnsureDeletedAsync());
-        await factory.DisposeAsync();
+        try
+        {
+            // Guarda final: se pregunta a la conexion real, no al nombre que este codigo cree estar usando.
+            var conectada = await ConsultarAsync(db => Task.FromResult(db.Database.GetDbConnection().Database));
+            if (!BasesDeDatos.EsDePruebas(conectada))
+                throw new InvalidOperationException($"Se evito eliminar la base '{conectada}': no es una base temporal de pruebas.");
+
+            await ConsultarAsync(db => db.Database.EnsureDeletedAsync());
+        }
+        finally
+        {
+            await factory.DisposeAsync();
+        }
     }
 
     public HttpClient Cliente(string? token = null)
@@ -256,5 +274,13 @@ public static class RespuestaExtensions
         var cuerpo = await respuesta.Content.ReadAsStringAsync();
         Assert.True(respuesta.StatusCode == esperado, $"Se esperaba {(int)esperado} y llego {(int)respuesta.StatusCode}: {cuerpo}");
         return cuerpo.Length == 0 ? default : JsonDocument.Parse(cuerpo).RootElement.Clone();
+    }
+
+    // Texto de un error sin su traceId, para comparar dos respuestas que deben ser indistinguibles.
+    public static string SinTraza(this JsonElement error)
+    {
+        var objeto = System.Text.Json.Nodes.JsonNode.Parse(error.GetRawText())!.AsObject();
+        objeto.Remove("traceId");
+        return objeto.ToJsonString();
     }
 }

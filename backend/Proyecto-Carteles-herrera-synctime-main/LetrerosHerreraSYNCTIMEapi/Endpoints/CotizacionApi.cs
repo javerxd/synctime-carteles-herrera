@@ -1,3 +1,4 @@
+using LetrerosHerreraSYNCTIMEapi.Api;
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -35,11 +36,11 @@ public static class CotizacionApi
         group.MapPost("/", async (CrearCotizacionRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db) =>
         {
             if (!await db.Solicitudes.AnyAsync(s => s.IdSolicitud == req.IdSolicitud && !s.EliminadoLogico))
-                return Results.BadRequest(new { error = "Solicitud no existe." });
+                return ErrorApi.Invalido("Solicitud no existe.");
 
             var error = await ValidarCostosAsync(req.CostoManoObra, req.OtrosCostos, req.Materiales, db);
             if (error is not null)
-                return Results.BadRequest(new { error });
+                return ErrorApi.Invalido(error);
 
             var cotizacion = new Cotizacion
             {
@@ -62,11 +63,11 @@ public static class CotizacionApi
         group.MapPut("/{id}", async (int id, ActualizarCotizacionRequest req, LetrerosHerreradbContext db) =>
         {
             if (!EstadosValidos.Contains(req.Estado))
-                return Results.BadRequest(new { error = $"Estado inválido. Valores: {string.Join(", ", EstadosValidos)}" });
+                return ErrorApi.Invalido($"Estado inválido. Valores: {string.Join(", ", EstadosValidos)}");
 
             var error = await ValidarCostosAsync(req.CostoManoObra, req.OtrosCostos, req.Materiales, db);
             if (error is not null)
-                return Results.BadRequest(new { error });
+                return ErrorApi.Invalido(error);
 
             var cot = await db.Cotizaciones.Include(c => c.Materiales).FirstOrDefaultAsync(c => c.IdCotizacion == id);
             if (cot is null) return Results.NotFound();

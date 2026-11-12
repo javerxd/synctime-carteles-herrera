@@ -206,6 +206,7 @@ public sealed class RostroFacialTests(ApiFixture api)
             (dueno.Email, Rostro(16))
         };
 
+        var cuerpos = new HashSet<string>();
         foreach (var (email, descriptor) in casos)
         {
             var reloj = Stopwatch.StartNew();
@@ -213,11 +214,19 @@ public sealed class RostroFacialTests(ApiFixture api)
             reloj.Stop();
 
             Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
-            Assert.Empty(await respuesta.Content.ReadAsByteArrayAsync());
             Assert.Empty(respuesta.Headers.WwwAuthenticate);
             // Se deja margen por la resolucion del temporizador.
             Assert.True(reloj.ElapsedMilliseconds >= ApiFixture.TiempoMinimoFalloMs - 15, $"{email} respondio en {reloj.ElapsedMilliseconds} ms");
+
+            // El cuerpo es el error estandar. Se compara sin traceId, que cambia en cada peticion y no depende del motivo.
+            var cuerpo = System.Text.Json.Nodes.JsonNode.Parse(await respuesta.Content.ReadAsStringAsync())!.AsObject();
+            Assert.Equal("no_autenticado", cuerpo["codigo"]!.GetValue<string>());
+            cuerpo.Remove("traceId");
+            cuerpos.Add(cuerpo.ToJsonString());
         }
+
+        // Un solo cuerpo para todos los motivos: la respuesta no revela por que no entro.
+        Assert.Single(cuerpos);
     }
 
     [Fact]
@@ -231,7 +240,8 @@ public sealed class RostroFacialTests(ApiFixture api)
         {
             var conCuenta = await LoginFacial(empleado.Email, descriptor).EsperarAsync(HttpStatusCode.BadRequest);
             var sinCuenta = await LoginFacial(inexistente, descriptor).EsperarAsync(HttpStatusCode.BadRequest);
-            Assert.Equal(sinCuenta.GetRawText(), conCuenta.GetRawText());
+            // Se compara sin traceId: cambia en cada peticion y no depende de que la cuenta exista.
+            Assert.Equal(sinCuenta.SinTraza(), conCuenta.SinTraza());
         }
 
         await api.Cliente().PostAsJsonAsync("/api/v1/auth/login-facial", new { descriptor = Rostro(18) }).EsperarAsync(HttpStatusCode.BadRequest);

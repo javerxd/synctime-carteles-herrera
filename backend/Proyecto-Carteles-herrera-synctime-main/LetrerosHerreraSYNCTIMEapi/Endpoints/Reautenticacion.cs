@@ -1,3 +1,4 @@
+using LetrerosHerreraSYNCTIMEapi.Api;
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -24,5 +25,5 @@ internal static class Reautenticacion
         return empleado is not null && auth.VerifyPassword(password, empleado.PasswordHash) ? empleado : null;
     }
 
-    public static IResult Rechazo() => Results.BadRequest(new { error = Incorrecta });
+    public static IResult Rechazo() => ErrorApi.Invalido(Incorrecta);
 }

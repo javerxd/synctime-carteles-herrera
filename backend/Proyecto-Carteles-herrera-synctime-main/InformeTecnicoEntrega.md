@@ -199,7 +199,7 @@ El Repository se aplica al flujo de solicitudes. Los otros endpoints usan direct
 
 ## 7. Endpoints implementados
 
-Todas las rutas de negocio usan el prefijo `/api/v1`. "Personal" significa cualquiera de los roles `dueño`, `administrador`, `diseñador` y `operario`. El detalle de cada ruta esta en `ContratoFrontend.md`.
+Todas las rutas de negocio usan el prefijo `/api/v1`. "Personal" significa cualquiera de los roles `dueño`, `administrador`, `diseñador` y `operario`. El detalle de cada ruta esta en `docs/api/contrato.md`.
 
 | Area | Ruta principal | Operaciones | Proteccion |
 | --- | --- | --- | --- |
@@ -267,7 +267,7 @@ Es una comodidad opcional junto a la contraseña, no una proteccion fuerte. El n
 - Los descriptores se guardan cifrados con AES-256-GCM, con la clave fuera del codigo, y se comparan en el servidor. No se guardan fotos. Al desactivar se borran y queda solo la constancia del consentimiento.
 - Todo fallo responde el mismo `401`, con un tiempo minimo. Tiene limite por IP con contador propio, y 5 fallos bloquean el rostro de la cuenta 15 minutos sin afectar a la contraseña.
 
-El detalle y lo que falta confirmar con un asesor legal sobre la Ley 21.719 estan en la seccion 7 de `ContratoFrontend.md`.
+El detalle y lo que falta confirmar con un asesor legal sobre la Ley 21.719 estan en la seccion 7 de `docs/api/contrato.md`.
 
 ---
 
@@ -283,7 +283,7 @@ El proyecto documenta y aplica siete categorias del [OWASP API Security Top 10](
 | **API4 - Unrestricted Resource Consumption** | Un atacante podria abusar del login o saturar la API con muchas solicitudes. | Rate limiting por IP: 10 intentos de login, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos y 100 solicitudes generales por minuto; el exceso responde `429`. Una solicitud admite hasta 50 detalles, y las rutas de rostro limitan el tamaño del cuerpo. | Configuracion `AddRateLimiter` en `Program.cs`, `SolicitudValidacion` y `RostroApi.cs`. |
 | **API5 - Broken Function Level Authorization** | Un usuario autenticado podria ejecutar funciones reservadas a otro perfil. | Politicas y `RequireAuthorization` protegen creacion de empleados, escrituras y eliminaciones segun el rol. El estado de una solicitud solo cambia por la ruta reservada a gestion. | `Security/Roles.cs`, `Endpoints/AuthApi.cs`, `CatalogoApi.cs`, `SolicitudApi.cs`, `CotizacionApi.cs` y `PedidoApi.cs`. |
 | **API8 - Security Misconfiguration** | Claves, CORS abierto o errores detallados podrian exponer el sistema. | Secretos fuera de `appsettings`, CORS limitado a origenes configurados, `ProblemDetails`, manejo centralizado de excepciones y HTTPS. | `Program.cs`, `Middleware/ApiExceptionHandler.cs`, `.gitignore` y User Secrets. |
-| **API9 - Improper Inventory Management** | Rutas sin versionar o sin documentar pueden quedar olvidadas y ser dificiles de controlar. | Todas las rutas usan `/api/v1`, OpenAPI se expone en Development, y `ContratoFrontend.md` y el archivo `.http` documentan las rutas. | `Endpoints/*.cs`, `OpenApi/BearerSecuritySchemeTransformer.cs`, `ContratoFrontend.md` y `.http`. |
+| **API9 - Improper Inventory Management** | Rutas sin versionar o sin documentar pueden quedar olvidadas y ser dificiles de controlar. | Todas las rutas usan `/api/v1`, OpenAPI se expone en Development, y `docs/api/contrato.md` y el archivo `.http` documentan las rutas. | `Endpoints/*.cs`, `OpenApi/BearerSecuritySchemeTransformer.cs`, `docs/api/contrato.md` y `.http`. |
 
 La clasificacion y los nombres de los riesgos se basan en la [lista oficial OWASP API Security Top 10 2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/). La configuracion de JWT sigue la documentacion de [Microsoft Authentication and Authorization](https://learn.microsoft.com/aspnet/core/security/authentication/). Las medidas no significan que la API sea invulnerable: son controles concretos implementados para reducir los riesgos identificados. Lo que falta antes de publicarla esta en la seccion "Antes de produccion" del `README.md`.
 
@@ -333,7 +333,7 @@ En Development se dispone de:
 - OpenAPI: `/openapi/v1.json`.
 - Scalar: `/scalar`.
 - Archivo de requests: `LetrerosHerreraSYNCTIMEapi.http`.
-- Contrato para el frontend: `ContratoFrontend.md`.
+- Contrato para el frontend: `docs/api/contrato.md`.
 
 Para ejecutar la API se requieren los User Secrets locales con:
 
@@ -352,7 +352,7 @@ No se incluyen los valores en este informe ni en el repositorio.
 
 El alcance implementado cubre el flujo principal de clientes, catalogo, solicitudes, cotizaciones y pedidos, ademas del portal del cliente. Quedan fuera de esta version:
 
-- Adaptar el frontend: salvo el login facial, todavia usa el contrato anterior. Los cambios que necesita estan en `ContratoFrontend.md`.
+- Adaptar el frontend: salvo el login facial, todavia usa el contrato anterior. Los cambios que necesita estan en `docs/api/contrato.md`.
 - Cargar el catalogo real: categorias, productos y materiales iniciales son datos de ejemplo del script de referencia.
 - Login facial: no hay prueba de vida, y no se ha medido su precision con rostros y camaras reales, por lo que su umbral es provisional. El consentimiento es un borrador pendiente de revision legal. Hoy los empleados solo se desactivan por SQL, asi que sus datos biometricos se borran en el siguiente intento de login facial de cualquier persona.
 - Verificar los telefonos por SMS.

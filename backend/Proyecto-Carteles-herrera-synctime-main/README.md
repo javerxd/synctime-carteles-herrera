@@ -5,15 +5,22 @@ API REST para gestionar el flujo comercial de una empresa de letreros.
 ## Documentos principales
 
 - `InformeTecnicoEntrega.md`: informe formal del proyecto.
-- `ContratoFrontend.md`: rutas, reglas y cambios pendientes para adaptar el frontend.
 - `OWASP.md`: mitigaciones de seguridad documentadas.
+
+En la carpeta `docs/` de la raiz del repositorio:
+
+- `docs/api/openapi.json`: contrato de la API. Se edita antes de implementar una ruta; una prueba falla si no coincide con la API.
+- `docs/api/contrato.md`: reglas de negocio y notas para el frontend.
+- `docs/api/permisos.md`: que puede hacer cada rol, verificado por una prueba.
+- `docs/arquitectura.md`: capas, patrones y como agregar un modulo.
 
 ## Proyecto
 
 La solucion esta en `LetrerosHerreraSYNCTIMEapi.slnx` e incluye:
 
 - API: `LetrerosHerreraSYNCTIMEapi/`
-- pruebas: `LetrerosHerreraSYNCTIMEapi.Tests/`
+- pruebas de integracion: `LetrerosHerreraSYNCTIMEapi.Tests/` (levantan la API contra una base temporal)
+- pruebas unitarias: `LetrerosHerreraSYNCTIMEapi.UnitTests/` (reglas de negocio y arquitectura, sin base de datos)
 
 ## Base de datos
 
@@ -33,7 +40,31 @@ Reglas para no volver a desincronizar la base:
 - Si alguna vez se ejecuta un `.sql` con acentos usando `sqlcmd`, hay que agregar `-f 65001`. Sin esa opcion las letras como la `ñ` se guardan corruptas.
 - `dotnet ef migrations remove --force` tambien revierte la migracion en la base configurada: sus tablas y datos se pierden.
 - La collation `Modern_Spanish_CI_AS` se aplica cuando EF crea la base. En una base creada a mano hay que definirla al crearla.
-- En Development, la API aplica sola las migraciones pendientes al arrancar. Para probar sin tocar la base configurada, hay que apuntar `ConnectionStrings__DefaultConnection` a una base temporal.
+- La API aplica sola las migraciones pendientes solo en la base de demostracion (nombre terminado en `_Demo`) y en las bases temporales de las pruebas. En cualquier otra, incluida la real, solo avisa: hay que respaldarla y ejecutar `dotnet ef database update` a mano.
+
+## Bases de datos y perfiles de arranque
+
+Todo corre en la instancia local `localhost\SQLEXPRESS`, con autenticacion de Windows.
+
+| Base | Para que | Como se usa |
+| --- | --- | --- |
+| `LetreriaLosHerreraDB_Demo` | Desarrollo y demostracion, con datos sinteticos | `dotnet run` (perfiles `http` y `https`) |
+| `LetreriaLosHerreraDB` | La base real | `dotnet run --launch-profile base-real` |
+| `SyncTime_Pruebas_…` | Temporales de las pruebas automaticas | Las crean y eliminan las propias pruebas |
+
+Al arrancar, la API escribe en el registro que base esta usando. Los perfiles fijan la base con la variable `ConnectionStrings__DefaultConnection`, que tiene prioridad sobre User Secrets: si se ejecuta la API sin perfil, vale lo que digan los secretos.
+
+Para cargar los datos de demostracion hay que definir primero la contraseña que tendran sus usuarios. `Out-Null` evita que se muestre en pantalla:
+
+```powershell
+dotnet user-secrets set "Demo:Password" "UNA_PASSWORD_PROPIA" --project .\LetrerosHerreraSYNCTIMEapi | Out-Null
+```
+
+```powershell
+dotnet run --project .\LetrerosHerreraSYNCTIMEapi -- sembrar-demo
+```
+
+Crea un usuario por rol (`dueno`, `admin`, `disenador` y `operario`, todos `@letreria.test`), un cliente con cuenta (`cliente@letreria.test`), publicaciones y solicitudes. El comando se niega a escribir en una base cuyo nombre no termine en `_Demo`, y repetirlo no duplica nada.
 
 ## Primer administrador
 
@@ -51,7 +82,7 @@ dotnet user-secrets remove "Bootstrap:Admin:Password" --project .\LetrerosHerrer
 
 ## Login facial
 
-Opcional, solo para empleados. El diseño, sus riesgos y lo que falta confirmar con un asesor legal estan en la seccion 7 de `ContratoFrontend.md`. **Una foto puede suplantar a una persona:** no es una proteccion fuerte, sino una comodidad junto a la contraseña.
+Opcional, solo para empleados. El diseño, sus riesgos y lo que falta confirmar con un asesor legal estan en la seccion 7 de `docs/api/contrato.md`. **Una foto puede suplantar a una persona:** no es una proteccion fuerte, sino una comodidad junto a la contraseña.
 
 Para habilitarlo hay que aplicar la migracion y configurar una clave de 32 bytes en base64. Este comando la genera sin mostrarla: `Out-Null` es necesario porque `user-secrets set` imprime el valor que guarda.
 
@@ -77,7 +108,9 @@ WHERE id_empleado = @id AND fecha_revocacion IS NULL;
 dotnet test .\LetrerosHerreraSYNCTIMEapi.slnx -c Release
 ```
 
-Las pruebas crean una base temporal con las migraciones y la eliminan al terminar: nunca usan la base de desarrollo. Usan LocalDB (`(localdb)\MSSQLLocalDB`); con la variable de entorno `TEST_SQL_SERVER` se puede indicar otro servidor.
+Las pruebas de integracion crean una base temporal con las migraciones y la eliminan al terminar: nunca usan la base real ni la de demostracion. Usan `localhost\SQLEXPRESS`; con la variable de entorno `TEST_SQL_SERVER` se puede indicar otro servidor. El codigo de pruebas solo elimina bases cuyo nombre empiece por `SyncTime_Pruebas_`.
+
+Limites de intentos, todos por minuto y configurables en `RateLimiting`: `Login`, `LoginFacial`, `Reautenticacion` y `Publico` (10 por IP), `PorCuenta` (10 fallos por cuenta en los ingresos con contraseña), `ApiGeneral` (100 por usuario, o por IP sin sesion) y `Salud` (60 por IP).
 
 Los secretos se configuran mediante User Secrets o variables de entorno. No se deben publicar claves JWT, passwords ni cadenas de conexion en GitHub.
 
@@ -87,14 +120,16 @@ Una revision de seguridad dejo estos puntos, que no afectan al desarrollo pero d
 
 - **Proxy:** los limites por IP usan `RemoteIpAddress`. Detras de un proxy todos los usuarios comparten su IP, y un atacante podria bloquear el login de todos. Hay que configurar `ForwardedHeaders` con la lista de proxies de confianza.
 - **Telefonos sin verificar:** alguien puede registrar un numero ajeno, y su titular ya no podria hacerlo. Hay que verificar el telefono por SMS antes de crear la cuenta.
-- **Enumeracion de usuarios:** el registro revela que telefonos existen, y el login tarda menos si el usuario no existe porque no ejecuta BCrypt. Tampoco hay bloqueo por cuenta, solo limite por IP.
+- **Enumeracion de usuarios:** el registro revela que telefonos, RUT y correos ya existen, y el login tarda menos si el usuario no existe porque no ejecuta BCrypt. Se corrige en la fase 6 del plan.
+- **Bloqueo de una cuenta ajena:** el limite por cuenta permite que quien conoce el correo de otra persona agote sus intentos y le impida entrar con contraseña mientras insista. Es propio de todo limite por cuenta; el acceso con rostro no se ve afectado.
+- **Limites en memoria:** el limite por cuenta vive en la memoria del proceso. Con mas de una instancia de la API se multiplica, y se pierde al reiniciar.
 - **Sesiones:** un token sigue valido despues de desactivar al usuario, hasta que expira (8 horas por defecto).
-- **Cabeceras:** faltan `UseHsts` y las cabeceras de seguridad.
+- **HTTPS y sondas:** HSTS y la redireccion a HTTPS ya estan activos fuera de desarrollo. Una sonda de salud por HTTP recibira una redireccion: hay que sondear por HTTPS o desde la red interna.
 - **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`.
 - **Migraciones:** la API solo las aplica sola en Development. En produccion hay que ejecutarlas como un paso del despliegue.
 - **Login facial:**
   - Calibrar el umbral con pruebas consentidas de empleados reales. Hoy es un valor provisional, sin medicion.
-  - Revisar con un asesor legal el consentimiento y las preguntas de la seccion 7 de `ContratoFrontend.md`.
+  - Revisar con un asesor legal el consentimiento y las preguntas de la seccion 7 de `docs/api/contrato.md`.
   - La camara exige HTTPS, y la API debe agregarse a `connect-src` en `index.html`.
   - Detras de un proxy, los limites por IP del login facial y de la confirmacion de contraseña tienen el problema descrito arriba.
   - Crear una ruta para desactivar empleados que borre sus datos biometricos en el mismo paso.

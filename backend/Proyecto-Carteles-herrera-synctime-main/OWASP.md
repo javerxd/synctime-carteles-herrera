@@ -26,7 +26,7 @@ La clave JWT no esta en `appsettings.json`: se carga desde User Secrets o variab
 
 ## API9 - Improper Inventory Management
 
-La API mantiene versionamiento explicito `/api/v1`, documentacion OpenAPI y rutas separadas por recurso. `ContratoFrontend.md` lista cada ruta, y el archivo `.http` permite repetir las pruebas principales.
+La API mantiene versionamiento explicito `/api/v1`, documentacion OpenAPI y rutas separadas por recurso. `docs/api/contrato.md` lista cada ruta, y el archivo `.http` permite repetir las pruebas principales.
 
 ## Evidencia ejecutable
 

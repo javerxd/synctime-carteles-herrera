@@ -1,0 +1,634 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API de SyncTime — Letrería Los Herrera",
+    "version": "1.0.0",
+    "description": "Contrato de la API. Se edita ANTES de implementar o cambiar una ruta: una prueba automática falla mientras el contrato y la API no coincidan.\n\n**x-acceso** indica quién puede usar cada operación: `publico` (sin sesión), `sesion` (cualquier sesión), `cliente`, `personal` (los cuatro roles de empleado) o `gestion` (dueño y administrador). Si solo algunos roles del personal pueden usarla, **x-roles** los enumera.\n\n**Errores.** Toda respuesta de error usa el esquema `Error`: un ProblemDetails (RFC 9457) con `error`, `codigo`, `nivel` y, en validaciones, `errores` por campo.\n\n**Listados.** Los listados paginados aceptan `pagina`, `tamano` (máximo 100), `orden` (`campo` o `-campo`) y `buscar`, y responden con el esquema `ResultadoPaginado`. Las rutas anteriores al plan aún devuelven la lista completa y se adaptan en la fase que rehace cada módulo."
+  },
+  "tags": [
+    {
+      "name": "Autenticación"
+    },
+    {
+      "name": "Catálogo"
+    },
+    {
+      "name": "Local"
+    },
+    {
+      "name": "Personal"
+    },
+    {
+      "name": "Clientes"
+    },
+    {
+      "name": "Solicitudes"
+    },
+    {
+      "name": "Portal del cliente"
+    },
+    {
+      "name": "Cotizaciones"
+    },
+    {
+      "name": "Pedidos"
+    },
+    {
+      "name": "Indicadores"
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Inicia la sesión del personal con correo y contraseña",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/login-cliente": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Inicia la sesión de un cliente",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/login-facial": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Inicia la sesión del personal con el rostro",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/registro-cliente": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Crea una cuenta de cliente",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/empleados": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Crea un empleado; exige la contraseña de quien lo crea",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Devuelve los datos de la sesión actual",
+        "x-acceso": "sesion"
+      }
+    },
+    "/api/v1/auth/rostro": {
+      "get": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Consulta el acceso con rostro del empleado en sesión",
+        "x-acceso": "personal"
+      },
+      "put": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Activa el acceso con rostro del empleado en sesión",
+        "x-acceso": "personal"
+      },
+      "delete": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Desactiva el acceso con rostro y borra sus datos",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/auth/rostro/equipo": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Autoriza este equipo para entrar con rostro. La ruta admite a todo el personal, pero solo sirve a dueño y administrador: los demás roles reciben 400",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/categorias": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Lista las categorías",
+        "x-acceso": "publico"
+      },
+      "post": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Crea una categoría",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/categorias/{id}": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Devuelve una categoría",
+        "x-acceso": "publico"
+      },
+      "put": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Modifica una categoría",
+        "x-acceso": "gestion"
+      },
+      "delete": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Elimina una categoría",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/productos": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Lista los productos",
+        "x-acceso": "publico"
+      },
+      "post": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Crea un producto",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/productos/{id}": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Devuelve un producto",
+        "x-acceso": "publico"
+      },
+      "put": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Modifica un producto",
+        "x-acceso": "gestion"
+      },
+      "delete": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Elimina un producto",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/catalogo": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Lista las publicaciones de la vitrina",
+        "x-acceso": "publico"
+      },
+      "post": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Crea una publicación de la vitrina",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/catalogo/{id}": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Devuelve una publicación de la vitrina",
+        "x-acceso": "publico"
+      },
+      "put": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Modifica una publicación de la vitrina",
+        "x-acceso": "gestion"
+      },
+      "delete": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Elimina una publicación de la vitrina",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/materiales": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Lista los materiales para cotizar",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/horarios": {
+      "get": {
+        "tags": [
+          "Local"
+        ],
+        "summary": "Devuelve el horario semanal de atención",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/cartel-digital": {
+      "get": {
+        "tags": [
+          "Local"
+        ],
+        "summary": "Devuelve el estado actual del local",
+        "x-acceso": "publico"
+      },
+      "put": {
+        "tags": [
+          "Local"
+        ],
+        "summary": "Cambia el estado del local",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/empleados": {
+      "get": {
+        "tags": [
+          "Personal"
+        ],
+        "summary": "Lista los empleados",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/clientes": {
+      "get": {
+        "tags": [
+          "Clientes"
+        ],
+        "summary": "Lista los clientes",
+        "x-acceso": "personal"
+      },
+      "post": {
+        "tags": [
+          "Clientes"
+        ],
+        "summary": "Registra un cliente",
+        "x-acceso": "personal",
+        "x-roles": [
+          "dueño",
+          "administrador",
+          "operario"
+        ]
+      }
+    },
+    "/api/v1/clientes/{id}": {
+      "get": {
+        "tags": [
+          "Clientes"
+        ],
+        "summary": "Devuelve un cliente",
+        "x-acceso": "personal"
+      },
+      "put": {
+        "tags": [
+          "Clientes"
+        ],
+        "summary": "Modifica un cliente",
+        "x-acceso": "personal",
+        "x-roles": [
+          "dueño",
+          "administrador",
+          "operario"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Clientes"
+        ],
+        "summary": "Elimina un cliente",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/clientes/{id}/credenciales": {
+      "put": {
+        "tags": [
+          "Clientes"
+        ],
+        "summary": "Asigna una contraseña a un cliente; exige la contraseña de quien la asigna",
+        "x-acceso": "personal",
+        "x-roles": [
+          "dueño",
+          "administrador",
+          "operario"
+        ]
+      }
+    },
+    "/api/v1/solicitudes/online": {
+      "post": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Registra una solicitud enviada por un visitante",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/solicitudes": {
+      "get": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Lista las solicitudes",
+        "x-acceso": "personal"
+      },
+      "post": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Registra una solicitud presencial",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/solicitudes/{id}": {
+      "get": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Devuelve una solicitud",
+        "x-acceso": "personal"
+      },
+      "put": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Modifica una solicitud",
+        "x-acceso": "personal"
+      },
+      "delete": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Elimina una solicitud",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/solicitudes/{id}/estado": {
+      "patch": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Cambia el estado de una solicitud",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/solicitudes/{id}/eliminar-logico": {
+      "patch": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Marca una solicitud como eliminada, conservándola para las estadísticas",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/mis/solicitudes": {
+      "get": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "Lista las solicitudes del cliente en sesión",
+        "x-acceso": "cliente"
+      },
+      "post": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "Registra una solicitud del cliente en sesión",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mis/pedidos": {
+      "get": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "Lista los pedidos del cliente en sesión",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/cotizaciones": {
+      "get": {
+        "tags": [
+          "Cotizaciones"
+        ],
+        "summary": "Lista las cotizaciones",
+        "x-acceso": "personal"
+      },
+      "post": {
+        "tags": [
+          "Cotizaciones"
+        ],
+        "summary": "Crea una cotización para una solicitud",
+        "x-acceso": "personal",
+        "x-roles": [
+          "dueño",
+          "administrador",
+          "diseñador"
+        ]
+      }
+    },
+    "/api/v1/cotizaciones/{id}": {
+      "get": {
+        "tags": [
+          "Cotizaciones"
+        ],
+        "summary": "Devuelve una cotización",
+        "x-acceso": "personal"
+      },
+      "put": {
+        "tags": [
+          "Cotizaciones"
+        ],
+        "summary": "Modifica una cotización",
+        "x-acceso": "personal",
+        "x-roles": [
+          "dueño",
+          "administrador",
+          "diseñador"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Cotizaciones"
+        ],
+        "summary": "Elimina una cotización",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/pedidos": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Lista los pedidos",
+        "x-acceso": "personal"
+      },
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Crea un pedido",
+        "x-acceso": "personal",
+        "x-roles": [
+          "dueño",
+          "administrador",
+          "operario"
+        ]
+      }
+    },
+    "/api/v1/pedidos/{id}": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Devuelve un pedido",
+        "x-acceso": "personal"
+      },
+      "put": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Modifica un pedido",
+        "x-acceso": "personal",
+        "x-roles": [
+          "dueño",
+          "administrador",
+          "operario"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Elimina un pedido",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/metricas/conversion-online": {
+      "get": {
+        "tags": [
+          "Indicadores"
+        ],
+        "summary": "Devuelve la conversión mensual de las solicitudes en línea",
+        "x-acceso": "gestion"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "status",
+          "title",
+          "error",
+          "codigo",
+          "nivel"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "Igual que `error`."
+          },
+          "status": {
+            "type": "integer",
+            "description": "Código de estado HTTP."
+          },
+          "error": {
+            "type": "string",
+            "description": "Mensaje en español, listo para mostrar al usuario."
+          },
+          "codigo": {
+            "type": "string",
+            "description": "Identificador estable del error, por ejemplo `datos_invalidos`, `no_autenticado`, `sin_permiso`, `no_encontrado`, `conflicto`, `version_obsoleta`, `registro_duplicado` o `demasiados_intentos`."
+          },
+          "nivel": {
+            "type": "string",
+            "enum": [
+              "api",
+              "base_de_datos"
+            ],
+            "description": "Dónde se detectó el error. El nivel `formulario` lo agrega el frontend."
+          },
+          "errores": {
+            "type": "object",
+            "description": "Mensajes por campo, solo en errores de validación.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identificador de la petición, para ubicarla en los registros del servidor."
+          }
+        }
+      },
+      "ResultadoPaginado": {
+        "type": "object",
+        "required": [
+          "elementos",
+          "total",
+          "pagina",
+          "tamano",
+          "totalPaginas"
+        ],
+        "properties": {
+          "elementos": {
+            "type": "array",
+            "items": {}
+          },
+          "total": {
+            "type": "integer"
+          },
+          "pagina": {
+            "type": "integer"
+          },
+          "tamano": {
+            "type": "integer"
+          },
+          "totalPaginas": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

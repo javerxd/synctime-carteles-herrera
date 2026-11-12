@@ -1,3 +1,4 @@
+using LetrerosHerreraSYNCTIMEapi.Api;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Security;
 using Microsoft.AspNetCore.RateLimiting;
@@ -37,13 +38,13 @@ public static class PedidoApi
             var solicitud = await db.Solicitudes.AsNoTracking()
                 .FirstOrDefaultAsync(s => s.IdSolicitud == req.IdSolicitud && !s.EliminadoLogico);
             if (solicitud is null)
-                return Results.BadRequest(new { error = "Solicitud no existe." });
+                return ErrorApi.Invalido("Solicitud no existe.");
             if (solicitud.Estado != "aceptado")
-                return Results.BadRequest(new { error = "La solicitud debe estar aceptada para crear el pedido." });
+                return ErrorApi.Invalido("La solicitud debe estar aceptada para crear el pedido.");
             if (!await db.Empleados.AnyAsync(e => e.IdEmpleado == req.IdEmpleadoResponsable && e.Activo))
-                return Results.BadRequest(new { error = "Empleado no existe." });
+                return ErrorApi.Invalido("Empleado no existe.");
             if (await db.Pedidos.AnyAsync(p => p.IdSolicitud == req.IdSolicitud))
-                return Results.Conflict(new { error = "Ya existe un pedido para esta solicitud." });
+                return ErrorApi.Conflicto("Ya existe un pedido para esta solicitud.");
             if (!Modalidades.Contains(req.ModalidadEntrega))
                 return ModalidadInvalida();
 
@@ -53,9 +54,9 @@ public static class PedidoApi
                 cotizacion = await db.Cotizaciones.AsNoTracking()
                     .FirstOrDefaultAsync(c => c.IdCotizacion == req.IdCotizacion && c.IdSolicitud == req.IdSolicitud);
                 if (cotizacion is null)
-                    return Results.BadRequest(new { error = "La cotizacion no pertenece a esta solicitud." });
+                    return ErrorApi.Invalido("La cotizacion no pertenece a esta solicitud.");
                 if (cotizacion.Estado != "aprobada")
-                    return Results.BadRequest(new { error = "La cotizacion debe estar aprobada para crear el pedido." });
+                    return ErrorApi.Invalido("La cotizacion debe estar aprobada para crear el pedido.");
             }
 
             var pedido = new Pedido
@@ -81,7 +82,7 @@ public static class PedidoApi
         group.MapPut("/{id}", async (int id, ActualizarPedidoRequest req, LetrerosHerreradbContext db) =>
         {
             if (!Estados.Contains(req.Estado))
-                return Results.BadRequest(new { error = $"Estado inválido. Valores: {string.Join(", ", Estados)}" });
+                return ErrorApi.Invalido($"Estado inválido. Valores: {string.Join(", ", Estados)}");
             if (!Modalidades.Contains(req.ModalidadEntrega))
                 return ModalidadInvalida();
 
@@ -117,7 +118,7 @@ public static class PedidoApi
     }
 
     private static IResult ModalidadInvalida() =>
-        Results.BadRequest(new { error = $"Modalidad inválida. Valores: {string.Join(", ", Modalidades)}" });
+        ErrorApi.Invalido($"Modalidad inválida. Valores: {string.Join(", ", Modalidades)}");
 }
 
 public record CrearPedidoRequest(int IdSolicitud, int? IdCotizacion, int IdEmpleadoResponsable, DateTime FechaEntregaEstimada, string ModalidadEntrega = "retiro_local", bool RequiereInstalacion = false, string? DireccionInstalacion = null, decimal CostoInstalacionAdicional = 0m, decimal? MontoBaseTrabajo = null);

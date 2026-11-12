@@ -1,3 +1,4 @@
+using LetrerosHerreraSYNCTIMEapi.Api;
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Repositories;
@@ -19,11 +20,11 @@ public static class PortalClienteApi
         {
             var contacto = req.Cliente;
             if (contacto is null || string.IsNullOrWhiteSpace(contacto.Nombre) || string.IsNullOrWhiteSpace(contacto.Apellido) || string.IsNullOrWhiteSpace(contacto.Telefono))
-                return Results.BadRequest(new { error = "Nombre, apellido y telefono son requeridos." });
+                return ErrorApi.Invalido("Nombre, apellido y telefono son requeridos.");
 
             var error = await SolicitudValidacion.ValidarAsync(req.DescripcionGeneral, req.Detalles, repo, ct);
             if (error is not null)
-                return Results.BadRequest(new { error });
+                return ErrorApi.Invalido(error);
 
             var telefono = contacto.Telefono.Trim();
             var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Telefono == telefono, ct);
@@ -31,7 +32,7 @@ public static class PortalClienteApi
             // Los telefonos no se verifican: quien registro este numero veria en su cuenta los datos
             // de cualquiera que lo escriba aqui. El titular envia la solicitud despues de iniciar sesion.
             if (cliente?.PasswordHash is not null)
-                return Results.Conflict(new { error = "Ese telefono tiene una cuenta. Inicie sesion para enviar su solicitud." });
+                return ErrorApi.Conflicto("Ese telefono tiene una cuenta. Inicie sesion para enviar su solicitud.");
 
             if (cliente is null)
             {
@@ -124,7 +125,7 @@ public static class PortalClienteApi
         {
             var error = await SolicitudValidacion.ValidarAsync(req.DescripcionGeneral, req.Detalles, repo, ct);
             if (error is not null)
-                return Results.BadRequest(new { error });
+                return ErrorApi.Invalido(error);
 
             var solicitud = new Solicitud
             {
