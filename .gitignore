@@ -60,12 +60,15 @@ packages/
 .env.*.local
 !*.example
 
-# ─── Bases de Datos Locales ───
+# ─── Bases de Datos Locales y Respaldos ───
 *.mdf
 *.ldf
 *.db
 *.sqlite
 *.sqlite3
+*.bak
+*.trn
+*.bacpac
 
 # ─── Sistema Operativo ───
 Thumbs.db

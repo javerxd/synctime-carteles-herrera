@@ -1,0 +1,18 @@
+# Finales de linea: el repositorio guarda LF y cada equipo usa los suyos al trabajar.
+* text=auto
+
+# Los guiones de shell se ejecutan en Linux (Codespaces, GitHub Actions): siempre LF.
+*.sh text eol=lf
+
+# Binarios: nunca se convierten ni se comparan como texto.
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.xlsx binary
