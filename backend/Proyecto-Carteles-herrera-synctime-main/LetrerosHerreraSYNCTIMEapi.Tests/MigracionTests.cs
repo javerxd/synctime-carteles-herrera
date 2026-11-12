@@ -49,7 +49,12 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(20, restricciones.Count);
+        Assert.Equal(22, restricciones.Count);
+        // Revision de la profesora guia: el pedido separa su estado operativo de su estado de pago.
+        Assert.Contains("ck_pedidos_estado_pedido", restricciones);
+        Assert.Contains("ck_pedidos_monto_abonado", restricciones);
+        Assert.Contains("ck_pedidos_origen", restricciones);
+        Assert.DoesNotContain("ck_pedidos_estado", restricciones);
     }
 
     [Fact]

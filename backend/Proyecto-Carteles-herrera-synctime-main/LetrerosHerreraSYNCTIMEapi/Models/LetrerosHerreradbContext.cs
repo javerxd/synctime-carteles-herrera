@@ -334,18 +334,25 @@ public class LetrerosHerreradbContext : DbContext
         });
 
         // ── pedidos ──
+        // Estado operativo y estado de pago son independientes: un pedido puede entregarse sin estar
+        // pagado (cliente habitual que paga a fin de mes) o pagarse por adelantado o con un abono.
         modelBuilder.Entity<Pedido>(entity =>
         {
             entity.ToTable("pedidos", t =>
             {
                 t.HasCheckConstraint("ck_pedidos_modalidad", "modalidad_entrega IN (N'retiro_local', N'entrega_domicilio', N'instalacion_terreno')");
                 t.HasCheckConstraint("ck_pedidos_costos", "costo_instalacion_adicional >= 0 AND monto_base_trabajo >= 0");
-                t.HasCheckConstraint("ck_pedidos_estado", "estado IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'cancelado')");
+                t.HasCheckConstraint("ck_pedidos_estado_pedido", "estado_pedido IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado')");
+                t.HasCheckConstraint("ck_pedidos_origen", "origen IN (N'cotizacion', N'directo')");
+                // Lo abonado nunca supera el monto final. Usa las columnas base porque un CHECK no
+                // puede apoyarse en otra columna calculada.
+                t.HasCheckConstraint("ck_pedidos_monto_abonado", "monto_abonado >= 0 AND monto_abonado <= monto_base_trabajo + costo_instalacion_adicional");
             });
             entity.HasKey(e => e.IdPedido).HasName("pk_pedidos");
             entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
             entity.Property(e => e.IdSolicitud).HasColumnName("id_solicitud");
             entity.Property(e => e.IdCotizacion).HasColumnName("id_cotizacion");
+            entity.Property(e => e.Origen).HasColumnName("origen").HasMaxLength(15).HasDefaultValue("cotizacion");
             entity.Property(e => e.IdEmpleadoResponsable).HasColumnName("id_empleado_responsable");
             entity.Property(e => e.FechaPedido).HasColumnName("fecha_pedido").HasColumnType("datetime2(0)")
                 .HasDefaultValueSql("SYSDATETIME()");
@@ -361,12 +368,26 @@ public class LetrerosHerreradbContext : DbContext
                 .HasDefaultValue(0m);
             entity.Property(e => e.MontoTotalFinal).HasColumnName("monto_total_final").HasColumnType("decimal(14,2)")
                 .HasComputedColumnSql("CONVERT(DECIMAL(14,2), monto_base_trabajo + costo_instalacion_adicional)", stored: true);
-            entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(15).HasDefaultValue("aceptado");
+            entity.Property(e => e.EstadoPedido).HasColumnName("estado_pedido").HasMaxLength(15).HasDefaultValue("aceptado");
+            entity.Property(e => e.MontoAbonado).HasColumnName("monto_abonado").HasDefaultValue(0);
+            entity.Property(e => e.SaldoPendiente).HasColumnName("saldo_pendiente")
+                .HasComputedColumnSql("CONVERT(INT, monto_base_trabajo + costo_instalacion_adicional) - monto_abonado", stored: true);
+            // Se deriva de los montos para que nunca los contradiga: sin abono, "no_pagado"; con el
+            // total cubierto, "pagado_total"; entre ambos, "abonado".
+            entity.Property(e => e.EstadoPago).HasColumnName("estado_pago").HasMaxLength(12)
+                .HasComputedColumnSql(
+                    "CONVERT(NVARCHAR(12), CASE WHEN monto_abonado = 0 THEN N'no_pagado' " +
+                    "WHEN monto_abonado >= monto_base_trabajo + costo_instalacion_adicional THEN N'pagado_total' " +
+                    "ELSE N'abonado' END)", stored: true);
+            entity.Property(e => e.NumeroFactura).HasColumnName("numero_factura").HasMaxLength(30);
             entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => e.IdSolicitud).IsUnique().HasDatabaseName("uq_pedidos_solicitud");
-            entity.HasIndex(e => new { e.FechaEntregaEstimada, e.Estado }).HasDatabaseName("ix_pedidos_calendario_entrega");
-            entity.HasIndex(e => new { e.FechaPedido, e.Estado }).HasDatabaseName("ix_pedidos_fecha_estado");
+            entity.HasIndex(e => new { e.FechaEntregaEstimada, e.EstadoPedido }).HasDatabaseName("ix_pedidos_calendario_entrega");
+            entity.HasIndex(e => new { e.FechaPedido, e.EstadoPedido }).HasDatabaseName("ix_pedidos_fecha_estado");
+            // Cobranza: pedidos no pagados o con abono, por estado operativo, con su saldo.
+            entity.HasIndex(e => new { e.EstadoPago, e.EstadoPedido }).IncludeProperties(e => e.SaldoPendiente)
+                .HasDatabaseName("ix_pedidos_cobranza");
 
             entity.HasOne(e => e.Solicitud)
                 .WithOne(s => s.Pedido)

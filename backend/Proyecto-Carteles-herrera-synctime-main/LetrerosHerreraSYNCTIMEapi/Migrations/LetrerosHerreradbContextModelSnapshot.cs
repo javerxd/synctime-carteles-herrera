@@ -769,13 +769,21 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("direccion_instalacion");
 
-                    b.Property<string>("Estado")
+                    b.Property<string>("EstadoPago")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)")
+                        .HasColumnName("estado_pago")
+                        .HasComputedColumnSql("CONVERT(NVARCHAR(12), CASE WHEN monto_abonado = 0 THEN N'no_pagado' WHEN monto_abonado >= monto_base_trabajo + costo_instalacion_adicional THEN N'pagado_total' ELSE N'abonado' END)", true);
+
+                    b.Property<string>("EstadoPedido")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(15)
                         .HasColumnType("nvarchar(15)")
                         .HasDefaultValue("aceptado")
-                        .HasColumnName("estado");
+                        .HasColumnName("estado_pedido");
 
                     b.Property<DateTime>("FechaEntregaEstimada")
                         .HasColumnType("datetime2(0)")
@@ -811,6 +819,12 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasDefaultValue("retiro_local")
                         .HasColumnName("modalidad_entrega");
 
+                    b.Property<int>("MontoAbonado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("monto_abonado");
+
                     b.Property<decimal>("MontoBaseTrabajo")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(12,2)")
@@ -822,6 +836,19 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("decimal(14,2)")
                         .HasColumnName("monto_total_final")
                         .HasComputedColumnSql("CONVERT(DECIMAL(14,2), monto_base_trabajo + costo_instalacion_adicional)", true);
+
+                    b.Property<string>("NumeroFactura")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasColumnName("numero_factura");
+
+                    b.Property<string>("Origen")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)")
+                        .HasDefaultValue("cotizacion")
+                        .HasColumnName("origen");
 
                     b.Property<bool>("RequiereInstalacion")
                         .ValueGeneratedOnAdd()
@@ -836,6 +863,12 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("rowversion")
                         .HasColumnName("row_version");
 
+                    b.Property<int>("SaldoPendiente")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("int")
+                        .HasColumnName("saldo_pendiente")
+                        .HasComputedColumnSql("CONVERT(INT, monto_base_trabajo + costo_instalacion_adicional) - monto_abonado", true);
+
                     b.HasKey("IdPedido")
                         .HasName("pk_pedidos");
 
@@ -847,19 +880,28 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .IsUnique()
                         .HasDatabaseName("uq_pedidos_solicitud");
 
-                    b.HasIndex("FechaEntregaEstimada", "Estado")
+                    b.HasIndex("EstadoPago", "EstadoPedido")
+                        .HasDatabaseName("ix_pedidos_cobranza");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("EstadoPago", "EstadoPedido"), new[] { "SaldoPendiente" });
+
+                    b.HasIndex("FechaEntregaEstimada", "EstadoPedido")
                         .HasDatabaseName("ix_pedidos_calendario_entrega");
 
-                    b.HasIndex("FechaPedido", "Estado")
+                    b.HasIndex("FechaPedido", "EstadoPedido")
                         .HasDatabaseName("ix_pedidos_fecha_estado");
 
                     b.ToTable("pedidos", null, t =>
                         {
                             t.HasCheckConstraint("ck_pedidos_costos", "costo_instalacion_adicional >= 0 AND monto_base_trabajo >= 0");
 
-                            t.HasCheckConstraint("ck_pedidos_estado", "estado IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'cancelado')");
+                            t.HasCheckConstraint("ck_pedidos_estado_pedido", "estado_pedido IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado')");
 
                             t.HasCheckConstraint("ck_pedidos_modalidad", "modalidad_entrega IN (N'retiro_local', N'entrega_domicilio', N'instalacion_terreno')");
+
+                            t.HasCheckConstraint("ck_pedidos_monto_abonado", "monto_abonado >= 0 AND monto_abonado <= monto_base_trabajo + costo_instalacion_adicional");
+
+                            t.HasCheckConstraint("ck_pedidos_origen", "origen IN (N'cotizacion', N'directo')");
                         });
                 });
 

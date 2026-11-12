@@ -51,13 +51,13 @@ public sealed class ConcurrenciaTests(ApiFixture api)
     public async Task Pedido_Put_WithStaleVersion_ReturnsConflict()
     {
         var (cliente, url, creado) = await CrearPedidoAsync();
-        object Cuerpo(string estado, string rowVersion) => new { estado, fechaEntregaEstimada = DateTime.Now.AddDays(5), modalidadEntrega = "retiro_local", rowVersion };
+        object Cuerpo(string estadoPedido, string rowVersion) => new { estadoPedido, fechaEntregaEstimada = DateTime.Now.AddDays(5), modalidadEntrega = "retiro_local", rowVersion };
 
         await cliente.PutAsJsonAsync(url, Cuerpo("en_proceso", Version(creado))).EsperarAsync(HttpStatusCode.OK);
-        await cliente.PutAsJsonAsync(url, Cuerpo("cancelado", Version(creado))).EsperarAsync(HttpStatusCode.Conflict);
+        await cliente.PutAsJsonAsync(url, Cuerpo("anulado", Version(creado))).EsperarAsync(HttpStatusCode.Conflict);
 
         var actual = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal("en_proceso", actual.GetProperty("estado").GetString());
+        Assert.Equal("en_proceso", actual.GetProperty("estadoPedido").GetString());
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class ConcurrenciaTests(ApiFixture api)
         await cliente.PutAsJsonAsync(urlSolicitud, new { descripcionGeneral = "x", rowVersion = "" }).EsperarAsync(HttpStatusCode.BadRequest);
         await cliente.PutAsJsonAsync(urlSolicitud, new { descripcionGeneral = "x", rowVersion = "no-es-base64!" }).EsperarAsync(HttpStatusCode.BadRequest);
         await cliente.PatchAsJsonAsync($"{urlSolicitud}/estado", new { estado = "aceptado" }).EsperarAsync(HttpStatusCode.BadRequest);
-        await cliente.PutAsJsonAsync(urlPedido, new { estado = "en_proceso", fechaEntregaEstimada = DateTime.Now.AddDays(5), modalidadEntrega = "retiro_local" }).EsperarAsync(HttpStatusCode.BadRequest);
+        await cliente.PutAsJsonAsync(urlPedido, new { estadoPedido = "en_proceso", fechaEntregaEstimada = DateTime.Now.AddDays(5), modalidadEntrega = "retiro_local" }).EsperarAsync(HttpStatusCode.BadRequest);
     }
 
     // Otra persona guarda justo despues de la comprobacion de version: aqui la frena la base, no Verificar.

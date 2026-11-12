@@ -9,7 +9,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Endpoints;
 public static class PedidoApi
 {
     private static readonly string[] Modalidades = ["retiro_local", "entrega_domicilio", "instalacion_terreno"];
-    private static readonly string[] Estados = ["aceptado", "en_proceso", "terminado", "entregado", "cancelado"];
+    // "anulado" y no "cancelado": en Chile "cancelado" se entiende como "pagado".
+    private static readonly string[] Estados = ["aceptado", "en_proceso", "terminado", "entregado", "anulado"];
 
     public static void MapPedidoApi(this WebApplication app)
     {
@@ -81,7 +82,7 @@ public static class PedidoApi
 
         group.MapPut("/{id}", async (int id, ActualizarPedidoRequest req, LetrerosHerreradbContext db) =>
         {
-            if (!Estados.Contains(req.Estado))
+            if (!Estados.Contains(req.EstadoPedido))
                 return ErrorApi.Invalido($"Estado inválido. Valores: {string.Join(", ", Estados)}");
             if (!Modalidades.Contains(req.ModalidadEntrega))
                 return ModalidadInvalida();
@@ -92,7 +93,7 @@ public static class PedidoApi
             var conflicto = Concurrencia.Verificar(req.RowVersion, pedido.RowVersion);
             if (conflicto is not null) return conflicto;
 
-            pedido.Estado = req.Estado;
+            pedido.EstadoPedido = req.EstadoPedido;
             pedido.FechaEntregaEstimada = req.FechaEntregaEstimada;
             pedido.FechaEntregaReal = req.FechaEntregaReal;
             pedido.ModalidadEntrega = req.ModalidadEntrega;
@@ -122,4 +123,4 @@ public static class PedidoApi
 }
 
 public record CrearPedidoRequest(int IdSolicitud, int? IdCotizacion, int IdEmpleadoResponsable, DateTime FechaEntregaEstimada, string ModalidadEntrega = "retiro_local", bool RequiereInstalacion = false, string? DireccionInstalacion = null, decimal CostoInstalacionAdicional = 0m, decimal? MontoBaseTrabajo = null);
-public record ActualizarPedidoRequest(string Estado, DateTime FechaEntregaEstimada, DateTime? FechaEntregaReal, string ModalidadEntrega, bool RequiereInstalacion, string? DireccionInstalacion, decimal CostoInstalacionAdicional, decimal MontoBaseTrabajo, byte[]? RowVersion);
+public record ActualizarPedidoRequest(string EstadoPedido, DateTime FechaEntregaEstimada, DateTime? FechaEntregaReal, string ModalidadEntrega, bool RequiereInstalacion, string? DireccionInstalacion, decimal CostoInstalacionAdicional, decimal MontoBaseTrabajo, byte[]? RowVersion);

@@ -33,6 +33,9 @@ dotnet ef database update --project .\LetrerosHerreraSYNCTIMEapi
 - `InitialCreateV6` (generada): tablas, restricciones, indices y datos iniciales.
 - `ObjetosProgramablesV6` (escrita a mano): trigger, vista y procedimiento almacenado.
 - `AgregarRostrosEmpleado` (generada): solo crea la tabla `rostros_empleado`, para el login facial.
+- `SepararEstadoPedidoYPago` (generada y completada a mano): el pedido pasa a tener estado operativo (`estado_pedido`, con `anulado` en vez de `cancelado`) y estado de pago calculado (`estado_pago`), con `monto_abonado`, `saldo_pendiente`, `numero_factura` y `origen`. Convierte los pedidos `cancelado` y recrea la vista de conversion. Revision de la profesora guia, 14-11-2026.
+
+El script SQL completo de la base, el diagrama entidad-relacion y el diccionario de datos estan en `docs/base-de-datos/` de la raiz del repositorio.
 
 Reglas para no volver a desincronizar la base:
 

@@ -143,9 +143,9 @@ Flujo: se crea la cotizacion, se aprueba con `PUT`, se acepta la solicitud con `
 | `POST /cotizaciones` | `dueño`, `administrador`, `diseñador` | `{ idSolicitud, observaciones?, costoManoObra, otrosCostos, materiales? }`. Material: `{ idMaterial, medidaAplicada?, cantidad, costoUnitario }` |
 | `PUT /cotizaciones/{id}` | `dueño`, `administrador`, `diseñador` | `{ observaciones?, costoManoObra, otrosCostos, estado, materiales? }`. Sin `materiales` se conservan; `[]` los quita. Estados: `pendiente`, `aprobada`, `rechazada`. Los totales los calcula la base |
 | `DELETE /cotizaciones/{id}` | Gestion | `409` si la usa un pedido |
-| `GET /pedidos`, `GET /pedidos/{id}` | Personal | |
+| `GET /pedidos`, `GET /pedidos/{id}` | Personal | Cada pedido trae `estadoPedido` y, calculados por la base, `estadoPago` (`no_pagado`, `abonado`, `pagado_total`), `montoAbonado` y `saldoPendiente`; además `origen` (`cotizacion` o `directo`) y `numeroFactura?` |
 | `POST /pedidos` | `dueño`, `administrador`, `operario` | `{ idSolicitud, idCotizacion?, idEmpleadoResponsable, fechaEntregaEstimada, modalidadEntrega?, requiereInstalacion?, direccionInstalacion?, costoInstalacionAdicional?, montoBaseTrabajo? }`. La solicitud debe estar `aceptado` y la cotizacion, ser suya y estar `aprobada`. Sin monto, usa el total de la cotizacion |
-| `PUT /pedidos/{id}` | `dueño`, `administrador`, `operario` | `{ estado, fechaEntregaEstimada, fechaEntregaReal?, modalidadEntrega, requiereInstalacion, direccionInstalacion?, costoInstalacionAdicional, montoBaseTrabajo, rowVersion }`. Estados: `aceptado`, `en_proceso`, `terminado`, `entregado`, `cancelado`. Modalidades: `retiro_local`, `entrega_domicilio`, `instalacion_terreno` |
+| `PUT /pedidos/{id}` | `dueño`, `administrador`, `operario` | `{ estadoPedido, fechaEntregaEstimada, fechaEntregaReal?, modalidadEntrega, requiereInstalacion, direccionInstalacion?, costoInstalacionAdicional, montoBaseTrabajo, rowVersion }`. Estados del pedido: `aceptado`, `en_proceso`, `terminado`, `entregado`, `anulado` («cancelado» ya no existe: en Chile se entiende como «pagado»). El estado de pago no se envía: lo calcula la base. Modalidades: `retiro_local`, `entrega_domicilio`, `instalacion_terreno` |
 | `DELETE /pedidos/{id}` | Gestion | |
 
 ## 5. Cambios que necesita el frontend actual

@@ -4,139 +4,114 @@ Cada requisito de `docs/requisitos/requerimientos_del_sistema.md`, la fase del p
 Al cerrar cada fase se actualizan las columnas **Estado** y **Evidencia** de sus requisitos (prueba automática, pantalla o documento).
 En la fase 17 no puede quedar ninguno en "Pendiente": cada uno termina como Cumplido, Desviación o Pendiente externo (ver `desviaciones.md`).
 
-Total: **183 identificadores**. El documento no tiene RFS10: la numeración salta de RFS09 a RFS11.
+Total: **159 identificadores** (versión 2 del documento, 14-11-2026). La versión 1 tenía 183; la diferencia viene de agrupar 47 RFS en 12 macro-requerimientos y de los requisitos nuevos de la revisión con la profesora guía. **NUEVO** y **CAMBIA** marcan lo que introdujo esa revisión.
 
-## Requisitos funcionales del sistema (47)
+"3 (pantalla)" indica que la fase 3 deja la pantalla navegable con datos de la base demo para la revisión de avance, y la fase posterior la completa con su lógica.
+
+## Requisitos funcionales del sistema (12 macro-requerimientos)
+
+Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detalle está en viñetas en el documento de requisitos.
+
+| Requisito | Macro-requerimiento | Fase | Estado | Evidencia |
+|---|---|---|---|---|
+| RFS01 | Publicitar el catálogo de trabajos realizados y enviar una solicitud. | 3 (pantalla), 5, 7, 9 | Pendiente |  |
+| RFS02 | Gestionar la disponibilidad horaria y el cartel electrónico. | 3 (pantalla), 5, 9 | Pendiente |  |
+| RFS03 | Autenticación, gestión de cuentas y acceso biométrico facial. | 6, 10, 14 | Pendiente | Incluye desviaciones del ingreso facial (ver `desviaciones.md`) |
+| RFS04 | Gestión integral de solicitudes y prevención de solicitudes falsas. | 3 (modal), 6, 7 | Pendiente |  |
+| RFS05 | Gestión de cotizaciones y aprobación por doble vía. | 8 | Pendiente |  |
+| RFS06 | Gestión de pedidos, control independiente de pagos y abonos, y calendario. | 3 (pantalla), 8 | En curso | Ajuste del 14-11-2026: modelo de datos con estado de pedido y de pago independientes (migración `SepararEstadoPedidoYPago`, pruebas `PedidoPagoTests`). Falta la lógica de negocio y la interfaz |
+| RFS07 | Mantenedores del sistema (catálogo, tipos de letrero, materiales y personal). | 9 | Pendiente |  |
+| RFS08 | Notificaciones por correo y formulario de contacto. | 4, 5, 11 | Pendiente |  |
+| RFS09 | Análisis de datos, indicadores (KPIs) y dashboard interactivo. | 3 (pantalla), 12 | Pendiente |  |
+| RFS10 | Generación, exportación (Excel, PDF y CSV) e impresión de reportes. | 3 (pantalla), 13 | Pendiente |  |
+| RFS11 | Asistente con inteligencia artificial externa. | 14 | Pendiente |  |
+| RFS12 | Auditoría transversal, gestión de consentimientos e inhabilitación de cuentas. | 4, 5, 6, 11 | Pendiente |  |
+
+## Requisitos funcionales del usuario (36)
 
 | Requisito | Descripción | Fase | Estado | Evidencia |
 |---|---|---|---|---|
-| RFS01 | mostrar las publicaciones visibles del catálogo o vitrina de trabajos realizados (imagen, título,… | 5 | Pendiente |  |
-| RFS02 | mostrar el horario semanal y el estado actual del local. | 5,9 | Pendiente |  |
-| RFS03 | generar un código QR que abra el portal público. | 5 | Pendiente |  |
-| RFS04 | crear cuentas de cliente validando que teléfono, RUT y correo no estén registrados, guardar y registrar la… | 6 | Pendiente |  |
-| RFS05 | autenticar clientes (correo y contraseña, o Google) y trabajadores (correo y contraseña), y entregar un token… | 6,14 | Pendiente |  |
-| RFS06 | registrar cada solicitud con estado «solicitado», fecha automática y origen «online» (cliente) o «presencial»… | 7 | Pendiente |  |
-| RFS07 | registrar uno o más ítems por solicitud (producto, descripción, cantidad, medidas) y calcular el área en… | 7 | Pendiente |  |
-| RFS08 | buscar al cliente por teléfono o RUT antes de crear uno nuevo, para no duplicarlo. | 7 | Pendiente |  |
-| RFS09 | listar solicitudes por estado, origen y fecha, y permitir modificarlas solo en «solicitado» o «cotizado». (!) | 7 | Pendiente |  |
-| RFS11 | registrar el rechazo de una solicitud con su motivo y conservarla para las estadísticas. | 7 | Pendiente |  |
-| RFS12 | crear cotizaciones asociadas a una solicitud (materiales, mano de obra, otros costos), calcular subtotales y… | 8 | Pendiente |  |
-| RFS13 | registrar la aprobación o el rechazo de una cotización, hecho por el cliente en línea o por un trabajador. (!) | 8 | Pendiente |  |
-| RFS14 | al confirmar el pago de una cotización aprobada, pasar la solicitud a «aceptado» y crear un único pedido con… | 8 | Pendiente |  |
-| RFS15 | registrar en el pedido responsable, fechas estimada y real de entrega, modalidad de entrega y costo de… | 8 | Pendiente |  |
-| RFS16 | cambiar el estado del pedido entre en proceso, aceptado, terminado, entregado, cancelado. | 8 | Pendiente |  |
-| RFS17 | mostrar un calendario de pedidos por fecha estimada de entrega, distinguiendo pendientes y entregados. | 8 | Pendiente |  |
-| RFS18 | enviar un correo al cliente cuando su solicitud sea cotizada, rechazada o aceptada, y cuando su pedido cambie… | 11 | Pendiente |  |
-| RFS19 | mostrar a cada cliente registrado solo sus propias solicitudes, cotizaciones y pedidos. | 7,8 | Pendiente |  |
-| RFS20 | permitir mantener categorías, productos, publicaciones del catálogo, materiales y empleados con su rol. | 9 | Pendiente |  |
-| RFS21 | permitir actualizar el horario de cada día y el estado del local, registrando quién y cuándo lo modificó. | 9 | Pendiente |  |
-| RFS22 | calcular pedidos por mes, ingresos por mes, solicitudes en línea, solicitudes en línea concretadas y… | 12 | Pendiente |  |
-| RFS23 | permitir cada función solo a los roles autorizados. | 1 y cada fase | En curso | Fase 1: `docs/api/permisos.md`, verificada por `ContratoTests`. Faltan los ajustes de las fases 7 a 10 |
-| RFS24 | registrar el rostro de un empleado activo a partir de varias capturas, guardando solo los descriptores… | 10 | Pendiente |  |
-| RFS25 | identificar al empleado comparando el descriptor con los registrados, aceptando solo una coincidencia bajo el… | desviación | Desviación | Ver `desviaciones.md` |
-| RFS26 | ante una coincidencia, emitir el mismo token que el ingreso con contraseña y mostrar si ingresó como dueño… | 10 | Pendiente |  |
-| RFS27 | ofrecer el ingreso facial solo en el acceso al panel interno, mantener siempre el ingreso con contraseña y… | 6,10 | Pendiente |  |
-| RFS28 | método de recuperación de contraseña. | 6 | Pendiente |  |
-| RFS29 | validar las transiciones de estado en solicitudes, cotizaciones y pedidos para impedir saltos o retrocesos… | 7,8 | Pendiente |  |
-| RFS30 | registrar automáticamente en una bitácora de auditoría quién creó, modificó o eliminó registros en las… | 11 | Pendiente |  |
-| RFS31 | validar todos los datos de entrada en tres niveles (formularios del front end, endpoints de la API en el… | 1,3 | En curso | Fase 1: error estándar y validadores (`Negocio/Validacion.cs`). Falta aplicarlos por módulo y el nivel de formulario (fase 3) |
-| RFS32 | permitir buscar, filtrar, ordenar y paginar los listados principales del sistema (solicitudes, cotizaciones,… | 1,5,7,8,9 | En curso | Fase 1: `ParametrosListado`, `PaginarAsync` y `Ordenar`, probados. Falta adaptar cada listado |
-| RFS33 | calcular al menos seis indicadores clave (sumando a pedidos por mes, ingresos por mes, solicitudes en línea,… | 12 | Pendiente |  |
-| RFS34 | alimentar un dashboard interactivo desde el backend con al menos cuatro visualizaciones actualizadas con los… | 12 | Pendiente |  |
-| RFS35 | generar al menos tres reportes del negocio: uno operativo (detalle de pedidos, entregas y solicitudes), uno… | 13 | Pendiente |  |
-| RFS36 | exportar cada uno de los reportes aplicando los filtros seleccionados a formatos Excel (.xlsx con… | 13 | Pendiente |  |
-| RFS37 | proveer una versión limpia de impresión desde el navegador para cada reporte, ocultando menús, botones y… | 13 | Pendiente |  |
-| RFS38 | ofrecer un endpoint en la API que consuma un servicio de inteligencia artificial externo (como asistente de… | 14 | Pendiente |  |
-| RFS39 | presentar como primera pantalla al ingresar al sistema la vista principal de «Letrería Los Herrera», que… | 5 | Pendiente |  |
-| RFS40 | enviar automáticamente un correo electrónico al administrador con los datos ingresados cuando un visitante o… | 4,5 | Pendiente |  |
-| RFS41 | habilitar en la vista principal, cuando un cliente inicie sesión, un apartado directo de seguimiento de sus… | 7,8,12 | Pendiente |  |
-| RFS42 | publicar de forma accesible en todo el sitio la Política de Privacidad y los Términos y Condiciones del… | 5 | Pendiente |  |
-| RFS43 | exigir en el registro de cuenta y envío de formularios una casilla sin marcar por defecto (opt-in) para… | 5,6,7,14 | Pendiente |  |
-| RFS44 | registrar en la base de datos quién aceptó los Términos y Condiciones, la Política de Privacidad y el permiso… | 4,6 | Pendiente |  |
-| RFS45 | mostrar un banner de consentimiento de cookies al ingresar al sitio y bloquear la ejecución de cualquier… | 5 | Pendiente |  |
-| RFS46 | permitir a cada cliente registrado descargar en un archivo estructurado todos sus datos personales e… | 11 | Pendiente |  |
-| RFS47 | verificar y registrar que toda publicación en la vitrina o catálogo que contenga logotipos o marcas de… | 5,9 | Pendiente |  |
-| RFS48 | procesar el enlace de baja (unsubscribe) incluido en los correos electrónicos para revocar de inmediato el… | 11 | Pendiente |  |
-
-## Requisitos funcionales del usuario (34)
-
-| Requisito | Descripción | Fase | Estado | Evidencia |
-|---|---|---|---|---|
-| RFU01 | (Visitante) ver en la página principal de «Letrería Los Herrera» la vitrina de trabajos realizados con imágenes, tipo de… | 5 | Pendiente |  |
-| RFU02 | (Visitante) saber el horario, los datos de contacto de la empresa y si el local está abierto o el dueño ausente. | 5 | Pendiente |  |
+| RFU01 | (Visitante) ver en la página principal de «Letrería Los Herrera» la vitrina de trabajos realizados con… | 5 | Pendiente |  |
+| RFU02 | (Visitante) saber el horario, los datos de contacto de la empresa y si el local está abierto o el dueño… | 5 | Pendiente |  |
 | RFU03 | (Visitante) entrar al portal escaneando un código QR. | 5 | Pendiente |  |
-| RFU04 | (Visitante) crear una cuenta de cliente marcando voluntariamente la aceptación de los términos y condiciones, la política… | 6 | Pendiente |  |
+| RFU04 | (Visitante) crear una cuenta de cliente marcando voluntariamente la aceptación de los términos y condiciones,… | 6 | Pendiente |  |
 | RFU05 | (Cliente, trabajador, dueño) iniciar sesión; el cliente, también con Google. | 6,14 | Pendiente |  |
-| RFU06 | (Visitante) enviar una solicitud de trabajo desde la web a cualquier hora. | 7 | Pendiente |  |
-| RFU07 | (Cliente registrado) consultar desde un apartado en su vista principal el seguimiento y estado de sus solicitudes, cotizaciones y… | 8 | Pendiente |  |
-| RFU08 | (Cliente registrado) aceptar o rechazar una cotización contando que al enviar la solicitud el dueño probablemente se contactará… | 8 | Pendiente |  |
-| RFU09 | (Cliente) recibir un aviso cuando su solicitud o pedido cambie de estado, con la opción de darse de baja de correos no… | 11 | Pendiente |  |
+| RFU06 **CAMBIA** | (Visitante, cliente) enviar una solicitud de trabajo desde la vitrina a cualquier hora, con una cuenta de… | 3 (modal), 7 | Pendiente |  |
+| RFU07 | (Cliente registrado) consultar desde un apartado en su vista principal el seguimiento y estado de sus… | 8 | Pendiente |  |
+| RFU08 | (Cliente registrado) aceptar o rechazar una cotización contando que al enviar la solicitud el dueño… | 8 | Pendiente |  |
+| RFU09 | (Cliente) recibir un aviso cuando su solicitud o pedido cambie de estado, con la opción de darse de baja de… | 11 | Pendiente |  |
 | RFU10 | (Trabajador) registrar la solicitud de un cliente que llega al local. | 7 | Pendiente |  |
 | RFU11 | (Trabajador) consultar, modificar, rechazar y eliminar solicitudes. | 7 | Pendiente |  |
 | RFU12 | (Trabajador) cotizar separando materiales, mano de obra y otros gastos. (!) | 8 | Pendiente |  |
-| RFU13 | (Trabajador) confirmar el pago y convertir la cotización en pedido. | 8 | Pendiente |  |
+| RFU13 **CAMBIA** | (Trabajador) convertir la cotización aprobada en pedido y registrar los abonos y pagos del cliente, con el… | 8 | Pendiente |  |
 | RFU14 | (Trabajador) asignar responsable, actualizar el avance y registrar la entrega o instalación. | 8 | Pendiente |  |
 | RFU15 | (Trabajador) ver en un calendario las entregas comprometidas. | 8 | Pendiente |  |
-| RFU16 | (Trabajador) avisar si el local está abierto, cerrado o en pausa y cuándo vuelve; el dueño, además, cambiar el horario. (!) | 9 | Pendiente |  |
-| RFU17 | (Dueño) mantener catálogo, productos, categorías y materiales, indicando si se cuenta con el permiso del cliente… | 9 | Pendiente |  |
+| RFU16 **CAMBIA** | (Trabajador) dar vuelta el cartel electrónico para avisar si el local está abierto o cerrado, con un mensaje… | 3 (pantalla), 9 | Pendiente |  |
+| RFU17 | (Dueño) mantener catálogo, productos, categorías y materiales, indicando si se cuenta con el permiso del… | 9 | Pendiente |  |
 | RFU18 | (Dueño) mantener empleados y sus roles. | 9 | Pendiente |  |
-| RFU19 | (Dueño) acceder al iniciar sesión a la vista de administración con las solicitudes pendientes y ver gráficos de… | 7,12 | Pendiente |  |
+| RFU19 | (Dueño) acceder al iniciar sesión a la vista de administración con las solicitudes pendientes y ver gráficos… | 7,12 | Pendiente |  |
 | RFU20 | (Trabajador) registrar su disponibilidad horaria para que la agenda la muestre a los clientes. | 9 | Pendiente |  |
 | RFU21 | (Dueño) registrar y desactivar el rostro de los empleados para el ingreso rápido. | 10 | Pendiente |  |
-| RFU22 | (Dueño, trabajador) ingresar al panel mirando a la cámara y entrar con su rol; si no es reconocido, usar contraseña. | 10 | Pendiente |  |
-| RFU23 | (Visitante, cliente, dueño) usar el asistente con inteligencia artificial para describir en lenguaje natural el letrero o trabajo que… | 14 | Pendiente |  |
-| RFU24 | (Dueño, trabajador) generar, filtrar e imprimir desde el navegador el reporte operativo de pedidos y solicitudes con un diseño… | 13 | Pendiente |  |
-| RFU25 | (Dueño) generar y consultar el reporte gerencial (con totales y gráficos) y el reporte parametrizable por rango de… | 13 | Pendiente |  |
-| RFU26 | (Dueño, trabajador) exportar los reportes autorizados para su rol a archivos Excel (.xlsx), PDF y CSV conservando los filtros… | 13 | Pendiente |  |
-| RFU27 | (Dueño) filtrar interactivamente el dashboard por fechas, categorías y estados, y consultar la tabla de datos y… | 12 | Pendiente |  |
-| RFU28 | (Dueño) consultar el registro de auditoría del sistema para revisar quién creó o modificó registros principales,… | 11 | Pendiente |  |
-| RFU29 | (Visitante, cliente, trabajador, dueño) navegar y operar todas las pantallas del sistema utilizando únicamente el teclado o un lector de pantalla,… | 2,3,15 | Pendiente |  |
-| RFU30 | (Visitante, cliente registrado) visualizar en la vista principal (con o sin sesión iniciada) un mapa interactivo con la ubicación exacta del… | 5 | Pendiente |  |
-| RFU31 | (Visitante, cliente) contactar directamente al taller mediante un botón en la vista principal que redirija al WhatsApp oficial de… | 5 | Pendiente |  |
-| RFU32 | (Visitante, cliente) enviar consultas generales a través del formulario de contacto de la vista principal para que el… | 5 | Pendiente |  |
-| RFU33 | (Visitante, cliente) leer la Política de Privacidad y los Términos y Condiciones, y decidir en el banner de cookies si acepta o… | 5 | Pendiente |  |
-| RFU34 | (Cliente registrado) descargar una copia de todos sus datos personales almacenados en el sistema o solicitar el borrado definitivo… | 11 | Pendiente |  |
+| RFU22 | (Dueño, trabajador) ingresar al panel mirando a la cámara y entrar con su rol; si no es reconocido, usar… | 10 | Pendiente |  |
+| RFU23 | (Visitante, cliente, dueño) usar el asistente con inteligencia artificial para describir en lenguaje natural… | 14 | Pendiente |  |
+| RFU24 | (Dueño, trabajador) generar, filtrar e imprimir desde el navegador el reporte operativo de pedidos y… | 13 | Pendiente |  |
+| RFU25 | (Dueño) generar y consultar el reporte gerencial (con totales y gráficos) y el reporte parametrizable por… | 13 | Pendiente |  |
+| RFU26 | (Dueño, trabajador) exportar los reportes autorizados para su rol a archivos Excel (.xlsx), PDF y CSV… | 13 | Pendiente |  |
+| RFU27 | (Dueño) filtrar interactivamente el dashboard por fechas, categorías y estados, y consultar la tabla de datos… | 12 | Pendiente |  |
+| RFU28 | (Dueño) consultar el registro de auditoría del sistema para revisar quién creó o modificó registros… | 11 | Pendiente |  |
+| RFU29 | (Visitante, cliente, trabajador, dueño) navegar y operar todas las pantallas del sistema utilizando… | 2,3,15 | Pendiente |  |
+| RFU30 | (Visitante, cliente registrado) visualizar en la vista principal (con o sin sesión iniciada) un mapa… | 5 | Pendiente |  |
+| RFU31 | (Visitante, cliente) contactar directamente al taller mediante un botón en la vista principal que redirija al… | 5 | Pendiente |  |
+| RFU32 | (Visitante, cliente) enviar consultas generales a través del formulario de contacto de la vista principal… | 5 | Pendiente |  |
+| RFU33 | (Visitante, cliente) leer la Política de Privacidad y los Términos y Condiciones, y decidir en el banner de… | 5 | Pendiente |  |
+| RFU34 **CAMBIA** | (Cliente registrado) descargar una copia de todos sus datos personales almacenados en el sistema y dar de… | 11 | Pendiente |  |
+| RFU35 **NUEVO** | (Dueño, trabajador) registrar un pedido presencial directo cuando el cliente acuerda el trabajo en el taller,… | 3 (pantalla), 8 | Pendiente |  |
+| RFU36 **NUEVO** | (Dueño) filtrar los pedidos por estado del pedido, estado de pago, año, mes y cliente, y listar los pedidos… | 3 (pantalla), 8, 13 | Pendiente |  |
 
-## Requisitos no funcionales del producto (29)
+## Requisitos no funcionales del producto (33)
 
 | Requisito | Descripción | Fase | Estado | Evidencia |
 |---|---|---|---|---|
-| RNFP01 | (Rendimiento) responder cada consulta o registro en 2 segundos o menos en el 95 % de las peticiones, con hasta 20 usuarios… | 15 | Pendiente |  |
-| RNFP02 | (Facilidad de uso) que un cliente sin capacitación registre una solicitud desde el celular en 5 minutos o menos. | 7,15 | Pendiente |  |
+| RNFP01 | (Rendimiento) responder cada consulta o registro en 2 segundos o menos en el 95 % de las peticiones, con… | 15 | Pendiente |  |
+| RNFP02 | (Facilidad de uso) que un cliente sin capacitación registre una solicitud desde el celular en 5 minutos o… | 7,15 | Pendiente |  |
 | RNFP03 | (Facilidad de uso) adaptar todas las pantallas a anchos desde 360 px sin desplazamiento horizontal. | 2,15 | Pendiente |  |
 | RNFP04 | (Disponibilidad) 99 % de disponibilidad mensual, 24 horas, aunque el local esté cerrado. | 16 (externo) | Pendiente |  |
 | RNFP05 | (Compatibilidad) funcionar en las dos últimas versiones de Chrome, Edge, Firefox y Safari, sin complementos. | 15 | Pendiente |  |
 | RNFP06 | (Seguridad) guardar contraseñas solo como hash con sal. | 6 | Pendiente |  |
-| RNFP07 | (Seguridad) aplicar limitación de tasa (rate limiting) por dirección IP y por usuario en los endpoints de la API (con un… | 1,6 | En curso | Fase 1: límite por IP y por cuenta (`LimitadorPorCuenta`), 429 con cuerpo. Falta la recuperación de clave (fase 6) |
+| RNFP07 | (Seguridad) aplicar limitación de tasa (rate limiting) por dirección IP y por usuario en los endpoints de la… | 1,6 | En curso | Fase 1: límite por IP y por cuenta (`LimitadorPorCuenta`), 429 con cuerpo. Falta la recuperación de clave (fase 6) |
 | RNFP08 | (Seguridad) tokens de sesión que caduquen a los 15 minutos (configurable). | 6 | Pendiente |  |
-| RNFP09 | (Confiabilidad) respaldar la base de datos una vez al día y conservar cada respaldo 30 días, fuera del servidor principal. | 16 | Pendiente |  |
+| RNFP09 | (Confiabilidad) respaldar la base de datos una vez al día y conservar cada respaldo 30 días, fuera del… | 16 | Pendiente |  |
 | RNFP10 | (Integridad) rechazar, con aviso, el cambio de un registro que otro usuario modificó después de abrirlo. | 7,8,9 | Pendiente |  |
-| RNFP11 | (Mantenibilidad) documentar todas las rutas de la API en OpenAPI, consultables con Scalar o Swagger en desarrollo. | 1 | Cumplido | OpenAPI y Scalar en desarrollo; contrato en `docs/api/openapi.json` |
-| RNFP12 | (Seguridad) resolver el ingreso facial en 3 s o menos, con el mismo límite de 10 intentos por minuto que el ingreso con… | 10 | Pendiente |  |
-| RNFP13 | (Seguridad) completar el flujo de recuperación de contraseña mediante un enlace o código temporal de un solo uso con… | 6 | Pendiente |  |
-| RNFP14 | (Facilidad de uso y Responsive) aplicar un diseño mobile first con sistema de diseño propio y consistente, adaptable sin desplazamiento… | 2,3 | Pendiente |  |
-| RNFP15 | (Accesibilidad) cumplir el estándar WCAG 2.2 nivel AA en todas las pantallas, incluyendo HTML semántico, navegación completa… | 2,15 | Pendiente |  |
-| RNFP16 | (Seguridad) autenticar mediante JWT en la API con autorización basada en al menos tres roles diferenciados y mitigar al… | 1,17 | Pendiente |  |
-| RNFP17 | (Confiabilidad e IA) gestionar las claves de APIs externas (IA, OAuth, SMTP) exclusivamente mediante variables de entorno (en… | 4,14 | Pendiente |  |
-| RNFP18 | (Rendimiento) ejecutar la generación y exportación de reportes grandes a Excel, PDF y CSV de forma asíncrona sin bloquear… | 13 | Pendiente |  |
-| RNFP19 | (Mantenibilidad) mantener el contrato OpenAPI actualizado y accesible desde la API, habiéndolo definido antes de la… | 1 y cada fase | En curso | Fase 1: contrato con las 58 operaciones y prueba `ContratoTests`. Faltan los códigos de respuesta por operación |
-| RNFP20 | (Confiabilidad) contar con una estrategia de respaldo y restauración de la base de datos documentada y probada de principio a… | 16 | Pendiente |  |
-| RNFP21 | (Ética y usabilidad) diseñar todas las pantallas y flujos libres de patrones engañosos (dark patterns), garantizando que las… | 5 y cada fase | Pendiente |  |
-| RNFP22 | (Rendimiento de recursos y fuentes) servir las imágenes del catálogo y la interfaz optimizadas en formatos modernos (WebP o AVIF), aplicar carga… | 2,4,5 | Pendiente |  |
-| RNFP23 | (Rendimiento de red en cliente) evitar llamadas duplicadas a la API al enviar formularios o cargar vistas, aplicar `debounce` (por ejemplo,… | 3,15 | Pendiente |  |
-| RNFP24 | (Rendimiento de renderizado en cliente) dividir el código de React por ruta o página (`code splitting` con carga diferida de vistas), evitar… | 3,15 | Pendiente |  |
-| RNFP25 | (Caché y compresión HTTP) activar la compresión estándar (Gzip/Brotli) en las respuestas de ASP.NET Core y configurar cabeceras de… | 1,16 | En curso | Fase 1: compresión Brotli y Gzip, probada. Falta la caché de archivos estáticos (fase 16) |
-| RNFP26 | (Eficiencia en base de datos) utilizar el pool de conexiones por defecto de ADO.NET / Entity Framework Core hacia SQL Server, evitar las… | 1 y cada fase | En curso | Fase 1: proyecciones y paginación disponibles. Se aplican por módulo |
-| RNFP27 | (Verificación en condiciones reales) comprobar el rendimiento y la usabilidad del sistema en dispositivos móviles y bajo simulación de redes… | 15 | Pendiente |  |
-| RNFP28 | (Seguridad en consultas y aislamiento de datos) utilizar exclusivamente consultas parametrizadas o LINQ en Entity Framework Core sin concatenar jamás… | 1 | En curso | Fase 1: orden solo por campos permitidos, probado contra inyección. `/mis` filtra por el token |
-| RNFP29 | (Seguridad de orígenes) configurar una política de CORS cerrada en la API que permita peticiones únicamente desde los orígenes… | 6,16 | Pendiente |  |
+| RNFP11 | (Mantenibilidad) documentar todas las rutas de la API en OpenAPI, consultables con Scalar o Swagger en… | 1 | Cumplido | OpenAPI y Scalar en desarrollo; contrato en `docs/api/openapi.json` |
+| RNFP12 | (Seguridad) resolver el ingreso facial en 3 s o menos, con el mismo límite de 10 intentos por minuto que el… | 10 | Pendiente |  |
+| RNFP13 | (Seguridad) completar el flujo de recuperación de contraseña mediante un enlace o código temporal de un solo… | 6 | Pendiente |  |
+| RNFP14 | (Facilidad de uso y Responsive) aplicar un diseño mobile first con sistema de diseño propio y consistente,… | 2,3 | Pendiente |  |
+| RNFP15 | (Accesibilidad) cumplir el estándar WCAG 2.2 nivel AA en todas las pantallas, incluyendo HTML semántico,… | 2,15 | Pendiente |  |
+| RNFP16 | (Seguridad) autenticar mediante JWT en la API con autorización basada en al menos tres roles diferenciados y… | 1,17 | Pendiente |  |
+| RNFP17 | (Confiabilidad e IA) gestionar las claves de APIs externas (IA, OAuth, SMTP) exclusivamente mediante… | 4,14 | Pendiente |  |
+| RNFP18 | (Rendimiento) ejecutar la generación y exportación de reportes grandes a Excel, PDF y CSV de forma asíncrona… | 13 | Pendiente |  |
+| RNFP19 | (Mantenibilidad) mantener el contrato OpenAPI actualizado y accesible desde la API, habiéndolo definido antes… | 1 y cada fase | En curso | Fase 1: contrato con las 58 operaciones y prueba `ContratoTests`. Faltan los códigos de respuesta por operación |
+| RNFP20 | (Confiabilidad) contar con una estrategia de respaldo y restauración de la base de datos documentada y… | 16 | Pendiente |  |
+| RNFP21 | (Ética y usabilidad) diseñar todas las pantallas y flujos libres de patrones engañosos (dark patterns),… | 5 y cada fase | Pendiente |  |
+| RNFP22 | (Rendimiento de recursos y fuentes) servir las imágenes del catálogo y la interfaz optimizadas en formatos… | 2,4,5 | Pendiente |  |
+| RNFP23 | (Rendimiento de red en cliente) evitar llamadas duplicadas a la API al enviar formularios o cargar vistas,… | 3,15 | Pendiente |  |
+| RNFP24 | (Rendimiento de renderizado en cliente) dividir el código de React por ruta o página (`code splitting` con… | 3,15 | Pendiente |  |
+| RNFP25 | (Caché y compresión HTTP) activar la compresión estándar (Gzip/Brotli) en las respuestas de ASP.NET Core y… | 1,16 | En curso | Fase 1: compresión Brotli y Gzip, probada. Falta la caché de archivos estáticos (fase 16) |
+| RNFP26 | (Eficiencia en base de datos) utilizar el pool de conexiones por defecto de ADO.NET / Entity Framework Core… | 1 y cada fase | En curso | Fase 1: proyecciones y paginación disponibles. Se aplican por módulo |
+| RNFP27 | (Verificación en condiciones reales) comprobar el rendimiento y la usabilidad del sistema en dispositivos… | 15 | Pendiente |  |
+| RNFP28 | (Seguridad en consultas y aislamiento de datos) utilizar exclusivamente consultas parametrizadas o LINQ en… | 1 | En curso | Fase 1: orden solo por campos permitidos, probado contra inyección. `/mis` filtra por el token |
+| RNFP29 | (Seguridad de orígenes) configurar una política de CORS cerrada en la API que permita peticiones únicamente… | 6,16 | Pendiente |  |
+| RNFP30 **NUEVO** | (Validación y errores; antes RFS31) validar todos los datos de entrada en tres niveles (formularios del front… | 1, 3 | En curso | Fase 1: error estándar y validadores (`Negocio/Validacion.cs`). Falta aplicarlos por módulo y el nivel de formulario (fase 3) |
+| RNFP31 **NUEVO** | (Autorización; antes RFS23) permitir cada función solo a los roles autorizados, verificándolo siempre en el… | 1 y cada fase | En curso | Fase 1: `docs/api/permisos.md`, verificada por `ContratoTests`. Faltan los ajustes de las fases 7 a 10 |
+| RNFP32 **NUEVO** | (Listados; antes RFS32) permitir buscar, filtrar, ordenar y paginar los listados principales del sistema… | 1, 5, 7, 8, 9 | En curso | Fase 1: `ParametrosListado`, `PaginarAsync` y `Ordenar`, probados. Falta adaptar cada listado |
+| RNFP33 **NUEVO** | (Protección contra solicitudes falsas; parte técnica de RFS04) limitar las solicitudes en línea por cuenta,… | 7 | Pendiente |  |
 
 ## Requisitos no funcionales organizacionales (17)
 
 | Requisito | Descripción | Fase | Estado | Evidencia |
 |---|---|---|---|---|
 | RNFO01 | construir con React, ASP.NET Core Web API y SQL Server. | cumplido antes del plan | Cumplido | React, ASP.NET Core Web API y SQL Server: `frontend/` y `backend/` |
-| RNFO02 | aplicar el flujo solicitud -> cotización -> aceptación y pago -> pedido; ningún pedido sin cotización… | 8 | Pendiente |  |
+| RNFO02 **CAMBIA** | aplicar el flujo solicitud -> cotización -> aprobación -> pedido, o registrar un pedido presencial directo;… | 8 | En curso | Ajuste del 14-11-2026: el esquema ya separa el pago del pedido y admite el pedido directo. Falta la lógica de negocio (fase 8) |
 | RNFO03 | publicar el horario que fije el dueño y permitir que solo el personal cambie el estado del local. | 9 | Pendiente |  |
 | RNFO04 | conservar solicitudes rechazadas y eliminadas al menos 12 meses, para estadísticas. | 7,11 | Pendiente |  |
 | RNFO05 | montos en pesos chilenos sin decimales y fechas en formato dd-mm-aaaa. | 1,3 | En curso | Fase 1: `Reglas.EsMontoEnPesos`. Falta aplicarlo y el formato en la interfaz (fase 3) |
@@ -145,7 +120,7 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | RNFO08 | permitir solo los roles administrador, dueño, diseñador y operario para el personal. | 9 | Pendiente |  |
 | RNFO09 | desarrollar con Kanban y mantener el código en un repositorio con control de versiones. | 0 | En curso | Repositorio único y tablero Kanban creados en la fase 0 (`tablero.md`) |
 | RNFO10 | estructurar el backend en cuatro capas claramente separadas (presentación, API, servicios de negocio y acceso… | 1, cada fase y 17 | En curso | Fase 1: capas, repositorio base y pruebas de arquitectura (`docs/arquitectura.md`). Quedan 8 módulos por migrar |
-| RNFO11 | normalizar el modelo de datos relacional con al menos seis entidades relacionadas, gestionando el esquema… | cada migración y 12 | Pendiente |  |
+| RNFO11 | normalizar el modelo de datos relacional con al menos seis entidades relacionadas, gestionando el esquema… | cada migración y 12 | En curso | Esquema normalizado de 14 tablas con migraciones versionadas, restricciones, índices justificados, vista y procedimiento; documentado en `docs/base-de-datos/`. Faltan las vistas del dashboard (fase 12) |
 | RNFO12 | poblar la base de datos para pruebas y demostración con datos sintéticos verosímiles (nunca datos personales… | 1 (reducido) | En curso | Fase 1: base `LetreriaLosHerreraDB_Demo` y comando `sembrar-demo`. Reducido por decisión del usuario |
 | RNFO13 | implementar pruebas unitarias automatizadas para la capa de negocio, pruebas de integración automatizadas… | 1,14,15 | En curso | Fase 1: 96 pruebas unitarias y 166 de integración. Faltan IA simulada, axe y prueba manual |
 | RNFO14 | contenerizar el sistema mediante `Dockerfile` multi-stage con imagen base ligera de versión fija y un archivo… | 16 | Pendiente |  |
@@ -167,19 +142,19 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | RNFE08 | cumplir con las pautas de accesibilidad de contenido web WCAG 2.2 en su nivel de conformidad AA del W3C. | 2,15 | Pendiente |  |
 | RNFE09 | cumplir con los términos de licencia de los componentes open source, activos gráficos y tipografías… | 5,16 | Pendiente |  |
 
-## Entradas (24)
+## Entradas (27)
 
 | Requisito | Descripción | Fase | Estado | Evidencia |
 |---|---|---|---|---|
 | E01 | Datos del cliente: RUT (opcional en solicitud rápida), nombre, apellido, teléfono, correo, dirección y, si… | 6 | Pendiente |  |
 | E02 | Credenciales: correo y contraseña, o autorización de Google. Cliente, trabajador. | 6 | Pendiente |  |
-| E03 | Solicitud: cliente y descripción general del trabajo. Visitante o trabajador. | 7 | Pendiente |  |
-| E04 | Ítems de la solicitud: producto, descripción, ancho, alto y cantidad. Visitante o trabajador. | 7 | Pendiente |  |
+| E03 **CAMBIA** | Solicitud: cliente y descripción general del trabajo. Cliente con correo verificado o trabajador. | 7 | Pendiente |  |
+| E04 **CAMBIA** | Ítems de la solicitud: tipo de letrero, descripción, ancho, alto y cantidad. Cliente o trabajador. | 7 | Pendiente |  |
 | E05 | Cambio en una solicitud: datos corregidos, motivo de rechazo o marca de eliminación. Trabajador. | 7 | Pendiente |  |
 | E06 | Cotización: observaciones; por material: material, medida, cantidad y costo unitario; mano de obra; otros… | 8 | Pendiente |  |
 | E07 | Respuesta a la cotización: aprobación o rechazo. Cliente registrado o trabajador. | 8 | Pendiente |  |
-| E08 | Confirmación de pago y pedido: responsable, fecha estimada, modalidad de entrega, si requiere instalación,… | 8 | Pendiente |  |
-| E09 | Avance del pedido: nuevo estado y, al entregar, fecha real. Trabajador. | 8 | Pendiente |  |
+| E08 **CAMBIA** | Creación del pedido desde una cotización aprobada: responsable, fecha estimada, modalidad de entrega, si… | 8 | Pendiente |  |
+| E09 **CAMBIA** | Avance del pedido: nuevo estado del pedido y, al entregar, fecha real. Trabajador. | 8 | Pendiente |  |
 | E10 | Horario de atención: por día, si abre, hora de apertura y de cierre. Dueño. | 9 | Pendiente |  |
 | E11 | Estado del local: abierto o ausente, mensaje y tiempo estimado de regreso. Trabajador. | 9 | Pendiente |  |
 | E12 | Publicación del catálogo / vitrina: producto, título, descripción, imagen, tipo de letrero, ancho y alto… | 9 | Pendiente |  |
@@ -191,28 +166,31 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | E18 | Captura de ingreso: una captura del rostro al ingresar. Dueño o trabajador. | 10 | Pendiente |  |
 | E19 | Consulta al asistente de IA: descripción en lenguaje natural del letrero requerido o datos base del producto… | 14 | Pendiente |  |
 | E20 | Configuración de exportación de reporte: tipo de reporte (operativo, gerencial o parametrizable), filtros… | 13 | Pendiente |  |
-| E21 | Filtros del dashboard: rango de fechas, categoría de producto, estado de pedido u origen de solicitud. Dueño. | 12 | Pendiente |  |
+| E21 **CAMBIA** | Filtros del dashboard: rango de fechas, categoría de producto, estado del pedido, estado de pago u origen de… | 12 | Pendiente |  |
 | E22 | Formulario de contacto: nombre del remitente, correo electrónico, teléfono (opcional), asunto y mensaje de… | 5 | Pendiente |  |
 | E23 | Registro de consentimiento legal y privacidad: aceptación de Términos y Condiciones y Política de Privacidad… | 5,6 | Pendiente |  |
-| E24 | Solicitud sobre datos personales o baja de correo: petición de descarga de datos personales, solicitud de… | 11 | Pendiente |  |
+| E24 **CAMBIA** | Solicitud sobre datos personales o baja de correo: petición de descarga de datos personales, solicitud de… | 11 | Pendiente |  |
+| E25 **NUEVO** | Abono o pago del pedido: monto abonado y número de factura opcional; la fecha y quién lo registró quedan en… | 8 | Pendiente |  |
+| E26 **NUEVO** | Pedido presencial directo: cliente (búsqueda por RUT o teléfono, o sus datos si es nuevo), tipo de letrero,… | 8 | Pendiente |  |
+| E27 **NUEVO** | Filtros de pedidos: estado del pedido, estado de pago, cobranza (no pagados o abonados), año, mes y cliente.… | 3 (pantalla), 8 | Pendiente |  |
 
-## Salidas (23)
+## Salidas (25)
 
 | Requisito | Descripción | Fase | Estado | Evidencia |
 |---|---|---|---|---|
 | S01 | Catálogo público y vitrina principal («Letrería Los Herrera»): título y datos de contacto de la empresa,… | 5 | Pendiente |  |
-| S02 | Horario y estado del local: horario de lunes a domingo, estado actual, mensaje, tiempo estimado de regreso y… | 5 | Pendiente |  |
+| S02 **CAMBIA** | Horario y cartel electrónico: horario de lunes a domingo, cartel verde «Abierto / Disponible» o rojo «Cerrado… | 3 (pantalla), 5 | Pendiente |  |
 | S03 | Comprobante de solicitud: número, fecha y hora, nombre del cliente, ítems (producto, medidas, área, cantidad)… | 7 | Pendiente |  |
-| S04 | Seguimiento del cliente en vista principal: por solicitud, número, fecha, estado y motivo de rechazo; total y… | 8 | Pendiente |  |
+| S04 **CAMBIA** | Seguimiento del cliente en vista principal: por solicitud, número, fecha, estado y motivo de rechazo; total y… | 8 | Pendiente |  |
 | S05 | Bandeja de solicitudes y vista principal de administración: resumen de solicitudes pendientes, métricas clave… | 7 | Pendiente |  |
 | S06 | Cotización: número, fecha, cliente, ítems, detalle de materiales, costo total de materiales, mano de obra,… | 8 | Pendiente |  |
-| S07 | Ficha del pedido: número, solicitud y cotización de origen, cliente, responsable, fechas, modalidad,… | 8 | Pendiente |  |
+| S07 **CAMBIA** | Ficha del pedido: número, origen (cotización o directo), solicitud y cotización de origen, cliente,… | 8 | En curso | Columnas de pago en el esquema y en `GET /pedidos/{id}`. Falta la ficha en la interfaz (fases 3 y 8) |
 | S08 | Calendario de entregas: pedidos por día con cliente, modalidad y estado, con colores e íconos o etiquetas… | 8 | Pendiente |  |
 | S09 | Notificación al cliente y correo de contacto al administrador: al cliente, número de solicitud o pedido,… | 5,11 | Pendiente |  |
-| S10 | Pedidos por mes: cantidad de pedidos creados por estado, sin contar los cancelados en el total. Dueño. | 12 | Pendiente |  |
+| S10 **CAMBIA** | Pedidos por mes: cantidad de pedidos creados por estado, sin contar los anulados en el total. Dueño. | 12 | Pendiente |  |
 | S11 | Ingresos por mes: suma del monto final de los pedidos entregados y total del período. Dueño. | 12 | Pendiente |  |
 | S12 | Solicitudes en línea: cantidad de online y, para comparar, de presenciales. Dueño. | 12 | Pendiente |  |
-| S13 | Solicitudes en línea concretadas: online con un pedido no cancelado. Dueño. | 12 | Pendiente |  |
+| S13 **CAMBIA** | Solicitudes en línea concretadas: online con un pedido no anulado. Dueño. | 12 | Pendiente |  |
 | S14 | Conversión en línea: porcentaje S13 sobre S12 y, al comparar dos períodos, la diferencia en puntos… | 12 | Pendiente |  |
 | S15 | Resultado del ingreso facial: nombre y rol del empleado reconocido, o aviso de que no hubo coincidencia con… | 10 | Pendiente |  |
 | S16 | Registro de rostros: por empleado, nombre, rol, fecha de registro, fecha del consentimiento y estado (activo… | 10 | Pendiente |  |
@@ -222,4 +200,60 @@ Total: **183 identificadores**. El documento no tiene RFS10: la numeración salt
 | S20 | Bitácora de auditoría y consentimientos: historial de creación y modificación en entidades principales… | 11 | Pendiente |  |
 | S21 | Respuesta de error estándar: estructura uniforme de error de la API con código de estado HTTP, mensaje… | 1 | Cumplido | Fase 1: `Api/ErrorApi.cs`; pruebas `CimientosTests` (401, 403, 404, 400, 409, 429 y 500) |
 | S22 | Documentos legales y banner de cookies: vista de Términos y Condiciones, Política de Privacidad, inventario… | 5,16 | Pendiente |  |
-| S23 | Archivo de portabilidad y comprobante de borrado: archivo descargable (JSON o CSV) con todos los datos… | 11 | Pendiente |  |
+| S23 **CAMBIA** | Archivo de portabilidad y comprobante de baja: archivo descargable (JSON o CSV) con todos los datos… | 11 | Pendiente |  |
+| S24 **NUEVO** | Listado de pedidos por cobrar: pedidos no anulados con pago «No pagado» o «Abonado», con cliente, estado del… | 3 (pantalla), 8, 13 | Pendiente |  |
+| S25 **NUEVO** | Aviso de contacto directo: mensaje «Para esta solicitud es preferible contactarse directamente con el local»,… | 3 (pantalla), 7 | Pendiente |  |
+
+## Equivalencia de los códigos antiguos (versión 1 del documento, 47 RFS)
+
+Las pruebas, el código y los informes de las fases 0 y 1 citan los códigos antiguos. Esta tabla indica dónde quedó cada uno.
+
+| Código antiguo | Qué pedía | Ahora en | Observación |
+|---|---|---|---|
+| RFS01 | mostrar las publicaciones visibles del catálogo o vitrina de trabajos realizados (imagen,… | RFS01 |  |
+| RFS02 | mostrar el horario semanal y el estado actual del local. | RFS02 |  |
+| RFS03 | generar un código QR que abra el portal público. | RFS02 |  |
+| RFS04 | crear cuentas de cliente validando que teléfono, RUT y correo no estén registrados,… | RFS03 |  |
+| RFS05 | autenticar clientes (correo y contraseña, o Google) y trabajadores (correo y contraseña),… | RFS03 |  |
+| RFS06 | registrar cada solicitud con estado «solicitado», fecha automática y origen «online»… | RFS04 |  |
+| RFS07 | registrar uno o más ítems por solicitud (producto, descripción, cantidad, medidas) y… | RFS04 |  |
+| RFS08 | buscar al cliente por teléfono o RUT antes de crear uno nuevo, para no duplicarlo. | RFS04 |  |
+| RFS09 | listar solicitudes por estado, origen y fecha, y permitir modificarlas solo en… | RFS04 |  |
+| RFS11 | registrar el rechazo de una solicitud con su motivo y conservarla para las estadísticas. | RFS04 |  |
+| RFS12 | crear cotizaciones asociadas a una solicitud (materiales, mano de obra, otros costos),… | RFS05 |  |
+| RFS13 | registrar la aprobación o el rechazo de una cotización, hecho por el cliente en línea o… | RFS05 |  |
+| RFS14 | al confirmar el pago de una cotización aprobada, pasar la solicitud a «aceptado» y crear… | RFS06 | Cambia: el pedido ya no exige un pago previo; el pago es un estado aparte |
+| RFS15 | registrar en el pedido responsable, fechas estimada y real de entrega, modalidad de… | RFS06 |  |
+| RFS16 | cambiar el estado del pedido entre en proceso, aceptado, terminado, entregado, cancelado. | RFS06 | Cambia: «cancelado» pasa a «anulado» y el estado de pago se separa del estado del pedido |
+| RFS17 | mostrar un calendario de pedidos por fecha estimada de entrega, distinguiendo pendientes… | RFS06 |  |
+| RFS18 | enviar un correo al cliente cuando su solicitud sea cotizada, rechazada o aceptada, y… | RFS08 |  |
+| RFS19 | mostrar a cada cliente registrado solo sus propias solicitudes, cotizaciones y pedidos. | RFS04 |  |
+| RFS20 | permitir mantener categorías, productos, publicaciones del catálogo, materiales y… | RFS07 |  |
+| RFS21 | permitir actualizar el horario de cada día y el estado del local, registrando quién y… | RFS02 |  |
+| RFS22 | calcular pedidos por mes, ingresos por mes, solicitudes en línea, solicitudes en línea… | RFS09 |  |
+| RFS23 | permitir cada función solo a los roles autorizados. | RNFP31 | Pasa a no funcional |
+| RFS24 | registrar el rostro de un empleado activo a partir de varias capturas, guardando solo los… | RFS03 |  |
+| RFS25 | identificar al empleado comparando el descriptor con los registrados, aceptando solo una… | RFS03 | Sigue como desviación: email primero |
+| RFS26 | ante una coincidencia, emitir el mismo token que el ingreso con contraseña y mostrar si… | RFS03 |  |
+| RFS27 | ofrecer el ingreso facial solo en el acceso al panel interno, mantener siempre el ingreso… | RFS03 |  |
+| RFS28 | método de recuperación de contraseña. | RFS03 |  |
+| RFS29 | validar las transiciones de estado en solicitudes, cotizaciones y pedidos para impedir… | RFS04, RFS05, RFS06 |  |
+| RFS30 | registrar automáticamente en una bitácora de auditoría quién creó, modificó o eliminó… | RFS12 |  |
+| RFS31 | validar todos los datos de entrada en tres niveles (formularios del front end, endpoints… | RNFP30 | Pasa a no funcional |
+| RFS32 | permitir buscar, filtrar, ordenar y paginar los listados principales del sistema… | RNFP32 (y los filtros de pedidos de RFS06) | Pasa a no funcional |
+| RFS33 | calcular al menos seis indicadores clave (sumando a pedidos por mes, ingresos por mes,… | RFS09 |  |
+| RFS34 | alimentar un dashboard interactivo desde el backend con al menos cuatro visualizaciones… | RFS09 |  |
+| RFS35 | generar al menos tres reportes del negocio: uno operativo (detalle de pedidos, entregas y… | RFS10 |  |
+| RFS36 | exportar cada uno de los reportes aplicando los filtros seleccionados a formatos Excel… | RFS10 |  |
+| RFS37 | proveer una versión limpia de impresión desde el navegador para cada reporte, ocultando… | RFS10 |  |
+| RFS38 | ofrecer un endpoint en la API que consuma un servicio de inteligencia artificial externo… | RFS11 |  |
+| RFS39 | presentar como primera pantalla al ingresar al sistema la vista principal de «Letrería… | RFS01 |  |
+| RFS40 | enviar automáticamente un correo electrónico al administrador con los datos ingresados… | RFS08 |  |
+| RFS41 | habilitar en la vista principal, cuando un cliente inicie sesión, un apartado directo de… | RFS03 (destino al ingresar), RFS04 (seguimiento del cliente), RFS09 (vista de administración) |  |
+| RFS42 | publicar de forma accesible en todo el sitio la Política de Privacidad y los Términos y… | RFS12 |  |
+| RFS43 | exigir en el registro de cuenta y envío de formularios una casilla sin marcar por defecto… | RFS12 (y los formularios de RFS01 y RFS03) |  |
+| RFS44 | registrar en la base de datos quién aceptó los Términos y Condiciones, la Política de… | RFS12 |  |
+| RFS45 | mostrar un banner de consentimiento de cookies al ingresar al sitio y bloquear la… | RFS12 |  |
+| RFS46 | permitir a cada cliente registrado descargar en un archivo estructurado todos sus datos… | RFS12 | Cambia: la baja inhabilita la cuenta (borrado lógico) en vez de borrarla |
+| RFS47 | verificar y registrar que toda publicación en la vitrina o catálogo que contenga… | RFS01, RFS07 |  |
+| RFS48 | procesar el enlace de baja (unsubscribe) incluido en los correos electrónicos para… | RFS08 |  |

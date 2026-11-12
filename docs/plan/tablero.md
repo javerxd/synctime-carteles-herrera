@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026.
+Última actualización: 14-11-2026 (ajuste por la revisión de la profesora guía).
 
 ## Hecho
 
@@ -11,7 +11,7 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Ajuste por la revisión de la profesora guía** (14-11-2026) · rama `ajuste-revision-profesora` · requisitos en macro-requerimientos (versión 2, 159 identificadores), pedido con estado de pago independiente (migración `SepararEstadoPedidoYPago`, aplicada en la base demo, no en la real), base de datos documentada en `docs/base-de-datos/`, plan ajustado para la revisión del lunes
 
 ## En curso
 
@@ -22,12 +22,12 @@ _(ninguna)_
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
 | 2 | Sistema de diseño | 0 | — |
-| 3 | Estructura de la aplicación web | 1, 2 | Probar su ingreso con rostro |
+| 3 | Estructura de la aplicación web y pantallas de la revisión del lunes | 1, 2 | Probar su ingreso con rostro; recorrer las pantallas antes de la revisión |
 | 4 | Servicios comunes: correo, consentimientos e imágenes | 1 | — |
 | 5 | Portada pública | 3, 4 | WhatsApp, correo y teléfono del taller; fotos y permiso de logos |
 | 6 | Cuentas y sesión | 3, 4 | Decidir sobre cuentas sin correo, si existen |
 | 7 | Solicitudes y clientes | 6 | Confirmar los diagramas de estados |
-| 8 | Cotizaciones, pago y pedidos | 7 | — |
+| 8 | Cotizaciones, pedidos, pagos y abonos | 7 | Autorizar la migración `SepararEstadoPedidoYPago` en la base real |
 | 9 | Mantenedores y estado del local | 4, 6 | — |
 | 10 | Rostro según requisitos | 6, 9 | — |
 | 11 | Notificaciones, auditoría y privacidad | 4, 8, 9 | Cuenta SMTP del taller |

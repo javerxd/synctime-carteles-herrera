@@ -1,102 +1,79 @@
-1. Requerimientos funcionales del sistema (47)
+Requerimientos del sistema — SyncTime, Letrería Los Herrera
 
-agrupar en cotización, autenticación, proceso y cotización
+Versión 2 (14-11-2026), reestructurada tras la revisión con la profesora guía: los 47 requerimientos funcionales del sistema se agrupan en 12 macro-requerimientos, uno por pantalla o proceso, con el detalle de sus acciones en viñetas. Las reglas puramente técnicas (validación en tres niveles, formato de errores, autorización por rol, paginación y límites de envío) pasan a los no funcionales del producto (RNFP30 a RNFP33). La equivalencia entre los códigos antiguos (RFS01 a RFS48) y los nuevos está en `docs/plan/trazabilidad.md`.
 
-RFS01: mostrar las publicaciones visibles del catálogo o vitrina de trabajos realizados (imagen, título, descripción, tipo de letrero, medidas y costo estimado), filtradas por categoría.
+1. Requerimientos funcionales del sistema (12)
 
-RFS02: mostrar el horario semanal y el estado actual del local.
+RFS01: Publicitar el catálogo de trabajos realizados y enviar una solicitud.
+- Presentar como primera pantalla, con o sin sesión iniciada, la portada de «Letrería Los Herrera»: propuesta de valor, datos de contacto, botón directo a WhatsApp para consultas, formulario de contacto y mapa interactivo del local en Villagrán 810, 4440000 Los Ángeles, Bío Bío.
+- Mostrar la vitrina o catálogo de trabajos realizados o destacados (imagen, título, descripción, tipo de letrero, categoría, medidas y precio referencial), filtrable por categoría.
+- No mostrar ninguna publicación que contenga logotipos o marcas de clientes sin la autorización expresa del cliente registrada en el sistema.
+- Desde la misma pantalla de la vitrina, abrir una ventana (modal) para enviar una solicitud de trabajo con sus especificaciones y medidas, con la casilla de aceptación de la Política de Privacidad y los Términos y Condiciones desmarcada por defecto. El envío sigue las reglas de RFS04.
 
-RFS03: generar un código QR que abra el portal público.
+RFS02: Gestionar la disponibilidad horaria y el cartel electrónico.
+- Mostrar el horario semanal de atención y las franjas disponibles. El dueño actualiza el horario de cada día, y queda registrado quién y cuándo lo modificó.
+- Cartel electrónico digital: indicador verde «Abierto / Disponible» o rojo «Cerrado / Ausente», siempre acompañado de su texto, con mensaje personalizado, hora estimada de regreso y hora de la última actualización. El dueño o un trabajador «da vuelta» el cartel cuando sale a terreno o a una entrega, y queda registrado quién lo cambió. Primero se construye el indicador funcional con la paleta del sistema; las animaciones elaboradas quedan para el final.
+- Generar un código QR descargable e imprimible, para pegarlo en la ventana del local, que abra directamente el portal público.
 
-RFS04: crear cuentas de cliente validando que teléfono, RUT y correo no estén registrados, guardar y registrar la contraseña como hash, para no duplicarlo.
+RFS03: Autenticación, gestión de cuentas y acceso biométrico facial.
+- Crear cuentas de cliente validando el RUT con su dígito verificador y que el teléfono, el RUT y el correo no estén registrados, y guardar la contraseña solo como hash. Verificar el correo de la cuenta antes de aceptar solicitudes en línea (RFS04).
+- Iniciar sesión: clientes con correo y contraseña o con Google (OAuth 2.0); personal con correo y contraseña. Entregar un token de sesión (JWT) con el rol.
+- Recuperar la contraseña.
+- Al iniciar sesión, llevar al cliente a su vista principal con el seguimiento de sus solicitudes y pedidos, y al dueño o administrador a la vista de administración (RFS09).
+- Ingreso facial, solo en el acceso al panel interno: registrar el rostro de un empleado activo a partir de varias capturas, guardando solo los descriptores numéricos y la fecha del consentimiento expreso, nunca la fotografía; identificar al empleado comparando su descriptor con el registrado y aceptar solo una coincidencia bajo el umbral de distancia; ante una coincidencia, emitir el mismo token que el ingreso con contraseña e indicar si ingresó como dueño o como trabajador; mantener siempre el ingreso con contraseña, y permitir al dueño desactivar el rostro de cualquier empleado.
 
-RFS05: autenticar clientes (correo y contraseña, o Google) y trabajadores (correo y contraseña), y entregar un token de sesión con su rol. (!)
+RFS04: Gestión integral de solicitudes y prevención de solicitudes falsas.
+- Buscar al cliente por RUT o teléfono antes de crearlo, para no duplicarlo.
+- Registrar la cabecera de la solicitud con fecha automática, estado «solicitado» y origen «online» (cliente) o «presencial» (trabajador).
+- Registrar uno o más ítems por solicitud (tipo de letrero, descripción, medidas y cantidad) y calcular el área en $\text{m}^2$ de cada uno.
+- Listar y filtrar las solicitudes por estado, origen y fecha; modificarlas solo en «solicitado» o «cotizado»; rechazarlas con su motivo, conservándolas para las estadísticas, y eliminarlas de forma lógica.
+- Validar las transiciones de estado de la solicitud, para impedir saltos o retrocesos inválidos.
+- Mostrar a cada cliente registrado, en su vista principal, solo sus propias solicitudes, cotizaciones y pedidos, con su estado.
+- Regla contra solicitudes falsas: para evitar que un tercero llene la base con solicitudes falsas usando RUT válidos de otras personas, el envío en línea exige una cuenta con correo verificado o el ingreso con Google. Si la cuenta, el RUT o la dirección IP ya tiene una solicitud en línea pendiente sin concretar, o superó el límite de envíos (RNFP33), el sistema no guarda la solicitud en la base de datos. En su lugar muestra un mensaje amable, sin la palabra «rechazado»: «Para esta solicitud es preferible contactarse directamente con el local», junto con el horario disponible, el cartel electrónico, el teléfono y el botón de WhatsApp. El mensaje es el mismo cualquiera sea el motivo, para no revelar datos de otras personas.
 
-RFS06: registrar cada solicitud con estado «solicitado», fecha automática y origen «online» (cliente) o «presencial» (trabajador). (!)
+RFS05: Gestión de cotizaciones y aprobación por doble vía.
+- Crear cotizaciones de una solicitud desglosando el costo de materiales (según el material base y las dimensiones), la mano de obra y otros gastos; calcular subtotales y total; pasar la solicitud a «cotizado» y registrar quién la elaboró.
+- Aprobar o rechazar la cotización por dos vías: el cliente desde su sesión en la web, o el dueño o un trabajador en el panel interno cuando el cliente confirma por teléfono o WhatsApp.
+- Validar las transiciones de estado de la cotización.
 
-RFS07: registrar uno o más ítems por solicitud (producto, descripción, cantidad, medidas) y calcular el área en $\text{m}^2$ de cada uno.
+RFS06: Gestión de pedidos, control independiente de pagos y abonos, y calendario.
+- Crear el pedido por dos vías. (1) Desde una cotización: al aprobarse, el pedido nace en estado «Aceptado» con los montos de la cotización y la solicitud pasa a «aceptado», sin exigir un pago previo. (2) Pedido presencial directo: cuando el cliente acuerda el trabajo en el taller sin solicitud web previa, el dueño o un trabajador busca al cliente por RUT o teléfono (o lo crea) y registra el tipo de letrero, el material base, las medidas, la cantidad, la glosa de especificaciones, el costo de materiales, la mano de obra, la instalación y el abono o pago, si lo hubo. La solicitud y la cotización de ese pedido se generan internamente.
+- Registrar en el pedido el responsable, las fechas estimada y real de entrega, la modalidad de entrega, la instalación y su costo, y calcular el monto final.
+- Llevar dos estados independientes. Estado del pedido (operativo): «Aceptado», «En proceso», «Terminado», «Entregado» o «Anulado»; no se usa «Cancelado», que en Chile se entiende como «pagado». Estado de pago (financiero): «No pagado», «Abonado» o «Pagado total».
+- Registrar abonos y pagos: monto abonado, saldo pendiente (monto final menos monto abonado) y número de factura opcional, para los clientes habituales que pagan a fin de mes.
+- Considerar cerrado el ciclo de un pedido solo cuando está «Entregado» y «Pagado total».
+- Validar las transiciones del estado del pedido.
+- Listados y filtros para el dueño: por estado del pedido; por estado de pago; filtro de cobranza, que lista los pedidos no anulados con pago «No pagado» o «Abonado» y su saldo pendiente; por año y mes; y por cliente, para ver todo su historial de trabajos.
+- Mostrar un calendario de pedidos por fecha estimada de entrega, distinguiendo pendientes y entregados.
 
-RFS08: buscar al cliente por teléfono o RUT antes de crear uno nuevo, para no duplicarlo.
+RFS07: Mantenedores del sistema (catálogo, tipos de letrero, materiales y personal).
+- Administrar las categorías y los tipos de letrero que define el dueño (por ejemplo palomita, de ventana o de candidatura), los materiales base (por ejemplo vidrio, madera o cholguán) con su costo unitario, las publicaciones de la vitrina (indicando si se cuenta con el permiso del cliente cuando una imagen incluye su logotipo) y los empleados con su rol.
+- De cara al usuario se habla de «administrar» o «mantener», nunca de «CRUD».
 
-RFS09: listar solicitudes por estado, origen y fecha, y permitir modificarlas solo en «solicitado» o «cotizado». (!)
+RFS08: Notificaciones por correo y formulario de contacto.
+- Enviar al administrador un correo con los datos del formulario de contacto de la portada, registrando la consulta para su revisión.
+- Avisar por correo al cliente cuando su solicitud se cotiza, rechaza o acepta y cuando su pedido cambia de estado, incluyendo siempre un enlace funcional para darse de baja de los correos opcionales o comerciales.
+- Procesar el enlace de baja revocando de inmediato el consentimiento correspondiente.
 
-RFS11: registrar el rechazo de una solicitud con su motivo y conservarla para las estadísticas.
+RFS09: Análisis de datos, indicadores (KPIs) y dashboard interactivo.
+- Calcular al menos seis indicadores clave con su fórmula: pedidos por mes, ingresos por mes, solicitudes en línea, solicitudes en línea concretadas y porcentaje de conversión, más un sexto como ticket promedio por pedido, porcentaje de entregas a tiempo o saldo total por cobrar. Por rango semanal, mensual o anual, comparando dos períodos.
+- Alimentar desde el backend un dashboard con al menos cuatro gráficos interactivos, filtrables por rango de fechas, categoría, estado del pedido, estado de pago u origen de la solicitud, cada uno con su título, descripción textual y tabla de datos accesible.
+- Al iniciar sesión el dueño o el administrador, mostrar la vista de administración con las solicitudes pendientes y las métricas principales del negocio.
 
-RFS12: crear cotizaciones asociadas a una solicitud (materiales, mano de obra, otros costos), calcular subtotales y total, y pasar la solicitud a «cotizado». (!)
+RFS10: Generación, exportación (Excel, PDF y CSV) e impresión de reportes.
+- Generar al menos tres reportes: operativo (detalle de pedidos, entregas y solicitudes, con estado de pago y saldo), gerencial (ingresos, costos, totales y gráficos) y parametrizable (rango de fechas y filtros, incluidos estado del pedido, estado de pago, año, mes y cliente).
+- Exportar cada reporte con los filtros aplicados a Excel (.xlsx con encabezados, formatos de fecha y número, y totales), PDF (título, fecha de emisión, filtros aplicados, numeración de páginas y texto seleccionable) y CSV (UTF-8 con separador documentado), registrando en la auditoría quién exportó y validando su rol.
+- Proveer una versión limpia de impresión desde el navegador (`@media print`), sin menús, botones ni navegación.
 
-RFS13: registrar la aprobación o el rechazo de una cotización, hecho por el cliente en línea o por un trabajador. (!)
+RFS11: Asistente con inteligencia artificial externa.
+- Ofrecer un endpoint que consuma un servicio externo de inteligencia artificial para sugerir, a partir de una descripción en lenguaje natural, la categoría, las medidas y un borrador de solicitud o cotización, o para redactar descripciones comerciales del catálogo; validar la entrada y devolver una respuesta JSON estructurada o el error estándar.
 
-RFS14: al confirmar el pago de una cotización aprobada, pasar la solicitud a «aceptado» y crear un único pedido con los montos de esa cotización.
+RFS12: Auditoría transversal, gestión de consentimientos e inhabilitación de cuentas.
+- Registrar automáticamente en una bitácora de auditoría quién creó, modificó o eliminó registros en las entidades principales (solicitudes, cotizaciones, pedidos, catálogo, clientes y empleados) y quién exportó reportes, con fecha, hora y detalle del cambio.
+- Gestionar de forma unificada la Política de Privacidad, los Términos y Condiciones y las cookies: publicarlos en todo el sitio; exigir en el registro y en los formularios una casilla desmarcada por defecto para aceptarlos y otra independiente, también desmarcada, para autorizar el marketing; registrar quién aceptó, la versión del documento, la fecha y la hora; y mostrar un banner de cookies que bloquea la analítica y los rastreadores hasta el consentimiento expreso.
+- Permitir al cliente descargar en un archivo estructurado sus datos personales e historial (portabilidad) y dar de baja su cuenta. La baja no borra el historial: la cuenta queda inhabilitada (borrado lógico) para conservar la integridad histórica y contable de los pedidos de la empresa; el cliente deja de poder ingresar y de recibir comunicaciones, y se borran los datos que no hacen falta para esa conservación, como la contraseña.
 
-RFS15: registrar en el pedido responsable, fechas estimada y real de entrega, modalidad de entrega y costo de instalación, y calcular el monto final.
-
-RFS16: cambiar el estado del pedido entre en proceso, aceptado, terminado, entregado, cancelado.
-
-RFS17: mostrar un calendario de pedidos por fecha estimada de entrega, distinguiendo pendientes y entregados.
-
-RFS18: enviar un correo al cliente cuando su solicitud sea cotizada, rechazada o aceptada, y cuando su pedido cambie de estado, incluyendo siempre un enlace funcional para darse de baja de notificaciones opcionales o correos comerciales.
-
-RFS19: mostrar a cada cliente registrado solo sus propias solicitudes, cotizaciones y pedidos.
-
-RFS20: permitir mantener categorías, productos, publicaciones del catálogo, materiales y empleados con su rol.
-
-RFS21: permitir actualizar el horario de cada día y el estado del local, registrando quién y cuándo lo modificó.
-
-RFS22: calcular pedidos por mes, ingresos por mes, solicitudes en línea, solicitudes en línea concretadas y porcentaje de conversión, por rango semanal, mensual o anual, y comparar dos períodos.
-
-RFS23: permitir cada función solo a los roles autorizados.
-
-RFS24: registrar el rostro de un empleado activo a partir de varias capturas, guardando solo los descriptores numéricos y la fecha de consentimiento, nunca la fotografía. (!)
-
-RFS25: identificar al empleado comparando el descriptor con los registrados, aceptando solo una coincidencia bajo el umbral de distancia y claramente mejor que la del segundo candidato.
-
-RFS26: ante una coincidencia, emitir el mismo token que el ingreso con contraseña y mostrar si ingresó como dueño (administrador o dueño) o como trabajador (diseñador u operario).
-
-RFS27: ofrecer el ingreso facial solo en el acceso al panel interno, mantener siempre el ingreso con contraseña y permitir al dueño desactivar el rostro de cualquier empleado. (!)
-
-RFS28: método de recuperación de contraseña.
-
-RFS29: validar las transiciones de estado en solicitudes, cotizaciones y pedidos para impedir saltos o retrocesos inválidos dentro del flujo de negocio.
-
-RFS30: registrar automáticamente en una bitácora de auditoría quién creó, modificó o eliminó registros en las entidades principales (solicitudes, cotizaciones, pedidos, catálogo, clientes y empleados), junto con la fecha, hora y detalle del cambio.
-
-RFS31: validar todos los datos de entrada en tres niveles (formularios del front end, endpoints de la API en el servidor y restricciones de la base de datos) y devolver los errores de la API bajo un formato estándar y centralizado.
-
-RFS32: permitir buscar, filtrar, ordenar y paginar los listados principales del sistema (solicitudes, cotizaciones, pedidos, catálogo y clientes) tanto en la API como en la interfaz.
-
-RFS33: calcular al menos seis indicadores clave (sumando a pedidos por mes, ingresos por mes, solicitudes en línea, solicitudes en línea concretadas y porcentaje de conversión un sexto indicador como ticket promedio por pedido o porcentaje de entregas a tiempo), con su fórmula y comparativa entre períodos.
-
-RFS34: alimentar un dashboard interactivo desde el backend con al menos cuatro visualizaciones actualizadas con los datos del sistema, filtrables por rango de fechas, categoría de producto, estado u origen, incluyendo para cada gráfico su título, descripción textual y tabla de datos accesible.
-
-RFS35: generar al menos tres reportes del negocio: uno operativo (detalle de pedidos, entregas y solicitudes), uno gerencial (resumen de ingresos, costos, totales y gráficos) y uno parametrizable por rango de fechas y filtros.
-
-RFS36: exportar cada uno de los reportes aplicando los filtros seleccionados a formatos Excel (.xlsx con encabezados, formatos de fecha/número y totales), PDF (con título, fecha de emisión, filtros aplicados, numeración de páginas y texto seleccionable) y CSV (en codificación UTF-8 con separador documentado), registrando en auditoría qué usuario solicitó la exportación y validando su rol.
-
-RFS37: proveer una versión limpia de impresión desde el navegador para cada reporte, ocultando menús, botones y elementos de navegación mediante hojas de estilo de impresión (`@media print`).
-
-RFS38: ofrecer un endpoint en la API que consuma un servicio de inteligencia artificial externo (como asistente de cotización a partir de lenguaje natural o generador de descripciones comerciales para el catálogo), validando la entrada y devolviendo una respuesta JSON estructurada o un error en formato estándar.
-
-RFS39: presentar como primera pantalla al ingresar al sistema la vista principal de «Letrería Los Herrera», que incluya el título y datos de contacto de la empresa, el apartado de vitrina de trabajos realizados (imagen, tipo, medidas y costo estimado), un botón de redirección directa a WhatsApp, un formulario de contacto y un mapa interactivo con la ubicación del local comercial en Villagrán 810, 4440000 Los Ángeles, Bío Bío (visible tanto para usuarios no autenticados como autenticados).
-
-RFS40: enviar automáticamente un correo electrónico al administrador con los datos ingresados cuando un visitante o cliente complete el formulario de contacto de la vista principal, registrando la consulta para su revisión.
-
-RFS41: habilitar en la vista principal, cuando un cliente inicie sesión, un apartado directo de seguimiento de sus solicitudes y pedidos activos, y cuando inicie sesión una cuenta de administrador o dueño, mostrar la vista de administración con las solicitudes pendientes, métricas e indicadores del negocio.
-
-RFS42: publicar de forma accesible en todo el sitio la Política de Privacidad y los Términos y Condiciones del servicio.
-
-RFS43: exigir en el registro de cuenta y envío de formularios una casilla sin marcar por defecto (opt-in) para aceptar los Términos y Condiciones y la Política de Privacidad, y otra casilla independiente y desmarcada por defecto para autorizar el envío de comunicaciones de marketing.
-
-RFS44: registrar en la base de datos quién aceptó los Términos y Condiciones, la Política de Privacidad y el permiso de marketing, guardando el identificador del usuario, la versión del documento, la fecha y la hora exacta de aceptación.
-
-RFS45: mostrar un banner de consentimiento de cookies al ingresar al sitio y bloquear la ejecución de cualquier script de analítica o rastreador de terceros hasta que el usuario otorgue su consentimiento expreso.
-
-RFS46: permitir a cada cliente registrado descargar en un archivo estructurado todos sus datos personales e historial (portabilidad de datos) y solicitar o ejecutar la eliminación o anonimización de su cuenta y datos personales desde su perfil.
-
-RFS47: verificar y registrar que toda publicación en la vitrina o catálogo que contenga logotipos o marcas de clientes cuente con la marca de autorización expresa del cliente antes de hacerse visible públicamente.
-
-RFS48: procesar el enlace de baja (unsubscribe) incluido en los correos electrónicos para revocar de inmediato el consentimiento de comunicaciones comerciales o notificaciones opcionales del cliente.
-
-2. Requerimientos funcionales del usuario (34)
+2. Requerimientos funcionales del usuario (36)
 
 RFU01 (Visitante): ver en la página principal de «Letrería Los Herrera» la vitrina de trabajos realizados con imágenes, tipo de letrero, medidas y costo estimado antes de pedir.
 
@@ -108,7 +85,7 @@ RFU04 (Visitante): crear una cuenta de cliente marcando voluntariamente la acept
 
 RFU05 (Cliente, trabajador, dueño): iniciar sesión; el cliente, también con Google.
 
-RFU06 (Visitante): enviar una solicitud de trabajo desde la web a cualquier hora.
+RFU06 (Visitante, cliente): enviar una solicitud de trabajo desde la vitrina a cualquier hora, con una cuenta de correo verificado o con Google; si el sistema sugiere contactarse con el local, ver ahí mismo el horario, el cartel electrónico, el teléfono y el botón de WhatsApp.
 
 RFU07 (Cliente registrado): consultar desde un apartado en su vista principal el seguimiento y estado de sus solicitudes, cotizaciones y pedidos.
 
@@ -122,13 +99,13 @@ RFU11 (Trabajador): consultar, modificar, rechazar y eliminar solicitudes.
 
 RFU12 (Trabajador): cotizar separando materiales, mano de obra y otros gastos. (!)
 
-RFU13 (Trabajador): confirmar el pago y convertir la cotización en pedido.
+RFU13 (Trabajador): convertir la cotización aprobada en pedido y registrar los abonos y pagos del cliente, con el número de factura cuando corresponda.
 
 RFU14 (Trabajador): asignar responsable, actualizar el avance y registrar la entrega o instalación.
 
 RFU15 (Trabajador): ver en un calendario las entregas comprometidas.
 
-RFU16 (Trabajador): avisar si el local está abierto, cerrado o en pausa y cuándo vuelve; el dueño, además, cambiar el horario. (!)
+RFU16 (Trabajador): dar vuelta el cartel electrónico para avisar si el local está abierto o cerrado, con un mensaje y la hora de regreso; el dueño, además, cambiar el horario. (!)
 
 RFU17 (Dueño): mantener catálogo, productos, categorías y materiales, indicando si se cuenta con el permiso del cliente cuando una imagen incluya su logotipo.
 
@@ -164,9 +141,13 @@ RFU32 (Visitante, cliente): enviar consultas generales a través del formulario 
 
 RFU33 (Visitante, cliente): leer la Política de Privacidad y los Términos y Condiciones, y decidir en el banner de cookies si acepta o rechaza las cookies no esenciales y rastreadores.
 
-RFU34 (Cliente registrado): descargar una copia de todos sus datos personales almacenados en el sistema o solicitar el borrado definitivo de sus datos y cuenta.
+RFU34 (Cliente registrado): descargar una copia de todos sus datos personales almacenados en el sistema y dar de baja su cuenta, que queda inhabilitada conservando el historial de sus pedidos.
 
-3. Requerimientos no funcionales del producto (29)
+RFU35 (Dueño, trabajador): registrar un pedido presencial directo cuando el cliente acuerda el trabajo en el taller, sin solicitud web previa, incluyendo el abono o pago si lo deja.
+
+RFU36 (Dueño): filtrar los pedidos por estado del pedido, estado de pago, año, mes y cliente, y listar los pedidos por cobrar con su saldo pendiente.
+
+3. Requerimientos no funcionales del producto (33)
 
 RNFP01 (Rendimiento): responder cada consulta o registro en 2 segundos o menos en el 95 % de las peticiones, con hasta 20 usuarios simultáneos.
 
@@ -226,11 +207,19 @@ RNFP28 (Seguridad en consultas y aislamiento de datos): utilizar exclusivamente 
 
 RNFP29 (Seguridad de orígenes): configurar una política de CORS cerrada en la API que permita peticiones únicamente desde los orígenes autorizados del front end según el entorno.
 
+RNFP30 (Validación y errores; antes RFS31): validar todos los datos de entrada en tres niveles (formularios del front end, endpoints de la API en el servidor y restricciones de la base de datos) y devolver los errores de la API bajo un formato estándar y centralizado.
+
+RNFP31 (Autorización; antes RFS23): permitir cada función solo a los roles autorizados, verificándolo siempre en el servidor.
+
+RNFP32 (Listados; antes RFS32): permitir buscar, filtrar, ordenar y paginar los listados principales del sistema (solicitudes, cotizaciones, pedidos, catálogo y clientes) tanto en la API como en la interfaz.
+
+RNFP33 (Protección contra solicitudes falsas; parte técnica de RFS04): limitar las solicitudes en línea por cuenta, por RUT y por dirección IP: como máximo una solicitud en línea pendiente sin concretar por cuenta o RUT, y 3 envíos por hora por IP (valores propuestos y configurables). Al superar un límite no se escribe nada en la base de datos.
+
 4. Requerimientos no funcionales organizacionales (17)
 
 RNFO01: construir con React, ASP.NET Core Web API y SQL Server.
 
-RNFO02: aplicar el flujo solicitud -> cotización -> aceptación y pago -> pedido; ningún pedido sin cotización aprobada y pagada.
+RNFO02: aplicar el flujo solicitud -> cotización -> aprobación -> pedido, o registrar un pedido presencial directo; el pago se controla aparte con el estado de pago (no pagado, abonado o pagado total) y no es requisito para crear el pedido.
 
 RNFO03: publicar el horario que fije el dueño y permitir que solo el personal cambie el estado del local.
 
@@ -282,15 +271,15 @@ RNFE08: cumplir con las pautas de accesibilidad de contenido web WCAG 2.2 en su 
 
 RNFE09: cumplir con los términos de licencia de los componentes open source, activos gráficos y tipografías empleadas, así como con las políticas del proveedor de mapas embebidos.
 
-6. Requerimientos de información: entradas (24)
+6. Requerimientos de información: entradas (27)
 
 E01 Datos del cliente: RUT (opcional en solicitud rápida), nombre, apellido, teléfono, correo, dirección y, si crea cuenta, contraseña. Visitante o trabajador.
 
 E02 Credenciales: correo y contraseña, o autorización de Google. Cliente, trabajador.
 
-E03 Solicitud: cliente y descripción general del trabajo. Visitante o trabajador.
+E03 Solicitud: cliente y descripción general del trabajo. Cliente con correo verificado o trabajador.
 
-E04 Ítems de la solicitud: producto, descripción, ancho, alto y cantidad. Visitante o trabajador.
+E04 Ítems de la solicitud: tipo de letrero, descripción, ancho, alto y cantidad. Cliente o trabajador.
 
 E05 Cambio en una solicitud: datos corregidos, motivo de rechazo o marca de eliminación. Trabajador.
 
@@ -298,9 +287,9 @@ E06 Cotización: observaciones; por material: material, medida, cantidad y costo
 
 E07 Respuesta a la cotización: aprobación o rechazo. Cliente registrado o trabajador.
 
-E08 Confirmación de pago y pedido: responsable, fecha estimada, modalidad de entrega, si requiere instalación, dirección y costo de instalación. Trabajador.
+E08 Creación del pedido desde una cotización aprobada: responsable, fecha estimada, modalidad de entrega, si requiere instalación, dirección y costo de instalación, y abono inicial si lo hay. Trabajador.
 
-E09 Avance del pedido: nuevo estado y, al entregar, fecha real. Trabajador.
+E09 Avance del pedido: nuevo estado del pedido y, al entregar, fecha real. Trabajador.
 
 E10 Horario de atención: por día, si abre, hora de apertura y de cierre. Dueño.
 
@@ -324,41 +313,47 @@ E19 Consulta al asistente de IA: descripción en lenguaje natural del letrero re
 
 E20 Configuración de exportación de reporte: tipo de reporte (operativo, gerencial o parametrizable), filtros activos (rango de fechas, estado, categoría u origen) y formato de salida elegido (Excel `.xlsx`, PDF, CSV o vista de impresión). Dueño o trabajador.
 
-E21 Filtros del dashboard: rango de fechas, categoría de producto, estado de pedido u origen de solicitud. Dueño.
+E21 Filtros del dashboard: rango de fechas, categoría de producto, estado del pedido, estado de pago u origen de solicitud. Dueño.
 
 E22 Formulario de contacto: nombre del remitente, correo electrónico, teléfono (opcional), asunto y mensaje de consulta. Visitante o cliente.
 
 E23 Registro de consentimiento legal y privacidad: aceptación de Términos y Condiciones y Política de Privacidad (casilla obligatoria desmarcada por defecto), consentimiento opcional de marketing y preferencias del banner de cookies. Visitante o cliente.
 
-E24 Solicitud sobre datos personales o baja de correo: petición de descarga de datos personales, solicitud de eliminación de cuenta o confirmación de baja de lista de correo. Cliente registrado.
+E24 Solicitud sobre datos personales o baja de correo: petición de descarga de datos personales, solicitud de baja (inhabilitación) de la cuenta o confirmación de baja de lista de correo. Cliente registrado.
 
-7. Requerimientos de información: salidas (23)
+E25 Abono o pago del pedido: monto abonado y número de factura opcional; la fecha y quién lo registró quedan en la bitácora de auditoría. Trabajador o dueño.
+
+E26 Pedido presencial directo: cliente (búsqueda por RUT o teléfono, o sus datos si es nuevo), tipo de letrero, material base, ancho, alto, cantidad, glosa de especificaciones, costo de materiales, mano de obra, instalación, responsable, fecha estimada y abono o pago si lo hay. Trabajador o dueño.
+
+E27 Filtros de pedidos: estado del pedido, estado de pago, cobranza (no pagados o abonados), año, mes y cliente. Dueño.
+
+7. Requerimientos de información: salidas (25)
 
 S01 Catálogo público y vitrina principal («Letrería Los Herrera»): título y datos de contacto de la empresa, trabajos realizados (imagen en WebP/AVIF, título, descripción, tipo de letrero, categoría, medidas y costo estimado), botón directo a WhatsApp y mapa interactivo con la ubicación del local en Villagrán 810, 4440000 Los Ángeles, Bío Bío. Visitante, cliente registrado.
 
-S02 Horario y estado del local: horario de lunes a domingo, estado actual, mensaje, tiempo estimado de regreso y hora de última actualización. Visitante.
+S02 Horario y cartel electrónico: horario de lunes a domingo, cartel verde «Abierto / Disponible» o rojo «Cerrado / Ausente» con su texto, mensaje, hora estimada de regreso y hora de última actualización, y código QR del portal. Visitante.
 
 S03 Comprobante de solicitud: número, fecha y hora, nombre del cliente, ítems (producto, medidas, área, cantidad) y estado «solicitado». Visitante, trabajador.
 
-S04 Seguimiento del cliente en vista principal: por solicitud, número, fecha, estado y motivo de rechazo; total y estado de la cotización; estado del pedido, fecha estimada y modalidad. Cliente registrado.
+S04 Seguimiento del cliente en vista principal: por solicitud, número, fecha, estado y motivo de rechazo; total y estado de la cotización; estado del pedido, estado de pago, saldo pendiente, fecha estimada y modalidad. Cliente registrado.
 
 S05 Bandeja de solicitudes y vista principal de administración: resumen de solicitudes pendientes, métricas clave del negocio, y listado con número, fecha, cliente y teléfono, origen, trabajador que la registró, estado y cantidad de ítems. Dueño, trabajador.
 
 S06 Cotización: número, fecha, cliente, ítems, detalle de materiales, costo total de materiales, mano de obra, otros costos, total, estado y trabajador que la elaboró. Trabajador, cliente registrado.
 
-S07 Ficha del pedido: número, solicitud y cotización de origen, cliente, responsable, fechas, modalidad, instalación y dirección, monto base, costo de instalación, monto final y estado. Trabajador.
+S07 Ficha del pedido: número, origen (cotización o directo), solicitud y cotización de origen, cliente, responsable, fechas, modalidad, instalación y dirección, monto base, costo de instalación, monto final, estado del pedido, estado de pago, monto abonado, saldo pendiente y número de factura. Trabajador.
 
 S08 Calendario de entregas: pedidos por día con cliente, modalidad y estado, con colores e íconos o etiquetas distintivas para pendientes y entregados. Trabajador.
 
 S09 Notificación al cliente y correo de contacto al administrador: al cliente, número de solicitud o pedido, estado nuevo, mensaje, fecha y enlace para darse de baja; al administrador, correo con los datos del formulario de contacto enviado desde la página principal. Cliente, dueño.
 
-S10 Pedidos por mes: cantidad de pedidos creados por estado, sin contar los cancelados en el total. Dueño.
+S10 Pedidos por mes: cantidad de pedidos creados por estado, sin contar los anulados en el total. Dueño.
 
 S11 Ingresos por mes: suma del monto final de los pedidos entregados y total del período. Dueño.
 
 S12 Solicitudes en línea: cantidad de online y, para comparar, de presenciales. Dueño.
 
-S13 Solicitudes en línea concretadas: online con un pedido no cancelado. Dueño.
+S13 Solicitudes en línea concretadas: online con un pedido no anulado. Dueño.
 
 S14 Conversión en línea: porcentaje S13 sobre S12 y, al comparar dos períodos, la diferencia en puntos porcentuales. Dueño.
 
@@ -378,7 +373,11 @@ S21 Respuesta de error estándar: estructura uniforme de error de la API con có
 
 S22 Documentos legales y banner de cookies: vista de Términos y Condiciones, Política de Privacidad, inventario de licencias open source y aviso de configuración de cookies. Visitante, cliente.
 
-S23 Archivo de portabilidad y comprobante de borrado: archivo descargable (JSON o CSV) con todos los datos personales e historial del cliente, o confirmación de eliminación definitiva de su cuenta. Cliente registrado.
+S23 Archivo de portabilidad y comprobante de baja: archivo descargable (JSON o CSV) con todos los datos personales e historial del cliente, o confirmación de que su cuenta quedó inhabilitada. Cliente registrado.
+
+S24 Listado de pedidos por cobrar: pedidos no anulados con pago «No pagado» o «Abonado», con cliente, estado del pedido, monto final, monto abonado y saldo pendiente, y el total por cobrar. Dueño.
+
+S25 Aviso de contacto directo: mensaje «Para esta solicitud es preferible contactarse directamente con el local», con el horario, el cartel electrónico, el teléfono y el botón de WhatsApp. Visitante, cliente.
 
 8. Requerimientos tecnológicos: desarrollo (15)
 

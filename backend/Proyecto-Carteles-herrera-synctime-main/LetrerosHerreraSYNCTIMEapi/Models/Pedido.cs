@@ -1,10 +1,22 @@
 namespace LetrerosHerreraSYNCTIMEapi.Models;
 
+// Un pedido tiene dos estados independientes (revision de la profesora guia, 14-11-2026):
+// - EstadoPedido, operativo: aceptado -> en_proceso -> terminado -> entregado, o anulado.
+//   Se dice "anulado" y no "cancelado", porque en Chile "cancelado" se entiende como "pagado".
+// - EstadoPago, financiero: no_pagado, abonado o pagado_total. Lo calcula la base a partir de
+//   MontoAbonado y del monto final, asi nunca contradice a los montos.
+// El ciclo de un pedido se cierra solo cuando esta entregado Y pagado_total.
 public class Pedido
 {
     public int IdPedido { get; set; }
+
+    // Todo pedido tiene solicitud y cotizacion. Un pedido presencial directo (el cliente acuerda el
+    // trabajo en el taller, sin solicitud previa) las genera internamente en la misma transaccion.
     public int IdSolicitud { get; set; }
     public int? IdCotizacion { get; set; }
+
+    // "cotizacion" si nace de una cotizacion aprobada; "directo" si se registro en el taller.
+    public string Origen { get; set; } = "cotizacion";
     public int IdEmpleadoResponsable { get; set; }
     public DateTime FechaPedido { get; set; }
     public DateTime FechaEntregaEstimada { get; set; }
@@ -15,7 +27,15 @@ public class Pedido
     public decimal CostoInstalacionAdicional { get; set; }
     public decimal MontoBaseTrabajo { get; set; }
     public decimal MontoTotalFinal { get; set; }
-    public string Estado { get; set; } = "aceptado";
+    public string EstadoPedido { get; set; } = "aceptado";
+
+    // Pesos chilenos, sin decimales.
+    public int MontoAbonado { get; set; }
+    public int SaldoPendiente { get; set; }
+    public string EstadoPago { get; set; } = "no_pagado";
+
+    // Opcional: un cliente habitual puede pagar varios pedidos con una sola factura a fin de mes.
+    public string? NumeroFactura { get; set; }
     public byte[] RowVersion { get; set; } = null!;
 
     public virtual Solicitud? Solicitud { get; set; }

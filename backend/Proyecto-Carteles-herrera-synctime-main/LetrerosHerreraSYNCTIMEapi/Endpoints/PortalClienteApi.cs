@@ -116,7 +116,10 @@ public static class PortalClienteApi
                     p.CostoInstalacionAdicional,
                     p.MontoBaseTrabajo,
                     p.MontoTotalFinal,
-                    p.Estado
+                    p.EstadoPedido,
+                    p.EstadoPago,
+                    p.MontoAbonado,
+                    p.SaldoPendiente
                 })
                 .ToListAsync(ct));
         });

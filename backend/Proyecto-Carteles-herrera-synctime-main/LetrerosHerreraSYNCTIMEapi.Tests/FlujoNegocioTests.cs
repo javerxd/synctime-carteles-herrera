@@ -139,8 +139,8 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var url = $"/api/v1/pedidos/{pedido.GetProperty("idPedido").GetInt32()}";
 
         await api.Cliente(token).PutAsJsonAsync(url, new { estado = "inventado", fechaEntregaEstimada = FechaEntrega, modalidadEntrega = "retiro_local" }).EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente(token).PutAsJsonAsync(url, new { estado = "en_proceso", fechaEntregaEstimada = FechaEntrega, modalidadEntrega = "inventada" }).EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente(token).PutAsJsonAsync(url, new { estado = "en_proceso", fechaEntregaEstimada = FechaEntrega, modalidadEntrega = "retiro_local", rowVersion = pedido.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.OK);
+        await api.Cliente(token).PutAsJsonAsync(url, new { estadoPedido = "en_proceso", fechaEntregaEstimada = FechaEntrega, modalidadEntrega = "inventada" }).EsperarAsync(HttpStatusCode.BadRequest);
+        await api.Cliente(token).PutAsJsonAsync(url, new { estadoPedido = "en_proceso", fechaEntregaEstimada = FechaEntrega, modalidadEntrega = "retiro_local", rowVersion = pedido.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.OK);
     }
 
     // ── Solicitudes y eliminacion logica ──
