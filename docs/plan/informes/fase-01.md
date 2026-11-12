@@ -68,8 +68,9 @@ Dos revisiones independientes (C# y seguridad). Ninguna encontró fallos crític
 - HSTS y la política de contenido estricta: solo se activan fuera de desarrollo.
 - La semilla contra la base demo real: falta la contraseña del usuario. Sí está probada contra una base temporal.
 
-## Se necesita del usuario
+## Cierre (14-11-2026): visto bueno del usuario
 
-1. **Confirmar la matriz de permisos**: las tres decisiones al final de `docs/api/permisos.md`.
-2. **Definir la contraseña de los usuarios demo y cargar la semilla**, con los dos comandos del README del backend (sección "Bases de datos y perfiles de arranque").
-3. Decidir si instala el SDK de .NET 10.
+1. **Matriz de permisos:** el usuario aceptó las tres decisiones de `docs/api/permisos.md`.
+2. **Semilla demo:** cargada por el usuario con su propia contraseña. Comprobado en `LetreriaLosHerreraDB_Demo`: 4 empleados (uno por rol), 3 clientes y 3 solicitudes.
+3. **SDK de .NET 10:** instalado (10.0.404) con winget. Se agregó `global.json` en la raíz para que `dotnet` lo use y no el 11 preliminar. Con él pasan las 96 pruebas unitarias y las 166 de integración.
+4. **Fase 1 aprobada.** La Fase 2 no ha comenzado.

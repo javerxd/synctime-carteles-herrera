@@ -41,9 +41,9 @@ Lo que hoy permite la API y lo que piden los requisitos no coincide en estos pun
 | 5 | Decisión del 12-11-2026: el rostro es solo para dueño y administrador | Lo puede activar todo el personal | Solo gestión | 10 |
 | 6 | `POST /auth/rostro/equipo` | La ruta admite a todo el personal y rechaza a los demás roles con un 400 de su lógica interna | Rechazo con 403 en la propia ruta | 10 |
 
-## Tres decisiones por confirmar
+## Tres decisiones confirmadas
 
-Las propuestas siguientes son las que aplicaré si no indicas otra cosa. Cambiarlas después es posible, pero conviene decidirlas antes de las fases de negocio.
+**El usuario aceptó las tres propuestas el 14-11-2026.** Rigen desde las fases de negocio. Cambiarlas después es posible, pero afecta a los permisos de todas las fases siguientes.
 
 1. **¿Dueño y administrador pueden lo mismo?**
    Propuesta: **sí, exactamente lo mismo**, como hoy. Los requisitos hablan del "dueño" para mantenedores, empleados, reportes y auditoría, y RFS26 trata a ambos roles como "dueño".
