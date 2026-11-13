@@ -1,4 +1,4 @@
-Actúa como un Lead Designer & Frontend Architect de clase mundial. Vamos a reconstruir desde cero el frontend en React de **Letrería Los Herrera (SyncTime)**. 
+Actúa como un Lead Designer & Frontend Architect de clase mundial. Vamos a reconstruir desde cero el frontend en React de **Letreros Herrera (SyncTime)**. 
 
 Quiero que la web se vea sumamente profesional, sobria y de altísima gama ("look caro y exclusivo"), desarrollada en un **Modo Claro (Light Mode) impecable**, con animaciones fluidas y microinteracciones de nivel artesanal.
 
@@ -22,7 +22,7 @@ Para lograrlo, aplica de forma estricta y simultánea los siguientes 4 estándar
 
 ### Estructura de Vistas a Implementar (Requerimientos de Negocio)
 1. **Portada Principal (Landing Page para todo público):**
-   * Encabezado imponente: *"Letrería Los Herrera"* con propuesta de valor de fabricación gráfica y letreros de alta precisión.
+   * Encabezado imponente: *"Letreros Herrera"* con propuesta de valor de fabricación gráfica y letreros de alta precisión.
    * **Vitrina / Catálogo de Trabajos Realizados:** Cuadrícula con tarjetas elegantes que muestren imagen en alta definición, tipo de letrero, medidas de ejemplo y costo referencial.
    * **Botón Directo a WhatsApp:** Botón flotante y accesible para contactar al taller con un clic.
    * **Mapa de Ubicación Interactivo:** Sección con mapa embebido apuntando a la dirección física: `Villagrán 810, 4440000 Los Ángeles, Región del Bío Bío`, con datos de contacto visibles y horario en tiempo real.

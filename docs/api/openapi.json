@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "API de SyncTime — Letrería Los Herrera",
+    "title": "API de SyncTime — Letreros Herrera",
     "version": "1.0.0",
     "description": "Contrato de la API. Se edita ANTES de implementar o cambiar una ruta: una prueba automática falla mientras el contrato y la API no coincidan.\n\n**x-acceso** indica quién puede usar cada operación: `publico` (sin sesión), `sesion` (cualquier sesión), `cliente`, `personal` (los cuatro roles de empleado) o `gestion` (dueño y administrador). Si solo algunos roles del personal pueden usarla, **x-roles** los enumera.\n\n**Errores.** Toda respuesta de error usa el esquema `Error`: un ProblemDetails (RFC 9457) con `error`, `codigo`, `nivel` y, en validaciones, `errores` por campo.\n\n**Listados.** Los listados paginados aceptan `pagina`, `tamano` (máximo 100), `orden` (`campo` o `-campo`) y `buscar`, y responden con el esquema `ResultadoPaginado`. Las rutas anteriores al plan aún devuelven la lista completa y se adaptan en la fase que rehace cada módulo."
   },

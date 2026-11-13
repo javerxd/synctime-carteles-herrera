@@ -15,7 +15,7 @@ export default function DocumentoLegal({ tipo }) {
   const { hash } = useLocation();
 
   useEffect(() => {
-    document.title = `${documento.titulo} · Letrería Los Herrera`;
+    document.title = `${documento.titulo} · Letreros Herrera`;
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
   }, [documento, hash]);
 
@@ -25,7 +25,7 @@ export default function DocumentoLegal({ tipo }) {
         <h1 id="titulo-documento" className={estilos.titulo}>{documento.titulo}</h1>
         <p className={estilos.version}>Versión {documento.version} · vigente desde el {documento.vigenteDesde}</p>
         <Aviso tono="aviso" titulo="Borrador pendiente de revisión legal">
-          Este texto todavía no fue revisado por un abogado. Lo marcado con «[completar: …]» lo completa el taller.
+          Este texto todavía no fue revisado por un abogado. Lo marcado «[Pendiente de completar]» lo completa el taller.
         </Aviso>
         <p className={estilos.resumen}>{documento.resumen}</p>
       </header>

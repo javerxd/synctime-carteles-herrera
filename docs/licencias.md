@@ -20,10 +20,9 @@ La OFL permite usar, incrustar y redistribuir la fuente en sitios y aplicaciones
 
 | Recurso | Licencia | Estado |
 |---|---|---|
-| Ilustraciones de ejemplo de la base demo | Propias: se dibujan en el código (`LetrerosHerreraSYNCTIMEapi/Infraestructura/Imagenes/ImagenesDeEjemplo.cs`, con SkiaSharp). No son fotos ni se descargan de terceros | En uso en la vitrina de la base demo, rotuladas «Imagen de ejemplo» (fase 5) |
-| Fotos reales de los trabajos | Del taller | **Pendientes**: el taller las entregará. Mientras tanto, la vitrina usa las ilustraciones de ejemplo, o «Foto del trabajo pendiente» si una publicación no tiene foto |
+| Fotos reales de los trabajos (`docs/imagenes-trabajos/vitrina/`) | Del taller, entregadas por el usuario el 13-11-2026 | En uso en la vitrina de la base demo: 22 fotos recortadas y convertidas a WebP. Las fotos muestran nombres y logotipos de clientes, con su autorización registrada (fila siguiente). Las tres imágenes generadas por IA de la carpeta original no se usan |
 | Mapa de la portada (`frontend/synctimefront/public/mapa/ubicacion-taller.webp`) | Generado con `scripts/mapa-estatico.py` a partir de teselas de OpenStreetMap | **Por verificar** antes de la entrega: ver «Datos y mapas de OpenStreetMap» |
-| Logotipo de Letrería Los Herrera | Del taller, entregado por el usuario el 13-11-2026 | En uso: versión en tinta derivada del original gris (barra, panel, acceso y favicon) en `frontend/synctimefront/public/marca/`. Originales en `docs/marca/originales/` |
+| Logotipo de Letreros Herrera | Del taller, entregado por el usuario el 13-11-2026 | En uso: versión en tinta derivada del original gris (barra, panel, acceso y favicon) en `frontend/synctimefront/public/marca/`. Originales en `docs/marca/originales/` |
 | Logotipos de clientes | De cada cliente | Solo con autorización registrada: desde la fase 5 la API no muestra una publicación con logo sin ella (`PUT /api/v1/catalogo/{id}/autorizacion-logo`) |
 
 ## Paquetes de código del frontend
@@ -55,6 +54,7 @@ Ninguna de estas licencias exige publicar el código propio del proyecto. La MPL
 |---|---|---|---|
 | Datos del mapa (© colaboradores de OpenStreetMap) | ODbL | Ubicación del taller en la portada | Atribución visible junto al mapa, con enlace a la página de copyright de OpenStreetMap |
 | Teselas (imágenes del mapa) de `tile.openstreetmap.org` | **Por verificar** (ver abajo) | Mapa interactivo, solo si el visitante lo activa; y la imagen estática de `public/mapa/` | Se piden al servidor de OpenStreetMap solo al activar el mapa. Hay que cumplir la política de uso de teselas de la OSMF |
+| Vista de la fachada (Google Street View, inserción `google.com/maps/embed` entregada por el taller) y enlace «Abrir en Google Maps» | Condiciones de servicio de Google Maps; la inserción es gratuita y no usa clave | Solo si el visitante pulsa «Ver la fachada» o abre el enlace | Atribución y controles de Google dentro de la inserción, sin modificarlos |
 
 **Por verificar antes de la entrega:** no se pudo comprobar en línea desde el equipo de desarrollo. La página de copyright de OpenStreetMap podría asignar a las teselas la licencia CC BY-SA 2.0, distinta de la ODbL que cubre los datos. Si es así, la imagen estática generada con esas teselas debe cumplir CC BY-SA 2.0 (atribución y compartir igual).
 

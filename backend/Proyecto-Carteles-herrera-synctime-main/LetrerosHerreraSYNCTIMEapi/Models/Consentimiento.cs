@@ -1,7 +1,8 @@
 namespace LetrerosHerreraSYNCTIMEapi.Models;
 
 // Registro de consentimientos (RFS12): quien acepto, que documento, en que version y cuando; y si lo
-// retiro, cuando. Nunca se borra ni se edita, salvo para marcar la revocacion.
+// retiro, cuando. No se edita, salvo para marcar la revocacion. Se borra solo al vencer el plazo de la
+// politica de privacidad (PurgaDatosPersonales): 24 meses.
 // El titular es uno solo: un cliente, un empleado o, si es un visitante sin cuenta, el envio que hizo
 // (por ejemplo "contacto:15"). Lo exige ck_consentimientos_titular.
 // El consentimiento del rostro tiene su propio registro en rostros_empleado.

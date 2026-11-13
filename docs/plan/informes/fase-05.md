@@ -2,11 +2,11 @@
 
 Fecha: 13-11-2026 · Rama: `fase-05-portada-publica` (nace de `fase-04-servicios-comunes`) · Estado: **en revisión**, esperando tu aprobación
 
-La portada ya funciona sin sesión. Muestra si el local está abierto ahora, en hora de Chile, combinando el horario con el cartel. También muestra la vitrina de trabajos con filtro por categoría, el horario de la semana, cómo llegar, el formulario de contacto, el aviso de cookies y los borradores de la política de privacidad y de los términos. Cada consulta del formulario queda guardada con su consentimiento y le llega al taller como aviso por correo. El navegador no contacta a ningún tercero hasta que el visitante lo pide.
+La portada ya funciona sin sesión. Muestra si el local está abierto ahora, en hora de Chile, combinando el horario con el cartel. También muestra la vitrina de trabajos con filtro por categoría, el horario de la semana, cómo llegar (con la ubicación exacta), el formulario de contacto, el aviso de cookies y los borradores de la política de privacidad y de los términos. Cada consulta del formulario queda guardada con su consentimiento y le llega al taller como aviso por correo. El navegador no contacta a ningún tercero hasta que el visitante lo pide.
 
 ## Cómo verlo
 
-API sobre la base demo (ya tiene la migración nueva y la vitrina de ejemplo) y el frontend:
+API sobre la base demo (ya tiene la migración nueva y la vitrina con las fotos reales) y el frontend:
 
 ```
 cd backend/Proyecto-Carteles-herrera-synctime-main
@@ -22,7 +22,7 @@ npm run dev
 
 - **Portada:** `http://localhost:3000/`.
 - **Correo de cada consulta:** en desarrollo no sale del equipo. Queda en la bandeja local, `https://localhost:7112/dev/bandeja`.
-- **Volver a cargar la vitrina de ejemplo:** `dotnet run --project .\LetrerosHerreraSYNCTIMEapi --launch-profile https -- sembrar-demo`. Solo funciona sobre la base demo.
+- **Volver a cargar la vitrina:** `dotnet run --project .\LetrerosHerreraSYNCTIMEapi --launch-profile https -- sembrar-demo`. Solo funciona sobre la base demo.
 
 ## Qué se hizo
 
@@ -38,7 +38,7 @@ npm run dev
 | Aviso de consulta | El correo al taller lleva el nombre, el contacto y el mensaje citado, y «Responder» le escribe directo al visitante | `AvisoConsultaContacto` |
 | Cookies | Hoy no hay analítica. Solo se registra quién la acepta, con versión, fecha y hora; si después la rechaza, se registra el retiro. Quien nunca la aceptó no deja datos | `POST /api/v1/consentimientos/cookies` |
 | Documentos legales | La API publica la versión vigente de cada documento, la que se registra al aceptar | `GET /api/v1/documentos-legales` |
-| Vitrina de ejemplo | 7 trabajos de demostración. Sus imágenes se dibujan en el equipo y van marcadas «Imagen de ejemplo», así que no se descargan fotos de terceros. Solo se cargan en la base demo | `Datos/SemillaDemo.cs`, `Infraestructura/Imagenes/ImagenesDeEjemplo.cs` |
+| Vitrina de la demo | Al cerrar la fase, 22 trabajos con fotos reales del taller (ver «Ajustes pedidos por el usuario»). Al principio de la fase eran ilustraciones dibujadas en el código, que se retiraron | `Datos/SemillaDemo.cs` |
 
 **Migración `PortadaPublica`:**
 - Agrega a `catalogo` la imagen subida, la marca de logo y su autorización, y a `imagenes` la marca «de ejemplo».
@@ -113,14 +113,32 @@ En la primera prueba en marcha, la demo usó el envío real, porque tus User Sec
 - **Teléfono real:** el diseño se revisó con la vista de 360 px del navegador, no en un teléfono.
 - **Base real:** no se tocó. Le faltan 4 migraciones (`SepararEstadoPedidoYPago`, `HistorialDePagos`, `ServiciosComunes` y `PortadaPublica`), que se aplicarán con tu orden al terminar las fases.
 
+## Ajustes pedidos por el usuario (13-11-2026)
+
+| Pedido | Resultado |
+|---|---|
+| Nombre comercial «Letreros Herrera» | Reemplazado en la portada, títulos de página, barra, pie, acceso del personal, textos legales, plantilla de correo, `Correo:Remitente:Nombre` y la documentación (también en las copias de los requisitos de `docs/requisitos/`). No cambian las bases `LetreriaLosHerreraDB` y `_Demo`, la solución, los proyectos ni los espacios de nombres |
+| Correo de contacto separado de la casilla de avisos | La portada, el pie, la ficha y los textos legales muestran solo `contacto.letrerosherrera@gmail.com` (una prueba lo exige). Para los correos a clientes, `CorreoParaCliente` pone en el pie que no se responda a la casilla automática y deja «Responder» hacia el contacto (`Correo:ContactoTaller`). La API no arranca si ese correo es el mismo de `Correo:Smtp:Usuario`. Los avisos internos al taller siguen respondiendo al cliente |
+| Ubicación exacta | Marcador en -37.46377531272541, -72.34832848822964 en la imagen estática y en el mapa interactivo, sin el aviso de «aproximada». Botón «Abrir en Google Maps» con tu enlace (también en el pie). La inserción de Street View que entregaste quedó como «Ver la fachada». Google y OpenStreetMap solo se contactan si el visitante pulsa su botón, y Playwright lo comprueba |
+| Datos legales | Nombre comercial, domicilio con código postal, correo para ejercer derechos, alojamiento (VPS en Chile con contenedores, ASP.NET Core sobre .NET 10, SQL Server y HTTPS/TLS), Google Maps/Street View como tercero opcional y los plazos. Razón social, RUT y el abono quedan «[Pendiente de completar]» |
+| Plazos de conservación | Las consultas se borran a los 12 meses y los consentimientos a los 24 de darlos o retirarlos (los de clientes y personal, mientras estén vigentes y 24 meses después de retirarlos). Los aplica `PurgaDatosPersonales` una vez al día. La elección del aviso de cookies vence en el navegador a los 12 meses y se vuelve a preguntar |
+| Fotos de la vitrina | De las 68 fotos se eligieron 22, sin repetidas, recortadas al formato 4:3 de la tarjeta; las piezas altas van completas sobre un fondo desenfocado de la misma foto. Quedan en `docs/imagenes-trabajos/vitrina/`. La semilla las carga en `LetreriaLosHerreraDB_Demo` como WebP de 1600 y 640 px, en 7 categorías y 13 tipos de letrero, con la autorización de logo registrada (21 de 22; la señalética no lleva logo). Las ilustraciones anteriores quedan ocultas y se quitó su código |
+
+Quedaron fuera de la vitrina:
+- **Las tres `Gemini_Generated_Image_*`:** son imágenes generadas por IA. Mostrarlas como trabajos hechos engañaría al visitante.
+- **Las de menos de unos 700 px**, que se verían borrosas, y las repetidas (por ejemplo, `unnamed (10)` y `unnamed (41)` son el mismo archivo).
+- **La taza con fotos de personas** (caras reconocibles) y la vitrina con marcas de terceros (Pokémon, Magic).
+
+Los trabajos no tienen medidas ni precio, para no inventarlos en trabajos reales.
+
+Verificación de los ajustes:
+- **Pruebas automáticas:** backend, 198 unitarias y 254 de integración; frontend, 180 unitarias y 56 de Playwright.
+- **Pruebas no vacías:** cambiar a propósito la regla de la purga hace fallar su prueba.
+- **En el navegador:** la vitrina con las fotos (1440 px), «Cómo llegar» a 360 px y la vista de la fachada cargando Street View solo después de pulsarla.
+
 ## Lo que necesito de ti
 
-1. **La ubicación exacta del taller.** En los mapas abiertos no aparece el número 810 de Villagrán, así que el marcador es aproximado y la portada lo dice. Pásame un enlace de Google Maps o las coordenadas y regenero el mapa.
-2. **Los datos de los textos legales.** Están marcados «[completar: …]»:
-   - razón social y RUT;
-   - dónde estará alojado el sitio;
-   - cuánto tiempo guardar las consultas de contacto y los registros de cookies.
-
-   Antes de publicar, los dos documentos necesitan revisión de un abogado.
-3. **Fotos reales y permisos.** Las fotos reales de trabajos, y para cada una que muestre el logo de un cliente, su autorización. Hasta entonces la vitrina usa imágenes de ejemplo marcadas como tales.
-4. **Tu visto bueno a esta fase**, o lo que quieras cambiar.
+1. **¿Se suben las fotos al repositorio?** `docs/imagenes-trabajos/` no está en el commit. El repositorio de GitHub es público y las fotos muestran negocios de clientes. Si las subes, cualquiera las verá; si no, la semilla funciona solo en este equipo (o con `Demo:CarpetaFotosVitrina`).
+2. **Datos pendientes de los textos legales:** razón social, RUT, y el abono y el momento del pago del saldo. Antes de publicar, los dos documentos necesitan revisión de un abogado.
+3. **WhatsApp y teléfono definitivos del taller**, antes de la entrega.
+4. **Tu visto bueno para cerrar la fase 5** e iniciar la fase 6.

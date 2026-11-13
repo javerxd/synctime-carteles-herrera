@@ -424,4 +424,52 @@ public sealed class PortadaApiTests(ApiFixture api)
 
         Assert.Equal(16 * 1024, limite?.MaxRequestBodySize);
     }
+
+    // ── Plazos de conservacion (politica de privacidad) ──
+
+    [Fact]
+    public async Task LaPurga_BorraLoVencido_YConservaLoVigente()
+    {
+        var ahora = DateTimeOffset.UtcNow;
+        var marca = api.Siguiente();
+        var idAdmin = await api.IdAdminAsync();
+        Models.ConsultaContacto Consulta(int meses) => new()
+        {
+            Nombre = "Visitante", Correo = $"purga{marca}-{meses}@correo.cl", Asunto = "Purga", Mensaje = "Consulta para la prueba de purga.",
+            FechaRecepcion = ahora.AddMonths(-meses)
+        };
+        Models.Consentimiento Visitante(string referencia, int mesesAceptacion, int? mesesRevocacion = null) => new()
+        {
+            ReferenciaEnvio = referencia, Tipo = "cookies", VersionDocumento = "1.0",
+            FechaAceptacion = ahora.AddMonths(-mesesAceptacion), FechaRevocacion = mesesRevocacion is int r ? ahora.AddMonths(-r) : null
+        };
+        Models.Consentimiento DelPersonal(string version, int mesesAceptacion, int? mesesRevocacion) => new()
+        {
+            IdEmpleado = idAdmin, Tipo = "marketing", VersionDocumento = version,
+            FechaAceptacion = ahora.AddMonths(-mesesAceptacion), FechaRevocacion = mesesRevocacion is int r ? ahora.AddMonths(-r) : null
+        };
+
+        var vieja = Consulta(13);
+        var reciente = Consulta(11);
+        var cookiesVencida = Visitante($"cookies:purga{marca}a", 25);
+        var cookiesRetiradaHacePoco = Visitante($"cookies:purga{marca}b", 30, mesesRevocacion: 6);
+        var cookiesReciente = Visitante($"cookies:purga{marca}c", 2);
+        var personalVigente = DelPersonal($"p{marca}a", 30, null);
+        var personalRetirada = DelPersonal($"p{marca}b", 40, 25);
+        await api.ConsultarAsync(async db =>
+        {
+            db.ConsultasContacto.AddRange(vieja, reciente);
+            db.Consentimientos.AddRange(cookiesVencida, cookiesRetiradaHacePoco, cookiesReciente, personalVigente, personalRetirada);
+            return await db.SaveChangesAsync();
+        });
+
+        await using (var alcance = api.Services.CreateAsyncScope())
+            await alcance.ServiceProvider.GetRequiredService<Services.PurgaDatosPersonales>().PurgarAsync(CancellationToken.None);
+
+        var consultas = await api.ConsultarAsync(db => db.ConsultasContacto.Where(c => c.Correo.StartsWith($"purga{marca}-")).Select(c => c.IdConsulta).ToListAsync());
+        Assert.Equal([reciente.IdConsulta], consultas);
+        var ids = new[] { cookiesVencida, cookiesRetiradaHacePoco, cookiesReciente, personalVigente, personalRetirada }.Select(c => c.IdConsentimiento).ToList();
+        var quedan = await api.ConsultarAsync(db => db.Consentimientos.Where(c => ids.Contains(c.IdConsentimiento)).Select(c => c.IdConsentimiento).ToListAsync());
+        Assert.Equal(new[] { cookiesRetiradaHacePoco.IdConsentimiento, cookiesReciente.IdConsentimiento, personalVigente.IdConsentimiento }.Order(), quedan.Order());
+    }
 }

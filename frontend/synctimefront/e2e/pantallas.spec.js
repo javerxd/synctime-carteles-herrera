@@ -237,20 +237,33 @@ test('el formulario de contacto valida, exige la privacidad y confirma el envío
   await expect(formulario.getByText('Consulta enviada')).toBeVisible();
 });
 
-test('el mapa no contacta a OpenStreetMap hasta que el visitante lo activa', async ({ page }) => {
-  const aTerceros = [];
-  page.on('request', (r) => { if (r.url().includes('tile.openstreetmap.org')) aTerceros.push(r.url()); });
+test('el mapa no contacta a OpenStreetMap ni a Google hasta que el visitante lo activa', async ({ page }) => {
+  const osm = [];
+  const google = [];
+  page.on('request', (r) => {
+    if (r.url().includes('tile.openstreetmap.org')) osm.push(r.url());
+    if (/google\.com|gstatic\.com|googleapis\.com/.test(r.url())) google.push(r.url());
+  });
   await simularApiPublica(page);
   await page.route('https://tile.openstreetmap.org/**', (r) => r.fulfill({ status: 204 }));
+  await page.route(/https:\/\/www\.google\.com\/maps\/embed.*/, (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>Street View</p>' }));
   await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
   await page.goto('/#ubicacion');
   await expect(page.getByRole('img', { name: /Mapa de Villagrán 810/ })).toBeVisible();
+  await expect(page.locator('#ubicacion').getByRole('link', { name: /Abrir en Google Maps/ })).toHaveAttribute('href', 'https://maps.app.goo.gl/HzJtEy3jetsBmztNA');
+  await expect(page.getByText(/aproximada/)).toHaveCount(0);
   await page.waitForLoadState('networkidle');
-  expect(aTerceros).toEqual([]);
+  expect(osm).toEqual([]);
+  expect(google).toEqual([]);
 
-  await page.getByRole('button', { name: 'Usar mapa interactivo' }).click();
+  await page.getByRole('button', { name: 'Mapa interactivo' }).click();
   await expect(page.locator('.leaflet-container')).toBeVisible();
-  await expect.poll(() => aTerceros.length).toBeGreaterThan(0);
+  await expect.poll(() => osm.length).toBeGreaterThan(0);
+  expect(google).toEqual([]);
+
+  await page.getByRole('button', { name: 'Ver la fachada' }).click();
+  await expect(page.locator('iframe[title*="Street View"]')).toBeVisible();
+  await expect.poll(() => google.length).toBeGreaterThan(0);
 });
 
 test('los documentos legales muestran su versión y que son borradores', async ({ page }) => {

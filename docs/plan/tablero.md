@@ -17,11 +17,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 - **Fase 5 — Portada pública** · rama `fase-05-portada-publica` (nace de `fase-04-servicios-comunes`) · informe: `informes/fase-05.md`
 
-Lo que falta del usuario para cerrarla:
-- Número de WhatsApp y teléfono definitivos del taller. Hoy son de prueba y se cambian en `src/configuracion/taller.js`.
-- Coordenadas exactas de Villagrán 810. Hoy la ubicación es aproximada; si cambian, se regenera el mapa con `scripts/mapa-estatico.py`.
-- Fotos reales de los trabajos, y permiso de cada cliente para mostrar su logotipo.
-- Datos para los textos legales (razón social, RUT, proveedor de alojamiento y país, plazo de conservación de las consultas, abono y momento del pago del saldo) y la revisión por un asesor legal.
+Ajustes del usuario aplicados (13-11-2026): nombre «Letreros Herrera», correo de contacto separado de la casilla de avisos, ubicación exacta con Google Maps y Street View, datos legales y plazos de conservación (con su purga), y 22 fotos reales en la vitrina.
+
+Pendiente del usuario, sin bloquear el cierre:
+- Número de WhatsApp y teléfono definitivos del taller (hoy de prueba, en `src/configuracion/taller.js`).
+- Razón social, RUT y el abono y momento del pago del saldo («[Pendiente de completar]» en los textos legales), y la revisión por un asesor legal.
 
 ## En curso
 

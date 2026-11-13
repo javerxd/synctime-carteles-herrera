@@ -343,7 +343,11 @@ function HorarioYUbicacion({ estado }) {
             {TALLER.codigoPostal} {TALLER.ciudad}
           </address>
           <MapaUbicacion />
-          <Enlace href={TALLER.mapa} externo>Abrir la ubicación en OpenStreetMap</Enlace>
+          <div className={estilos.accionesUbicacion}>
+            <Boton como="a" href={TALLER.mapa} target="_blank" rel="noopener noreferrer" variante="secundario" iconoInicio={MapPin}>
+              Abrir en Google Maps<span className="solo-lectores"> (se abre en otra pestaña)</span>
+            </Boton>
+          </div>
         </div>
       </div>
     </section>

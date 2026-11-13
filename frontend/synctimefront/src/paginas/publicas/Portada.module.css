@@ -313,3 +313,10 @@
 .contenedorContacto {
   max-width: 48rem;
 }
+
+.accionesUbicacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  margin-block-start: var(--espacio-3);
+}

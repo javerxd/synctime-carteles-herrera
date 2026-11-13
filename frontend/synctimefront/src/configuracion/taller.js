@@ -1,16 +1,19 @@
 // Datos del taller que muestra el portal. Los que todavía no entrega el usuario quedan en null y la
-// interfaz no los muestra: no se inventan (llegan en la fase 5).
+// interfaz no los muestra: no se inventan.
 export const TALLER = {
-  nombre: 'Letrería Los Herrera',
+  nombre: 'Letreros Herrera',
   direccion: 'Villagrán 810',
   ciudad: 'Los Ángeles, Región del Biobío',
   codigoPostal: '4440000',
-  // Enlace a OpenStreetMap: el visitante decide abrirlo; la página no pide nada a terceros sola.
-  mapa: 'https://www.openstreetmap.org/search?query=Villagr%C3%A1n%20810%2C%20Los%20%C3%81ngeles%2C%20Chile',
-  // Punto del mapa. OpenStreetMap no tiene el numero 810: es aproximado hasta que el taller lo confirme
-  // (si cambia, regenerar la imagen con scripts/mapa-estatico.py).
-  coordenadas: { latitud: -37.46787, longitud: -72.34819 },
-  ubicacionAproximada: true,
+  // Enlace a Google Maps entregado por el taller: el visitante decide abrirlo; la página no pide nada a
+  // terceros por su cuenta.
+  mapa: 'https://maps.app.goo.gl/HzJtEy3jetsBmztNA',
+  // Punto exacto del taller, entregado el 13-11-2026. Si cambia, regenerar la imagen del mapa con
+  // scripts/mapa-estatico.py.
+  coordenadas: { latitud: -37.46377531272541, longitud: -72.34832848822964 },
+  // Vista de la fachada en Google Street View (inserción entregada por el taller). Se carga solo si el
+  // visitante pulsa «Ver la fachada».
+  fachada: 'https://www.google.com/maps/embed?pb=!3m2!1ses!2scl!4v1794591098723!5m2!1ses!2scl!6m8!1m7!1swMmqLZzETI8WB-cDKNUSzA!2m2!1d-37.46377903842519!2d-72.34823461084247!3f242.78394900186683!4f4.498664960572668!5f0.7820865974627469',
   // De prueba (13-11-2026): numero del desarrollador. Se cambia por el del taller antes de la entrega.
   whatsapp: '56930667967',
   telefono: '+56 9 3066 7967',

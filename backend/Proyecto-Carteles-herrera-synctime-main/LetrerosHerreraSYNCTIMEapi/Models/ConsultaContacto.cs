@@ -2,7 +2,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Models;
 
 // Consulta del formulario de contacto de la portada (RFS08, E22). Se guarda para que el taller la revise
 // (fase 9) y se avisa por correo. Su consentimiento de privacidad queda en consentimientos con la
-// referencia "contacto:{id}".
+// referencia "contacto:{id}". Se borra a los 12 meses de recibida (PurgaDatosPersonales).
 public class ConsultaContacto
 {
     public int IdConsulta { get; set; }

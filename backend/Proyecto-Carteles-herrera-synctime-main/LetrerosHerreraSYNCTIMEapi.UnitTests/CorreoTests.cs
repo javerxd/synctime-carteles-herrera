@@ -11,6 +11,28 @@ namespace LetrerosHerreraSYNCTIMEapi.UnitTests;
 // Reglas del correo que no necesitan la base ni un servidor: reintentos, destinatarios, plantilla y fallos.
 public class CorreoTests
 {
+    [Fact]
+    public void UnCorreoParaElCliente_PideResponderAlContactoDelTaller_NoALaCasillaDeAvisos()
+    {
+        const string contacto = "contacto.letrerosherrera@gmail.com";
+        var mensaje = CorreoParaCliente.Componer("confirmacion", "cliente@correo.cl", "Recibimos tu solicitud", "Recibimos tu solicitud",
+            "Te responderemos pronto", new CuerpoCorreo().Parrafo("Gracias por escribirnos."), contacto, "solicitud:1");
+
+        Assert.Equal(contacto, mensaje.ResponderA);
+        Assert.Equal(["cliente@correo.cl"], mensaje.Para);
+        Assert.Contains("no respondas a este mensaje", mensaje.Texto);
+        Assert.Contains(contacto, mensaje.Texto);
+        Assert.Contains(contacto, mensaje.Html);
+        Assert.DoesNotContain("avisos", mensaje.Html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void UnCorreoParaElCliente_SinContactoValido_NoSeCompone()
+    {
+        Assert.Throws<ArgumentException>(() => CorreoParaCliente.Componer("confirmacion", "cliente@correo.cl", "a", "a", "a",
+            new CuerpoCorreo().Parrafo("x"), "", null));
+    }
+
     // ── Reintentos ──
 
     [Theory]
@@ -116,7 +138,7 @@ public class CorreoTests
         Assert.Contains("#0F172A", html);  // tinta
         Assert.Contains("#B45309", html);  // ámbar, solo en la acción
         Assert.Contains("Plus Jakarta Sans", html);
-        Assert.Contains("Letrería Los Herrera", html);
+        Assert.Contains("Letreros Herrera", html);
         Assert.Contains("Abrir el panel: https://synctime.cl/panel", texto);
         Assert.Contains("Resumen", html);
     }

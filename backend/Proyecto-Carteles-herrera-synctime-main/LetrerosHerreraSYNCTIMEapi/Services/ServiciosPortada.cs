@@ -251,3 +251,72 @@ public sealed class ServicioContacto(
         return new ResultadoContacto.Recibida(consulta.IdConsulta);
     }
 }
+
+// ── Plazos de conservacion de la politica de privacidad ──
+
+public sealed record ResultadoPurga(int Consultas, int Consentimientos);
+
+// Borra lo que la politica de privacidad dice que no se guarda mas:
+// - consultas del formulario de contacto, 12 meses despues de recibirlas;
+// - consentimientos de visitantes sin cuenta (cookies, contacto), 24 meses despues de darlos o retirarlos;
+// - consentimientos de clientes y del personal, 24 meses despues de retirarlos (los vigentes se conservan,
+//   porque acreditan que la persona acepto).
+public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, TimeProvider reloj)
+{
+    public const int MesesConsultas = 12;
+    public const int MesesConsentimientos = 24;
+
+    public async Task<ResultadoPurga> PurgarAsync(CancellationToken ct)
+    {
+        var ahora = reloj.GetUtcNow();
+        var limiteConsultas = ahora.AddMonths(-MesesConsultas);
+        var limiteConsentimientos = ahora.AddMonths(-MesesConsentimientos);
+
+        var consultas = await db.ConsultasContacto
+            .Where(c => c.FechaRecepcion < limiteConsultas)
+            .ExecuteDeleteAsync(ct);
+        var consentimientos = await db.Consentimientos
+            .Where(c => (c.ReferenciaEnvio != null && (c.FechaRevocacion ?? c.FechaAceptacion) < limiteConsentimientos)
+                || (c.FechaRevocacion != null && c.FechaRevocacion < limiteConsentimientos))
+            .ExecuteDeleteAsync(ct);
+        return new ResultadoPurga(consultas, consentimientos);
+    }
+}
+
+// Aplica la purga una vez al dia, la primera a los pocos minutos de arrancar. Un fallo se registra y se
+// reintenta al dia siguiente: nunca detiene la API. Privacidad:PurgaActiva=false la desactiva.
+public sealed class ProcesoPurgaDatosPersonales(
+    IServiceScopeFactory alcances,
+    IConfiguration configuracion,
+    TimeProvider reloj,
+    ILogger<ProcesoPurgaDatosPersonales> logger) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        if (!configuracion.GetValue("Privacidad:PurgaActiva", true))
+            return;
+        try
+        {
+            await Task.Delay(TimeSpan.FromMinutes(5), reloj, ct);
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await using var alcance = alcances.CreateAsyncScope();
+                    var resultado = await alcance.ServiceProvider.GetRequiredService<PurgaDatosPersonales>().PurgarAsync(ct);
+                    if (resultado.Consultas + resultado.Consentimientos > 0)
+                        logger.LogInformation("Plazos de conservacion: se borraron {Consultas} consulta(s) y {Consentimientos} consentimiento(s) vencidos.",
+                            resultado.Consultas, resultado.Consentimientos);
+                }
+                catch (Exception error) when (error is not OperationCanceledException)
+                {
+                    logger.LogError(error, "No se pudo aplicar la purga de datos personales vencidos; se reintenta en 24 horas.");
+                }
+                await Task.Delay(TimeSpan.FromHours(24), reloj, ct);
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
+    }
+}

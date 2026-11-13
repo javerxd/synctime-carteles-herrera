@@ -92,7 +92,7 @@ internal static class EnlaceSeguro
 public static class PlantillaCorreo
 {
     public const string IdLogo = "logo-lh";
-    public const string Marca = "Letrería Los Herrera";
+    public const string Marca = "Letreros Herrera";
 
     private const string Tinta = "#0F172A";
     private const string TextoSecundario = "#334155";

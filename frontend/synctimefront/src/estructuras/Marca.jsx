@@ -3,7 +3,7 @@ import { unirClases } from '../componentes/ui/clases';
 import estilos from './Marca.module.css';
 
 /**
- * Logotipo de Letrería Los Herrera (anillo y letras LH en tinta, a partir del original del taller)
+ * Logotipo de Letreros Herrera (anillo y letras LH en tinta, a partir del original del taller)
  * con el nombre en texto. El nombre es el texto del enlace; la imagen es decorativa.
  */
 export function Marca({ destino = '/', subtitulo, invertida = false, className }) {
@@ -17,7 +17,7 @@ export function Marca({ destino = '/', subtitulo, invertida = false, className }
         className={estilos.logo}
       />
       <span className={estilos.textos}>
-        <span className={estilos.nombre}>Letrería Los Herrera</span>
+        <span className={estilos.nombre}>Letreros Herrera</span>
         {subtitulo && <span className={estilos.subtitulo}>{subtitulo}</span>}
       </span>
     </Link>

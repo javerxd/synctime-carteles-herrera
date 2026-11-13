@@ -16,7 +16,7 @@ web
 
 ## Product Purpose
 
-SyncTime digitaliza el ciclo de trabajo de Letrería Los Herrera: solicitud, cotización, aprobación, pedido, entrega y cobro. Reemplaza las llamadas para preguntar si el local está abierto, las planillas de pedidos y la memoria del dueño sobre quién debe qué.
+SyncTime digitaliza el ciclo de trabajo de Letreros Herrera: solicitud, cotización, aprobación, pedido, entrega y cobro. Reemplaza las llamadas para preguntar si el local está abierto, las planillas de pedidos y la memoria del dueño sobre quién debe qué.
 
 Éxito: un cliente sin capacitación registra una solicitud en menos de 5 minutos desde el celular; el personal sabe en segundos qué entregar, qué cobrar y qué cotizar, sin pantallas vacías ni datos inventados.
 
@@ -42,7 +42,7 @@ Es el sistema de un taller real de oficio físico, no una tienda genérica: la v
 
 ## Brand Commitments
 
-- Nombre del negocio: **Letrería Los Herrera**. Nombre del sistema: **SyncTime**. Dirección: Villagrán 810, Los Ángeles, Región del Biobío.
+- Nombre del negocio: **Letreros Herrera**. Nombre del sistema: **SyncTime**. Dirección: Villagrán 810, Los Ángeles, Región del Biobío.
 - **El taller tiene logotipo y el usuario lo entregará más adelante.** Mientras tanto se usa el nombre en texto, sin inventar un símbolo.
 - **Voz: tú, cercano** («Envía tu solicitud», «Revisa tus pedidos»), confirmada el 12-11-2026. Los errores dicen qué pasó y cómo seguir.
 - Las reglas de diseño del cliente son vinculantes: `docs/requisitos/reglas-de-diseno.md` (modo claro de alta gama, acento ámbar `#B45309`, Plus Jakarta Sans).

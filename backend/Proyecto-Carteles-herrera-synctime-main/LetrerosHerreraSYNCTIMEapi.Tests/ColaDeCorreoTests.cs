@@ -130,7 +130,7 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
         var mensaje = await MimeMessage.LoadAsync(archivo);
         Assert.Equal(ApiFixture.AvisosTaller, Assert.Single(mensaje.To.Mailboxes).Address);
         Assert.Equal("synctime@test.local", Assert.Single(mensaje.From.Mailboxes).Address);
-        Assert.Equal("Letrería Los Herrera", Assert.Single(mensaje.From.Mailboxes).Name);
+        Assert.Equal("Letreros Herrera", Assert.Single(mensaje.From.Mailboxes).Name);
         Assert.Equal(correo, Assert.Single(mensaje.ReplyTo.Mailboxes).Address);
         Assert.Equal($"Nueva solicitud N.º {id} · Juana Pruebas", mensaje.Subject);
         Assert.Equal("auto-generated", mensaje.Headers["Auto-Submitted"]);

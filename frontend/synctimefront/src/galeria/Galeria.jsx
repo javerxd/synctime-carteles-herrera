@@ -34,7 +34,7 @@ export function Galeria() {
       <header className={estilos.barra}>
         <div className={estilos.barraInterior}>
           <p className={estilos.marca}>
-            Letrería Los Herrera <span className={estilos.marcaSistema}>SyncTime · Sistema de diseño</span>
+            Letreros Herrera <span className={estilos.marcaSistema}>SyncTime · Sistema de diseño</span>
           </p>
           <nav aria-label="Secciones de la galería" className={estilos.navegacion}>
             <ul>

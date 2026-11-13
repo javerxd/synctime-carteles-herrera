@@ -154,10 +154,10 @@ synctimefront/
   python scripts/mapa-estatico.py -37.46787 -72.34819
   ```
 
-  Sin argumentos usa esas mismas coordenadas (aproximadas). Hay que volver a ejecutarlo si cambia la ubicación. Leaflet y las teselas de OpenStreetMap solo se cargan cuando el visitante pulsa «Usar mapa interactivo».
-- **Vitrina con datos:** `sembrar-demo` del backend (ver su README) carga los trabajos con imágenes de ejemplo en la base demo.
+  Sin argumentos usa esas mismas coordenadas, las exactas del taller. Hay que volver a ejecutarlo si cambia la ubicación. Leaflet y las teselas de OpenStreetMap solo se cargan cuando el visitante pulsa «Mapa interactivo», y la vista de Google Street View solo con «Ver la fachada».
+- **Vitrina con datos:** `sembrar-demo` del backend (ver su README) carga en la base demo los 22 trabajos con las fotos de `docs/imagenes-trabajos/vitrina/`.
 - **Variable opcional:** `VITE_URL_PORTAL` fija la dirección pública del portal que codifica el código QR del panel. Sin ella se usa la del sitio que se está viendo. Todavía no está en `.env.example`.
-- **Textos legales:** los borradores de `src/paginas/publicas/legales/textos.js` tienen marcados los datos pendientes como «[completar: …]». No deben publicarse así.
+- **Textos legales:** los borradores de `src/paginas/publicas/legales/textos.js` tienen marcados los datos pendientes como «[Pendiente de completar]» (razón social, RUT, abono). No deben publicarse así.
 - **Producción:** el build reduce `connect-src` de la CSP a `'self'` y, si `VITE_API_URL` apunta a otro origen, a ese origen.
 
 ---

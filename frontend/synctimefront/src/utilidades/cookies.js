@@ -22,11 +22,18 @@ function guardarAlmacen(clave, valor) {
   }
 }
 
-/** { analitica, fecha } o null si el visitante aún no decide. */
-export function leerPreferencia() {
+// La elección vence a los 12 meses (política de privacidad): entonces el aviso vuelve a preguntar.
+export const VIGENCIA_PREFERENCIA_MS = 365 * 24 * 60 * 60 * 1000;
+
+/** { analitica, fecha } o null si el visitante aún no decide, o si su elección ya venció. */
+export function leerPreferencia(ahora = Date.now()) {
   try {
     const dato = JSON.parse(leerAlmacen(CLAVE) ?? 'null');
-    return dato && typeof dato.analitica === 'boolean' ? dato : null;
+    if (!dato || typeof dato.analitica !== 'boolean') return null;
+    const fecha = Date.parse(dato.fecha);
+    // Sin fecha (guardada por una versión anterior) se trata como recién dada.
+    if (!Number.isNaN(fecha) && ahora - fecha > VIGENCIA_PREFERENCIA_MS) return null;
+    return dato;
   } catch {
     return null;
   }

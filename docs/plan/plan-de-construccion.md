@@ -1,4 +1,4 @@
-# Plan de construcción de SyncTime — Letrería Los Herrera
+# Plan de construcción de SyncTime — Letreros Herrera
 
 ## Contexto
 
@@ -201,14 +201,14 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 **Requisitos:** RFS01, RFS02 (lectura y QR), RFS08 (contacto), RFS12 (documentos legales, consentimiento del formulario y cookies), RNFP32 (catálogo), RFU01–03, RFU30–33, RNFP21, RNFE01, RNFE09, RNFO17 (logos), E22, E23, S01, S02, S22. Parte de la interfaz ya existe desde la fase 3; esta fase completa su lógica y sus datos.
 - **Backend:** catálogo filtrable por categoría y paginado, con `tipo_letrero` y la autorización de uso de logo (quién la registró y cuándo; sin ella la publicación no puede ser visible); horario con "abierto ahora" calculado con la hora de Chile, y regla clara de cómo convive con el estado manual del local; QR del portal con dirección configurable; `POST /contacto` que guarda la consulta y envía el correo al administrador.
 - **Frontend:**
-  - Encabezado "Letrería Los Herrera" con la propuesta de valor y los datos de contacto.
+  - Encabezado "Letreros Herrera" con la propuesta de valor y los datos de contacto.
   - Vitrina de tarjetas: imagen WebP con carga diferida y texto alternativo, título, descripción, tipo de letrero, categoría, medidas y costo referencial; filtro por categoría.
   - Horario semanal y estado del local, con mensaje, tiempo estimado de regreso y hora de última actualización.
   - Mapa de Villagrán 810 (imagen estática que se vuelve interactiva al activarla) y botón flotante de WhatsApp.
   - Formulario de contacto con validación inmediata y casilla de privacidad desmarcada.
   - Banner de cookies con opciones de igual tamaño y casillas desmarcadas; ningún script de analítica se ejecuta sin consentimiento.
   - Política de Privacidad y Términos y Condiciones (borradores marcados como tales).
-- **Necesito de ti:** número de WhatsApp, correo y teléfono del taller, fotos reales y permiso de uso de logos. Mientras tanto uso imágenes de ejemplo con licencia libre, marcadas como tales.
+- **Necesito de ti:** número de WhatsApp, correo y teléfono del taller, fotos reales y permiso de uso de logos. (Entregados al cierre de la fase 5, salvo el WhatsApp y el teléfono definitivos.)
 
 **Cierre:** la portada funciona sin sesión; el formulario registra la consulta, su consentimiento y el correo llega a la bandeja local; no hay peticiones a terceros sin una acción del visitante.
 

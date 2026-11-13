@@ -3,7 +3,7 @@
 La portada muestra esta imagen y solo carga el mapa interactivo (OpenStreetMap) si el visitante lo pide:
 asi nada se pide a terceros sin una accion suya. Se vuelve a ejecutar si cambia la ubicacion:
 
-    python scripts/mapa-estatico.py -37.46787 -72.34819
+    python scripts/mapa-estatico.py -37.46377531272541 -72.34832848822964
 
 Descarga una vez unas pocas teselas de tile.openstreetmap.org (uso ocasional, permitido por su politica)
 y las combina con Pillow. Datos (c) colaboradores de OpenStreetMap, licencia ODbL: la portada lo indica.
@@ -58,6 +58,6 @@ def main(lat, lon, salida):
 
 
 if __name__ == "__main__":
-    lat = float(sys.argv[1]) if len(sys.argv) > 1 else -37.46787
-    lon = float(sys.argv[2]) if len(sys.argv) > 2 else -72.34819
+    lat = float(sys.argv[1]) if len(sys.argv) > 1 else -37.46377531272541
+    lon = float(sys.argv[2]) if len(sys.argv) > 2 else -72.34832848822964
     main(lat, lon, "public/mapa/ubicacion-taller.webp")

@@ -98,7 +98,7 @@ export function EstructuraPublica() {
             <address className={estilos.pieTexto}>
               {TALLER.direccion}<br />{TALLER.ciudad}
             </address>
-            <Enlace href={TALLER.mapa} externo className={estilos.pieEnlace}>Ver en el mapa</Enlace>
+            <Enlace href={TALLER.mapa} externo className={estilos.pieEnlace}>Abrir en Google Maps</Enlace>
           </div>
           <div>
             <h2 className={estilos.pieTitulo}>Contacto</h2>

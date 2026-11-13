@@ -1,5 +1,4 @@
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Imagenes;
-using SkiaSharp;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -50,67 +49,126 @@ public static class SemillaDemo
         if (await SembrarPedidosAsync(db))
             logger.LogInformation("Pedidos de demostracion cargados en {Base}: todos los estados del pedido y de pago, con abonos.", nombreBase);
 
-        // Fase 5: la vitrina con imagenes de ejemplo (dibujadas aqui, rotuladas como tales).
-        var publicadas = await SembrarVitrinaAsync(db, scope.ServiceProvider.GetRequiredService<AlmacenImagenes>());
+        // Fase 5: la vitrina con fotos reales de trabajos del taller, ya recortadas al formato de la tarjeta.
+        var carpeta = CarpetaFotosVitrina(configuration);
+        if (carpeta is null)
+        {
+            logger.LogWarning("No se encontro la carpeta de fotos de la vitrina ({Carpeta}): la vitrina queda sin trabajos. Indica otra con Demo:CarpetaFotosVitrina.", RutaFotosPorDefecto);
+            return 0;
+        }
+        var publicadas = await SembrarVitrinaAsync(db, scope.ServiceProvider.GetRequiredService<AlmacenImagenes>(), carpeta);
         if (publicadas > 0)
-            logger.LogInformation("Vitrina de demostracion: {Cantidad} trabajo(s) con imagen de ejemplo.", publicadas);
+            logger.LogInformation("Vitrina de demostracion: {Cantidad} trabajo(s) con foto real.", publicadas);
         return 0;
     }
 
-    private sealed record TrabajoDemo(string Titulo, string Descripcion, int AnchoMm, int AltoMm, int Precio, string Producto, string Categoria, ImagenesDeEjemplo.Diseno Diseno);
+    // Las fotos viven en el repositorio, fuera de la API: se buscan hacia arriba desde la carpeta de la API.
+    private const string RutaFotosPorDefecto = "docs/imagenes-trabajos/vitrina";
 
-    private static readonly TrabajoDemo[] Vitrina =
+    private static string? CarpetaFotosVitrina(IConfiguration configuration)
+    {
+        if (configuration["Demo:CarpetaFotosVitrina"] is { Length: > 0 } indicada)
+            return Directory.Exists(indicada) ? indicada : null;
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            var candidata = Path.Combine(dir.FullName, RutaFotosPorDefecto);
+            if (Directory.Exists(candidata))
+                return candidata;
+        }
+        return null;
+    }
+
+    // ConLogo: la foto muestra el nombre o el logotipo del cliente. La semilla deja registrada la
+    // autorizacion del cliente (RNFO17), a nombre del dueño, para que se pueda mostrar.
+    private sealed record TrabajoReal(string Archivo, string Titulo, string Descripcion, string Producto, string Categoria, bool ConLogo);
+
+    // En el orden en que aparecen en la vitrina: la primera pagina mezcla los distintos tipos de trabajo.
+    private static readonly TrabajoReal[] Vitrina =
     [
-        new("Cartel metálico para ferretería", "Estructura metálica con gráfica impresa y terminación mate.", 2400, 1200, 180000, "Cartel metálico impreso", "Letreros",
-            new("FERRETERÍA EL TRIGAL", "Materiales de construcción", new SKColor(0xE7, 0xE5, 0xE4), new SKColor(0x0F, 0x17, 0x2A), SKColors.White, ImagenesDeEjemplo.Forma.Fachada)),
-        new("Lienzo publicitario para evento", "Lienzo de PVC con ojetillos en todo el perímetro.", 3000, 1000, 45000, "Lienzo publicitario", "Letreros",
-            new("FERIA DE TEMPORADA", "Sábado y domingo · Plaza de Armas", new SKColor(0xD6, 0xD3, 0xD1), new SKColor(0xB4, 0x53, 0x09), SKColors.White, ImagenesDeEjemplo.Forma.Lienzo)),
-        new("Letrero tipo palomita para cafetería", "Letrero plegable de doble cara para la vereda.", 600, 900, 60000, "Letrero tipo Palomita", "Letreros",
-            new("CAFÉ", "Menú del día", new SKColor(0xCB, 0xD5, 0xE1), new SKColor(0x1E, 0x29, 0x3B), new SKColor(0xFD, 0xE6, 0x8A), ImagenesDeEjemplo.Forma.Palomita)),
-        new("Letras corpóreas para clínica dental", "Letras de acrílico con luz LED posterior.", 2000, 500, 320000, "Cartel metálico impreso", "Letreros",
-            new("CLÍNICA SONRÍE", "Odontología familiar", new SKColor(0xF1, 0xF5, 0xF9), new SKColor(0x0E, 0x74, 0x90), SKColors.White, ImagenesDeEjemplo.Forma.Fachada)),
-        new("Rotulación de camioneta de reparto", "Vinilo impreso con laminado protector en ambos costados.", 4200, 1500, 260000, "Rotulación de vehículo", "Vehículos",
-            new("FLETES BIOBÍO", "Mudanzas y despachos", new SKColor(0xE2, 0xE8, 0xF0), new SKColor(0xF8, 0xFA, 0xFC), new SKColor(0x0F, 0x17, 0x2A), ImagenesDeEjemplo.Forma.Vehiculo)),
-        new("Poleras estampadas para equipo", "Estampado en serigrafía a dos colores.", 300, 400, 8500, "Polera estampada", "Estampados",
-            new("CLUB DEPORTIVO", "Temporada 2026", new SKColor(0xE5, 0xE7, 0xEB), new SKColor(0x15, 0x80, 0x3D), SKColors.White, ImagenesDeEjemplo.Forma.Lienzo)),
-        new("Mural para fachada de minimarket", "Pintura acrílica para exteriores con sello UV.", 6000, 2500, 450000, "Mural pintado", "Muros",
-            new("MINIMARKET DON LUCHO", "Abierto todos los días", new SKColor(0xFE, 0xF3, 0xC7), new SKColor(0xC2, 0x41, 0x0C), SKColors.White, ImagenesDeEjemplo.Forma.Muro))
+        new("entre-esquinas-luminoso", "Letrero luminoso para comida rápida", "Letrero circular con iluminación interior y gráfica impresa.", "Letrero luminoso", "Letreros", true),
+        new("glocar-fachada", "Letrero de fachada para lubricentro", "Letrero de gran formato sobre la entrada del taller mecánico.", "Letrero de fachada", "Letreros", true),
+        new("md-auto", "Rotulación de auto para escuela de conductores", "Vinilo impreso en las puertas, con el logo y los datos de contacto.", "Rotulación de vehículo", "Vehículos", true),
+        new("carrito-rojo-caballete", "Caballete para venta de mote con huesillo", "Letrero de pie, de doble cara, para la vereda.", "Caballete", "Pendones y caballetes", true),
+        new("la-travesia-delantal", "Delantal estampado para restaurante", "Logo estampado en blanco sobre delantal de cocina.", "Estampado textil", "Estampados", true),
+        new("sushi-vitrina", "Gráfica para vitrina de local de sushi", "Vinilo impreso en la vitrina con fotos de los productos.", "Vinilo para vitrina", "Autoadhesivos y calcomanías", true),
+        new("redmat-cierre", "Lona para cierre perimetral de ferretería", "Gigantografía en lona tensada a lo largo del cierre.", "Lona publicitaria", "Gigantografías", true),
+        new("calcomania-vinilo-corte", "Calcomanía en vinilo de corte", "Logo recortado en vinilo, listo para aplicar.", "Calcomanía de vinilo de corte", "Autoadhesivos y calcomanías", true),
+        new("los-cima-fachada", "Letrero y vitrinas para pescadería", "Letrero de fachada y vinilos impresos en las puertas de vidrio.", "Letrero de fachada", "Letreros", true),
+        new("campo-nativo-luminoso", "Letrero luminoso para carnicería", "Caja de luz con texto calado para verse de noche.", "Letrero luminoso", "Letreros", true),
+        new("cacharrito-pendon", "Pendón de ofertas para tienda de repuestos", "Pendón impreso con estructura, para el interior del local.", "Pendón", "Pendones y caballetes", true),
+        new("nueva-express-bus", "Rotulación de bus de transporte", "Franja con el nombre de la empresa en el costado del bus.", "Rotulación de vehículo", "Vehículos", true),
+        new("independiente-estampado", "Estampado de escudo para club deportivo", "Escudo y nombre del club estampados a todo color.", "Estampado textil", "Estampados", true),
+        new("lluvia-hamburguesas", "Decoración en vinilo para hamburguesería", "Letras, ilustraciones y guardapolvo en vinilo para el local.", "Decoración en vinilo", "Autoadhesivos y calcomanías", true),
+        new("vallmir-lona", "Lona publicitaria para comida rápida", "Gigantografía con fotos de los productos para la fachada.", "Lona publicitaria", "Gigantografías", true),
+        new("entre-tiempo-fachada", "Letreros de fachada para restaurante", "Dos letreros impresos sobre la entrada y el ventanal.", "Letrero de fachada", "Letreros", true),
+        new("gasceliot-caballete", "Caballete para almacén de barrio", "Letrero de pie con la lista de productos.", "Caballete", "Pendones y caballetes", true),
+        new("night-monsters-troquelados", "Autoadhesivos troquelados para salón de juegos", "Gráfica impresa y recortada a la forma del diseño.", "Autoadhesivo troquelado", "Autoadhesivos y calcomanías", true),
+        new("rochmal-luminoso", "Letrero luminoso para centro terapéutico", "Caja de luz con gráfica impresa de bienvenida.", "Letrero luminoso", "Letreros", true),
+        new("el-balcon-volantes", "Volantes y calendarios para sanguchería", "Impresión a todo color con el menú y los datos de contacto.", "Volantes y calendarios", "Impresos", true),
+        new("cafeteria-fachada", "Letrero y vinilos para cafetería", "Letrero sobre la vitrina y vinilos decorativos en los vidrios.", "Letrero de fachada", "Letreros", true),
+        new("senaletica-estacionamiento", "Señalética de estacionamiento", "Letreros de prohibición y de calles en planchas impresas.", "Señalética", "Letreros", false),
     ];
 
-    // Trabajos de la vitrina con su imagen de ejemplo. Repetirla solo completa lo que falta: agrega los
-    // trabajos y tipos de letrero que no existen y la imagen a los trabajos demo que aun no la tienen.
-    public static async Task<int> SembrarVitrinaAsync(LetrerosHerreradbContext db, AlmacenImagenes almacen)
+    // Trabajos de la vitrina con su foto real. Repetirla solo completa lo que falta: agrega los trabajos
+    // y tipos de letrero que no existen y la foto a los que aun no la tienen. Las ilustraciones de las
+    // versiones anteriores de la semilla dejan de mostrarse.
+    public static async Task<int> SembrarVitrinaAsync(LetrerosHerreradbContext db, AlmacenImagenes almacen, string carpetaFotos)
     {
         ExigirBaseDeDemostracion(db);
         var dueno = await db.Empleados.Where(e => e.Email == $"dueno{DominioCorreo}").Select(e => (int?)e.IdEmpleado).FirstOrDefaultAsync();
         if (dueno is null)
             return 0;
 
+        await db.Catalogos.Where(c => c.Imagen != null && c.Imagen.EsEjemplo && c.Visible)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Visible, false));
+
+        var ahora = DateTimeOffset.UtcNow;
         var completados = 0;
-        foreach (var demo in Vitrina)
+        for (var i = 0; i < Vitrina.Length; i++)
         {
-            var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Nombre == demo.Categoria)
-                ?? db.Categorias.Add(new Categoria { Nombre = demo.Categoria }).Entity;
-            var producto = await db.Productos.FirstOrDefaultAsync(p => p.Nombre == demo.Producto)
-                ?? db.Productos.Add(new Producto { Nombre = demo.Producto, Categoria = categoria }).Entity;
-            var trabajo = await db.Catalogos.FirstOrDefaultAsync(c => c.Titulo == demo.Titulo)
-                ?? db.Catalogos.Add(new Catalogo
-                {
-                    Producto = producto, IdEmpleadoCreador = dueno, Titulo = demo.Titulo, Descripcion = demo.Descripcion,
-                    AnchoMm = demo.AnchoMm, AltoMm = demo.AltoMm, PrecioReferencial = demo.Precio
-                }).Entity;
-            if (trabajo.IdImagen is not null)
+            var real = Vitrina[i];
+            var ruta = Path.Combine(carpetaFotos, $"{real.Archivo}.jpg");
+            if (!File.Exists(ruta))
                 continue;
 
-            var procesada = ProcesadorImagenes.Procesar(ImagenesDeEjemplo.Dibujar(demo.Diseno));
+            var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Nombre == real.Categoria)
+                ?? db.Categorias.Add(new Categoria { Nombre = real.Categoria }).Entity;
+            var producto = await db.Productos.FirstOrDefaultAsync(p => p.Nombre == real.Producto)
+                ?? db.Productos.Add(new Producto { Nombre = real.Producto, Categoria = categoria }).Entity;
+            var trabajo = await db.Catalogos.FirstOrDefaultAsync(c => c.Titulo == real.Titulo)
+                ?? db.Catalogos.Add(new Catalogo
+                {
+                    Producto = producto, IdEmpleadoCreador = dueno, Titulo = real.Titulo, Descripcion = real.Descripcion,
+                    // Sin medidas ni precio: son trabajos reales y cada uno se cotizo a la medida.
+                    FechaPublicacion = Negocio.Local.HoraChile.Convertir(ahora.AddMinutes(-i))
+                }).Entity;
+            if (trabajo.IdImagen is not null)
+            {
+                // Ya cargado: solo se corrige el tipo de letrero si la semilla lo cambio.
+                if (trabajo.IdProducto != producto.IdProducto || producto.IdProducto == 0)
+                {
+                    trabajo.Producto = producto;
+                    await db.SaveChangesAsync();
+                }
+                continue;
+            }
+
+            var procesada = ProcesadorImagenes.Procesar(await File.ReadAllBytesAsync(ruta));
             var clave = AlmacenImagenes.NuevaClave();
             await almacen.GuardarAsync(clave, procesada, CancellationToken.None);
             trabajo.ImagenUrl = null;
             trabajo.Imagen = new Imagen
             {
                 Clave = clave, Ancho = procesada.Ancho, Alto = procesada.Alto, BytesGrande = procesada.Grande.Length,
-                BytesMiniatura = procesada.Miniatura.Length, EsEjemplo = true, IdEmpleadoSube = dueno.Value, FechaSubida = DateTimeOffset.UtcNow
+                BytesMiniatura = procesada.Miniatura.Length, EsEjemplo = false, IdEmpleadoSube = dueno.Value, FechaSubida = ahora
             };
+            trabajo.IncluyeLogoCliente = real.ConLogo;
+            if (real.ConLogo)
+            {
+                trabajo.IdEmpleadoAutorizaLogo = dueno;
+                trabajo.FechaAutorizacionLogo = ahora;
+            }
+            trabajo.Visible = true;
             await db.SaveChangesAsync();
             completados++;
         }
@@ -142,25 +200,26 @@ public static class SemillaDemo
         var sinRut = new Cliente { Nombre = "Camila", Apellido = "Reyes", Telefono = "900000203" };
         db.Clientes.AddRange(conCuenta, presencial, sinRut);
 
-        // Publicaciones de la vitrina. Las imagenes definitivas llegan en una fase posterior.
+        // Publicaciones inventadas de las primeras fases, ocultas: la vitrina muestra las fotos reales
+        // que carga SembrarVitrinaAsync.
         db.Catalogos.AddRange(
             new Catalogo
             {
                 IdProducto = 1, EmpleadoCreador = dueno, Titulo = "Cartel metálico para ferretería",
                 Descripcion = "Estructura metálica con gráfica impresa y terminación mate.",
-                ImagenUrl = "/imagenes/demo/cartel-metalico.webp", AnchoMm = 2400, AltoMm = 1200, PrecioReferencial = 180000
+                ImagenUrl = "/imagenes/demo/cartel-metalico.webp", Visible = false, AnchoMm = 2400, AltoMm = 1200, PrecioReferencial = 180000
             },
             new Catalogo
             {
                 IdProducto = 2, EmpleadoCreador = dueno, Titulo = "Lienzo publicitario para evento",
                 Descripcion = "Lienzo de PVC con ojetillos en todo el perímetro.",
-                ImagenUrl = "/imagenes/demo/lienzo-evento.webp", AnchoMm = 3000, AltoMm = 1000, PrecioReferencial = 45000
+                ImagenUrl = "/imagenes/demo/lienzo-evento.webp", Visible = false, AnchoMm = 3000, AltoMm = 1000, PrecioReferencial = 45000
             },
             new Catalogo
             {
                 IdProducto = 3, EmpleadoCreador = administrador, Titulo = "Letrero tipo palomita para cafetería",
                 Descripcion = "Letrero plegable de doble cara para la vereda.",
-                ImagenUrl = "/imagenes/demo/palomita-cafeteria.webp", AnchoMm = 600, AltoMm = 900, PrecioReferencial = 60000
+                ImagenUrl = "/imagenes/demo/palomita-cafeteria.webp", Visible = false, AnchoMm = 600, AltoMm = 900, PrecioReferencial = 60000
             });
 
         // Solicitudes en estado inicial: dos registradas en el local y una enviada desde la web.

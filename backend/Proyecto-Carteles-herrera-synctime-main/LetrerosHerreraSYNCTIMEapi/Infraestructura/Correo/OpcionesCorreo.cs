@@ -30,6 +30,10 @@ public sealed class OpcionesCorreo
     // robot llene el formulario, las solicitudes de cotizacion conservan el resto del cupo. 0 = sin sublimite.
     public int TopeConsultasPorHora { get; set; } = 5;
 
+    // Correo publico del taller (el que se muestra en la portada). Los correos para clientes salen desde
+    // la casilla automatica de avisos y dicen que se responda aqui; nunca se publica la casilla de avisos.
+    public string ContactoTaller { get; set; } = "contacto.letrerosherrera@gmail.com";
+
     public bool ModoValido => string.Equals(Modo, ModoSmtp, StringComparison.OrdinalIgnoreCase) || EsBandeja;
 
     public bool EsBandeja => string.Equals(Modo, ModoBandeja, StringComparison.OrdinalIgnoreCase);
@@ -45,7 +49,7 @@ public sealed class OpcionesCorreo
 
 public sealed class OpcionesRemitente
 {
-    public string Nombre { get; set; } = "Letrería Los Herrera";
+    public string Nombre { get; set; } = "Letreros Herrera";
     public string? Direccion { get; set; }
 }
 

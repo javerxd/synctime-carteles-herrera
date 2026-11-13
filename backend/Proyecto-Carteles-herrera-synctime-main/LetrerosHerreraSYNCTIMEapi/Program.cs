@@ -72,6 +72,9 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOptions<OpcionesCorreo>()
     .Bind(builder.Configuration.GetSection(OpcionesCorreo.Seccion))
     .Validate(o => o.ModoValido, "Correo:Modo debe ser Smtp o Bandeja.")
+    .Validate(o => LetrerosHerreraSYNCTIMEapi.Negocio.Reglas.EsCorreo(o.ContactoTaller), "Correo:ContactoTaller debe ser el correo publico de contacto del taller.")
+    .Validate(o => !string.Equals(o.ContactoTaller.Trim(), o.Smtp.Usuario?.Trim(), StringComparison.OrdinalIgnoreCase),
+        "Correo:ContactoTaller no puede ser la casilla automatica que envia los avisos (Correo:Smtp:Usuario).")
     .Validate(o => o.Smtp.Opciones is not null, "Correo:Smtp:Seguridad debe ser StartTls, SslAlIniciar o Ninguna.")
     .ValidateOnStart();
 builder.Services.AddSingleton<RegistroFallosAvisos>();
@@ -94,6 +97,8 @@ builder.Services.AddScoped<ServicioImagenes>();
 builder.Services.AddScoped<ServicioVitrina>();
 builder.Services.AddScoped<ServicioEstadoLocal>();
 builder.Services.AddScoped<ServicioContacto>();
+builder.Services.AddScoped<PurgaDatosPersonales>();
+builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
 builder.Services.AddProblemDetails(options =>

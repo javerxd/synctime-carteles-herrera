@@ -67,6 +67,7 @@ public sealed class ApiFixture : IAsyncLifetime
             ["RateLimiting__Reautenticacion"] = "100000",
             ["RateLimiting__Publico"] = "100000",
             ["RateLimiting__ContactoPorHora"] = "100000",
+            ["Privacidad__PurgaActiva"] = "false",
             ["RateLimiting__CookiesPorHora"] = "100000",
             ["RateLimiting__PorCuenta"] = "100000",
             ["RateLimiting__Salud"] = "100000",

@@ -11,9 +11,9 @@ export const PRIVACIDAD = {
       id: 'responsable',
       titulo: 'Quién es responsable de tus datos',
       parrafos: [
-        'El responsable de tus datos personales es Letrería Los Herrera, taller de letreros ubicado en Villagrán 810, Los Ángeles, Región del Biobío, Chile.',
-        'Razón social: [completar: razón social]. RUT: [completar: RUT].',
-        'Para cualquier tema sobre tus datos, escríbenos a contacto.letrerosherrera@gmail.com. También puedes acercarte al taller en el horario que publicamos en este sitio.',
+        'El responsable de tus datos personales es Letreros Herrera (nombre comercial), taller de letreros con domicilio en Villagrán 810, código postal 4440000, Los Ángeles, Región del Bío Bío, Chile.',
+        'Razón social: [Pendiente de completar]. RUT: [Pendiente de completar].',
+        'Para cualquier tema sobre tus datos, incluido el ejercicio de tus derechos, escríbenos a contacto.letrerosherrera@gmail.com. También puedes acercarte al taller en el horario que publicamos en este sitio.',
       ],
     },
     {
@@ -75,9 +75,10 @@ export const PRIVACIDAD = {
         'No vendemos ni arrendamos tus datos. Solo los comparten los proveedores que necesitamos para que el sitio funcione:',
       ],
       lista: [
-        'Google (Gmail): envía los correos automáticos del sitio, como avisos y respuestas. Recibe la dirección de destino y el contenido del correo.',
-        'OpenStreetMap: el mapa del taller solo se carga si tú lo activas. Al hacerlo, tu navegador pide las imágenes del mapa a los servidores de OpenStreetMap, que reciben datos técnicos como tu dirección IP. Si no lo activas, no se conecta.',
-        'Alojamiento: el sitio y la base de datos están en [completar: proveedor de alojamiento y país].',
+        'Google (Gmail): envía los correos automáticos del sitio desde una casilla que no se revisa. Recibe la dirección de destino y el contenido del correo. Para escribirnos, usa siempre contacto.letrerosherrera@gmail.com.',
+        'OpenStreetMap: el mapa interactivo del taller solo se carga si tú lo activas. Al hacerlo, tu navegador pide las imágenes del mapa a los servidores de OpenStreetMap, que reciben datos técnicos como tu dirección IP. Si no lo activas, no se conecta.',
+        'Google Maps y Street View: la vista de la fachada solo se carga si pulsas «Ver la fachada», y el enlace «Abrir en Google Maps» te lleva a su sitio. En ambos casos Google recibe datos técnicos como tu dirección IP y aplica su propia política de privacidad. Si no los usas, no se conecta.',
+        'Alojamiento: el sitio y la base de datos funcionan en un servidor virtual privado (VPS) en Chile, con la aplicación en contenedores (ASP.NET Core sobre .NET 10) y la base de datos en SQL Server. Toda la comunicación con el sitio viaja cifrada por HTTPS/TLS.',
       ],
     },
     {
@@ -88,10 +89,11 @@ export const PRIVACIDAD = {
         'Pedidos: durante el plazo que exigen las normas contables y tributarias.',
         'Solicitudes rechazadas o que no se concretaron: se borran a los 12 meses.',
         'Correos automáticos ya enviados: se borran de la cola de envío a los 30 días.',
-        'Consultas del formulario de contacto: [completar: plazo de conservación].',
+        'Consultas del formulario de contacto: 12 meses desde que las recibimos, para su seguimiento comercial y nuestras estadísticas internas. Después se eliminan.',
         'Cuenta de cliente: mientras la tengas activa. Si pides la baja, la cuenta se inhabilita, borramos tu contraseña y conservamos solo el historial de pedidos que exige la ley.',
         'Acceso facial: hasta que retires tu consentimiento o se dé de baja tu cuenta del personal.',
-        'Registro de consentimientos: mientras sea necesario para acreditar que lo diste.',
+        'Registro de consentimientos (también el de cookies): 24 meses desde que lo diste o lo retiraste. Si tienes cuenta, lo conservamos mientras esté vigente y 24 meses después de que lo retires.',
+        'Tu elección en el aviso de cookies: se guarda en tu navegador y te la volvemos a preguntar cada 12 meses.',
       ],
     },
     {
@@ -130,7 +132,8 @@ export const PRIVACIDAD = {
       ],
       lista: [
         'Tu sesión, en sessionStorage. Se borra al cerrar la pestaña.',
-        'Tu elección sobre cookies, en localStorage, para no preguntarte cada vez.',
+        'Tu elección sobre cookies, en localStorage, para no preguntarte cada vez. Vence a los 12 meses y entonces te preguntamos de nuevo.',
+        'Un identificador aleatorio de tu navegador, en localStorage, solo si aceptas la analítica (o la retiras después). Sirve para registrar tu elección sin saber quién eres.',
       ],
     },
     {
@@ -163,8 +166,8 @@ export const TERMINOS = {
       id: 'quien-presta-el-servicio',
       titulo: 'Quién presta el servicio',
       parrafos: [
-        'El servicio lo presta Letrería Los Herrera, taller de letreros ubicado en Villagrán 810, Los Ángeles, Región del Biobío, Chile.',
-        'Razón social: [completar: razón social]. RUT: [completar: RUT]. Correo: contacto.letrerosherrera@gmail.com.',
+        'El servicio lo presta Letreros Herrera (nombre comercial), taller de letreros con domicilio en Villagrán 810, código postal 4440000, Los Ángeles, Región del Bío Bío, Chile.',
+        'Razón social: [Pendiente de completar]. RUT: [Pendiente de completar]. Correo de contacto: contacto.letrerosherrera@gmail.com.',
         'Al usar el sitio aceptas estos términos. Si no estás de acuerdo, por favor no lo uses.',
       ],
     },
@@ -195,7 +198,7 @@ export const TERMINOS = {
       titulo: 'Pedidos, abonos y pagos',
       parrafos: [
         'El sitio no recibe pagos en línea. Pagas en el taller o por transferencia bancaria.',
-        'Para empezar un trabajo puede pedirse un abono de [completar: porcentaje o monto del abono]. El saldo se paga [completar: momento del pago del saldo].',
+        'Para empezar un trabajo puede pedirse un abono de [Pendiente de completar]. El saldo se paga [Pendiente de completar].',
         'Los datos para transferir te los entregamos en el taller o desde contacto.letrerosherrera@gmail.com. Si alguien te pide pagar por otro medio a nombre del taller, consúltanos antes.',
       ],
     },
@@ -247,7 +250,7 @@ export const TERMINOS = {
       id: 'contacto',
       titulo: 'Contacto',
       parrafos: [
-        'Para dudas sobre estos términos, escríbenos a contacto.letrerosherrera@gmail.com o visítanos en Villagrán 810, Los Ángeles.',
+        'Para dudas sobre estos términos, escríbenos a contacto.letrerosherrera@gmail.com o visítanos en Villagrán 810, Los Ángeles. Los correos automáticos del sitio salen de una casilla que no se revisa: no los respondas.',
         'Cada versión de estos términos tiene un número y una fecha. Si cambiamos algo importante, te pediremos aceptarla de nuevo.',
       ],
     },

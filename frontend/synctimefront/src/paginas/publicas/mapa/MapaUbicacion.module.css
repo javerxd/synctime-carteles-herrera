@@ -16,15 +16,27 @@
 .imagen,
 .interactivo {
   display: block;
+  border: 0;
   inline-size: 100%;
   block-size: 100%;
   object-fit: cover;
 }
 
+/* Sobre los controles de Leaflet (z-index 1000), abajo a la izquierda: la atribución va a la derecha. */
 .activar {
   position: absolute;
+  z-index: 1001;
   inset-block-end: var(--espacio-3);
   inset-inline-start: var(--espacio-3);
+  inset-inline-end: var(--espacio-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  pointer-events: none;
+}
+
+.activar > * {
+  pointer-events: auto;
 }
 
 .nota {

@@ -6,6 +6,7 @@ import { abrirPreferenciasCookies, analiticaPermitida, leerPreferencia } from '.
 import { BannerCookies } from '../estructuras/BannerCookies';
 import { FormularioContacto } from '../paginas/publicas/contacto/FormularioContacto';
 import { publico } from '../api/publico';
+import { TALLER } from '../configuracion/taller';
 
 vi.mock('../api/publico', () => ({
   publico: {
@@ -20,6 +21,14 @@ const consultaValida = {
   nombre: 'Pedro Soto', correo: 'pedro@correo.cl', telefono: '', asunto: 'Letrero',
   mensaje: 'Quisiera cotizar un letrero luminoso.', aceptaPrivacidad: true,
 };
+
+describe('datos públicos del taller', () => {
+  it('la portada publica el correo de contacto, nunca la casilla automática de avisos', () => {
+    expect(TALLER.correo).toBe('contacto.letrerosherrera@gmail.com');
+    expect(JSON.stringify(TALLER)).not.toMatch(/avisos/i);
+    expect(TALLER.nombre).toBe('Letreros Herrera');
+  });
+});
 
 describe('reglas del formulario de contacto', () => {
   it('una consulta completa es válida, con o sin teléfono', () => {
@@ -104,6 +113,17 @@ describe('aviso de cookies', () => {
     mostrar();
     abrirPreferenciasCookies();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Cookies y privacidad' })).toHaveFocus());
+  });
+
+  it('la elección vence a los 12 meses y el aviso vuelve a preguntar', () => {
+    const haceTreceMeses = new Date(Date.now() - 395 * 24 * 60 * 60 * 1000).toISOString();
+    localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false, fecha: haceTreceMeses }));
+    expect(leerPreferencia()).toBeNull();
+    mostrar();
+    expect(screen.getByRole('heading', { name: 'Cookies y privacidad' })).toBeInTheDocument();
+
+    localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false, fecha: new Date().toISOString() }));
+    expect(leerPreferencia()).toMatchObject({ analitica: false });
   });
 
   it('se puede volver a abrir desde el pie', async () => {

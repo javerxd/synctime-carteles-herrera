@@ -1,11 +1,11 @@
-Requerimientos del sistema — SyncTime, Letrería Los Herrera
+Requerimientos del sistema — SyncTime, Letreros Herrera
 
 Versión 2 (12-11-2026), reestructurada tras la revisión con la profesora guía: los 47 requerimientos funcionales del sistema se agrupan en 12 macro-requerimientos, uno por pantalla o proceso, con el detalle de sus acciones en viñetas. Las reglas puramente técnicas (validación en tres niveles, formato de errores, autorización por rol, paginación y límites de envío) pasan a los no funcionales del producto (RNFP30 a RNFP33). La equivalencia entre los códigos antiguos (RFS01 a RFS48) y los nuevos está en `docs/plan/trazabilidad.md`.
 
 1. Requerimientos funcionales del sistema (12)
 
 RFS01: Publicitar el catálogo de trabajos realizados y enviar una solicitud.
-- Presentar como primera pantalla, con o sin sesión iniciada, la portada de «Letrería Los Herrera»: propuesta de valor, datos de contacto, botón directo a WhatsApp para consultas, formulario de contacto y mapa interactivo del local en Villagrán 810, 4440000 Los Ángeles, Bío Bío.
+- Presentar como primera pantalla, con o sin sesión iniciada, la portada de «Letreros Herrera»: propuesta de valor, datos de contacto, botón directo a WhatsApp para consultas, formulario de contacto y mapa interactivo del local en Villagrán 810, 4440000 Los Ángeles, Bío Bío.
 - Mostrar la vitrina o catálogo de trabajos realizados o destacados (imagen, título, descripción, tipo de letrero, categoría, medidas y precio referencial), filtrable por categoría.
 - No mostrar ninguna publicación que contenga logotipos o marcas de clientes sin la autorización expresa del cliente registrada en el sistema.
 - Desde la misma pantalla de la vitrina, abrir una ventana (modal) para enviar una solicitud de trabajo con sus especificaciones y medidas, con la casilla de aceptación de la Política de Privacidad y los Términos y Condiciones desmarcada por defecto. El envío sigue las reglas de RFS04.
@@ -75,7 +75,7 @@ RFS12: Auditoría transversal, gestión de consentimientos e inhabilitación de 
 
 2. Requerimientos funcionales del usuario (36)
 
-RFU01 (Visitante): ver en la página principal de «Letrería Los Herrera» la vitrina de trabajos realizados con imágenes, tipo de letrero, medidas y costo estimado antes de pedir.
+RFU01 (Visitante): ver en la página principal de «Letreros Herrera» la vitrina de trabajos realizados con imágenes, tipo de letrero, medidas y costo estimado antes de pedir.
 
 RFU02 (Visitante): saber el horario, los datos de contacto de la empresa y si el local está abierto o el dueño ausente.
 
@@ -329,7 +329,7 @@ E27 Filtros de pedidos: estado del pedido, estado de pago, cobranza (no pagados 
 
 7. Requerimientos de información: salidas (25)
 
-S01 Catálogo público y vitrina principal («Letrería Los Herrera»): título y datos de contacto de la empresa, trabajos realizados (imagen en WebP/AVIF, título, descripción, tipo de letrero, categoría, medidas y costo estimado), botón directo a WhatsApp y mapa interactivo con la ubicación del local en Villagrán 810, 4440000 Los Ángeles, Bío Bío. Visitante, cliente registrado.
+S01 Catálogo público y vitrina principal («Letreros Herrera»): título y datos de contacto de la empresa, trabajos realizados (imagen en WebP/AVIF, título, descripción, tipo de letrero, categoría, medidas y costo estimado), botón directo a WhatsApp y mapa interactivo con la ubicación del local en Villagrán 810, 4440000 Los Ángeles, Bío Bío. Visitante, cliente registrado.
 
 S02 Horario y cartel electrónico: horario de lunes a domingo, cartel verde «Abierto / Disponible» o rojo «Cerrado / Ausente» con su texto, mensaje, hora estimada de regreso y hora de última actualización, y código QR del portal. Visitante.
 

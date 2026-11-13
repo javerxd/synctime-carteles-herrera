@@ -1,5 +1,5 @@
 ---
-name: SyncTime — Letrería Los Herrera
+name: SyncTime — Letreros Herrera
 description: Modo claro de alta gama para un taller de letreros real; sobrio, preciso y legible de lejos.
 colors:
   ambar-taller: "#B45309"
@@ -96,7 +96,7 @@ components:
     rounded: "{rounded.pildora}"
 ---
 
-# Design System: SyncTime — Letrería Los Herrera
+# Design System: SyncTime — Letreros Herrera
 
 Fuente normativa de los valores: `src/estilos/tokens.css` (tres capas: primitivos, semánticos y de componente). La prueba `src/test/ui/tokens.test.js` comprueba los valores fijados por el cliente, los contrastes y la regla de capas. Galería viva, solo en desarrollo: `npm run dev` y abrir `/galeria.html`. Producto y voz: [PRODUCT.md](PRODUCT.md). Reglas del cliente: `docs/requisitos/reglas-de-diseno.md`.
 

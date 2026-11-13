@@ -1,5 +1,5 @@
 ﻿-- =====================================================================================
--- SyncTime - Letrería Los Herrera
+-- SyncTime - Letreros Herrera
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
 -- triggers, vista y procedimiento almacenado. Estado: migración ServiciosComunes.
 -- Generado el 13-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.

@@ -108,7 +108,7 @@ export default function IngresoPersonal() {
       <Tarjeta como="section" aria-labelledby="titulo-ingreso" className={estilos.tarjeta}>
         <img src="/marca/logo-lh-256.webp" alt="" width="56" height="56" className={estilos.logo} />
         <h1 id="titulo-ingreso" className={estilos.titulo}>Acceso del personal</h1>
-        <p className={estilos.bajada}>Panel de SyncTime para el equipo de Letrería Los Herrera.</p>
+        <p className={estilos.bajada}>Panel de SyncTime para el equipo de Letreros Herrera.</p>
 
         {sesionVencida && !errores.formulario && (
           <Aviso tono="info" titulo="Tu sesión venció">Vuelve a ingresar para seguir donde estabas.</Aviso>

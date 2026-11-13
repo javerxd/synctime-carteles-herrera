@@ -68,7 +68,7 @@ dotnet user-secrets set "Demo:Password" "UNA_PASSWORD_PROPIA" --project .\Letrer
 dotnet run --project .\LetrerosHerreraSYNCTIMEapi -- sembrar-demo
 ```
 
-Crea un usuario por rol (`dueno`, `admin`, `disenador` y `operario`, todos `@letreria.test`), un cliente con cuenta (`cliente@letreria.test`), publicaciones y solicitudes. Desde la fase 3 tambien carga 12 pedidos de varios meses, con su solicitud, su cotizacion aprobada y sus abonos, que cubren todos los estados del pedido y de pago (entre ellos abonados, entregados sin pagar y anulados) y ambos origenes (cotizacion y pedido directo). Desde la fase 5 tambien carga la vitrina de demostracion: 7 trabajos con imagenes de ejemplo, dibujadas en el codigo y rotuladas como tales. Si la base demo ya tenia los datos de la fase 1, repetir el comando agrega solo lo que falta (pedidos, trabajos e imagenes). El comando se niega a escribir en una base cuyo nombre no termine en `_Demo`, y repetirlo no duplica nada.
+Crea un usuario por rol (`dueno`, `admin`, `disenador` y `operario`, todos `@letreria.test`), un cliente con cuenta (`cliente@letreria.test`), publicaciones y solicitudes. Desde la fase 3 tambien carga 12 pedidos de varios meses, con su solicitud, su cotizacion aprobada y sus abonos, que cubren todos los estados del pedido y de pago (entre ellos abonados, entregados sin pagar y anulados) y ambos origenes (cotizacion y pedido directo). Desde la fase 5 tambien carga la vitrina de demostracion: 22 trabajos con fotos reales del taller, tomadas de `docs/imagenes-trabajos/vitrina/` (otra carpeta con `Demo:CarpetaFotosVitrina`), con la autorizacion de logo registrada a nombre del dueño demo. Las publicaciones inventadas de las fases anteriores quedan ocultas. Si la base demo ya tenia los datos de la fase 1, repetir el comando agrega solo lo que falta (pedidos, trabajos e imagenes). El comando se niega a escribir en una base cuyo nombre no termine en `_Demo`, y repetirlo no duplica nada.
 
 ## Primer administrador
 
@@ -142,7 +142,7 @@ dotnet run --project .\LetrerosHerreraSYNCTIMEapi --launch-profile https -- prob
 **Si la cuenta no admite contraseñas de aplicacion:** pasa, por ejemplo, si el administrador de Google Workspace las desactivo o si la cuenta tiene la Proteccion Avanzada. La alternativa es OAuth2 (XOAUTH2, que MailKit admite). Exige un proyecto en Google Cloud con su pantalla de consentimiento y un token de actualizacion. Mientras la aplicacion siga «en prueba», Google vence ese token a los 7 dias, asi que hay que publicarla. Se agrega solo si hace falta.
 
 Otras opciones de `Correo`:
-- `Remitente:Nombre` (`Letrería Los Herrera`).
+- `Remitente:Nombre` (`Letreros Herrera`).
 - `Remitente:Direccion`. Si se deja vacia, se usa la cuenta, que es lo que exige Gmail.
 - `Smtp:TiempoEsperaSegundos` (20).
 - `TopeAvisosPorHora` (20). Pasado ese numero de solicitudes en una hora, llega un solo aviso de «muchas solicitudes» en vez de uno por cada una; todas se guardan igual. Protege el cupo diario de Gmail (unos 500 envios) ante un envio masivo de solicitudes falsas.
@@ -159,7 +159,7 @@ Otras opciones de `Correo`:
 
 ## Portada publica
 
-Los endpoints publicos de la portada estan en `Endpoints/PortadaApi.cs`, y la vitrina, en `Endpoints/CatalogoApi.cs`. Lo que devuelve cada uno esta en `docs/api/contrato.md`, seccion «Portada publica».
+Los endpoints publicos de la portada estan en `Endpoints/PortadaApi.cs`, y la vitrina, en `Endpoints/CatalogoApi.cs`. Una vez al dia, `PurgaDatosPersonales` aplica los plazos de la politica de privacidad: borra las consultas de contacto a los 12 meses y los consentimientos de visitantes a los 24 meses (los de clientes y personal, 24 meses despues de retirarlos); `Privacidad:PurgaActiva=false` la desactiva. Los correos para clientes salen de la casilla de avisos y piden responder a `Correo:ContactoTaller` (el correo publico), que la API exige distinto de `Correo:Smtp:Usuario`. Lo que devuelve cada uno esta en `docs/api/contrato.md`, seccion «Portada publica».
 
 - **Estado del local** (`GET /api/v1/local/estado`): abierto solo si la hora de Chile cae dentro del horario y el cartel dice abierto. Usa la zona `America/Santiago`. Si el servidor no la tiene, la API no arranca y lo indica. En Linux hace falta el paquete `tzdata`.
 - **Formulario de contacto** (`POST /api/v1/contacto`): guarda la consulta y su consentimiento de privacidad, y deja un aviso al taller por correo, con la respuesta dirigida a quien escribio. Tiene un campo trampa, un tamaño máximo de 16 KB y 5 envios por hora por IP.
