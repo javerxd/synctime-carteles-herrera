@@ -1,8 +1,8 @@
 # Modelo entidad-relación — LetreriaLosHerreraDB
 
-Estado del esquema: migración `SepararEstadoPedidoYPago` (14-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
+Estado del esquema: migración `HistorialDePagos` (12-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
 
-14 tablas, 1 vista, 1 trigger y 1 procedimiento almacenado.
+15 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
 
 ## Diagrama
 
@@ -27,6 +27,8 @@ erDiagram
     solicitudes ||--o| pedidos : "se concreta en"
     cotizaciones |o--o{ pedidos : "origina"
     empleados ||--o{ pedidos : "es responsable de"
+    pedidos ||--o{ pagos : "se paga con"
+    empleados ||--o{ pagos : "registra"
 
     empleados |o--o{ cartel_digital : "actualiza"
     empleados ||--o{ rostros_empleado : "registra su rostro"
@@ -149,11 +151,21 @@ erDiagram
         decimal monto_base_trabajo
         decimal monto_total_final "calculada"
         nvarchar estado_pedido "RENOMBRADA: aceptado, en_proceso, terminado, entregado, anulado"
-        int monto_abonado "NUEVO"
+        int monto_abonado "NUEVO, suma de sus pagos"
         int saldo_pendiente "NUEVO, calculada"
         nvarchar estado_pago "NUEVO, calculada: no_pagado, abonado, pagado_total"
         nvarchar numero_factura "NUEVO, opcional"
         rowversion row_version
+    }
+    pagos {
+        int id_pago PK "NUEVA: historial de abonos"
+        int id_pedido FK
+        int monto "mayor que 0"
+        date fecha_pago
+        nvarchar medio_pago "efectivo, transferencia, tarjeta, cheque u otro"
+        nvarchar observacion
+        int id_empleado_registra FK
+        datetime2 fecha_registro
     }
     horarios_atencion {
         int id_horario PK
@@ -228,8 +240,9 @@ stateDiagram-v2
 ```
 
 - **«Anulado» reemplaza a «cancelado»**, porque en Chile «cancelado» se entiende como «pagado».
+- **Cada abono queda en `pagos`** con su monto, fecha, medio de pago y quién lo registró. El trigger `trg_pagos_recalcular_monto_abonado` mantiene `monto_abonado` igual a la suma de los pagos del pedido.
 - **El estado de pago no se escribe a mano.** La base lo calcula a partir de `monto_abonado` y del monto final: sin abono es `no_pagado`, con el total cubierto es `pagado_total`, y entre ambos es `abonado`. Así nunca contradice a los montos.
-- **Saldo pendiente** = monto final − monto abonado. La base impide abonar más que el monto final (`ck_pedidos_monto_abonado`).
+- **Saldo pendiente** = monto final − monto abonado. La base impide abonar más que el monto final (`ck_pedidos_monto_abonado`): un pago que haría superarlo no se guarda.
 - **Cierre del ciclo:** un pedido está cerrado solo cuando su estado es `entregado` y su pago es `pagado_total`.
 - **Cobranza:** el índice `ix_pedidos_cobranza` resuelve el listado de pedidos no anulados con pago `no_pagado` o `abonado` y su saldo.
 - Las transiciones del estado operativo (qué paso puede seguir a cuál) las valida la capa de negocio en la fase 8. El diagrama de arriba es la propuesta que se confirmará en la fase 7.

@@ -1,6 +1,8 @@
+using System.Text.Json.Serialization;
+
 namespace LetrerosHerreraSYNCTIMEapi.Models;
 
-// Un pedido tiene dos estados independientes (revision de la profesora guia, 14-11-2026):
+// Un pedido tiene dos estados independientes (revision de la profesora guia, 12-11-2026):
 // - EstadoPedido, operativo: aceptado -> en_proceso -> terminado -> entregado, o anulado.
 //   Se dice "anulado" y no "cancelado", porque en Chile "cancelado" se entiende como "pagado".
 // - EstadoPago, financiero: no_pagado, abonado o pagado_total. Lo calcula la base a partir de
@@ -29,7 +31,8 @@ public class Pedido
     public decimal MontoTotalFinal { get; set; }
     public string EstadoPedido { get; set; } = "aceptado";
 
-    // Pesos chilenos, sin decimales.
+    // Pesos chilenos, sin decimales. Es la suma de los Pagos del pedido: la mantiene el trigger de la
+    // tabla pagos, y EF nunca la escribe (se registra un Pago, no se edita este total).
     public int MontoAbonado { get; set; }
     public int SaldoPendiente { get; set; }
     public string EstadoPago { get; set; } = "no_pagado";
@@ -41,4 +44,8 @@ public class Pedido
     public virtual Solicitud? Solicitud { get; set; }
     public virtual Cotizacion? Cotizacion { get; set; }
     public virtual Empleado? EmpleadoResponsable { get; set; }
+
+    // Historial de abonos y pagos, con fecha, medio y quien lo registro.
+    [JsonIgnore]
+    public virtual ICollection<Pago> Pagos { get; set; } = new List<Pago>();
 }

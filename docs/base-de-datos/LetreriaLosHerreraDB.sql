@@ -1,15 +1,18 @@
 ﻿-- =====================================================================================
 -- SyncTime - Letrería Los Herrera
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
--- trigger, vista y procedimiento almacenado. Estado: migración SepararEstadoPedidoYPago.
--- Generado el 14-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
+-- triggers, vista y procedimiento almacenado. Estado: migración HistorialDePagos.
+-- Generado el 12-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
 --
--- Cambios de la revisión del 14-11-2026 (tabla pedidos):
+-- Cambios de la revisión del 12-11-2026 (tabla pedidos):
 --   * estado        -> estado_pedido: aceptado, en_proceso, terminado, entregado, anulado.
 --                      "anulado" reemplaza a "cancelado", que en Chile se entiende como "pagado".
 --   * estado_pago   (nuevo, calculado): no_pagado, abonado, pagado_total.
 --   * monto_abonado (nuevo, pesos), saldo_pendiente (nuevo, calculado) y numero_factura (nuevo, opcional).
 --   * origen        (nuevo): cotizacion o directo (pedido presencial acordado en el taller).
+--   * pagos         (tabla nueva): historial de abonos con monto, fecha, medio de pago y quién lo
+--                      registró. Un trigger mantiene monto_abonado igual a la suma de los pagos.
+--   * ck_pedidos_montos_enteros (nueva): los montos del pedido van en pesos, sin decimales.
 --
 -- Cómo ejecutarlo. Crea una base NUEVA y se detiene sin hacer nada si ya existe:
 --   sqlcmd -S localhost\SQLEXPRESS -E -C -I -f 65001 -i LetreriaLosHerreraDB.sql
@@ -275,10 +278,29 @@ CREATE TABLE [pedidos] (
     CONSTRAINT [ck_pedidos_estado_pedido] CHECK (estado_pedido IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado')),
     CONSTRAINT [ck_pedidos_modalidad] CHECK (modalidad_entrega IN (N'retiro_local', N'entrega_domicilio', N'instalacion_terreno')),
     CONSTRAINT [ck_pedidos_monto_abonado] CHECK (monto_abonado >= 0 AND monto_abonado <= monto_base_trabajo + costo_instalacion_adicional),
+    CONSTRAINT [ck_pedidos_montos_enteros] CHECK (monto_base_trabajo = FLOOR(monto_base_trabajo) AND costo_instalacion_adicional = FLOOR(costo_instalacion_adicional) AND monto_base_trabajo + costo_instalacion_adicional <= 2000000000),
     CONSTRAINT [ck_pedidos_origen] CHECK (origen IN (N'cotizacion', N'directo')),
     CONSTRAINT [fk_pedidos_cotizacion] FOREIGN KEY ([id_cotizacion]) REFERENCES [cotizaciones] ([id_cotizacion]),
     CONSTRAINT [fk_pedidos_empleado] FOREIGN KEY ([id_empleado_responsable]) REFERENCES [empleados] ([id_empleado]) ON DELETE NO ACTION,
     CONSTRAINT [fk_pedidos_solicitud] FOREIGN KEY ([id_solicitud]) REFERENCES [solicitudes] ([id_solicitud]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [pagos] (
+    [id_pago] int NOT NULL IDENTITY,
+    [id_pedido] int NOT NULL,
+    [monto] int NOT NULL,
+    [fecha_pago] date NOT NULL DEFAULT (CONVERT(DATE, SYSDATETIME())),
+    [medio_pago] nvarchar(15) NOT NULL,
+    [observacion] nvarchar(300) NULL,
+    [id_empleado_registra] int NOT NULL,
+    [fecha_registro] datetime2(0) NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT [pk_pagos] PRIMARY KEY ([id_pago]),
+    CONSTRAINT [ck_pagos_medio_pago] CHECK (medio_pago IN (N'efectivo', N'transferencia', N'tarjeta_debito', N'tarjeta_credito', N'cheque', N'otro')),
+    CONSTRAINT [ck_pagos_monto] CHECK (monto > 0),
+    CONSTRAINT [fk_pagos_empleado] FOREIGN KEY ([id_empleado_registra]) REFERENCES [empleados] ([id_empleado]) ON DELETE NO ACTION,
+    CONSTRAINT [fk_pagos_pedido] FOREIGN KEY ([id_pedido]) REFERENCES [pedidos] ([id_pedido]) ON DELETE NO ACTION
 );
 GO
 
@@ -408,6 +430,14 @@ CREATE UNIQUE INDEX [uq_materiales_nombre] ON [materiales] ([nombre]);
 GO
 
 
+CREATE INDEX [IX_pagos_id_empleado_registra] ON [pagos] ([id_empleado_registra]);
+GO
+
+
+CREATE INDEX [ix_pagos_pedido_fecha] ON [pagos] ([id_pedido], [fecha_pago]);
+GO
+
+
 CREATE INDEX [ix_pedidos_calendario_entrega] ON [pedidos] ([fecha_entrega_estimada], [estado_pedido]);
 GO
 
@@ -464,7 +494,7 @@ CREATE INDEX [ix_solicitudes_metricas] ON [solicitudes] ([fecha_solicitud], [ori
 GO
 
 -- -------------------------------------------------------------------------------------
--- 2. Objetos que el modelo no expresa (migraciones ObjetosProgramablesV6 y SepararEstadoPedidoYPago)
+-- 2. Objetos que el modelo no expresa (migraciones ObjetosProgramablesV6, SepararEstadoPedidoYPago y HistorialDePagos)
 -- -------------------------------------------------------------------------------------
 
 -- El cartel digital es una sola fila: su id vale 1 por defecto.
@@ -498,6 +528,33 @@ BEGIN
            ), 0)
       FROM dbo.cotizaciones c
       JOIN cotizaciones_afectadas ca ON ca.id_cotizacion = c.id_cotizacion;
+END
+GO
+
+-- Mantiene pedidos.monto_abonado igual a la suma de los pagos del pedido.
+GO
+CREATE OR ALTER TRIGGER dbo.trg_pagos_recalcular_monto_abonado
+ON dbo.pagos
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH cambios AS (
+        SELECT id_pedido, monto FROM inserted
+        UNION ALL
+        SELECT id_pedido, -monto FROM deleted
+    ),
+    diferencias AS (
+        SELECT id_pedido, SUM(monto) AS diferencia
+        FROM cambios
+        GROUP BY id_pedido
+    )
+    UPDATE p
+       SET monto_abonado = p.monto_abonado + d.diferencia
+      FROM dbo.pedidos p
+      JOIN diferencias d ON d.id_pedido = p.id_pedido
+     WHERE d.diferencia <> 0;
 END
 GO
 
@@ -553,7 +610,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261106031123_InitialCreateV6', N'10.0.11'),
     (N'20261106031126_ObjetosProgramablesV6', N'10.0.11'),
     (N'20261106094459_AgregarRostrosEmpleado', N'10.0.11'),
-    (N'20261112224624_SepararEstadoPedidoYPago', N'10.0.11');
+    (N'20261112224624_SepararEstadoPedidoYPago', N'10.0.11'),
+    (N'20261113010201_HistorialDePagos', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

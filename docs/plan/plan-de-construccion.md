@@ -7,19 +7,19 @@ El 12-11-2026 entregaste los requisitos reales (`requerimientos_del_sistema.md`:
 **Dónde estábamos el 12-11-2026** (diagnóstico con los códigos de la versión 1 de los requisitos). El backend (.NET 10, EF Core, SQL Server) tiene 14 tablas, 3 migraciones aplicadas y 136 pruebas; cubre catálogo, solicitudes, cotizaciones, pedidos, portal del cliente y login facial. El frontend (React 19, Vite) tiene un tema oscuro y varias pantallas con el contrato antiguo. La exploración encontró:
 
 - De los 47 RFS, **7 se cumplen, 17 están a medias y 19 faltan**; los otros 4 son solo de interfaz. Faltan por completo: correos, recuperación de contraseña, auditoría, consentimientos, contacto, reportes, dashboard, IA, Google, portabilidad, Docker y CI/CD.
-- **Lo construido contradice requisitos**: los estados cambian libremente (RFS29), se puede crear un pedido sin cotización aprobada (RFS14, RNFO02; desde el ajuste del 14-11-2026 el pago ya no es requisito para crear el pedido), el token dura 8 horas (RNFP08 pide 15 minutos), la lógica vive en los endpoints (RNFO10 pide capas y Repository), hay borrados físicos sin auditoría, y dos formatos de error.
+- **Lo construido contradice requisitos**: los estados cambian libremente (RFS29), se puede crear un pedido sin cotización aprobada (RFS14, RNFO02; desde el ajuste del 12-11-2026 el pago ya no es requisito para crear el pedido), el token dura 8 horas (RNFP08 pide 15 minutos), la lógica vive en los endpoints (RNFO10 pide capas y Repository), hay borrados físicos sin auditoría, y dos formatos de error.
 - Del frontend solo se conservan el motor facial, el cliente HTTP (con cambios), el `ErrorBoundary` y la lógica de sesión, modales y avisos. Páginas y CSS se rehacen.
 
 **Resultado esperado:** un sistema donde cada requisito tenga evidencia (prueba o pantalla), una desviación decidida por ti, o una verificación externa pendiente con responsable. Se construye en 18 fases que se cierran una por una.
 
 Este plan pasó una revisión adversarial de ECC que contrastó los 183 identificadores; sus hallazgos ya están incorporados.
 
-### Ajuste del 14-11-2026: revisión con la profesora guía
+### Ajuste del 12-11-2026: revisión con la profesora guía
 
 Tras cerrar la fase 1, la profesora guía revisó el proyecto y pidió cambios obligatorios. Ya están aplicados:
 
 - **Requisitos reagrupados** (versión 2 del documento): los 47 RFS pasan a **12 macro-requerimientos**, uno por pantalla o proceso; las reglas técnicas pasan a RNFP30 a RNFP33. Hay requisitos nuevos (RFU35, RFU36, E25 a E27, S24, S25). Total: **159 identificadores**. La equivalencia con los códigos antiguos está en `trazabilidad.md`; las pruebas e informes de las fases 0 y 1 citan los códigos antiguos.
-- **Pedido y pago separados** (RFS06, RNFO02): estado del pedido (aceptado, en proceso, terminado, entregado, anulado) y estado de pago (no pagado, abonado, pagado total) independientes, con monto abonado, saldo pendiente y número de factura; pedido presencial directo; el pedido ya no exige un pago previo. El esquema ya cambió con la migración `SepararEstadoPedidoYPago`, aplicada en la base demo y en las pruebas. **No está aplicada en la base real**: se aplica cuando lo autorices, con respaldo previo.
+- **Pedido y pago separados** (RFS06, RNFO02): estado del pedido (aceptado, en proceso, terminado, entregado, anulado) y estado de pago (no pagado, abonado, pagado total) independientes, con monto abonado, saldo pendiente y número de factura; historial de abonos con fecha y medio de pago (aprobado por el usuario el mismo día); pedido presencial directo; el pedido ya no exige un pago previo. El esquema ya cambió con las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos`, aplicadas en la base demo y en las pruebas. **No está aplicada en la base real**: se aplica cuando lo autorices, con respaldo previo.
 - **Base de datos documentada** en `docs/base-de-datos/`: script SQL completo, diagrama entidad-relación y diccionario de datos.
 - **Revisión de avance del lunes:** la fase 3 deja navegables, con datos de la base demo, el menú general, la vitrina con el modal de solicitud, el cartel electrónico con QR, los pedidos con sus filtros y las pantallas de reportes y KPI.
 - Las decisiones que tomé al aplicar la revisión están en `desviaciones.md`, para que las objetes si no te parecen.
@@ -112,7 +112,7 @@ Tras cerrar la fase 1, la profesora guía revisó el proyecto y pidió cambios o
 | 16 | Contenedores, CI/CD y operación | 15 | No |
 | 17 | Cierre y verificación de trazabilidad | 16 | No |
 
-Las fases se ejecutan en este orden, una a la vez. **Ajuste del 14-11-2026:** las fases 2 y 3 se priorizan para la revisión de avance del lunes; dentro de ellas va primero lo que esas pantallas necesitan.
+Las fases se ejecutan en este orden, una a la vez. **Ajuste del 12-11-2026:** las fases 2 y 3 se priorizan para la revisión de avance del lunes; dentro de ellas va primero lo que esas pantallas necesitan.
 
 ## Fases en detalle
 
@@ -171,7 +171,7 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 - Se conservan y restilizan `F/src/rostro/*`, `CapturaFacial`, `ErrorBoundary` y el acceso actual con contraseña y rostro, que sirve de prueba de integración del sistema nuevo.
 - Se eliminan: `index.css` oscuro, `App.css`, las páginas con el contrato antiguo, `prop-types`, `axios`, recursos sin uso y las pruebas que simulan el contrato antiguo. Las secciones aún no construidas muestran un estado vacío que indica su fase. Esas páginas ya fallan hoy contra la API real, así que no se pierde nada en uso.
 - CSP actualizada (fuentes propias, imágenes, mapa).
-- **Pantallas para la revisión de avance del lunes** (ajuste del 14-11-2026). Quedan construidas y navegables, alimentadas por la base demo, para hacer el recorrido visual completo sin pantallas vacías. La lógica de negocio que les falta llega en su fase, y cada pantalla lo indica sin engañar (por ejemplo, «datos de ejemplo» en los indicadores):
+- **Pantallas para la revisión de avance del lunes** (ajuste del 12-11-2026). Quedan construidas y navegables, alimentadas por la base demo, para hacer el recorrido visual completo sin pantallas vacías. La lógica de negocio que les falta llega en su fase, y cada pantalla lo indica sin engañar (por ejemplo, «datos de ejemplo» en los indicadores):
   1. **Menú general**, público y del panel interno, filtrado por rol.
   2. **Portada y vitrina** de trabajos realizados (RFS01) con filtro por categoría, desde `GET /catalogo`, y el **modal de solicitud** en la misma pantalla, con sus campos, la casilla de privacidad desmarcada y el aviso de contacto directo (S25). El envío real llega en la fase 7.
   3. **Disponibilidad horaria y cartel electrónico** (RFS02): horario semanal, cartel verde «Abierto / Disponible» o rojo «Cerrado / Ausente» con texto, mensaje, regreso estimado y última actualización, desde la API actual; el personal puede darlo vuelta. **Código QR** del portal, descargable e imprimible, generado en el navegador con una librería pequeña de licencia libre, verificada antes (RNFO16, RNFO17).
@@ -223,13 +223,13 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 
 ### Fase 8 — Cotizaciones, pedidos, pagos y abonos
 **Requisitos:** RFS05, RFS06, RFS04 (seguimiento del cliente), RNFP32, RNFO02, RNFP10, RFU07, RFU08, RFU12–15, RFU35, RFU36, E06–E09, E25–E27, S04, S06–S08, S24.
-- **Esquema:** el estado del pedido y el de pago ya están separados (migración `SepararEstadoPedidoYPago`, del ajuste del 14-11-2026). Antes de aplicarla a la base real, consultar sus pedidos y aplicarla con respaldo y tu visto bueno.
+- **Esquema:** el estado del pedido y el de pago ya están separados, y cada abono tiene su fila en `pagos` (migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos`, del ajuste del 12-11-2026). Antes de aplicarlas a la base real, consultar sus pedidos y aplicarlas con respaldo y tu visto bueno.
 - **Backend:**
   - Cotización con materiales (material base y dimensiones), mano de obra y otros costos, que pasa la solicitud a «cotizado» y guarda quién la elaboró.
   - Aprobación o rechazo por doble vía: el cliente en `/mis/cotizaciones` o el personal cuando el cliente confirma por teléfono o WhatsApp.
   - **Pedido desde la cotización aprobada:** nace «aceptado» con los montos de la cotización y la solicitud pasa a «aceptado»; **no exige pago previo**.
   - **Pedido presencial directo** (RFU35, E26): busca o crea al cliente por RUT o teléfono y, en una sola transacción, crea la solicitud presencial con sus ítems, la cotización aprobada y el pedido con `origen = directo`, más el abono si lo hay.
-  - **Abonos y pagos** (E25): suma al monto abonado, nunca por sobre el monto final; número de factura opcional. El estado de pago y el saldo los calcula la base.
+  - **Abonos y pagos** (E25): cada abono se registra en `pagos` con monto, fecha, medio de pago, observación y quién lo registró; el trigger suma al monto abonado y la base rechaza el que haría superar el monto final; número de factura opcional en el pedido; corrección de un abono mal ingresado, que queda en la auditoría. El estado de pago y el saldo los calcula la base. No se registran abonos en pedidos anulados. La ruta de abonos bloquea primero la fila del pedido (`UPDLOCK`) dentro de su transacción, para que dos abonos simultáneos se registren uno tras otro en vez de interbloquearse (hoy la base ya garantiza que el total nunca queda mal; la prueba `AbonosSimultaneos_DejanElTotalIgualALaSuma` lo fija).
   - Estado del pedido con transiciones válidas (aceptado → en proceso → terminado → entregado, y anulado), **independiente del pago**. «Cancelado» no existe: se dice «anulado».
   - **Cierre del ciclo** solo con «entregado» y «pagado total».
   - **Listados y filtros** (RFU36, E27): por estado del pedido, estado de pago, cobranza (no anulados con pago «no pagado» o «abonado», con su saldo y el total por cobrar, S24), año, mes y cliente; con búsqueda, orden y paginación en la API. Cotizaciones con lo mismo.
@@ -254,7 +254,7 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 **Cierre:** un diseñador u operario no puede activar ni usar el rostro; el dueño lista y desactiva; tu ingreso con rostro sigue funcionando.
 
 ### Fase 11 — Notificaciones, auditoría y privacidad
-**Requisitos:** RFS08 (avisos al cliente y baja de correos), RFS12 (auditoría, portabilidad e inhabilitación de la cuenta), RNFO04, RNFE01, RFU09, RFU28, RFU34, E24, E25 (fecha y autor de cada abono), S09, S20, S23.
+**Requisitos:** RFS08 (avisos al cliente y baja de correos), RFS12 (auditoría, portabilidad e inhabilitación de la cuenta), RNFO04, RNFE01, RFU09, RFU28, RFU34, E24, E25 (auditoría de los abonos corregidos o borrados), S09, S20, S23.
 - **Backend:**
   - Correos al cliente cuando su solicitud se cotiza, rechaza o acepta y cuando su pedido cambia de estado, con número, estado nuevo, mensaje, fecha y enlace de baja.
   - Baja con enlace firmado que lleva a una confirmación (no se ejecuta con solo abrir el enlace) y cabecera `List-Unsubscribe-Post`; preferencias de notificación.
@@ -351,8 +351,8 @@ Los puntos 2 y 3 ocurren fuera de este equipo: hasta que existan esas evidencias
 | WhatsApp, correo y teléfono del taller | 5 | Uso marcadores visibles |
 | Fotos de trabajos y permiso de logos | 5, 9 | Imágenes de ejemplo con licencia libre |
 | Revisión legal de privacidad, términos y consentimiento facial | 5, 6, 10 | Quedan como borradores marcados |
-| Revisar las decisiones del ajuste del 14-11-2026 (`desviaciones.md`) | antes de la fase 2 | Sigo con ellas |
-| Autorizar la migración `SepararEstadoPedidoYPago` en la base real | cuando quieras, a más tardar en la fase 8 | La base real queda con el esquema anterior |
+| Revisar las decisiones del ajuste del 12-11-2026 (`desviaciones.md`) | antes de la fase 2 | Sigo con ellas |
+| Autorizar las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos` en la base real | cuando quieras, a más tardar en la fase 8 | La base real queda con el esquema anterior |
 | Confirmar los diagramas de estados | 7 | No programo el flujo |
 | Cuenta SMTP del taller | 11 | Probado solo contra el receptor local |
 | ID de cliente OAuth de Google y clave de IA | 14 | Probado con simulador |

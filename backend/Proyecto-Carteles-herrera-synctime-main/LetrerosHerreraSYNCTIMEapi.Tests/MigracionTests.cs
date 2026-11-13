@@ -40,6 +40,7 @@ public sealed class MigracionTests(ApiFixture api)
         var objetos = await Valores("SELECT name AS Value FROM sys.objects WHERE type IN ('TR', 'V', 'P')");
 
         Assert.Contains("trg_cotizacion_materiales_recalcular_total", objetos);
+        Assert.Contains("trg_pagos_recalcular_monto_abonado", objetos);
         Assert.Contains("vw_metricas_conversion_online", objetos);
         Assert.Contains("sp_depurar_solicitudes_no_concretadas", objetos);
     }
@@ -49,7 +50,11 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(22, restricciones.Count);
+        Assert.Equal(25, restricciones.Count);
+        Assert.Contains("ck_pedidos_montos_enteros", restricciones);
+        // Historial de abonos: cada pago es positivo y usa un medio conocido.
+        Assert.Contains("ck_pagos_monto", restricciones);
+        Assert.Contains("ck_pagos_medio_pago", restricciones);
         // Revision de la profesora guia: el pedido separa su estado operativo de su estado de pago.
         Assert.Contains("ck_pedidos_estado_pedido", restricciones);
         Assert.Contains("ck_pedidos_monto_abonado", restricciones);

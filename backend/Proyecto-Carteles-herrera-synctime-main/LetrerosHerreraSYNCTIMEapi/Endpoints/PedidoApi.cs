@@ -1,5 +1,6 @@
 using LetrerosHerreraSYNCTIMEapi.Api;
 using LetrerosHerreraSYNCTIMEapi.Models;
+using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Security;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,8 @@ public static class PedidoApi
                 return ErrorApi.Conflicto("Ya existe un pedido para esta solicitud.");
             if (!Modalidades.Contains(req.ModalidadEntrega))
                 return ModalidadInvalida();
+            if (!Reglas.EsMontoEnPesos(req.CostoInstalacionAdicional) || (req.MontoBaseTrabajo is { } monto && !Reglas.EsMontoEnPesos(monto)))
+                return MontoInvalido();
 
             Cotizacion? cotizacion = null;
             if (req.IdCotizacion is not null)
@@ -86,12 +89,19 @@ public static class PedidoApi
                 return ErrorApi.Invalido($"Estado inválido. Valores: {string.Join(", ", Estados)}");
             if (!Modalidades.Contains(req.ModalidadEntrega))
                 return ModalidadInvalida();
+            if (!Reglas.EsMontoEnPesos(req.MontoBaseTrabajo) || !Reglas.EsMontoEnPesos(req.CostoInstalacionAdicional))
+                return MontoInvalido();
 
             var pedido = await db.Pedidos.FindAsync(id);
             if (pedido is null) return Results.NotFound();
 
             var conflicto = Concurrencia.Verificar(req.RowVersion, pedido.RowVersion);
             if (conflicto is not null) return conflicto;
+
+            // La base tambien lo impide (ck_pedidos_monto_abonado); aqui se explica el motivo.
+            if (req.MontoBaseTrabajo + req.CostoInstalacionAdicional < pedido.MontoAbonado)
+                return ErrorApi.Conflicto(
+                    $"El monto final no puede quedar bajo lo ya abonado ({pedido.MontoAbonado} pesos). Corrija primero los abonos.");
 
             pedido.EstadoPedido = req.EstadoPedido;
             pedido.FechaEntregaEstimada = req.FechaEntregaEstimada;
@@ -111,6 +121,9 @@ public static class PedidoApi
         {
             var p = await db.Pedidos.FindAsync(id);
             if (p is null) return Results.NotFound();
+            // Borrar un pedido con abonos perderia su historial contable: se anula en vez de borrarse.
+            if (await db.Pagos.AnyAsync(x => x.IdPedido == id))
+                return ErrorApi.Conflicto("El pedido tiene abonos registrados y no se puede borrar. Se puede anular para conservar su historial.");
             db.Pedidos.Remove(p);
             await db.SaveChangesAsync();
             return Results.NoContent();
@@ -120,6 +133,9 @@ public static class PedidoApi
 
     private static IResult ModalidadInvalida() =>
         ErrorApi.Invalido($"Modalidad inválida. Valores: {string.Join(", ", Modalidades)}");
+
+    private static IResult MontoInvalido() =>
+        ErrorApi.Invalido("Los montos van en pesos, sin decimales y sin valores negativos.");
 }
 
 public record CrearPedidoRequest(int IdSolicitud, int? IdCotizacion, int IdEmpleadoResponsable, DateTime FechaEntregaEstimada, string ModalidadEntrega = "retiro_local", bool RequiereInstalacion = false, string? DireccionInstalacion = null, decimal CostoInstalacionAdicional = 0m, decimal? MontoBaseTrabajo = null);

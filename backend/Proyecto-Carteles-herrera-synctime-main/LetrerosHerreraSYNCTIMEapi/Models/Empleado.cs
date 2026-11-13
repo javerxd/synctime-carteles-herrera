@@ -27,5 +27,8 @@ public class Empleado
     public virtual ICollection<Pedido> PedidosResponsable { get; set; } = new List<Pedido>();
 
     [JsonIgnore]
+    public virtual ICollection<Pago> PagosRegistrados { get; set; } = new List<Pago>();
+
+    [JsonIgnore]
     public virtual ICollection<Catalogo> CatalogosCreados { get; set; } = new List<Catalogo>();
 }

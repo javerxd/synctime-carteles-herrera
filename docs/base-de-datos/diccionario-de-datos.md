@@ -1,6 +1,6 @@
 # Diccionario de datos — LetreriaLosHerreraDB
 
-Estado del esquema: migración `SepararEstadoPedidoYPago` (14-11-2026). Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
+Estado del esquema: migración `HistorialDePagos` (12-11-2026), 15 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
 
 **Convenciones**
 - Motor SQL Server 2025 Express, intercalación `Modern_Spanish_CI_AS` (ordena y compara en español, sin distinguir mayúsculas).
@@ -11,7 +11,7 @@ Estado del esquema: migración `SepararEstadoPedidoYPago` (14-11-2026). Diagrama
 - Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, que usan `datetimeoffset(0)` porque deciden bloqueos y caducidades.
 - `row_version` es un `rowversion`: cambia en cada modificación y permite rechazar el cambio de un registro que otra persona modificó después de abrirlo (RNFP10).
 
-Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 14-11-2026 por la revisión de la profesora guía.
+Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha.
 
 ---
 
@@ -48,7 +48,7 @@ Personal del taller con acceso al panel interno.
 | `telefono` | varchar(20) | No | | Teléfono |
 | `email` | nvarchar(100) | No | | Correo de ingreso. UQ. CHECK de formato |
 | `password_hash` | varchar(100) | No | | Hash BCrypt de la contraseña |
-| `rol` | nvarchar(20) | No | `administrador` | `administrador`, `dueño`, `diseñador` u `operario` (RNFO08). Dueño y administrador pueden lo mismo; diseñador y operario también (decisión del 14-11-2026) |
+| `rol` | nvarchar(20) | No | `administrador` | `administrador`, `dueño`, `diseñador` u `operario` (RNFO08). Dueño y administrador pueden lo mismo; diseñador y operario también (decisión del 12-11-2026) |
 | `activo` | bit | No | 1 | 0 = no puede ingresar |
 
 Restricciones: `pk_empleados`, `uq_empleados_rut`, `uq_empleados_email`, `ck_empleados_rol`, `ck_empleados_email`.
@@ -187,7 +187,7 @@ Restricciones: `pk_cotizacion_materiales`, `fk_cot_mat_cotizacion` (en cascada),
 
 ## pedidos
 
-Trabajo acordado (RFS06). **Tabla modificada el 14-11-2026:** el estado operativo y el estado de pago pasan a ser independientes.
+Trabajo acordado (RFS06). **Tabla modificada el 12-11-2026:** el estado operativo y el estado de pago pasan a ser independientes.
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
@@ -206,7 +206,7 @@ Trabajo acordado (RFS06). **Tabla modificada el 14-11-2026:** el estado operativ
 | `monto_base_trabajo` | decimal(12,2) | No | 0 | Monto del trabajo en pesos (de la cotización o acordado) |
 | `monto_total_final` | decimal(14,2) | — | Calculada: monto base + instalación | Monto final |
 | `estado_pedido` | nvarchar(15) | No | `aceptado` | **CAMBIA** (antes `estado`). Estado operativo: `aceptado`, `en_proceso`, `terminado`, `entregado` o `anulado`. «Anulado» reemplaza a «cancelado», que en Chile se entiende como «pagado» |
-| `monto_abonado` | int | No | 0 | **NUEVA.** Total pagado hasta ahora, en pesos |
+| `monto_abonado` | int | No | 0 | **NUEVA.** Total pagado hasta ahora, en pesos: la suma de los `pagos` del pedido. La mantiene el trigger `trg_pagos_recalcular_monto_abonado`; no se escribe a mano |
 | `saldo_pendiente` | int | — | Calculada: monto final − monto abonado | **NUEVA.** Lo que falta por cobrar |
 | `estado_pago` | nvarchar(12) | — | Calculada: `no_pagado` si el abono es 0; `pagado_total` si cubre el monto final; si no, `abonado` | **NUEVA.** Estado financiero, independiente del operativo |
 | `numero_factura` | nvarchar(30) | Sí | | **NUEVA.** Número de factura cuando se paga. No es único: un cliente habitual puede pagar varios pedidos con una sola factura a fin de mes |
@@ -214,13 +214,36 @@ Trabajo acordado (RFS06). **Tabla modificada el 14-11-2026:** el estado operativ
 
 **Regla de cierre:** el ciclo de un pedido termina solo cuando `estado_pedido = entregado` y `estado_pago = pagado_total`.
 
-Restricciones: `pk_pedidos`, `uq_pedidos_solicitud`, `fk_pedidos_solicitud`, `fk_pedidos_cotizacion`, `fk_pedidos_empleado`, `ck_pedidos_modalidad`, `ck_pedidos_costos`, `ck_pedidos_estado_pedido` (**NUEVA**, reemplaza a `ck_pedidos_estado`), `ck_pedidos_origen` (**NUEVA**), `ck_pedidos_monto_abonado` (**NUEVA**: el abono va de 0 al monto final).
+Restricciones: `pk_pedidos`, `uq_pedidos_solicitud`, `fk_pedidos_solicitud`, `fk_pedidos_cotizacion`, `fk_pedidos_empleado`, `ck_pedidos_modalidad`, `ck_pedidos_costos`, `ck_pedidos_estado_pedido` (**NUEVA**, reemplaza a `ck_pedidos_estado`), `ck_pedidos_origen` (**NUEVA**), `ck_pedidos_monto_abonado` (**NUEVA**: el abono va de 0 al monto final), `ck_pedidos_montos_enteros` (**NUEVA**: monto base e instalación en pesos sin decimales y con un total de hasta 2.000 millones; sin esta regla, el saldo, que es entero, y el estado de pago podrían contradecirse).
 
 Índices y la consulta que resuelve cada uno:
 - `ix_pedidos_fecha_estado` (`fecha_pedido`, `estado_pedido`): filtros por año, mes y estado; pedidos por mes.
 - `ix_pedidos_calendario_entrega` (`fecha_entrega_estimada`, `estado_pedido`): calendario de entregas.
 - `ix_pedidos_cobranza` (`estado_pago`, `estado_pedido`, incluye `saldo_pendiente`): **NUEVO**, listado de cobranza (pedidos no anulados con pago `no_pagado` o `abonado`).
 - El filtro por cliente usa `ix_solicitudes_cliente`, a través de la solicitud del pedido.
+
+## pagos
+
+**Tabla nueva (12-11-2026).** Historial de abonos y pagos de cada pedido (RFS06, E25): un abono inicial, otros parciales y el pago final quedan cada uno con su fecha y su medio de pago.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_pago` | int | No | autoincremental | PK |
+| `id_pedido` | int | No | | FK a `pedidos` |
+| `monto` | int | No | | Pesos pagados en este abono. CHECK: mayor que 0 |
+| `fecha_pago` | date | No | hoy | Día en que el cliente pagó; puede ser anterior al día del registro |
+| `medio_pago` | nvarchar(15) | No | | `efectivo`, `transferencia`, `tarjeta_debito`, `tarjeta_credito`, `cheque` u `otro` |
+| `observacion` | nvarchar(300) | Sí | | Nota libre, por ejemplo el número de la transferencia |
+| `id_empleado_registra` | int | No | | FK a `empleados`: quién registró el abono |
+| `fecha_registro` | datetime2(0) | No | `SYSDATETIME()` | Cuándo se registró |
+
+**Regla:** después de insertar, modificar o borrar un pago, el trigger `trg_pagos_recalcular_monto_abonado` deja `pedidos.monto_abonado` igual a la suma de los pagos del pedido. Para eso suma al pedido la diferencia de cada operación (lo insertado menos lo borrado), sin volver a leer toda la tabla: dos abonos simultáneos al mismo pedido no se interbloquean, y el segundo suma sobre el total ya confirmado del primero, también si la base activa el aislamiento por instantáneas. Solo escribe el pedido si el total cambió: corregir la observación de un abono no invalida la versión del pedido que otra persona tiene abierta. Nadie más escribe `monto_abonado` (la API la ignora al guardar). Si esa suma supera el monto final, `ck_pedidos_monto_abonado` rechaza la operación completa y el pago no se guarda. Así `estado_pago` y `saldo_pendiente` siempre coinciden con el historial.
+
+Restricciones: `pk_pagos`, `fk_pagos_pedido`, `fk_pagos_empleado`, `ck_pagos_monto`, `ck_pagos_medio_pago`.
+
+Índices y la consulta que resuelve cada uno:
+- `ix_pagos_pedido_fecha` (`id_pedido`, `fecha_pago`): historial de un pedido en orden de fecha; también cubre la clave foránea y la suma que hace el trigger.
+- `IX_pagos_id_empleado_registra`: clave foránea al empleado (lo crea EF Core por convención, como en las demás tablas).
 
 ## horarios_atencion
 
@@ -272,12 +295,13 @@ Restricciones: `pk_rostros_empleado`, `fk_rostros_empleado_empleado`. Índice ú
 
 ---
 
-## Vista, trigger y procedimiento
+## Vista, triggers y procedimiento
 
 | Objeto | Tipo | Qué hace |
 |---|---|---|
-| `vw_metricas_conversion_online` | Vista | Por año y mes: solicitudes en línea, cuántas se concretaron en un pedido **no anulado** y el porcentaje de conversión. **Actualizada el 14-11-2026** (antes excluía los pedidos «cancelados») |
+| `vw_metricas_conversion_online` | Vista | Por año y mes: solicitudes en línea, cuántas se concretaron en un pedido **no anulado** y el porcentaje de conversión. **Actualizada el 12-11-2026** (antes excluía los pedidos «cancelados») |
 | `trg_cotizacion_materiales_recalcular_total` | Trigger | Tras insertar, modificar o borrar líneas de materiales, recalcula `costo_materiales_total` de las cotizaciones afectadas |
+| `trg_pagos_recalcular_monto_abonado` | Trigger | **Nuevo (12-11-2026).** Tras insertar, modificar o borrar pagos, ajusta `monto_abonado` de los pedidos afectados con la diferencia, de modo que siempre sea la suma de sus pagos |
 | `sp_depurar_solicitudes_no_concretadas` | Procedimiento | Borra solicitudes rechazadas o eliminadas, sin pedido, con más de `@meses_antiguedad` meses (12 por defecto, RNFO04) |
 
 ## Historial de cambios del esquema
@@ -287,4 +311,5 @@ Restricciones: `pk_rostros_empleado`, `fk_rostros_empleado_empleado`. Índice ú
 | `InitialCreateV6` | 06-11-2026 | Tablas, restricciones, índices y datos iniciales |
 | `ObjetosProgramablesV6` | 06-11-2026 | Trigger, vista, procedimiento, cartel único y domingo cerrado |
 | `AgregarRostrosEmpleado` | 06-11-2026 | Tabla `rostros_empleado` |
-| `SepararEstadoPedidoYPago` | 14-11-2026 | Pedido con estado operativo y de pago independientes, monto abonado, saldo, factura y origen; «cancelado» pasa a «anulado» |
+| `SepararEstadoPedidoYPago` | 12-11-2026 | Pedido con estado operativo y de pago independientes, monto abonado, saldo, factura y origen; «cancelado» pasa a «anulado» |
+| `HistorialDePagos` | 12-11-2026 | Tabla `pagos` (historial de abonos con fecha, medio y quién lo registró) y su trigger; restricción `ck_pedidos_montos_enteros`. Si algún pedido ya tenía un monto abonado, se conserva como un pago inicial. Si alguno tuviera centavos, la migración se detiene sin cambiar nada |

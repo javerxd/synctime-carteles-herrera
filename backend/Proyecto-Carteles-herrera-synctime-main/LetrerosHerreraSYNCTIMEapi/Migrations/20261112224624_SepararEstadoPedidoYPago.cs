@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LetrerosHerreraSYNCTIMEapi.Migrations
 {
     /// <summary>
-    /// Revision de la profesora guia (14-11-2026): el pedido pasa a tener estado operativo y estado de
+    /// Revision de la profesora guia (12-11-2026): el pedido pasa a tener estado operativo y estado de
     /// pago independientes, con monto abonado, saldo pendiente, numero de factura y origen.
     /// "cancelado" pasa a llamarse "anulado". Escrita con EF y completada a mano con la conversion de
     /// datos y la vista de conversion, que dependen de la columna renombrada.

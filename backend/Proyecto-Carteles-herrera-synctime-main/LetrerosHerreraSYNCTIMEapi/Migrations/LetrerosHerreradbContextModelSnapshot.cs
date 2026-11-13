@@ -749,6 +749,70 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.ToView("vw_metricas_conversion_online", (string)null);
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pago", b =>
+                {
+                    b.Property<int>("IdPago")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_pago");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdPago"));
+
+                    b.Property<DateOnly>("FechaPago")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("date")
+                        .HasColumnName("fecha_pago")
+                        .HasDefaultValueSql("CONVERT(DATE, SYSDATETIME())");
+
+                    b.Property<DateTime>("FechaRegistro")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasColumnName("fecha_registro")
+                        .HasDefaultValueSql("SYSDATETIME()");
+
+                    b.Property<int>("IdEmpleadoRegistra")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_registra");
+
+                    b.Property<int>("IdPedido")
+                        .HasColumnType("int")
+                        .HasColumnName("id_pedido");
+
+                    b.Property<string>("MedioPago")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)")
+                        .HasColumnName("medio_pago");
+
+                    b.Property<int>("Monto")
+                        .HasColumnType("int")
+                        .HasColumnName("monto");
+
+                    b.Property<string>("Observacion")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("observacion");
+
+                    b.HasKey("IdPago")
+                        .HasName("pk_pagos");
+
+                    b.HasIndex("IdEmpleadoRegistra");
+
+                    b.HasIndex("IdPedido", "FechaPago")
+                        .HasDatabaseName("ix_pagos_pedido_fecha");
+
+                    b.ToTable("pagos", null, t =>
+                        {
+                            t.HasTrigger("trg_pagos_recalcular_monto_abonado");
+
+                            t.HasCheckConstraint("ck_pagos_medio_pago", "medio_pago IN (N'efectivo', N'transferencia', N'tarjeta_debito', N'tarjeta_credito', N'cheque', N'otro')");
+
+                            t.HasCheckConstraint("ck_pagos_monto", "monto > 0");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pedido", b =>
                 {
                     b.Property<int>("IdPedido")
@@ -820,7 +884,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("modalidad_entrega");
 
                     b.Property<int>("MontoAbonado")
-                        .ValueGeneratedOnAdd()
+                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("monto_abonado");
@@ -900,6 +964,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                             t.HasCheckConstraint("ck_pedidos_modalidad", "modalidad_entrega IN (N'retiro_local', N'entrega_domicilio', N'instalacion_terreno')");
 
                             t.HasCheckConstraint("ck_pedidos_monto_abonado", "monto_abonado >= 0 AND monto_abonado <= monto_base_trabajo + costo_instalacion_adicional");
+
+                            t.HasCheckConstraint("ck_pedidos_montos_enteros", "monto_base_trabajo = FLOOR(monto_base_trabajo) AND costo_instalacion_adicional = FLOOR(costo_instalacion_adicional) AND monto_base_trabajo + costo_instalacion_adicional <= 2000000000");
 
                             t.HasCheckConstraint("ck_pedidos_origen", "origen IN (N'cotizacion', N'directo')");
                         });
@@ -1267,6 +1333,27 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("Material");
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pago", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoRegistra")
+                        .WithMany("PagosRegistrados")
+                        .HasForeignKey("IdEmpleadoRegistra")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_pagos_empleado");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Pedido", "Pedido")
+                        .WithMany("Pagos")
+                        .HasForeignKey("IdPedido")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_pagos_pedido");
+
+                    b.Navigation("EmpleadoRegistra");
+
+                    b.Navigation("Pedido");
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pedido", b =>
                 {
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Cotizacion", "Cotizacion")
@@ -1380,6 +1467,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.Navigation("Cotizaciones");
 
+                    b.Navigation("PagosRegistrados");
+
                     b.Navigation("PedidosResponsable");
 
                     b.Navigation("SolicitudesRegistradas");
@@ -1388,6 +1477,11 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Material", b =>
                 {
                     b.Navigation("CotizacionMateriales");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pedido", b =>
+                {
+                    b.Navigation("Pagos");
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Producto", b =>

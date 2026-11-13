@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace LetrerosHerreraSYNCTIMEapi.Models;
 
@@ -19,6 +20,7 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<Cotizacion> Cotizaciones { get; set; } = null!;
     public DbSet<CotizacionMaterial> CotizacionMateriales { get; set; } = null!;
     public DbSet<Pedido> Pedidos { get; set; } = null!;
+    public DbSet<Pago> Pagos { get; set; } = null!;
     public DbSet<HorarioAtencion> HorariosAtencion { get; set; } = null!;
     public DbSet<CartelDigital> CartelDigital { get; set; } = null!;
     public DbSet<MetricaConversionOnline> MetricasConversionOnline { get; set; } = null!;
@@ -347,6 +349,11 @@ public class LetrerosHerreradbContext : DbContext
                 // Lo abonado nunca supera el monto final. Usa las columnas base porque un CHECK no
                 // puede apoyarse en otra columna calculada.
                 t.HasCheckConstraint("ck_pedidos_monto_abonado", "monto_abonado >= 0 AND monto_abonado <= monto_base_trabajo + costo_instalacion_adicional");
+                // Pesos sin decimales y dentro del rango de int: si no, el saldo (entero) y el estado de
+                // pago (que compara con el total decimal) podrian contradecirse.
+                t.HasCheckConstraint("ck_pedidos_montos_enteros",
+                    "monto_base_trabajo = FLOOR(monto_base_trabajo) AND costo_instalacion_adicional = FLOOR(costo_instalacion_adicional) " +
+                    "AND monto_base_trabajo + costo_instalacion_adicional <= 2000000000");
             });
             entity.HasKey(e => e.IdPedido).HasName("pk_pedidos");
             entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
@@ -369,7 +376,12 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.MontoTotalFinal).HasColumnName("monto_total_final").HasColumnType("decimal(14,2)")
                 .HasComputedColumnSql("CONVERT(DECIMAL(14,2), monto_base_trabajo + costo_instalacion_adicional)", stored: true);
             entity.Property(e => e.EstadoPedido).HasColumnName("estado_pedido").HasMaxLength(15).HasDefaultValue("aceptado");
-            entity.Property(e => e.MontoAbonado).HasColumnName("monto_abonado").HasDefaultValue(0);
+            // La escribe solo el trigger de pagos; EF la lee de vuelta tras cada INSERT o UPDATE y nunca
+            // la envia (ni al crear ni al editar), asi ningun codigo puede pisar lo abonado.
+            entity.Property(e => e.MontoAbonado).HasColumnName("monto_abonado").HasDefaultValue(0)
+                .ValueGeneratedOnAddOrUpdate();
+            entity.Property(e => e.MontoAbonado).Metadata.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
+            entity.Property(e => e.MontoAbonado).Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
             entity.Property(e => e.SaldoPendiente).HasColumnName("saldo_pendiente")
                 .HasComputedColumnSql("CONVERT(INT, monto_base_trabajo + costo_instalacion_adicional) - monto_abonado", stored: true);
             // Se deriva de los montos para que nunca los contradiga: sin abono, "no_pagado"; con el
@@ -405,6 +417,47 @@ public class LetrerosHerreradbContext : DbContext
                 .HasForeignKey(e => e.IdEmpleadoResponsable)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_pedidos_empleado");
+        });
+
+        // ── pagos ──
+        // Historial de abonos y pagos de cada pedido. El trigger recalcula pedidos.monto_abonado con la
+        // suma de sus pagos; si la suma supera el monto final, ck_pedidos_monto_abonado rechaza la
+        // operacion completa y el pago no se guarda.
+        modelBuilder.Entity<Pago>(entity =>
+        {
+            entity.ToTable("pagos", t =>
+            {
+                t.HasTrigger("trg_pagos_recalcular_monto_abonado");
+                t.HasCheckConstraint("ck_pagos_monto", "monto > 0");
+                t.HasCheckConstraint("ck_pagos_medio_pago",
+                    "medio_pago IN (N'efectivo', N'transferencia', N'tarjeta_debito', N'tarjeta_credito', N'cheque', N'otro')");
+            });
+            entity.HasKey(e => e.IdPago).HasName("pk_pagos");
+            entity.Property(e => e.IdPago).HasColumnName("id_pago");
+            entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
+            entity.Property(e => e.Monto).HasColumnName("monto");
+            entity.Property(e => e.FechaPago).HasColumnName("fecha_pago").HasColumnType("date")
+                .HasDefaultValueSql("CONVERT(DATE, SYSDATETIME())");
+            entity.Property(e => e.MedioPago).HasColumnName("medio_pago").HasMaxLength(15);
+            entity.Property(e => e.Observacion).HasColumnName("observacion").HasMaxLength(300);
+            entity.Property(e => e.IdEmpleadoRegistra).HasColumnName("id_empleado_registra");
+            entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro").HasColumnType("datetime2(0)")
+                .HasDefaultValueSql("SYSDATETIME()");
+
+            // Historial de un pedido en orden de fecha; tambien cubre la clave foranea id_pedido.
+            entity.HasIndex(e => new { e.IdPedido, e.FechaPago }).HasDatabaseName("ix_pagos_pedido_fecha");
+
+            entity.HasOne(e => e.Pedido)
+                .WithMany(p => p.Pagos)
+                .HasForeignKey(e => e.IdPedido)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_pagos_pedido");
+
+            entity.HasOne(e => e.EmpleadoRegistra)
+                .WithMany(emp => emp.PagosRegistrados)
+                .HasForeignKey(e => e.IdEmpleadoRegistra)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_pagos_empleado");
         });
 
         // ── horarios_atencion ──

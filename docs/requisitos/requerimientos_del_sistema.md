@@ -1,6 +1,6 @@
 Requerimientos del sistema — SyncTime, Letrería Los Herrera
 
-Versión 2 (14-11-2026), reestructurada tras la revisión con la profesora guía: los 47 requerimientos funcionales del sistema se agrupan en 12 macro-requerimientos, uno por pantalla o proceso, con el detalle de sus acciones en viñetas. Las reglas puramente técnicas (validación en tres niveles, formato de errores, autorización por rol, paginación y límites de envío) pasan a los no funcionales del producto (RNFP30 a RNFP33). La equivalencia entre los códigos antiguos (RFS01 a RFS48) y los nuevos está en `docs/plan/trazabilidad.md`.
+Versión 2 (12-11-2026), reestructurada tras la revisión con la profesora guía: los 47 requerimientos funcionales del sistema se agrupan en 12 macro-requerimientos, uno por pantalla o proceso, con el detalle de sus acciones en viñetas. Las reglas puramente técnicas (validación en tres niveles, formato de errores, autorización por rol, paginación y límites de envío) pasan a los no funcionales del producto (RNFP30 a RNFP33). La equivalencia entre los códigos antiguos (RFS01 a RFS48) y los nuevos está en `docs/plan/trazabilidad.md`.
 
 1. Requerimientos funcionales del sistema (12)
 
@@ -40,7 +40,7 @@ RFS06: Gestión de pedidos, control independiente de pagos y abonos, y calendari
 - Crear el pedido por dos vías. (1) Desde una cotización: al aprobarse, el pedido nace en estado «Aceptado» con los montos de la cotización y la solicitud pasa a «aceptado», sin exigir un pago previo. (2) Pedido presencial directo: cuando el cliente acuerda el trabajo en el taller sin solicitud web previa, el dueño o un trabajador busca al cliente por RUT o teléfono (o lo crea) y registra el tipo de letrero, el material base, las medidas, la cantidad, la glosa de especificaciones, el costo de materiales, la mano de obra, la instalación y el abono o pago, si lo hubo. La solicitud y la cotización de ese pedido se generan internamente.
 - Registrar en el pedido el responsable, las fechas estimada y real de entrega, la modalidad de entrega, la instalación y su costo, y calcular el monto final.
 - Llevar dos estados independientes. Estado del pedido (operativo): «Aceptado», «En proceso», «Terminado», «Entregado» o «Anulado»; no se usa «Cancelado», que en Chile se entiende como «pagado». Estado de pago (financiero): «No pagado», «Abonado» o «Pagado total».
-- Registrar abonos y pagos: monto abonado, saldo pendiente (monto final menos monto abonado) y número de factura opcional, para los clientes habituales que pagan a fin de mes.
+- Registrar abonos y pagos: cada abono queda en un historial con su monto, fecha, medio de pago y quién lo registró; el pedido muestra el monto abonado (la suma de sus abonos), el saldo pendiente (monto final menos monto abonado) y el número de factura opcional, para los clientes habituales que pagan a fin de mes.
 - Considerar cerrado el ciclo de un pedido solo cuando está «Entregado» y «Pagado total».
 - Validar las transiciones del estado del pedido.
 - Listados y filtros para el dueño: por estado del pedido; por estado de pago; filtro de cobranza, que lista los pedidos no anulados con pago «No pagado» o «Abonado» y su saldo pendiente; por año y mes; y por cliente, para ver todo su historial de trabajos.
@@ -321,7 +321,7 @@ E23 Registro de consentimiento legal y privacidad: aceptación de Términos y Co
 
 E24 Solicitud sobre datos personales o baja de correo: petición de descarga de datos personales, solicitud de baja (inhabilitación) de la cuenta o confirmación de baja de lista de correo. Cliente registrado.
 
-E25 Abono o pago del pedido: monto abonado y número de factura opcional; la fecha y quién lo registró quedan en la bitácora de auditoría. Trabajador o dueño.
+E25 Abono o pago del pedido: monto, fecha de pago, medio de pago (efectivo, transferencia, tarjeta de débito o de crédito, cheque u otro), observación opcional y número de factura opcional del pedido; queda registrado quién lo ingresó y cuándo. Trabajador o dueño.
 
 E26 Pedido presencial directo: cliente (búsqueda por RUT o teléfono, o sus datos si es nuevo), tipo de letrero, material base, ancho, alto, cantidad, glosa de especificaciones, costo de materiales, mano de obra, instalación, responsable, fecha estimada y abono o pago si lo hay. Trabajador o dueño.
 
@@ -341,7 +341,7 @@ S05 Bandeja de solicitudes y vista principal de administración: resumen de soli
 
 S06 Cotización: número, fecha, cliente, ítems, detalle de materiales, costo total de materiales, mano de obra, otros costos, total, estado y trabajador que la elaboró. Trabajador, cliente registrado.
 
-S07 Ficha del pedido: número, origen (cotización o directo), solicitud y cotización de origen, cliente, responsable, fechas, modalidad, instalación y dirección, monto base, costo de instalación, monto final, estado del pedido, estado de pago, monto abonado, saldo pendiente y número de factura. Trabajador.
+S07 Ficha del pedido: número, origen (cotización o directo), solicitud y cotización de origen, cliente, responsable, fechas, modalidad, instalación y dirección, monto base, costo de instalación, monto final, estado del pedido, estado de pago, monto abonado, saldo pendiente, número de factura e historial de abonos (fecha, monto y medio de pago). Trabajador.
 
 S08 Calendario de entregas: pedidos por día con cliente, modalidad y estado, con colores e íconos o etiquetas distintivas para pendientes y entregados. Trabajador.
 

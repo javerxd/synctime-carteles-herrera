@@ -43,7 +43,7 @@ Lo que hoy permite la API y lo que piden los requisitos no coincide en estos pun
 
 ## Tres decisiones confirmadas
 
-**El usuario aceptó las tres propuestas el 14-11-2026.** Rigen desde las fases de negocio. Cambiarlas después es posible, pero afecta a los permisos de todas las fases siguientes.
+**El usuario aceptó las tres propuestas el 12-11-2026.** Rigen desde las fases de negocio. Cambiarlas después es posible, pero afecta a los permisos de todas las fases siguientes.
 
 1. **¿Dueño y administrador pueden lo mismo?**
    Propuesta: **sí, exactamente lo mismo**, como hoy. Los requisitos hablan del "dueño" para mantenedores, empleados, reportes y auditoría, y RFS26 trata a ambos roles como "dueño".

@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 1: cimientos del backend y base demo
 
-Fecha: 14-11-2026 · Rama: `fase-01-cimientos-backend` (nace de `fase-00-preparacion`) · Estado: **en revisión, esperando el visto bueno del usuario**
+Fecha: 12-11-2026 · Rama: `fase-01-cimientos-backend` (nace de `fase-00-preparacion`) · Estado: **en revisión, esperando el visto bueno del usuario**
 
 Esta fase no cambia reglas de negocio ni el esquema de la base. Deja las piezas comunes que usarán todas las fases siguientes.
 
@@ -68,7 +68,7 @@ Dos revisiones independientes (C# y seguridad). Ninguna encontró fallos crític
 - HSTS y la política de contenido estricta: solo se activan fuera de desarrollo.
 - La semilla contra la base demo real: falta la contraseña del usuario. Sí está probada contra una base temporal.
 
-## Cierre (14-11-2026): visto bueno del usuario
+## Cierre (12-11-2026): visto bueno del usuario
 
 1. **Matriz de permisos:** el usuario aceptó las tres decisiones de `docs/api/permisos.md`.
 2. **Semilla demo:** cargada por el usuario con su propia contraseña. Comprobado en `LetreriaLosHerreraDB_Demo`: 4 empleados (uno por rol), 3 clientes y 3 solicitudes.

@@ -4,7 +4,7 @@ Cada requisito de `docs/requisitos/requerimientos_del_sistema.md`, la fase del p
 Al cerrar cada fase se actualizan las columnas **Estado** y **Evidencia** de sus requisitos (prueba automática, pantalla o documento).
 En la fase 17 no puede quedar ninguno en "Pendiente": cada uno termina como Cumplido, Desviación o Pendiente externo (ver `desviaciones.md`).
 
-Total: **159 identificadores** (versión 2 del documento, 14-11-2026). La versión 1 tenía 183; la diferencia viene de agrupar 47 RFS en 12 macro-requerimientos y de los requisitos nuevos de la revisión con la profesora guía. **NUEVO** y **CAMBIA** marcan lo que introdujo esa revisión.
+Total: **159 identificadores** (versión 2 del documento, 12-11-2026). La versión 1 tenía 183; la diferencia viene de agrupar 47 RFS en 12 macro-requerimientos y de los requisitos nuevos de la revisión con la profesora guía. **NUEVO** y **CAMBIA** marcan lo que introdujo esa revisión.
 
 "3 (pantalla)" indica que la fase 3 deja la pantalla navegable con datos de la base demo para la revisión de avance, y la fase posterior la completa con su lógica.
 
@@ -19,7 +19,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RFS03 | Autenticación, gestión de cuentas y acceso biométrico facial. | 6, 10, 14 | Pendiente | Incluye desviaciones del ingreso facial (ver `desviaciones.md`) |
 | RFS04 | Gestión integral de solicitudes y prevención de solicitudes falsas. | 3 (modal), 6, 7 | Pendiente |  |
 | RFS05 | Gestión de cotizaciones y aprobación por doble vía. | 8 | Pendiente |  |
-| RFS06 | Gestión de pedidos, control independiente de pagos y abonos, y calendario. | 3 (pantalla), 8 | En curso | Ajuste del 14-11-2026: modelo de datos con estado de pedido y de pago independientes (migración `SepararEstadoPedidoYPago`, pruebas `PedidoPagoTests`). Falta la lógica de negocio y la interfaz |
+| RFS06 | Gestión de pedidos, control independiente de pagos y abonos, y calendario. | 3 (pantalla), 8 | En curso | Ajuste del 12-11-2026: modelo de datos con estado de pedido y de pago independientes e historial de abonos (migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos`, pruebas `PedidoPagoTests`). Falta la lógica de negocio y la interfaz |
 | RFS07 | Mantenedores del sistema (catálogo, tipos de letrero, materiales y personal). | 9 | Pendiente |  |
 | RFS08 | Notificaciones por correo y formulario de contacto. | 4, 5, 11 | Pendiente |  |
 | RFS09 | Análisis de datos, indicadores (KPIs) y dashboard interactivo. | 3 (pantalla), 12 | Pendiente |  |
@@ -111,7 +111,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | Requisito | Descripción | Fase | Estado | Evidencia |
 |---|---|---|---|---|
 | RNFO01 | construir con React, ASP.NET Core Web API y SQL Server. | cumplido antes del plan | Cumplido | React, ASP.NET Core Web API y SQL Server: `frontend/` y `backend/` |
-| RNFO02 **CAMBIA** | aplicar el flujo solicitud -> cotización -> aprobación -> pedido, o registrar un pedido presencial directo;… | 8 | En curso | Ajuste del 14-11-2026: el esquema ya separa el pago del pedido y admite el pedido directo. Falta la lógica de negocio (fase 8) |
+| RNFO02 **CAMBIA** | aplicar el flujo solicitud -> cotización -> aprobación -> pedido, o registrar un pedido presencial directo;… | 8 | En curso | Ajuste del 12-11-2026: el esquema ya separa el pago del pedido y admite el pedido directo. Falta la lógica de negocio (fase 8) |
 | RNFO03 | publicar el horario que fije el dueño y permitir que solo el personal cambie el estado del local. | 9 | Pendiente |  |
 | RNFO04 | conservar solicitudes rechazadas y eliminadas al menos 12 meses, para estadísticas. | 7,11 | Pendiente |  |
 | RNFO05 | montos en pesos chilenos sin decimales y fechas en formato dd-mm-aaaa. | 1,3 | En curso | Fase 1: `Reglas.EsMontoEnPesos`. Falta aplicarlo y el formato en la interfaz (fase 3) |
@@ -120,7 +120,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RNFO08 | permitir solo los roles administrador, dueño, diseñador y operario para el personal. | 9 | Pendiente |  |
 | RNFO09 | desarrollar con Kanban y mantener el código en un repositorio con control de versiones. | 0 | En curso | Repositorio único y tablero Kanban creados en la fase 0 (`tablero.md`) |
 | RNFO10 | estructurar el backend en cuatro capas claramente separadas (presentación, API, servicios de negocio y acceso… | 1, cada fase y 17 | En curso | Fase 1: capas, repositorio base y pruebas de arquitectura (`docs/arquitectura.md`). Quedan 8 módulos por migrar |
-| RNFO11 | normalizar el modelo de datos relacional con al menos seis entidades relacionadas, gestionando el esquema… | cada migración y 12 | En curso | Esquema normalizado de 14 tablas con migraciones versionadas, restricciones, índices justificados, vista y procedimiento; documentado en `docs/base-de-datos/`. Faltan las vistas del dashboard (fase 12) |
+| RNFO11 | normalizar el modelo de datos relacional con al menos seis entidades relacionadas, gestionando el esquema… | cada migración y 12 | En curso | Esquema normalizado de 15 tablas con migraciones versionadas, restricciones, índices justificados, vista, triggers y procedimiento; documentado en `docs/base-de-datos/`. Faltan las vistas del dashboard (fase 12) |
 | RNFO12 | poblar la base de datos para pruebas y demostración con datos sintéticos verosímiles (nunca datos personales… | 1 (reducido) | En curso | Fase 1: base `LetreriaLosHerreraDB_Demo` y comando `sembrar-demo`. Reducido por decisión del usuario |
 | RNFO13 | implementar pruebas unitarias automatizadas para la capa de negocio, pruebas de integración automatizadas… | 1,14,15 | En curso | Fase 1: 96 pruebas unitarias y 166 de integración. Faltan IA simulada, axe y prueba manual |
 | RNFO14 | contenerizar el sistema mediante `Dockerfile` multi-stage con imagen base ligera de versión fija y un archivo… | 16 | Pendiente |  |
@@ -170,7 +170,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | E22 | Formulario de contacto: nombre del remitente, correo electrónico, teléfono (opcional), asunto y mensaje de… | 5 | Pendiente |  |
 | E23 | Registro de consentimiento legal y privacidad: aceptación de Términos y Condiciones y Política de Privacidad… | 5,6 | Pendiente |  |
 | E24 **CAMBIA** | Solicitud sobre datos personales o baja de correo: petición de descarga de datos personales, solicitud de… | 11 | Pendiente |  |
-| E25 **NUEVO** | Abono o pago del pedido: monto abonado y número de factura opcional; la fecha y quién lo registró quedan en… | 8 | Pendiente |  |
+| E25 **NUEVO** | Abono o pago del pedido: monto, fecha de pago, medio de pago (efectivo, transferencia, tarjeta de débito o de… | 8 | En curso | Tabla `pagos` con su trigger y restricciones (migración `HistorialDePagos`, pruebas `PedidoPagoTests`). Falta el formulario y la ruta de la API (fase 8) |
 | E26 **NUEVO** | Pedido presencial directo: cliente (búsqueda por RUT o teléfono, o sus datos si es nuevo), tipo de letrero,… | 8 | Pendiente |  |
 | E27 **NUEVO** | Filtros de pedidos: estado del pedido, estado de pago, cobranza (no pagados o abonados), año, mes y cliente.… | 3 (pantalla), 8 | Pendiente |  |
 
@@ -184,7 +184,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | S04 **CAMBIA** | Seguimiento del cliente en vista principal: por solicitud, número, fecha, estado y motivo de rechazo; total y… | 8 | Pendiente |  |
 | S05 | Bandeja de solicitudes y vista principal de administración: resumen de solicitudes pendientes, métricas clave… | 7 | Pendiente |  |
 | S06 | Cotización: número, fecha, cliente, ítems, detalle de materiales, costo total de materiales, mano de obra,… | 8 | Pendiente |  |
-| S07 **CAMBIA** | Ficha del pedido: número, origen (cotización o directo), solicitud y cotización de origen, cliente,… | 8 | En curso | Columnas de pago en el esquema y en `GET /pedidos/{id}`. Falta la ficha en la interfaz (fases 3 y 8) |
+| S07 **CAMBIA** | Ficha del pedido: número, origen (cotización o directo), solicitud y cotización de origen, cliente,… | 8 | En curso | Columnas de pago en el esquema y en `GET /pedidos/{id}`; historial de abonos en la tabla `pagos`. Falta la ficha en la interfaz (fases 3 y 8) |
 | S08 | Calendario de entregas: pedidos por día con cliente, modalidad y estado, con colores e íconos o etiquetas… | 8 | Pendiente |  |
 | S09 | Notificación al cliente y correo de contacto al administrador: al cliente, número de solicitud o pedido,… | 5,11 | Pendiente |  |
 | S10 **CAMBIA** | Pedidos por mes: cantidad de pedidos creados por estado, sin contar los anulados en el total. Dueño. | 12 | Pendiente |  |
