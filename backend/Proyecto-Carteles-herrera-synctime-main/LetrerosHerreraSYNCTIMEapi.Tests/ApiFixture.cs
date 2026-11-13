@@ -66,6 +66,8 @@ public sealed class ApiFixture : IAsyncLifetime
             ["RateLimiting__LoginFacial"] = "100000",
             ["RateLimiting__Reautenticacion"] = "100000",
             ["RateLimiting__Publico"] = "100000",
+            ["RateLimiting__ContactoPorHora"] = "100000",
+            ["RateLimiting__CookiesPorHora"] = "100000",
             ["RateLimiting__PorCuenta"] = "100000",
             ["RateLimiting__Salud"] = "100000",
             ["RostroFacial__ClaveCifrado"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),

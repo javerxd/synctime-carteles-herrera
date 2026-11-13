@@ -12,6 +12,9 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Área | Visitante | Cliente | Operario | Diseñador | Gestión |
 |---|---|---|---|---|---|
 | Ver catálogo, categorías, productos, horario y estado del local | Sí | Sí | Sí | Sí | Sí |
+| Ver el estado del local ahora y los documentos legales (`GET /local/estado`, `GET /documentos-legales`) | Sí | Sí | Sí | Sí | Sí |
+| Enviar una consulta de contacto (`POST /contacto`) | Sí | Sí | Sí | Sí | Sí |
+| Registrar la aceptación o el retiro de cookies (`POST /consentimientos/cookies`) | Sí | Sí | Sí | Sí | Sí |
 | Enviar una solicitud en línea | Sí | Sí | Sí | Sí | Sí |
 | Registrarse e iniciar sesión | Sí | — | — | — | — |
 | Ver sus propias solicitudes y pedidos (`/mis/…`) | No | Sí | No | No | No |
@@ -23,6 +26,7 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Crear y modificar pedidos | No | No | Sí | No | Sí |
 | Eliminar clientes, cotizaciones y pedidos | No | No | No | No | Sí |
 | Mantener categorías, productos y publicaciones | No | No | No | No | Sí |
+| Autorizar el logotipo de un cliente en una publicación (`PUT /catalogo/{id}/autorizacion-logo`) | No | No | No | No | Sí |
 | Subir imágenes (`POST /imagenes`) | No | No | No | No | Sí |
 | Ver una imagen subida (`GET /imagenes/{archivo}`) | Sí | Sí | Sí | Sí | Sí |
 | Cambiar el estado del local | No | No | No | No | Sí |

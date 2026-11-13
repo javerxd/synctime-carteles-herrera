@@ -38,6 +38,9 @@
     },
     {
       "name": "Imágenes"
+    },
+    {
+      "name": "Portada"
     }
   ],
   "paths": {
@@ -564,6 +567,51 @@
         ],
         "summary": "Sirve una imagen subida ({clave}-grande.webp o {clave}-miniatura.webp) con caché de un año",
         "x-acceso": "publico"
+      }
+    },
+    "/api/v1/local/estado": {
+      "get": {
+        "tags": [
+          "Portada"
+        ],
+        "summary": "Estado del local ahora: abierto o cerrado según el horario (hora de Chile) y el cartel, con el horario de hoy y la próxima apertura",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/documentos-legales": {
+      "get": {
+        "tags": [
+          "Portada"
+        ],
+        "summary": "Versiones vigentes de la política de privacidad, los términos, el marketing y las cookies",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/contacto": {
+      "post": {
+        "tags": [
+          "Portada"
+        ],
+        "summary": "Recibe una consulta del formulario de contacto, registra su consentimiento y avisa al taller por correo",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/consentimientos/cookies": {
+      "post": {
+        "tags": [
+          "Portada"
+        ],
+        "summary": "Registra que un visitante aceptó las cookies de analítica (versión, fecha y hora), o su retiro si antes las aceptó",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/catalogo/{id}/autorizacion-logo": {
+      "put": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Registra quién autorizó y cuándo el uso del logotipo del cliente en una publicación",
+        "x-acceso": "gestion"
       }
     }
   },

@@ -1,6 +1,6 @@
 # Licencias de fuentes, iconos, imágenes y paquetes (RNFO17)
 
-Inventario de todo lo de terceros que usa el proyecto y la licencia que lo permite. Se actualiza en cada fase que agrega algo. Última revisión: 13-11-2026 (fase 3).
+Inventario de todo lo de terceros que usa el proyecto y la licencia que lo permite. Se actualiza en cada fase que agrega algo. Última revisión: 13-11-2026 (fase 5).
 
 ## Fuentes tipográficas
 
@@ -20,9 +20,11 @@ La OFL permite usar, incrustar y redistribuir la fuente en sitios y aplicaciones
 
 | Recurso | Licencia | Estado |
 |---|---|---|
-| Fotos de trabajos de la vitrina | Del taller | **Pendientes**: el usuario las entregará (fase 5). Mientras tanto, la vitrina muestra un espacio rotulado «Foto del trabajo pendiente» |
+| Ilustraciones de ejemplo de la base demo | Propias: se dibujan en el código (`LetrerosHerreraSYNCTIMEapi/Infraestructura/Imagenes/ImagenesDeEjemplo.cs`, con SkiaSharp). No son fotos ni se descargan de terceros | En uso en la vitrina de la base demo, rotuladas «Imagen de ejemplo» (fase 5) |
+| Fotos reales de los trabajos | Del taller | **Pendientes**: el taller las entregará. Mientras tanto, la vitrina usa las ilustraciones de ejemplo, o «Foto del trabajo pendiente» si una publicación no tiene foto |
+| Mapa de la portada (`frontend/synctimefront/public/mapa/ubicacion-taller.webp`) | Generado con `scripts/mapa-estatico.py` a partir de teselas de OpenStreetMap | **Por verificar** antes de la entrega: ver «Datos y mapas de OpenStreetMap» |
 | Logotipo de Letrería Los Herrera | Del taller, entregado por el usuario el 13-11-2026 | En uso: versión en tinta derivada del original gris (barra, panel, acceso y favicon) en `frontend/synctimefront/public/marca/`. Originales en `docs/marca/originales/` |
-| Logotipos de clientes | De cada cliente | Solo con autorización registrada (fase 5) |
+| Logotipos de clientes | De cada cliente | Solo con autorización registrada: desde la fase 5 la API no muestra una publicación con logo sin ella (`PUT /api/v1/catalogo/{id}/autorizacion-logo`) |
 
 ## Paquetes de código del frontend
 
@@ -34,16 +36,27 @@ La OFL permite usar, incrustar y redistribuir la fuente en sitios y aplicaciones
 | uqr | 0.1.3 | MIT | Producción (código QR del portal, generado en el navegador; sin dependencias, unos 6 KB comprimido junto con la pantalla que lo usa, que se carga solo al abrirla) |
 | @fontsource/plus-jakarta-sans | 5.3.0 | OFL-1.1 | Producción (fuente) |
 | lucide-react | 1.72.0 | ISC | Producción (iconos) |
+| leaflet | 1.9.4 | BSD-2-Clause | Producción (mapa interactivo de la portada; se carga solo cuando el visitante lo pide) |
 | vite, @vitejs/plugin-react | 8.3.4, 6.1.2 | MIT | Desarrollo |
 | vitest, jsdom, @testing-library/react, @testing-library/jest-dom | 5.0.5, 30.1.3, 16.3.3, 7.0.1 | MIT | Desarrollo (pruebas) |
 | @playwright/test | 1.64.1 | Apache-2.0 | Desarrollo (pruebas de extremo a extremo) |
 | @axe-core/playwright | 4.14.0 | MPL-2.0 | Desarrollo (auditoría de accesibilidad); no se distribuye con el sitio |
 | oxlint | 1.89.0 | MIT | Desarrollo |
 | @types/react, @types/react-dom | 19.3.0 | MIT | Desarrollo |
+| Pillow (Python; solo `scripts/mapa-estatico.py`) | Sin versión fijada | HPND (MIT-CMU) | Desarrollo: genera la imagen del mapa; no se distribuye con el sitio |
 
 `axios` y `prop-types` se eliminaron en la fase 3: el cliente HTTP usa `fetch` y los componentes ya no declaran `propTypes`.
 
 Ninguna de estas licencias exige publicar el código propio del proyecto. La MPL-2.0 de axe solo obligaría a publicar cambios hechos a los archivos de axe, que no se modifican.
+
+## Datos y mapas de OpenStreetMap
+
+| Recurso | Licencia | Uso | Cómo se sirve |
+|---|---|---|---|
+| Datos del mapa (© colaboradores de OpenStreetMap) | ODbL | Ubicación del taller en la portada | Atribución visible junto al mapa, con enlace a la página de copyright de OpenStreetMap |
+| Teselas (imágenes del mapa) de `tile.openstreetmap.org` | **Por verificar** (ver abajo) | Mapa interactivo, solo si el visitante lo activa; y la imagen estática de `public/mapa/` | Se piden al servidor de OpenStreetMap solo al activar el mapa. Hay que cumplir la política de uso de teselas de la OSMF |
+
+**Por verificar antes de la entrega:** no se pudo comprobar en línea desde el equipo de desarrollo. La página de copyright de OpenStreetMap podría asignar a las teselas la licencia CC BY-SA 2.0, distinta de la ODbL que cubre los datos. Si es así, la imagen estática generada con esas teselas debe cumplir CC BY-SA 2.0 (atribución y compartir igual).
 
 ## Paquetes del backend
 

@@ -440,12 +440,14 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var creado = await api.Cliente(token).PostAsJsonAsync("/api/v1/catalogo/", new { idProducto = 1, titulo, descripcion = "d", imagenUrl = "u", visible = false }).EsperarAsync(HttpStatusCode.Created);
         var id = creado.GetProperty("idCatalogo").GetInt32();
 
-        var vitrina = await api.Cliente().GetAsync("/api/v1/catalogo/").EsperarAsync(HttpStatusCode.OK);
+        var vitrina = await api.Cliente().GetAsync("/api/v1/catalogo/?tamano=100").EsperarAsync(HttpStatusCode.OK);
 
-        Assert.DoesNotContain(vitrina.EnumerateArray(), c => c.GetProperty("titulo").GetString() == titulo);
+        Assert.DoesNotContain(vitrina.GetProperty("elementos").EnumerateArray(), c => c.GetProperty("titulo").GetString() == titulo);
         await api.Cliente().GetAsync($"/api/v1/catalogo/{id}").EsperarAsync(HttpStatusCode.NotFound);
         await api.Cliente(token).GetAsync($"/api/v1/catalogo/{id}").EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal(await api.IdAdminAsync(), creado.GetProperty("idEmpleadoCreador").GetInt32());
+        // La respuesta ya no dice quien publico (fase 5), pero la base si lo guarda.
+        var creador = await api.ConsultarAsync(db => db.Catalogos.Where(c => c.IdCatalogo == id).Select(c => c.IdEmpleadoCreador).SingleAsync());
+        Assert.Equal(await api.IdAdminAsync(), creador);
     }
 
     [Fact]

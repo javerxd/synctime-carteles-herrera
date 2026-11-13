@@ -1,6 +1,6 @@
 # Diccionario de datos — LetreriaLosHerreraDB
 
-Estado del esquema: migración `ServiciosComunes` (13-11-2026), 18 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
+Estado del esquema: migración `PortadaPublica` (13-11-2026), 19 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
 
 **Convenciones**
 - Motor SQL Server 2025 Express, intercalación `Modern_Spanish_CI_AS` (ordena y compara en español, sin distinguir mayúsculas).
@@ -8,10 +8,10 @@ Estado del esquema: migración `ServiciosComunes` (13-11-2026), 18 tablas. Diagr
 - **PK** clave primaria (entera, autoincremental salvo que se diga otra cosa). **FK** clave foránea. **UQ** valor único.
 - **Calculada**: columna que calcula SQL Server y guarda (`PERSISTED`); no se escribe a mano.
 - **Montos en pesos chilenos sin decimales** (RNFO05). Las columnas nuevas usan `int`. Las anteriores son `decimal(12,2)` y siempre guardan valores enteros: la API y la interfaz validan que no tengan decimales.
-- Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro y las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local.
+- Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`) y las de la fase 5 (`consultas_contacto` y la autorización del logo en `catalogo`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local.
 - `row_version` es un `rowversion`: cambia en cada modificación y permite rechazar el cambio de un registro que otra persona modificó después de abrirlo (RNFP10).
 
-Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026).
+Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026).
 
 ---
 
@@ -92,13 +92,17 @@ Vitrina pública de trabajos realizados o destacados (RFS01).
 | `id_empleado_creador` | int | Sí | | FK a `empleados`: quién publicó |
 | `titulo` | nvarchar(120) | No | | Título |
 | `descripcion` | nvarchar(500) | No | | Descripción |
-| `imagen_url` | nvarchar(500) | No | | Ruta de la imagen |
+| `imagen_url` | nvarchar(500) | Sí | | **CAMBIA (fase 5).** Dirección de una foto anterior a la subida de imágenes. Ya no es obligatoria: la foto nueva va en `id_imagen` |
 | `ancho_mm`, `alto_mm` | int | Sí | | Medidas en milímetros. CHECK: ambas nulas o ambas mayores que 0 |
 | `precio_referencial` | decimal(12,2) | Sí | | Precio referencial en pesos. CHECK ≥ 0 |
 | `fecha_publicacion` | datetime2(0) | No | `SYSDATETIME()` | Fecha de publicación |
-| `visible` | bit | No | 1 | 1 = se muestra en la portada |
+| `visible` | bit | No | 1 | 1 = se muestra en la vitrina. Con logo de cliente, solo puede ser 1 si hay autorización (`ck_catalogo_logo`) |
+| `id_imagen` | int | Sí | | **NUEVA (fase 5).** FK a `imagenes`: la foto subida con `POST /imagenes`. Sin foto, la vitrina muestra «Foto del trabajo pendiente» |
+| `incluye_logo_cliente` | bit | No | 0 | **NUEVA (fase 5).** 1 = la foto muestra el logotipo de un cliente |
+| `id_empleado_autoriza_logo` | int | Sí | | **NUEVA (fase 5).** FK a `empleados`: quién registró la autorización del cliente |
+| `fecha_autorizacion_logo` | datetimeoffset(0) | Sí | | **NUEVA (fase 5).** Cuándo se registró la autorización. Volver a autorizarla no la cambia |
 
-Restricciones: `pk_catalogo`, `fk_catalogo_producto`, `fk_catalogo_empleado`, `ck_catalogo_precio`, `ck_catalogo_medidas`. Índice `ix_catalogo_visible_producto` (`visible`, `id_producto`): la consulta pública de la vitrina. La autorización de uso de logos (RFS01, RFS07) se agrega en la fase 5.
+Restricciones: `pk_catalogo`, `fk_catalogo_producto`, `fk_catalogo_empleado`, `fk_catalogo_imagen`, `fk_catalogo_empleado_autoriza_logo` (sin borrado en cascada), `ck_catalogo_precio`, `ck_catalogo_medidas`, `ck_catalogo_logo` (un logo de cliente no se muestra sin autorización) y `ck_catalogo_autorizacion_logo` (quién y cuándo van juntos: ambos nulos o ambos con valor). Índices: `ix_catalogo_visible_producto` (`visible`, `id_producto`), la consulta pública de la vitrina; `ix_catalogo_imagen` (`id_imagen`) e `ix_catalogo_autoriza_logo` (`id_empleado_autoriza_logo`), para las claves foráneas de la fase 5. Razón del cambio de `imagen_url`: la vitrina ya no exige una dirección de archivo, porque las fotos se suben con `POST /imagenes`.
 
 ## solicitudes
 
@@ -357,10 +361,37 @@ Restricciones: `pk_consentimientos`, `fk_consentimientos_cliente`, `fk_consentim
 | `alto` | int | No | | Alto de la original, ya enderezada |
 | `bytes_grande` | int | No | | Peso de la versión grande |
 | `bytes_miniatura` | int | No | | Peso de la miniatura |
+| `es_ejemplo` | bit | No | 0 | **NUEVA (fase 5).** 1 = ilustración de ejemplo de la base demo. La vitrina la rotula «Imagen de ejemplo» |
 | `id_empleado_sube` | int | No | | FK a `empleados` |
 | `fecha_subida` | datetimeoffset(0) | No | `SYSDATETIMEOFFSET()` | |
 
 Restricciones: `pk_imagenes`, `fk_imagenes_empleado`, `uq_imagenes_clave`, `ck_imagenes_medidas` (medidas y pesos mayores que cero). Índice `ix_imagenes_empleado` para la clave foránea.
+
+---
+
+## consultas_contacto
+
+**Tabla nueva (13-11-2026, fase 5).** Consultas del formulario de contacto de la portada (RFS08, E22). Cada una deja un aviso por correo al taller, y la bandeja para revisarlas llega en la fase 9. Su consentimiento de privacidad queda en `consentimientos`, con la referencia `contacto:{id}`.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_consulta` | int | No | autoincremental | PK |
+| `nombre` | nvarchar(100) | No | | Nombre de quien escribe, sin espacios sobrantes |
+| `correo` | nvarchar(254) | No | | Correo para responder. Validado al recibir la consulta |
+| `telefono` | nvarchar(20) | Sí | | Opcional. Se guarda como `+56` seguido de 9 dígitos (formato `+569XXXXXXXX` para celulares), aunque se escriba con espacios |
+| `asunto` | nvarchar(150) | No | | Asunto de la consulta |
+| `mensaje` | nvarchar(2000) | No | | Texto de la consulta, sin espacios sobrantes al inicio ni al final |
+| `fecha_recepcion` | datetimeoffset(0) | No | `SYSDATETIMEOFFSET()` | Cuándo llegó |
+| `revisada` | bit | No | 0 | 1 = el taller ya la revisó (lo marca la bandeja de la fase 9) |
+| `fecha_revision` | datetimeoffset(0) | Sí | | Cuándo se marcó como revisada |
+
+Restricciones: `pk_consultas_contacto`. No tiene `CHECK` ni claves foráneas: las reglas de largo y de formato están en la API (`ValidacionContacto`) y en el formulario.
+
+Índice: `ix_consultas_contacto_bandeja` (`revisada`, `fecha_recepcion`): las consultas sin revisar, de la más reciente a la más antigua.
+
+La misma consulta (mismo correo y mismo mensaje) enviada otra vez dentro de la hora no se guarda de nuevo.
+
+**Retención:** todavía sin plazo de borrado. El taller lo fija con su asesor legal antes de la entrega (ver `docs/plan/desviaciones.md`).
 
 ---
 
@@ -383,3 +414,4 @@ Restricciones: `pk_imagenes`, `fk_imagenes_empleado`, `uq_imagenes_clave`, `ck_i
 | `SepararEstadoPedidoYPago` | 12-11-2026 | Pedido con estado operativo y de pago independientes, monto abonado, saldo, factura y origen; «cancelado» pasa a «anulado» |
 | `HistorialDePagos` | 12-11-2026 | Tabla `pagos` (historial de abonos con fecha, medio y quién lo registró) y su trigger; restricción `ck_pedidos_montos_enteros`. Si algún pedido ya tenía un monto abonado, se conserva como un pago inicial. Si alguno tuviera centavos, la migración se detiene sin cambiar nada |
 | `ServiciosComunes` | 13-11-2026 | Tablas nuevas `correos_salientes` (cola de correo), `consentimientos` e `imagenes`. Solo crea tablas: no toca datos ni tablas existentes |
+| `PortadaPublica` | 13-11-2026 | Tabla nueva `consultas_contacto`. En `catalogo`, `imagen_url` deja de ser obligatoria y se agregan `id_imagen`, `incluye_logo_cliente`, `id_empleado_autoriza_logo` y `fecha_autorizacion_logo`, con sus claves foráneas, las restricciones `ck_catalogo_logo` y `ck_catalogo_autorizacion_logo` e índices. En `imagenes`, `es_ejemplo`. No borra tablas, columnas ni filas (prueba `PortadaPublica_SoloAgrega`) |

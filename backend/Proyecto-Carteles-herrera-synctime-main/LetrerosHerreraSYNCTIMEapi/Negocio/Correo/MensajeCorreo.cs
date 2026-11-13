@@ -15,6 +15,7 @@ public static class TiposCorreo
 {
     public const string AvisoSolicitudNueva = "aviso_solicitud_nueva";
     public const string AvisoTopeSolicitudes = "aviso_tope_solicitudes";
+    public const string ConsultaContacto = "consulta_contacto";
     public const string Prueba = "prueba";
 }
 

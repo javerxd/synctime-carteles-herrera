@@ -1,3 +1,4 @@
+using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Api;
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
@@ -205,56 +206,97 @@ public static class CatalogoApi
         var catalogo = app.MapGroup("/api/v1/catalogo").WithTags("Catalogo")
             .RequireRateLimiting("ApiGeneral");
 
-        catalogo.MapGet("/", async (ClaimsPrincipal user, LetrerosHerreradbContext db, bool incluirOcultos = false) =>
-            Results.Ok(await db.Catalogos.AsNoTracking()
-                .Include(c => c.Producto!).ThenInclude(p => p!.Categoria)
-                .Publicados(incluirOcultos && EsPersonal(user))
-                .ToListAsync()))
-            .AllowAnonymous();
-
-        catalogo.MapGet("/{id}", async (int id, ClaimsPrincipal user, LetrerosHerreradbContext db) =>
+        // Vitrina publica paginada y filtrable por categoria (fase 5). El personal puede pedir tambien las ocultas.
+        // Los visitantes reciben TrabajoPublico, sin los datos de gestion.
+        catalogo.MapGet("/", async (ClaimsPrincipal user, ServicioVitrina vitrina, CancellationToken ct,
+                int? categoria = null, int? pagina = null, int? tamano = null, bool incluirOcultos = false) =>
         {
-            var item = await db.Catalogos.AsNoTracking()
-                .Include(c => c.Producto!).ThenInclude(p => p!.Categoria)
-                .Publicados(EsPersonal(user))
-                .FirstOrDefaultAsync(c => c.IdCatalogo == id);
-            return item is null ? Results.NotFound() : Results.Ok(item);
-        }).AllowAnonymous();
+            var personal = EsPersonal(user);
+            var resultado = await vitrina.ListarAsync(categoria, new ParametrosListado(pagina, tamano), incluirOcultos && personal, ct);
+            return personal
+                ? Results.Ok(resultado)
+                : Results.Ok(new ResultadoPaginado<TrabajoPublico>(
+                    resultado.Elementos.Select(t => t.ParaPublico()).ToList(), resultado.Total, resultado.Pagina, resultado.Tamano));
+        })
+        .AllowAnonymous();
 
-        catalogo.MapPost("/", async (CrearCatalogoRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db) =>
+        catalogo.MapGet("/{id}", async (int id, ClaimsPrincipal user, ServicioVitrina vitrina, CancellationToken ct) =>
         {
+            var personal = EsPersonal(user);
+            return await vitrina.ObtenerAsync(id, personal, ct) switch
+            {
+                null => Results.NotFound(),
+                var item when personal => Results.Ok(item),
+                var item => Results.Ok(item.ParaPublico())
+            };
+        })
+        .AllowAnonymous();
+
+        catalogo.MapPost("/", async (CrearCatalogoRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db, ServicioVitrina vitrina, CancellationToken ct) =>
+        {
+            if (await vitrina.RevisarAsync(req.Datos(), logoAutorizado: false, ct) is { } error)
+                return ErrorApi.Invalido(error);
+
             var item = new Catalogo
             {
                 IdProducto = req.IdProducto,
                 IdEmpleadoCreador = user.IdUsuario(),
-                Titulo = req.Titulo,
-                Descripcion = req.Descripcion,
+                Titulo = req.Titulo.Trim(),
+                Descripcion = req.Descripcion ?? "",
                 ImagenUrl = req.ImagenUrl,
+                IdImagen = req.IdImagen,
                 AnchoMm = req.AnchoMm,
                 AltoMm = req.AltoMm,
                 PrecioReferencial = req.PrecioReferencial,
-                Visible = req.Visible
+                Visible = req.Visible,
+                IncluyeLogoCliente = req.IncluyeLogoCliente
             };
             db.Catalogos.Add(item);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/v1/catalogo/{item.IdCatalogo}", item);
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/v1/catalogo/{item.IdCatalogo}", await vitrina.ObtenerAsync(item.IdCatalogo, incluirOcultos: true, ct));
         }).RequireAuthorization(p => p.RequireRole("dueño", "administrador"));
 
-        catalogo.MapPut("/{id}", async (int id, ActualizarCatalogoRequest req, LetrerosHerreradbContext db) =>
+        catalogo.MapPut("/{id}", async (int id, ActualizarCatalogoRequest req, LetrerosHerreradbContext db, ServicioVitrina vitrina, CancellationToken ct) =>
         {
-            var existing = await db.Catalogos.FindAsync(id);
+            var existing = await db.Catalogos.FindAsync([id], ct);
             if (existing is null) return Results.NotFound();
+            // La autorizacion del logo vale para la pieza que el cliente vio: si cambia la imagen, o la
+            // publicacion pasa a llevar un logo, hay que volver a registrarla (RNFO17).
+            var mismaPieza = req.IdImagen == existing.IdImagen
+                && req.ImagenUrl == existing.ImagenUrl
+                && req.IncluyeLogoCliente == existing.IncluyeLogoCliente;
+            var logoAutorizado = mismaPieza && existing.FechaAutorizacionLogo is not null;
+            if (await vitrina.RevisarAsync(req.Datos(), logoAutorizado, ct) is { } error)
+                return ErrorApi.Invalido(error);
+
+            if (!logoAutorizado)
+            {
+                existing.IdEmpleadoAutorizaLogo = null;
+                existing.FechaAutorizacionLogo = null;
+            }
             existing.IdProducto = req.IdProducto;
-            existing.Titulo = req.Titulo;
-            existing.Descripcion = req.Descripcion;
+            existing.Titulo = req.Titulo.Trim();
+            existing.Descripcion = req.Descripcion ?? "";
             existing.ImagenUrl = req.ImagenUrl;
+            existing.IdImagen = req.IdImagen;
             existing.AnchoMm = req.AnchoMm;
             existing.AltoMm = req.AltoMm;
             existing.PrecioReferencial = req.PrecioReferencial;
             existing.Visible = req.Visible;
-            await db.SaveChangesAsync();
-            return Results.Ok(existing);
+            existing.IncluyeLogoCliente = req.IncluyeLogoCliente;
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(await vitrina.ObtenerAsync(id, incluirOcultos: true, ct));
         }).RequireAuthorization(p => p.RequireRole("dueño", "administrador"));
+
+        // RNFO17: quien registro la autorizacion del cliente para mostrar su logo, y cuando.
+        catalogo.MapPut("/{id}/autorizacion-logo", async (int id, AutorizacionLogoRequest req, ClaimsPrincipal user, ServicioVitrina vitrina, CancellationToken ct) =>
+            await vitrina.AutorizarLogoAsync(id, user.IdUsuario(), req.Autorizado, ct) switch
+            {
+                { Error: { } error } => ErrorApi.Invalido(error),
+                { Trabajo: { } item } => Results.Ok(item),
+                _ => Results.NotFound()
+            })
+            .RequireAuthorization(p => p.RequireRole("dueño", "administrador"));
 
         catalogo.MapDelete("/{id}", async (int id, LetrerosHerreradbContext db) =>
         {
@@ -298,7 +340,7 @@ public static class CatalogoApi
         .AllowAnonymous()
         .RequireRateLimiting("ApiGeneral");
 
-        app.MapPut("/api/v1/cartel-digital", async (ActualizarCartelDigitalRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db) =>
+        app.MapPut("/api/v1/cartel-digital", async (ActualizarCartelDigitalRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db, TimeProvider reloj) =>
         {
             var cartel = await db.CartelDigital.FirstOrDefaultAsync();
             if (cartel is null) return Results.NotFound();
@@ -306,7 +348,8 @@ public static class CatalogoApi
             cartel.MensajeEstado = req.MensajeEstado;
             cartel.TiempoEstimadoRegreso = req.TiempoEstimadoRegreso;
             cartel.IdEmpleadoModifica = user.IdUsuario();
-            cartel.FechaUltimaModificacion = DateTime.Now;
+            // La portada la muestra tal cual: en hora de Chile, no en la del servidor (un contenedor usa UTC).
+            cartel.FechaUltimaModificacion = Negocio.Local.HoraChile.Convertir(reloj.GetUtcNow());
             await db.SaveChangesAsync();
             return Results.Ok(cartel);
         })
@@ -319,10 +362,6 @@ public static class CatalogoApi
 
     private static IQueryable<Producto> Disponibles(this IQueryable<Producto> productos, bool incluirTodos) =>
         incluirTodos ? productos : productos.Where(p => p.Activo && p.Categoria!.Activo);
-
-    // Un trabajo oculto o de un producto que ya no se vende no se muestra en la vitrina.
-    private static IQueryable<Catalogo> Publicados(this IQueryable<Catalogo> catalogo, bool incluirTodos) =>
-        incluirTodos ? catalogo : catalogo.Where(c => c.Visible && c.Producto!.Activo && c.Producto.Categoria!.Activo);
 }
 
 public record CrearClienteRequest(string? Rut, string Nombre, string Apellido, string Telefono, string? Email, string? Direccion, bool Activo = true);
@@ -335,7 +374,15 @@ public record ActualizarProductoRequest(int IdCategoria, string Nombre, string? 
 public record CrearCategoriaRequest(string Nombre, string? Descripcion, bool Activo = true);
 public record ActualizarCategoriaRequest(string Nombre, string? Descripcion, bool Activo = true);
 
-public record CrearCatalogoRequest(int IdProducto, string Titulo, string Descripcion, string ImagenUrl, int? AnchoMm, int? AltoMm, decimal? PrecioReferencial, bool Visible = true);
-public record ActualizarCatalogoRequest(int IdProducto, string Titulo, string Descripcion, string ImagenUrl, int? AnchoMm, int? AltoMm, decimal? PrecioReferencial, bool Visible = true);
+public record CrearCatalogoRequest(int IdProducto, string Titulo, string Descripcion, string? ImagenUrl, int? AnchoMm, int? AltoMm, decimal? PrecioReferencial, bool Visible = true, int? IdImagen = null, bool IncluyeLogoCliente = false)
+{
+    public DatosPublicacion Datos() => new(IdProducto, Titulo, Descripcion, ImagenUrl, AnchoMm, AltoMm, PrecioReferencial, Visible, IdImagen, IncluyeLogoCliente);
+}
+
+public record ActualizarCatalogoRequest(int IdProducto, string Titulo, string Descripcion, string? ImagenUrl, int? AnchoMm, int? AltoMm, decimal? PrecioReferencial, bool Visible = true, int? IdImagen = null, bool IncluyeLogoCliente = false)
+{
+    public DatosPublicacion Datos() => new(IdProducto, Titulo, Descripcion, ImagenUrl, AnchoMm, AltoMm, PrecioReferencial, Visible, IdImagen, IncluyeLogoCliente);
+}
+public record AutorizacionLogoRequest(bool Autorizado);
 
 public record ActualizarCartelDigitalRequest(bool AbiertoEnLocal, string MensajeEstado, string? TiempoEstimadoRegreso);

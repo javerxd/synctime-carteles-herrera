@@ -1,0 +1,53 @@
+.formulario {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.fila {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+@media (min-width: 40rem) {
+  .fila {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-3) var(--espacio-4);
+}
+
+.nota {
+  margin: 0;
+  font-size: var(--tamano-sm);
+  color: var(--color-texto-secundario);
+}
+
+/* Fuera de la pantalla, pero presente en el formulario: los robots lo ven y lo llenan. */
+.trampa {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Contenedor del resultado del envío: recibe el foco al terminar, sin anillo propio (el aviso ya se ve). */
+.resultado {
+  display: grid;
+  gap: var(--espacio-3);
+  scroll-margin-block: calc(var(--altura-barra) + var(--espacio-4));
+}
+
+.resultado:empty {
+  display: none;
+}
+
+.resultado:focus {
+  outline: none;
+}

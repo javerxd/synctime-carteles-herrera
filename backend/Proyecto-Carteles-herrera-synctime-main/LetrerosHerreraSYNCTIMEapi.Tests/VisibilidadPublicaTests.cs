@@ -125,7 +125,10 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
 
     private static async Task<List<int>> IdsAsync(HttpClient cliente, string url, string campoId)
     {
-        var lista = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
+        // La vitrina responde paginada desde la fase 5 ({ elementos, total, ... }); los demas listados, como lista.
+        var paginada = url.Contains("/catalogo");
+        var respuesta = await cliente.GetAsync(paginada ? $"{url}{(url.Contains('?') ? '&' : '?')}tamano=100" : url).EsperarAsync(HttpStatusCode.OK);
+        var lista = paginada ? respuesta.GetProperty("elementos") : respuesta;
         return lista.EnumerateArray().Select(e => e.GetProperty(campoId).GetInt32()).ToList();
     }
 

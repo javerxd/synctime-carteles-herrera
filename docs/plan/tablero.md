@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 13-11-2026 (fase 4 aprobada).
+Última actualización: 13-11-2026 (fase 5 en revisión).
 
 ## Hecho
 
@@ -15,7 +15,13 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 5 — Portada pública** · rama `fase-05-portada-publica` (nace de `fase-04-servicios-comunes`) · informe: `informes/fase-05.md`
+
+Lo que falta del usuario para cerrarla:
+- Número de WhatsApp y teléfono definitivos del taller. Hoy son de prueba y se cambian en `src/configuracion/taller.js`.
+- Coordenadas exactas de Villagrán 810. Hoy la ubicación es aproximada; si cambian, se regenera el mapa con `scripts/mapa-estatico.py`.
+- Fotos reales de los trabajos, y permiso de cada cliente para mostrar su logotipo.
+- Datos para los textos legales (razón social, RUT, proveedor de alojamiento y país, plazo de conservación de las consultas, abono y momento del pago del saldo) y la revisión por un asesor legal.
 
 ## En curso
 
@@ -25,7 +31,6 @@ _(ninguna)_
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 5 | Portada pública | 3, 4 | WhatsApp, correo y teléfono del taller; fotos y permiso de logos |
 | 6 | Cuentas y sesión | 3, 4 | Decidir sobre cuentas sin correo, si existen |
 | 7 | Solicitudes y clientes | 6 | Confirmar los diagramas de estados |
 | 8 | Cotizaciones, pedidos, pagos y abonos | 7 | Autorizar las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos` en la base real |

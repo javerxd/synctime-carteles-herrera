@@ -1,8 +1,8 @@
 # Modelo entidad-relación — LetreriaLosHerreraDB
 
-Estado del esquema: migración `ServiciosComunes` (13-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
+Estado del esquema: migración `PortadaPublica` (13-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
 
-18 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
+19 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
 
 ## Diagrama
 
@@ -36,6 +36,8 @@ erDiagram
     clientes |o--o{ consentimientos : "acepta"
     empleados |o--o{ consentimientos : "acepta"
     empleados ||--o{ imagenes : "sube"
+    imagenes |o--o{ catalogo : "ilustra"
+    empleados |o--o{ catalogo : "autoriza el logo"
 
     categorias {
         int id_categoria PK
@@ -57,12 +59,16 @@ erDiagram
         int id_empleado_creador FK
         nvarchar titulo
         nvarchar descripcion
-        nvarchar imagen_url
+        nvarchar imagen_url "antigua, ya opcional"
         int ancho_mm
         int alto_mm
         decimal precio_referencial
         datetime2 fecha_publicacion
         bit visible
+        int id_imagen FK "fase 5"
+        bit incluye_logo_cliente "fase 5"
+        int id_empleado_autoriza_logo FK "fase 5"
+        datetimeoffset fecha_autorizacion_logo "fase 5"
     }
     clientes {
         int id_cliente PK
@@ -216,8 +222,20 @@ erDiagram
         int alto
         int bytes_grande
         int bytes_miniatura
+        bit es_ejemplo "fase 5"
         int id_empleado_sube FK
         datetimeoffset fecha_subida
+    }
+    consultas_contacto {
+        int id_consulta PK
+        nvarchar nombre "hasta 100"
+        nvarchar correo "hasta 254"
+        nvarchar telefono "opcional, +56"
+        nvarchar asunto "hasta 150"
+        nvarchar mensaje "hasta 2000"
+        datetimeoffset fecha_recepcion
+        bit revisada
+        datetimeoffset fecha_revision
     }
     correos_salientes {
         bigint id_correo PK
@@ -232,7 +250,7 @@ erDiagram
     }
 ```
 
-`horarios_atencion` no se relaciona con otras tablas: guarda el horario semanal publicado. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
+`horarios_atencion` no se relaciona con otras tablas: guarda el horario semanal publicado. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
 
 ## Flujo de negocio que expresa el modelo
 

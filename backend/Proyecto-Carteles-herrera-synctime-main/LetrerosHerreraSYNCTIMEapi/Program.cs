@@ -90,6 +90,10 @@ builder.Services.AddScoped<IServicioConsentimientos, ServicioConsentimientos>();
 builder.Services.AddOptions<OpcionesImagenes>().Bind(builder.Configuration.GetSection(OpcionesImagenes.Seccion));
 builder.Services.AddSingleton<AlmacenImagenes>();
 builder.Services.AddScoped<ServicioImagenes>();
+// Portada publica (fase 5).
+builder.Services.AddScoped<ServicioVitrina>();
+builder.Services.AddScoped<ServicioEstadoLocal>();
+builder.Services.AddScoped<ServicioContacto>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
 builder.Services.AddProblemDetails(options =>
@@ -132,6 +136,13 @@ static RateLimitPartition<string> Ventana(string clave, int limite) =>
         clave,
         _ => new FixedWindowRateLimiterOptions { Window = TimeSpan.FromMinutes(1), PermitLimit = limite, QueueLimit = 0 });
 
+// Para los envios anonimos que guardan algo (contacto, cookies): pocas veces por hora es todo lo que una
+// persona necesita, y asi un robot no llena la base ni el cupo de avisos del taller.
+static RateLimitPartition<string> VentanaHora(string clave, int limite) =>
+    RateLimitPartition.GetFixedWindowLimiter(
+        clave,
+        _ => new FixedWindowRateLimiterOptions { Window = TimeSpan.FromHours(1), PermitLimit = limite, QueueLimit = 0 });
+
 static string Ip(HttpContext context) => $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "sin-ip"}";
 
 // Con sesion se limita por usuario, para que quienes comparten la IP del taller no se bloqueen entre si.
@@ -149,6 +160,9 @@ var limiteLoginFacial = builder.Configuration.GetValue("RateLimiting:LoginFacial
 var limiteReautenticacion = builder.Configuration.GetValue("RateLimiting:Reautenticacion", limiteLogin);
 var limitePublico = builder.Configuration.GetValue("RateLimiting:Publico", 10);
 var limiteSalud = builder.Configuration.GetValue("RateLimiting:Salud", 60);
+// Por hora, no por minuto.
+var limiteContacto = builder.Configuration.GetValue("RateLimiting:ContactoPorHora", 5);
+var limiteCookies = builder.Configuration.GetValue("RateLimiting:CookiesPorHora", 5);
 // Una pagina de la vitrina pide varias imagenes a la vez; el navegador las guarda despues por un año.
 var limiteImagenes = builder.Configuration.GetValue("RateLimiting:Imagenes", 600);
 builder.Services.AddRateLimiter(options =>
@@ -161,6 +175,8 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("LoginFacial", context => Ventana(Ip(context), limiteLoginFacial));
     options.AddPolicy("Reautenticacion", context => Ventana(Ip(context), limiteReautenticacion));
     options.AddPolicy("Publico", context => Ventana(Ip(context), limitePublico));
+    options.AddPolicy("Contacto", context => VentanaHora(Ip(context), limiteContacto));
+    options.AddPolicy("Cookies", context => VentanaHora(Ip(context), limiteCookies));
     // Holgado para que un orquestador pueda sondear cada pocos segundos, pero no ilimitado.
     options.AddPolicy(Salud.PoliticaDeLimite, context => Ventana(Ip(context), limiteSalud));
     options.AddPolicy("Imagenes", context => Ventana(Ip(context), limiteImagenes));
@@ -178,6 +194,10 @@ var app = builder.Build();
 // y hay que poder ver de un vistazo si se esta trabajando sobre la base de demostracion o sobre la real.
 app.Logger.LogInformation("Base de datos en uso: {Base} ({Tipo}).", nombreBase,
     BasesDeDatos.EsDemo(nombreBase) ? "demostracion" : BasesDeDatos.EsDePruebas(nombreBase) ? "pruebas" : "REAL");
+
+// El estado "abierto ahora" y las fechas que ve el visitante usan la hora de Chile: sin esa zona, mejor
+// no arrancar que responder 500 en la portada.
+_ = LetrerosHerreraSYNCTIMEapi.Negocio.Local.HoraChile.ZonaHoraria;
 
 // Comando de mantenimiento: carga los datos de demostracion y termina, sin levantar el servidor.
 if (args.Contains(SemillaDemo.Comando))
@@ -265,6 +285,7 @@ app.MapPortalClienteApi();
 app.MapCotizacionApi();
 app.MapPedidoApi();
 app.MapImagenApi();
+app.MapPortadaApi();
 
 app.Run();
 

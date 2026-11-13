@@ -16,6 +16,9 @@ public interface IAvisosDelTaller
 {
     // Deja en la cola el aviso de una solicitud recien guardada. Nunca lanza: si algo falla, lo registra.
     Task SolicitudNuevaAsync(int idSolicitud);
+
+    // Lo mismo para una consulta del formulario de contacto, ya guardada.
+    Task ConsultaContactoAsync(ConsultaParaAviso consulta);
 }
 
 // Guarda cuando fallo por ultima vez dejar un aviso en la cola. Lo consulta /salud/correo: un aviso que
@@ -46,10 +49,25 @@ public sealed class AvisosDelTaller(
     TimeProvider reloj,
     ILogger<AvisosDelTaller> logger) : IAvisosDelTaller
 {
-    public async Task SolicitudNuevaAsync(int idSolicitud)
+    public Task SolicitudNuevaAsync(int idSolicitud) =>
+        AvisarAsync($"solicitud {idSolicitud}", TiposCorreo.AvisoSolicitudNueva, sublimite: 0, async (para, url, ct) =>
+        {
+            var datos = await solicitudes.DatosParaAvisoAsync(idSolicitud, ct);
+            if (datos is null)
+                logger.LogWarning("No se encontro la solicitud {IdSolicitud} para avisar al taller.", idSolicitud);
+            return datos is null ? null : AvisoSolicitudNueva.Componer(datos, para, url);
+        });
+
+    public Task ConsultaContactoAsync(ConsultaParaAviso consulta) =>
+        AvisarAsync($"consulta {consulta.IdConsulta}", TiposCorreo.ConsultaContacto, opciones.Value.TopeConsultasPorHora, (para, url, _) =>
+            Task.FromResult<MensajeCorreo?>(AvisoConsultaContacto.Componer(consulta, para, url)));
+
+    // Solicitudes y consultas comparten el tope por hora: las dos salen de la misma cuenta de Gmail. Las
+    // consultas, ademas, tienen un sublimite propio para no dejar sin cupo a las solicitudes.
+    private async Task AvisarAsync(string que, string tipo, int sublimite, Func<IReadOnlyList<string>, string?, CancellationToken, Task<MensajeCorreo?>> componer)
     {
-        // Sin el token de la peticion a proposito: si quien envio la solicitud cierra la pagina justo
-        // despues, el aviso igual debe quedar en la cola.
+        // Sin el token de la peticion a proposito: si quien escribio cierra la pagina justo despues, el
+        // aviso igual debe quedar en la cola.
         var ct = CancellationToken.None;
         try
         {
@@ -58,32 +76,34 @@ public sealed class AvisosDelTaller(
                 return;
             var urlPublica = configuracion["Sitio:UrlPublica"];
 
+            var haceUnaHora = reloj.GetUtcNow().AddHours(-1);
+            if (sublimite > 0 && await correo.ContarAsync(tipo, haceUnaHora, ct) >= sublimite)
+            {
+                logger.LogWarning("Se alcanzo el tope de {Tope} avisos por hora de este tipo: la {Que} quedo guardada sin aviso propio.", sublimite, que);
+                return;
+            }
+
             var tope = opciones.Value.TopeAvisosPorHora;
             if (tope > 0)
             {
-                var haceUnaHora = reloj.GetUtcNow().AddHours(-1);
-                if (await correo.ContarAsync(TiposCorreo.AvisoSolicitudNueva, haceUnaHora, ct) >= tope)
+                var enviados = await correo.ContarAsync(TiposCorreo.AvisoSolicitudNueva, haceUnaHora, ct)
+                             + await correo.ContarAsync(TiposCorreo.ConsultaContacto, haceUnaHora, ct);
+                if (enviados >= tope)
                 {
                     if (await correo.ContarAsync(TiposCorreo.AvisoTopeSolicitudes, haceUnaHora, ct) == 0)
                         await correo.EncolarAsync(AvisoTopeSolicitudes.Componer(para, tope, urlPublica), ct);
-                    logger.LogWarning("Se alcanzo el tope de {Tope} avisos por hora: la solicitud {IdSolicitud} quedo guardada sin aviso propio.", tope, idSolicitud);
+                    logger.LogWarning("Se alcanzo el tope de {Tope} avisos por hora: la {Que} quedo guardada sin aviso propio.", tope, que);
                     return;
                 }
             }
 
-            var datos = await solicitudes.DatosParaAvisoAsync(idSolicitud, ct);
-            if (datos is null)
-            {
-                logger.LogWarning("No se encontro la solicitud {IdSolicitud} para avisar al taller.", idSolicitud);
-                return;
-            }
-
-            await correo.EncolarAsync(AvisoSolicitudNueva.Componer(datos, para, urlPublica), ct);
+            if (await componer(para, urlPublica, ct) is { } mensaje)
+                await correo.EncolarAsync(mensaje, ct);
         }
         catch (Exception error)
         {
             fallos.Anotar();
-            logger.LogError(error, "No se pudo dejar en la cola el aviso de la solicitud {IdSolicitud}: el taller no recibira ese aviso. La solicitud quedo guardada.", idSolicitud);
+            logger.LogError(error, "No se pudo dejar en la cola el aviso de la {Que}: el taller no recibira ese aviso. Lo recibido quedo guardado.", que);
         }
     }
 }

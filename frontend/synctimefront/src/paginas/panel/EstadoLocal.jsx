@@ -1,3 +1,4 @@
+import { TALLER } from '../../configuracion/taller';
 import { useState } from 'react';
 import { Download, Printer, RefreshCw } from 'lucide-react';
 import { Aviso, Boton, Campo, Esqueleto, EstadoCartel, Tarjeta } from '../../componentes/ui';
@@ -19,7 +20,7 @@ export default function EstadoLocal() {
   const { tieneRol } = useSesion();
   const cartel = useConsulta('cartel', publico.cartel);
   const horarios = useConsulta('horarios', publico.horarios);
-  const urlPortal = `${window.location.origin}/`;
+  const urlPortal = TALLER.urlPortal;
   const hoy = diaDeHoy();
 
   return (

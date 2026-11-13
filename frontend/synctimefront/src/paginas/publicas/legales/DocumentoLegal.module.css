@@ -1,0 +1,79 @@
+/* Lectura larga: columna de unos 68 caracteres y ritmo vertical amplio. */
+.documento {
+  max-inline-size: 42rem;
+  margin-inline: auto;
+  padding: var(--espacio-10) var(--espacio-4) var(--espacio-16);
+  color: var(--color-texto-secundario);
+  line-height: 1.7;
+}
+
+.encabezado {
+  display: grid;
+  gap: var(--espacio-3);
+  margin-block-end: var(--espacio-8);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--tamano-3xl);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-titulo);
+  color: var(--color-texto);
+}
+
+.version {
+  margin: 0;
+  font-size: var(--tamano-sm);
+  color: var(--color-texto-tenue);
+}
+
+.resumen {
+  margin: 0;
+  font-size: var(--tamano-lg);
+  color: var(--color-texto);
+}
+
+.indice {
+  padding: var(--espacio-4) var(--espacio-5);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo-alterno);
+  margin-block-end: var(--espacio-8);
+}
+
+.indice ol {
+  margin: var(--espacio-2) 0 0;
+  padding-inline-start: var(--espacio-5);
+}
+
+.tituloIndice {
+  margin: 0;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  color: var(--color-texto);
+}
+
+.seccion {
+  scroll-margin-block-start: calc(var(--altura-barra) + var(--espacio-4));
+  margin-block-end: var(--espacio-8);
+}
+
+.tituloSeccion {
+  margin: 0 0 var(--espacio-2);
+  font-size: var(--tamano-xl);
+  line-height: 1.3;
+  color: var(--color-texto);
+}
+
+.seccion p {
+  margin: 0 0 var(--espacio-3);
+}
+
+.seccion ul {
+  margin: 0 0 var(--espacio-3);
+  padding-inline-start: var(--espacio-5);
+}
+
+.seccion li + li {
+  margin-block-start: var(--espacio-1);
+}

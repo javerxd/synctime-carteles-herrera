@@ -1,5 +1,6 @@
 .contenedor,
 .contenedorSimple,
+.contenedorContacto,
 .contenedorDoble {
   max-width: var(--ancho-contenido);
   margin: 0 auto;
@@ -275,4 +276,40 @@
 
 .direccion + .descripcion {
   margin-bottom: var(--espacio-4);
+}
+
+/* ── Fase 5 ── */
+.marcoFoto {
+  position: relative;
+}
+
+/* Rotulo de las ilustraciones de la semilla demo: no son trabajos reales. */
+.marcaEjemplo {
+  position: absolute;
+  inset-block-start: var(--espacio-2);
+  inset-inline-start: var(--espacio-2);
+  padding: var(--espacio-0-5) var(--espacio-2);
+  border-radius: var(--radio-pildora);
+  background: rgb(15 23 42 / 0.78);
+  color: #fff;
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-medio);
+}
+
+.masTrabajos {
+  display: grid;
+  justify-items: center;
+  gap: var(--espacio-2);
+  margin-block-start: var(--espacio-8);
+}
+
+.conteo {
+  margin: 0;
+  font-size: var(--tamano-sm);
+  color: var(--color-texto-tenue);
+}
+
+/* El formulario de contacto se lee mejor angosto que a todo el ancho. */
+.contenedorContacto {
+  max-width: 48rem;
 }

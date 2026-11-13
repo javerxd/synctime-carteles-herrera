@@ -97,7 +97,7 @@ public static class AvisoSolicitudNueva
 
     // Una direccion con "?" o "&" en su nombre podria agregar destinatarios o un asunto al hacer clic: se
     // escapa la parte antes de la arroba (el dominio ya solo admite letras, numeros, puntos y guiones).
-    private static string Mailto(string correo)
+    internal static string Mailto(string correo)
     {
         var arroba = correo.LastIndexOf('@');
         return $"mailto:{Uri.EscapeDataString(correo[..arroba])}@{correo[(arroba + 1)..]}";
@@ -162,5 +162,62 @@ public static class CorreoDePrueba
             "Este correo lo pidió quien administra SyncTime. No necesitas responderlo.");
 
         return new MensajeCorreo(TiposCorreo.Prueba, para, "Correo de prueba de SyncTime", html, texto, Referencia: "prueba");
+    }
+}
+
+// Una consulta del formulario de contacto de la portada (RFS08, S09): llega al taller con el mensaje
+// citado tal cual y «Responder» le escribe directo a quien consulto.
+public sealed record ConsultaParaAviso(int IdConsulta, DateTime FechaChile, string Nombre, string Correo, string? Telefono, string Asunto, string Mensaje);
+
+public static class AvisoConsultaContacto
+{
+    public static MensajeCorreo Componer(ConsultaParaAviso consulta, IReadOnlyList<string> para, string? urlPublica)
+    {
+        var nombre = AvisoSolicitudNueva.Linea(consulta.Nombre);
+        var asunto = AvisoSolicitudNueva.Linea(consulta.Asunto);
+        var telefonoEscrito = consulta.Telefono is null ? null : AvisoSolicitudNueva.Linea(consulta.Telefono);
+        var telefono = TelefonoChile.Interpretar(telefonoEscrito);
+        var correo = Reglas.EsCorreo(consulta.Correo) ? consulta.Correo : null;
+
+        var cuerpo = new CuerpoCorreo()
+            .Parrafo($"{nombre} escribió desde el formulario de contacto el {FormatoChile.Fecha(consulta.FechaChile)} a las {FormatoChile.Hora(consulta.FechaChile)}.");
+
+        var datos = new List<DatoCorreo> { new("Asunto", asunto), new("Nombre", nombre) };
+        datos.Add(correo is null ? new("Correo", "Sin correo válido") : new("Correo", correo, AvisoSolicitudNueva.Mailto(correo)));
+        if (telefono is not null)
+            datos.Add(new("Teléfono", telefono.Legible, telefono.EnlaceLlamada));
+        else if (!string.IsNullOrWhiteSpace(telefonoEscrito))
+            datos.Add(new("Teléfono", telefonoEscrito));
+        cuerpo.Datos([.. datos]);
+
+        var contacto = new List<EnlaceCorreo>();
+        if (correo is not null)
+            contacto.Add(new("Responder", AvisoSolicitudNueva.Mailto(correo)));
+        if (telefono is not null)
+            contacto.Add(new("Llamar", telefono.EnlaceLlamada));
+        if (telefono?.EsCelular == true)
+            contacto.Add(new("WhatsApp", telefono.EnlaceWhatsApp));
+        if (contacto.Count > 0)
+            cuerpo.Enlaces([.. contacto]);
+
+        cuerpo.Cita("Mensaje", AvisoSolicitudNueva.Linea(consulta.Mensaje));
+        if (AvisoSolicitudNueva.UrlPanel(urlPublica) is { } panel)
+            cuerpo.Boton("Abrir el panel", panel);
+        cuerpo.Nota("Los datos los escribió quien envió la consulta: confírmalos antes de compartir información.");
+
+        var (html, texto) = PlantillaCorreo.Componer(
+            titulo: "Nueva consulta desde la página",
+            preencabezado: $"{nombre}: {asunto}",
+            cuerpo,
+            pie: "Recibes este aviso porque tu correo está configurado para los avisos del taller en SyncTime.");
+
+        return new MensajeCorreo(
+            TiposCorreo.ConsultaContacto,
+            para,
+            PlantillaCorreo.AsuntoSeguro($"Consulta: {asunto} · {nombre}"),
+            html,
+            texto,
+            ResponderA: correo,
+            Referencia: $"contacto:{consulta.IdConsulta}");
     }
 }

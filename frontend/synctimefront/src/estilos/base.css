@@ -16,6 +16,8 @@ html {
   text-size-adjust: 100%;
   scrollbar-gutter: stable;
   scroll-padding-top: calc(var(--altura-barra) + var(--espacio-4)); /* el foco no queda bajo la barra */
+  /* ni bajo el aviso de cookies, que publica su alto mientras se ve (WCAG 2.4.11) */
+  scroll-padding-bottom: calc(var(--altura-banner-cookies, 0px) + var(--espacio-4));
 }
 
 /* Con un diálogo abierto la página de fondo no se desplaza */

@@ -34,7 +34,8 @@
         "--launch-profile",
         "https",
         "--",
-        "--Correo:AvisosTaller=avisos.demo@letreria.test"
+        "--Correo:AvisosTaller=avisos.demo@letreria.test",
+        "--Correo:Modo=Bandeja"
       ],
       "port": 7112
     }

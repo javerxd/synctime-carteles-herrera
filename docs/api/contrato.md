@@ -42,8 +42,8 @@ Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administra
 | `403` | El rol no tiene permiso |
 | `404` | No existe, o no es visible para quien lo pide |
 | `409` | Duplicado, tiene registros asociados, o lo modifico otra persona |
-| `413` | El cuerpo supera el tope de las rutas de rostro: 8 KB en el login, 64 KB al activar |
-| `429` | Limite por IP por minuto: 10 logins con contraseña, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos o 100 peticiones generales. Cada uno tiene su contador |
+| `413` | El cuerpo supera el tope de su ruta: 8 KB en el login de rostro, 64 KB al activar el rostro, y 16 KB en `POST /contacto` y `POST /consentimientos/cookies` |
+| `429` | Limite por IP por minuto: 10 logins con contraseña, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos o 100 peticiones generales. Cada uno tiene su contador. `POST /contacto` y `POST /consentimientos/cookies` tienen además 5 envíos por hora por IP cada uno (`RateLimiting:ContactoPorHora` y `CookiesPorHora`) |
 | `503` | El login facial no esta disponible porque falta su clave de cifrado |
 
 **Edicion simultanea.** Solicitudes y pedidos traen `rowVersion` en sus respuestas. Las rutas que los editan lo exigen:
@@ -103,8 +103,9 @@ Todas llevan el prefijo `/api/v1`. Un `?` indica un campo opcional.
 | `POST /categorias`, `PUT /categorias/{id}` | Gestion | `{ nombre, descripcion?, activo? }` |
 | `GET /productos`, `GET /productos/{id}` | Publico | `?incluirInactivos=true` para el personal. Incluye `categoria` |
 | `POST /productos`, `PUT /productos/{id}` | Gestion | `{ idCategoria, nombre, descripcion?, precioBaseRef?, activo? }` |
-| `GET /catalogo`, `GET /catalogo/{id}` | Publico | `?incluirOcultos=true` para el personal. Incluye `producto` |
-| `POST /catalogo`, `PUT /catalogo/{id}` | Gestion | `{ idProducto, titulo, descripcion, imagenUrl, anchoMm?, altoMm?, precioReferencial?, visible? }` |
+| `GET /catalogo`, `GET /catalogo/{id}` | Publico | Paginado: `?categoria=`, `?pagina=` (1) y `?tamano=` (20, máximo 100). Responde `{ elementos, total, pagina, tamano, totalPaginas }`, ordenado por fecha de publicación, la más reciente primero. Cada trabajo trae `idCatalogo`, `titulo`, `descripcion`, `idProducto`, `tipoLetrero`, `categoria`, `anchoMm`, `altoMm`, `precioReferencial`, `imagen` (`urlGrande`, `urlMiniatura`, `ancho`, `alto`, `esEjemplo`, o `null`) y `fechaPublicacion`. Los visitantes no reciben `visible`, `incluyeLogoCliente` ni `logoAutorizado`. `?incluirOcultos=true` solo para el personal. `GET /catalogo/{id}` responde `404` si el trabajo no es visible para quien pide |
+| `POST /catalogo`, `PUT /catalogo/{id}` | Gestion | `{ idProducto, titulo, descripcion, imagenUrl?, idImagen?, anchoMm?, altoMm?, precioReferencial?, visible?, incluyeLogoCliente? }`. `imagenUrl` es la dirección de una foto antigua; las fotos nuevas se suben con `POST /imagenes` y se referencian con `idImagen`. `400` con el motivo si el título no tiene entre 1 y 120 caracteres, la descripción pasa de 500, las medidas no van juntas o no son mayores que cero, el precio no es un monto entero en pesos no negativo, o el tipo de letrero o la imagen no existen. Una publicación con logo de cliente solo puede quedar visible con su autorización: al crearla, guárdala oculta y autorízala después. Al cambiar la imagen o marcar el logo en un `PUT`, la autorización anterior se borra. Responden la publicación completa (`visible`, `incluyeLogoCliente`, `logoAutorizado`); `POST` responde `201` |
+| `PUT /catalogo/{id}/autorizacion-logo` | Gestion | `{ autorizado }`. `true` registra quién autorizó el logotipo del cliente y cuándo; si ya estaba registrada, conserva el registro original. `false` la retira y, si la publicación lleva logo, la oculta en el mismo paso. `400` si la publicación no lleva logo de cliente. `404` si no existe. Responde la publicación |
 | `DELETE` de las tres | Gestion | `409` si tiene registros asociados |
 | `GET /horarios` | Publico | Los 7 dias |
 | `GET /cartel-digital` | Publico | `{ abiertoEnLocal, mensajeEstado, tiempoEstimadoRegreso, fechaUltimaModificacion }` |
@@ -118,6 +119,17 @@ Todas llevan el prefijo `/api/v1`. Un `?` indica un campo opcional.
 | `GET /imagenes/{archivo}` | Publico | `{clave}-grande.webp` o `{clave}-miniatura.webp`. `Cache-Control: public, max-age=31536000, immutable` y `ETag`. `404` para cualquier otro nombre |
 
 Al crear una solicitud (`POST /solicitudes`, `POST /solicitudes/online` y `POST /mis/solicitudes`) la API deja en la cola de correo un aviso para el taller. La respuesta no cambia ni espera al servidor de correo: si el aviso no se puede encolar, la solicitud igual queda guardada y el problema se registra.
+
+### Portada publica (fase 5)
+
+Todas son publicas (sin token). Los envios que guardan algo tienen sus propios limites, descritos en la seccion 3.
+
+| Ruta | Quien | Cuerpo y notas |
+| --- | --- | --- |
+| `GET /local/estado` | Publico | `{ abiertoAhora, motivo, dentroDeHorario, horaChile, hoy, proximaApertura, cartel, semana }`. `motivo`: `abierto`; `ausente` (en horario, pero el cartel dice cerrado: se muestra su mensaje); `fuera_de_horario`, o `cerrado_hoy` si ese dia no se atiende. Se calcula con la hora de Chile (America/Santiago), y la hora de cierre ya cuenta como cerrado. `cartel` es `null` si no hay cartel cargado |
+| `GET /documentos-legales` | Publico | `[{ tipo, version }]` para `privacidad`, `terminos`, `marketing` y `cookies`. Hoy todas estan en `1.0`, que son borradores pendientes de revision legal |
+| `POST /contacto` | Publico | `{ nombre, correo, telefono?, asunto, mensaje, aceptaPrivacidad, versionPrivacidad, sitioWeb? }`. Nombre hasta 100 caracteres, asunto hasta 150 y mensaje entre 10 y 2000. `telefono` se guarda como `+56` y 9 digitos. `versionPrivacidad` debe ser la vigente. Responde `202` con `{ recibida, mensaje }`. `400` con el motivo y los errores por campo; `409` si la version de la privacidad ya no es la vigente; `413` si supera 16 KB; `429` si supera 5 por hora por IP. `sitioWeb` es un campo trampa: si llega con texto, responde igual `202`, pero no guarda ni avisa nada. La misma consulta (mismo correo y mismo mensaje) dentro de la ultima hora no se guarda ni avisa de nuevo. La consulta y el consentimiento de privacidad se guardan en una transaccion, y el aviso al taller queda en la cola de correo (`consulta_contacto`, con respuesta dirigida a quien escribio) |
+| `POST /consentimientos/cookies` | Publico | `{ visitante, version, acepta? }`. `visitante` es un GUID anonimo que genera el navegador. Sin `acepta`, o con `true`, registra la aceptacion de la version vigente de cookies (`204`). Con `acepta: false` registra el retiro (`204`), que no hace nada si nunca se acepto. `400` si falta `visitante`; `409` si la version no es la vigente; `429` si supera 5 por hora por IP |
 
 ### Solicitudes
 

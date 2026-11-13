@@ -1,0 +1,57 @@
+/* Aviso de cookies: franja fija abajo, sobre el contenido pero sin bloquearlo. */
+.banner {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: var(--capa-flotante);
+  padding: var(--espacio-3) var(--espacio-4);
+  padding-block-end: max(var(--espacio-3), env(safe-area-inset-bottom));
+  background: var(--color-superficie);
+  border-block-start: 1px solid var(--color-borde);
+  box-shadow: var(--sombra-flotante);
+}
+
+.interior {
+  max-width: var(--ancho-contenido);
+  margin-inline: auto;
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+.texto {
+  display: grid;
+  gap: var(--espacio-2);
+  font-size: var(--tamano-sm);
+  color: var(--color-texto-secundario);
+}
+
+.texto p {
+  margin: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+  color: var(--color-texto);
+}
+
+/* Las dos acciones con el mismo ancho: ninguna se ve como «la correcta». */
+.acciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espacio-2);
+  align-content: end;
+}
+
+@media (min-width: 48rem) {
+  .interior {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    column-gap: var(--espacio-6);
+  }
+
+  .acciones {
+    grid-template-columns: repeat(2, minmax(11rem, 1fr));
+  }
+}

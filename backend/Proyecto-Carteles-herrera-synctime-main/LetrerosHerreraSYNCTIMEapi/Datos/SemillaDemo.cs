@@ -1,3 +1,5 @@
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Imagenes;
+using SkiaSharp;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -47,7 +49,72 @@ public static class SemillaDemo
         // Los pedidos se cargan aparte, para que una base demo ya sembrada tambien los reciba.
         if (await SembrarPedidosAsync(db))
             logger.LogInformation("Pedidos de demostracion cargados en {Base}: todos los estados del pedido y de pago, con abonos.", nombreBase);
+
+        // Fase 5: la vitrina con imagenes de ejemplo (dibujadas aqui, rotuladas como tales).
+        var publicadas = await SembrarVitrinaAsync(db, scope.ServiceProvider.GetRequiredService<AlmacenImagenes>());
+        if (publicadas > 0)
+            logger.LogInformation("Vitrina de demostracion: {Cantidad} trabajo(s) con imagen de ejemplo.", publicadas);
         return 0;
+    }
+
+    private sealed record TrabajoDemo(string Titulo, string Descripcion, int AnchoMm, int AltoMm, int Precio, string Producto, string Categoria, ImagenesDeEjemplo.Diseno Diseno);
+
+    private static readonly TrabajoDemo[] Vitrina =
+    [
+        new("Cartel metálico para ferretería", "Estructura metálica con gráfica impresa y terminación mate.", 2400, 1200, 180000, "Cartel metálico impreso", "Letreros",
+            new("FERRETERÍA EL TRIGAL", "Materiales de construcción", new SKColor(0xE7, 0xE5, 0xE4), new SKColor(0x0F, 0x17, 0x2A), SKColors.White, ImagenesDeEjemplo.Forma.Fachada)),
+        new("Lienzo publicitario para evento", "Lienzo de PVC con ojetillos en todo el perímetro.", 3000, 1000, 45000, "Lienzo publicitario", "Letreros",
+            new("FERIA DE TEMPORADA", "Sábado y domingo · Plaza de Armas", new SKColor(0xD6, 0xD3, 0xD1), new SKColor(0xB4, 0x53, 0x09), SKColors.White, ImagenesDeEjemplo.Forma.Lienzo)),
+        new("Letrero tipo palomita para cafetería", "Letrero plegable de doble cara para la vereda.", 600, 900, 60000, "Letrero tipo Palomita", "Letreros",
+            new("CAFÉ", "Menú del día", new SKColor(0xCB, 0xD5, 0xE1), new SKColor(0x1E, 0x29, 0x3B), new SKColor(0xFD, 0xE6, 0x8A), ImagenesDeEjemplo.Forma.Palomita)),
+        new("Letras corpóreas para clínica dental", "Letras de acrílico con luz LED posterior.", 2000, 500, 320000, "Cartel metálico impreso", "Letreros",
+            new("CLÍNICA SONRÍE", "Odontología familiar", new SKColor(0xF1, 0xF5, 0xF9), new SKColor(0x0E, 0x74, 0x90), SKColors.White, ImagenesDeEjemplo.Forma.Fachada)),
+        new("Rotulación de camioneta de reparto", "Vinilo impreso con laminado protector en ambos costados.", 4200, 1500, 260000, "Rotulación de vehículo", "Vehículos",
+            new("FLETES BIOBÍO", "Mudanzas y despachos", new SKColor(0xE2, 0xE8, 0xF0), new SKColor(0xF8, 0xFA, 0xFC), new SKColor(0x0F, 0x17, 0x2A), ImagenesDeEjemplo.Forma.Vehiculo)),
+        new("Poleras estampadas para equipo", "Estampado en serigrafía a dos colores.", 300, 400, 8500, "Polera estampada", "Estampados",
+            new("CLUB DEPORTIVO", "Temporada 2026", new SKColor(0xE5, 0xE7, 0xEB), new SKColor(0x15, 0x80, 0x3D), SKColors.White, ImagenesDeEjemplo.Forma.Lienzo)),
+        new("Mural para fachada de minimarket", "Pintura acrílica para exteriores con sello UV.", 6000, 2500, 450000, "Mural pintado", "Muros",
+            new("MINIMARKET DON LUCHO", "Abierto todos los días", new SKColor(0xFE, 0xF3, 0xC7), new SKColor(0xC2, 0x41, 0x0C), SKColors.White, ImagenesDeEjemplo.Forma.Muro))
+    ];
+
+    // Trabajos de la vitrina con su imagen de ejemplo. Repetirla solo completa lo que falta: agrega los
+    // trabajos y tipos de letrero que no existen y la imagen a los trabajos demo que aun no la tienen.
+    public static async Task<int> SembrarVitrinaAsync(LetrerosHerreradbContext db, AlmacenImagenes almacen)
+    {
+        ExigirBaseDeDemostracion(db);
+        var dueno = await db.Empleados.Where(e => e.Email == $"dueno{DominioCorreo}").Select(e => (int?)e.IdEmpleado).FirstOrDefaultAsync();
+        if (dueno is null)
+            return 0;
+
+        var completados = 0;
+        foreach (var demo in Vitrina)
+        {
+            var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Nombre == demo.Categoria)
+                ?? db.Categorias.Add(new Categoria { Nombre = demo.Categoria }).Entity;
+            var producto = await db.Productos.FirstOrDefaultAsync(p => p.Nombre == demo.Producto)
+                ?? db.Productos.Add(new Producto { Nombre = demo.Producto, Categoria = categoria }).Entity;
+            var trabajo = await db.Catalogos.FirstOrDefaultAsync(c => c.Titulo == demo.Titulo)
+                ?? db.Catalogos.Add(new Catalogo
+                {
+                    Producto = producto, IdEmpleadoCreador = dueno, Titulo = demo.Titulo, Descripcion = demo.Descripcion,
+                    AnchoMm = demo.AnchoMm, AltoMm = demo.AltoMm, PrecioReferencial = demo.Precio
+                }).Entity;
+            if (trabajo.IdImagen is not null)
+                continue;
+
+            var procesada = ProcesadorImagenes.Procesar(ImagenesDeEjemplo.Dibujar(demo.Diseno));
+            var clave = AlmacenImagenes.NuevaClave();
+            await almacen.GuardarAsync(clave, procesada, CancellationToken.None);
+            trabajo.ImagenUrl = null;
+            trabajo.Imagen = new Imagen
+            {
+                Clave = clave, Ancho = procesada.Ancho, Alto = procesada.Alto, BytesGrande = procesada.Grande.Length,
+                BytesMiniatura = procesada.Miniatura.Length, EsEjemplo = true, IdEmpleadoSube = dueno.Value, FechaSubida = DateTimeOffset.UtcNow
+            };
+            await db.SaveChangesAsync();
+            completados++;
+        }
+        return completados;
     }
 
     // Devuelve false, sin cambiar nada, si la semilla ya estaba cargada.

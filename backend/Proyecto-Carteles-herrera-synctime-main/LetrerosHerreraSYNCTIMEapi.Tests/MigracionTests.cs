@@ -39,15 +39,28 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task ServiciosComunes_SoloCreaSusTablas()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_ServiciosComunes", ultima);
         var script = await api.ConsultarAsync(db => Task.FromResult(
-            db.GetService<IMigrator>().GenerateScript("20261113010201_HistorialDePagos", ultima)));
+            db.GetService<IMigrator>().GenerateScript("20261113010201_HistorialDePagos", "20261113111453_ServiciosComunes")));
 
         Assert.Contains("CREATE TABLE [correos_salientes]", script);
         Assert.Contains("CREATE TABLE [consentimientos]", script);
         Assert.Contains("CREATE TABLE [imagenes]", script);
         foreach (var prohibido in new[] { "ALTER TABLE", "DROP ", "UPDATE [", "DELETE FROM" })
+            Assert.DoesNotContain(prohibido, script);
+    }
+
+    // Fase 5: agrega columnas y una tabla. No borra tablas, columnas ni filas, asi que tampoco puede
+    // perder datos de la base real al aplicarse alli.
+    [Fact]
+    public async Task PortadaPublica_SoloAgrega()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_PortadaPublica", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(
+            db.GetService<IMigrator>().GenerateScript("20261113111453_ServiciosComunes", ultima)));
+
+        Assert.Contains("CREATE TABLE [consultas_contacto]", script);
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
             Assert.DoesNotContain(prohibido, script);
     }
 
@@ -67,7 +80,10 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(31, restricciones.Count);
+        Assert.Equal(33, restricciones.Count);
+        // Fase 5: un logo de cliente no se muestra sin autorizacion, y la autorizacion dice quien y cuando.
+        Assert.Contains("ck_catalogo_logo", restricciones);
+        Assert.Contains("ck_catalogo_autorizacion_logo", restricciones);
         // Fase 4: cola de correo, consentimientos e imagenes.
         Assert.Contains("ck_correos_salientes_estado", restricciones);
         Assert.Contains("ck_correos_salientes_intentos", restricciones);

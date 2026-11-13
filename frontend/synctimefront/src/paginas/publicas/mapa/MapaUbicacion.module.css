@@ -1,0 +1,39 @@
+.mapa {
+  margin: 0;
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.marco {
+  position: relative;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo-hundido);
+}
+
+.imagen,
+.interactivo {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.activar {
+  position: absolute;
+  inset-block-end: var(--espacio-3);
+  inset-inline-start: var(--espacio-3);
+}
+
+.nota {
+  font-size: var(--tamano-xs);
+  color: var(--color-texto-tenue);
+}
+
+@media (max-width: 30rem) {
+  .marco {
+    aspect-ratio: 4 / 3;
+  }
+}

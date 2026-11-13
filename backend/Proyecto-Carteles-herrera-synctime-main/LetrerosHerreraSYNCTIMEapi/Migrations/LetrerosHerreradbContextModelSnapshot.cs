@@ -101,25 +101,42 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("descripcion");
 
+                    b.Property<DateTimeOffset?>("FechaAutorizacionLogo")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_autorizacion_logo");
+
                     b.Property<DateTime>("FechaPublicacion")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_publicacion")
                         .HasDefaultValueSql("SYSDATETIME()");
 
+                    b.Property<int?>("IdEmpleadoAutorizaLogo")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_autoriza_logo");
+
                     b.Property<int?>("IdEmpleadoCreador")
                         .HasColumnType("int")
                         .HasColumnName("id_empleado_creador");
+
+                    b.Property<int?>("IdImagen")
+                        .HasColumnType("int")
+                        .HasColumnName("id_imagen");
 
                     b.Property<int>("IdProducto")
                         .HasColumnType("int")
                         .HasColumnName("id_producto");
 
                     b.Property<string>("ImagenUrl")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("imagen_url");
+
+                    b.Property<bool>("IncluyeLogoCliente")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("incluye_logo_cliente");
 
                     b.Property<decimal?>("PrecioReferencial")
                         .HasColumnType("decimal(12,2)")
@@ -140,7 +157,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.HasKey("IdCatalogo")
                         .HasName("pk_catalogo");
 
+                    b.HasIndex("IdEmpleadoAutorizaLogo")
+                        .HasDatabaseName("ix_catalogo_autoriza_logo");
+
                     b.HasIndex("IdEmpleadoCreador");
+
+                    b.HasIndex("IdImagen")
+                        .HasDatabaseName("ix_catalogo_imagen");
 
                     b.HasIndex("IdProducto");
 
@@ -149,6 +172,10 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.ToTable("catalogo", null, t =>
                         {
+                            t.HasCheckConstraint("ck_catalogo_autorizacion_logo", "(id_empleado_autoriza_logo IS NULL AND fecha_autorizacion_logo IS NULL) OR (id_empleado_autoriza_logo IS NOT NULL AND fecha_autorizacion_logo IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_catalogo_logo", "visible = 0 OR incluye_logo_cliente = 0 OR fecha_autorizacion_logo IS NOT NULL");
+
                             t.HasCheckConstraint("ck_catalogo_medidas", "(ancho_mm IS NULL AND alto_mm IS NULL) OR (ancho_mm > 0 AND alto_mm > 0)");
 
                             t.HasCheckConstraint("ck_catalogo_precio", "precio_referencial IS NULL OR precio_referencial >= 0");
@@ -404,6 +431,69 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                             t.HasCheckConstraint("ck_consentimientos_titular", "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) + (CASE WHEN referencia_envio IS NULL THEN 0 ELSE 1 END) = 1");
                         });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.ConsultaContacto", b =>
+                {
+                    b.Property<int>("IdConsulta")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_consulta");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdConsulta"));
+
+                    b.Property<string>("Asunto")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)")
+                        .HasColumnName("asunto");
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)")
+                        .HasColumnName("correo");
+
+                    b.Property<DateTimeOffset>("FechaRecepcion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_recepcion")
+                        .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                    b.Property<DateTimeOffset?>("FechaRevision")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_revision");
+
+                    b.Property<string>("Mensaje")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("mensaje");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("nombre");
+
+                    b.Property<bool>("Revisada")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("revisada");
+
+                    b.Property<string>("Telefono")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("telefono");
+
+                    b.HasKey("IdConsulta")
+                        .HasName("pk_consultas_contacto");
+
+                    b.HasIndex("Revisada", "FechaRecepcion")
+                        .HasDatabaseName("ix_consultas_contacto_bandeja");
+
+                    b.ToTable("consultas_contacto", (string)null);
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.CorreoSaliente", b =>
@@ -862,6 +952,12 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("char(32)")
                         .HasColumnName("clave")
                         .IsFixedLength();
+
+                    b.Property<bool>("EsEjemplo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("es_ejemplo");
 
                     b.Property<DateTimeOffset>("FechaSubida")
                         .ValueGeneratedOnAdd()
@@ -1527,10 +1623,22 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Catalogo", b =>
                 {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoAutorizaLogo")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleadoAutorizaLogo")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_catalogo_empleado_autoriza_logo");
+
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoCreador")
                         .WithMany("CatalogosCreados")
                         .HasForeignKey("IdEmpleadoCreador")
                         .HasConstraintName("fk_catalogo_empleado");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Imagen", "Imagen")
+                        .WithMany()
+                        .HasForeignKey("IdImagen")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_catalogo_imagen");
 
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Producto", "Producto")
                         .WithMany("Catalogos")
@@ -1539,7 +1647,11 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_catalogo_producto");
 
+                    b.Navigation("EmpleadoAutorizaLogo");
+
                     b.Navigation("EmpleadoCreador");
+
+                    b.Navigation("Imagen");
 
                     b.Navigation("Producto");
                 });

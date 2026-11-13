@@ -139,6 +139,12 @@
   background: var(--color-fondo-alterno);
 }
 
+/* Si la página ya termina en una franja con el fondo alterno (la portada termina en «Contacto»), el pie
+   se apoya en ella: sin el margen, que dejaría una franja blanca suelta entre dos grises. */
+.principal:has(> :last-child[data-fondo='alterno']) + .pie {
+  margin-top: 0;
+}
+
 .pieInterior {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
@@ -193,7 +199,70 @@
   max-width: var(--ancho-contenido);
   margin: 0 auto;
   padding: var(--espacio-4) var(--margen-pagina) var(--espacio-8);
+  /* Espacio para el botón de WhatsApp y, si se ve, el aviso de cookies: el final del pie queda legible. */
+  padding-block-end: calc(var(--espacio-8) + 3.5rem + var(--altura-banner-cookies, 0px));
   border-top: 1px solid var(--color-borde);
   color: var(--color-texto-secundario);
   font-size: var(--tamano-xs);
+}
+
+/* ── Fase 5: contacto del pie, preferencias de cookies y botón flotante de WhatsApp ── */
+.pieContacto {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.pieBoton {
+  min-block-size: var(--tamano-control-compacto);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.pieBoton:hover {
+  color: var(--color-texto);
+}
+
+/* Acceso directo a WhatsApp: en tinta, no en el verde de la marca, para no competir con el ámbar de la
+   acción principal. 56 px de diámetro, sobre el borde inferior derecho y respetando la zona segura. */
+.whatsapp {
+  position: fixed;
+  inset-inline-end: max(var(--espacio-4), env(safe-area-inset-right));
+  /* Sube sobre el aviso de cookies mientras se ve, para no quedar tapado. */
+  inset-block-end: calc(max(var(--espacio-4), env(safe-area-inset-bottom)) + var(--altura-banner-cookies, 0px));
+  z-index: var(--capa-barra);
+  display: grid;
+  place-items: center;
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
+  border-radius: var(--radio-pildora);
+  background: var(--color-texto);
+  color: var(--color-superficie);
+  box-shadow: var(--sombra-flotante);
+  transition: transform var(--duracion-estado) var(--curva-estandar);
+}
+
+.whatsapp:hover {
+  transform: translateY(-2px);
+}
+
+.whatsapp:active {
+  transform: scale(0.96);
+}
+
+.whatsapp:focus-visible {
+  outline: 3px solid var(--color-foco);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp {
+    transition: none;
+  }
 }

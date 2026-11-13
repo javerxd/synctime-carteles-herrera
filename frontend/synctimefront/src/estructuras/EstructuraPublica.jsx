@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Mail, Menu, MessageCircle, Phone, X } from 'lucide-react';
 import { Boton, Enlace } from '../componentes/ui';
 import { unirClases } from '../componentes/ui/clases';
-import { TALLER } from '../configuracion/taller';
+import { enlaceTelefono, enlaceWhatsapp, TALLER } from '../configuracion/taller';
+import { abrirPreferenciasCookies } from '../utilidades/cookies';
+import { BannerCookies } from './BannerCookies';
 import ErrorBoundary from '../componentes/ErrorBoundary';
 import { Marca } from './Marca';
 import { BotonSolicitar, ProveedorSolicitud } from './Solicitud';
@@ -15,6 +17,7 @@ const SECCIONES = [
   ['/#vitrina', 'Trabajos'],
   ['/#horario', 'Horario'],
   ['/#ubicacion', 'Cómo llegar'],
+  ['/#contacto', 'Contacto'],
 ];
 
 /** Estructura del portal público: barra flotante de cristal, contenido y pie con enlaces legales. */
@@ -46,6 +49,8 @@ export function EstructuraPublica() {
   return (
     <ProveedorSolicitud>
       <a href="#contenido" className="enlace-salto">Saltar al contenido</a>
+      {/* Al principio del documento: quien navega con teclado o lector lo encuentra antes que el resto. */}
+      <BannerCookies />
       <header className={estilos.barra}>
         <div className={estilos.interior}>
           <Marca />
@@ -95,17 +100,43 @@ export function EstructuraPublica() {
             </address>
             <Enlace href={TALLER.mapa} externo className={estilos.pieEnlace}>Ver en el mapa</Enlace>
           </div>
+          <div>
+            <h2 className={estilos.pieTitulo}>Contacto</h2>
+            <ul className={estilos.pieLista}>
+              {enlaceTelefono() && (
+                <li><Enlace href={enlaceTelefono()} className={estilos.pieContacto}><Phone size={16} aria-hidden="true" />{TALLER.telefono}</Enlace></li>
+              )}
+              {TALLER.correo && (
+                <li><Enlace href={`mailto:${TALLER.correo}`} className={estilos.pieContacto}><Mail size={16} aria-hidden="true" />{TALLER.correo}</Enlace></li>
+              )}
+              {enlaceWhatsapp() && (
+                <li>
+                  <Enlace href={enlaceWhatsapp()} externo className={estilos.pieContacto}>
+                    <MessageCircle size={16} aria-hidden="true" />Escribir por WhatsApp
+                  </Enlace>
+                </li>
+              )}
+            </ul>
+          </div>
           <nav aria-label="Información legal">
             <h2 className={estilos.pieTitulo}>Información</h2>
             <ul className={estilos.pieLista}>
               <li><Enlace como={Link} to="/privacidad">Política de privacidad</Enlace></li>
               <li><Enlace como={Link} to="/terminos">Términos y condiciones</Enlace></li>
+              <li><button type="button" className={estilos.pieBoton} onClick={abrirPreferenciasCookies}>Preferencias de cookies</button></li>
               <li><Enlace como={Link} to="/personal/ingresar">Acceso del personal</Enlace></li>
             </ul>
           </nav>
         </div>
         <p className={estilos.derechos}>© {ANIO_ACTUAL} {TALLER.nombre} · SyncTime</p>
       </footer>
+
+      {enlaceWhatsapp() && (
+        <a href={enlaceWhatsapp()} target="_blank" rel="noopener noreferrer" className={estilos.whatsapp}>
+          <MessageCircle size={24} strokeWidth={2} aria-hidden="true" />
+          <span className="solo-lectores">Escribir por WhatsApp (se abre en otra pestaña)</span>
+        </a>
+      )}
     </ProveedorSolicitud>
   );
 }

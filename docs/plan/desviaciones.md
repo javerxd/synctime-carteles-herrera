@@ -14,7 +14,7 @@ Registro de todo requisito que **no** se cumple al pie de la letra, o que no se 
 | Reglas de diseño (barra) | Barra superior flotante de cristal | Flotante desde 768 px de ancho. En el teléfono y con poca altura (zoom), la barra es más alta y deja de ser fija, para no tapar el elemento con foco (WCAG 2.4.11) | Claude, fase 2, por la revisión de accesibilidad de ECC | 12-11-2026 |
 | RFS02 (cartel) | El dueño o un trabajador da vuelta el cartel | Hoy la API (`PUT /cartel-digital`) solo lo permite a dueño y administrador, y la pantalla respeta ese permiso. **Decidir en la fase 9** si se amplía a diseñador y operario | Pendiente de tu decisión | 13-11-2026 |
 | Logotipo | Logotipo del taller (versiones gris y roja) | Se usa la versión de anillo y letras en tinta `#0F172A`, derivada del original sin redibujarlo, porque combina con el modo claro y no compite con el ámbar de las acciones. Originales en `docs/marca/originales/` | Claude, a pedido del usuario («el logo que mejor le quede») | 13-11-2026 |
-| RFS01 (fotos de la vitrina) | Imagen en alta definición de cada trabajo | La semilla demo apunta a fotos de ejemplo que aún no existen; la vitrina muestra «Foto del trabajo pendiente» hasta la fase 5 (subida de imágenes en WebP) | Claude | 13-11-2026 |
+| RFS01 (fotos de la vitrina) | Imagen en alta definición de cada trabajo | La semilla demo apuntaba a fotos que no existen. Desde la fase 5 usa ilustraciones de ejemplo rotuladas (ver «Cambios y pendientes de la fase 5»); las fotos reales las entrega el taller y se suben con la API de imágenes | Claude | 13-11-2026 |
 | Reglas de diseño (foco) | Acento solo en llamadas a la acción y estados activos | El anillo de foco también es ámbar: el foco es un estado activo y así se ve sobre los tres fondos (≥4,5:1) | Claude, fase 2 | 12-11-2026 |
 
 ## Cambios de la revisión con la profesora guía (12-11-2026)
@@ -62,6 +62,36 @@ Decisiones del usuario al revisar la fase 4 (13-11-2026):
 | Límite contra solicitudes falsas | No insertar si la cuenta, el RUT o la IP tiene solicitudes pendientes o supera el límite | Valores propuestos: **una** solicitud en línea pendiente por cuenta o RUT, y **3 envíos por hora** por IP, configurables. El mensaje es el mismo para todos los motivos, para no revelar si un RUT ajeno tiene solicitudes |
 | Solicitud de un visitante sin cuenta | RFU06 decía «Visitante» | Con la regla nueva, el visitante debe crear una cuenta con correo verificado o entrar con Google para enviar en línea. Sin cuenta, la vitrina le ofrece WhatsApp, teléfono y el formulario de contacto |
 | Baja de cuenta | Inhabilitar en vez de borrar | Además de inhabilitar, se borran los datos que no hacen falta para conservar el historial (por ejemplo, la contraseña). **Revisar con el asesor legal**: la Ley 21.719 da derecho a la supresión, y conservar los datos se justifica solo por obligaciones como la contable |
+
+## Cambios y pendientes de la fase 5 (13-11-2026)
+
+No son desviaciones de un requisito: son partes que la fase 5 deja pendientes porque dependen de datos del taller, o decisiones que se tomaron al construirla.
+
+| Requisito | Qué pide | Qué se hace | Quién lo decidió | Fecha |
+|---|---|---|---|---|
+| RFU30, S01 | Mapa interactivo con la ubicación exacta de Villagrán 810 | La portada muestra una imagen estática del mapa. El mapa interactivo (Leaflet con OpenStreetMap) se carga solo al pulsar «Usar mapa interactivo». El punto es aproximado, porque OpenStreetMap no tiene el número 810 (`TALLER.coordenadas`, `ubicacionAproximada`). Falta confirmar las coordenadas exactas. La CSP de `index.html` permite las teselas de OpenStreetMap en `img-src`, y `connect-src` queda en `'self'` (y el origen de la API en producción) | Claude; pendiente de confirmación del taller | 13-11-2026 |
+| RFU31, S01 | Botón directo al WhatsApp oficial de la empresa | El botón existe, pero el número es el de prueba del desarrollador. Se cambia por el del taller antes de la entrega (`src/configuracion/taller.js`) | El usuario (fase 4); pendiente del taller | 13-11-2026 |
+| S01, RFS01 | Fotos de los trabajos | Ilustraciones propias, dibujadas en el código, en vez de la imagen de ejemplo con licencia libre que proponía el plan. Así no hay obra de terceros que licenciar. Se rotulan «Imagen de ejemplo» y solo existen en la base demo | Claude | 13-11-2026 |
+| E23, RFS12, RNFE01, S22 | Política de privacidad y términos vigentes | Borradores en versión 1.0 (`src/paginas/publicas/legales/textos.js`); cada página dice que es un borrador. Faltan la razón social, el RUT, el proveedor de alojamiento y su país, el plazo de conservación de las consultas, el abono y el momento del pago del saldo, y la revisión legal | Pendiente del usuario y del asesor legal | 13-11-2026 |
+| RFS12, RNFP21 | Aviso de cookies sin trampas en la elección | Dos botones de igual tamaño y la casilla de analítica desmarcada. Hoy no hay analítica: la elección se guarda y su constancia se registra en la API, pero no activa nada | Claude | 13-11-2026 |
+
+Decisiones de Claude en la fase 5 (objetables):
+- **Sublímite del formulario:** 5 avisos por hora para las consultas, dentro del tope de 20 que comparten con las solicitudes (`Correo:TopeConsultasPorHora`). Si un robot llena el formulario, las solicitudes conservan su cupo.
+- **Límite por IP:** 5 envíos por hora en `POST /contacto` y 5 en `POST /consentimientos/cookies` (`RateLimiting:ContactoPorHora` y `CookiesPorHora`).
+- **Consulta repetida:** la misma consulta (mismo correo y mismo mensaje) dentro de la última hora no se guarda ni se avisa de nuevo.
+- **Campo trampa:** `sitioWeb`. Quien lo llena recibe la misma respuesta de éxito, pero no se guarda nada.
+- **Logotipos:** cambiar la imagen de una publicación o marcarla con logo borra la autorización, y hay que registrarla otra vez. Volver a autorizar no cambia quién ni cuándo la dio.
+- **Zona horaria:** la API no arranca si el servidor no tiene la zona de Chile (America/Santiago), en vez de responder con error en cada petición.
+- **Cartel:** la fecha de última modificación se guarda en hora de Chile, no en la del servidor, que en un contenedor sería UTC.
+
+Pendientes para la fase de despliegue y operación (fase 16):
+
+| Requisito | Qué falta | Por qué queda para después | Responsable |
+|---|---|---|---|
+| RFS08, RNFP33 | Encabezados reenviados (`X-Forwarded-For`) | Los límites por IP usan la IP directa. Detrás de un proxy hay que configurar `ForwardedHeaders` con los proxies de confianza (ya figura en el README del backend) | Fase 16 |
+| RFS12, RNFE01 | Purga o plazo de conservación de `consultas_contacto` y de los consentimientos de cookies | Hoy nada los borra; solo la cola de correo tiene purga. El plazo lo fija el taller con el asesor legal (en la política figura como «[completar: plazo de conservación]») | Fase 16 y el usuario |
+| RNFE04 | `frame-ancestors` (protección contra clickjacking) | La etiqueta `meta` de la CSP de `index.html` no admite `frame-ancestors`: la cabecera la debe enviar el servidor | Fase 16 |
+| RNFE09 | Condiciones de uso de las teselas de OpenStreetMap | Comprobar la licencia de las teselas y la política de uso de la OSMF (ver `docs/licencias.md`) | Antes de la entrega |
 
 ## Restricciones del equipo de desarrollo
 

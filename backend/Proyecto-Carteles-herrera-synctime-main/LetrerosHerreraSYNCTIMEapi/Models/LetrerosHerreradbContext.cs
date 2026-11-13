@@ -28,6 +28,7 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<CorreoSaliente> CorreosSalientes { get; set; } = null!;
     public DbSet<Consentimiento> Consentimientos { get; set; } = null!;
     public DbSet<Imagen> Imagenes { get; set; } = null!;
+    public DbSet<ConsultaContacto> ConsultasContacto { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -140,6 +141,10 @@ public class LetrerosHerreradbContext : DbContext
             {
                 t.HasCheckConstraint("ck_catalogo_precio", "precio_referencial IS NULL OR precio_referencial >= 0");
                 t.HasCheckConstraint("ck_catalogo_medidas", "(ancho_mm IS NULL AND alto_mm IS NULL) OR (ancho_mm > 0 AND alto_mm > 0)");
+                // Fase 5 (RNFO17): un trabajo con el logotipo de un cliente no se muestra sin su autorizacion.
+                t.HasCheckConstraint("ck_catalogo_logo", "visible = 0 OR incluye_logo_cliente = 0 OR fecha_autorizacion_logo IS NOT NULL");
+                t.HasCheckConstraint("ck_catalogo_autorizacion_logo",
+                    "(id_empleado_autoriza_logo IS NULL AND fecha_autorizacion_logo IS NULL) OR (id_empleado_autoriza_logo IS NOT NULL AND fecha_autorizacion_logo IS NOT NULL)");
             });
             entity.HasKey(e => e.IdCatalogo).HasName("pk_catalogo");
             entity.Property(e => e.IdCatalogo).HasColumnName("id_catalogo");
@@ -154,8 +159,24 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.FechaPublicacion).HasColumnName("fecha_publicacion").HasColumnType("datetime2(0)")
                 .HasDefaultValueSql("SYSDATETIME()");
             entity.Property(e => e.Visible).HasColumnName("visible").HasDefaultValue(true).HasSentinel(true);
+            entity.Property(e => e.IdImagen).HasColumnName("id_imagen");
+            entity.Property(e => e.IncluyeLogoCliente).HasColumnName("incluye_logo_cliente").HasDefaultValue(false);
+            entity.Property(e => e.IdEmpleadoAutorizaLogo).HasColumnName("id_empleado_autoriza_logo");
+            entity.Property(e => e.FechaAutorizacionLogo).HasColumnName("fecha_autorizacion_logo").HasColumnType("datetimeoffset(0)");
 
             entity.HasIndex(e => new { e.Visible, e.IdProducto }).HasDatabaseName("ix_catalogo_visible_producto");
+            entity.HasIndex(e => e.IdImagen).HasDatabaseName("ix_catalogo_imagen");
+            entity.HasIndex(e => e.IdEmpleadoAutorizaLogo).HasDatabaseName("ix_catalogo_autoriza_logo");
+
+            entity.HasOne(e => e.Imagen).WithMany()
+                .HasForeignKey(e => e.IdImagen)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_catalogo_imagen");
+
+            entity.HasOne(e => e.EmpleadoAutorizaLogo).WithMany()
+                .HasForeignKey(e => e.IdEmpleadoAutorizaLogo)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_catalogo_empleado_autoriza_logo");
 
             entity.HasOne(e => e.Producto)
                 .WithMany(p => p.Catalogos)
@@ -639,6 +660,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.Alto).HasColumnName("alto");
             entity.Property(e => e.BytesGrande).HasColumnName("bytes_grande");
             entity.Property(e => e.BytesMiniatura).HasColumnName("bytes_miniatura");
+            entity.Property(e => e.EsEjemplo).HasColumnName("es_ejemplo").HasDefaultValue(false);
             entity.Property(e => e.IdEmpleadoSube).HasColumnName("id_empleado_sube");
             entity.Property(e => e.FechaSubida).HasColumnName("fecha_subida").HasColumnType("datetimeoffset(0)")
                 .HasDefaultValueSql("SYSDATETIMEOFFSET()");
@@ -650,6 +672,26 @@ public class LetrerosHerreradbContext : DbContext
                 .HasForeignKey(e => e.IdEmpleadoSube)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("fk_imagenes_empleado");
+        });
+
+        // ── consultas_contacto (fase 5) ──
+        modelBuilder.Entity<ConsultaContacto>(entity =>
+        {
+            entity.ToTable("consultas_contacto");
+            entity.HasKey(e => e.IdConsulta).HasName("pk_consultas_contacto");
+            entity.Property(e => e.IdConsulta).HasColumnName("id_consulta");
+            entity.Property(e => e.Nombre).HasColumnName("nombre").HasMaxLength(100);
+            entity.Property(e => e.Correo).HasColumnName("correo").HasMaxLength(254);
+            entity.Property(e => e.Telefono).HasColumnName("telefono").HasMaxLength(20);
+            entity.Property(e => e.Asunto).HasColumnName("asunto").HasMaxLength(150);
+            entity.Property(e => e.Mensaje).HasColumnName("mensaje").HasMaxLength(2000);
+            entity.Property(e => e.FechaRecepcion).HasColumnName("fecha_recepcion").HasColumnType("datetimeoffset(0)")
+                .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+            entity.Property(e => e.Revisada).HasColumnName("revisada").HasDefaultValue(false);
+            entity.Property(e => e.FechaRevision).HasColumnName("fecha_revision").HasColumnType("datetimeoffset(0)");
+
+            // La bandeja de consultas del panel (fase 9): las no revisadas, de la mas reciente a la mas antigua.
+            entity.HasIndex(e => new { e.Revisada, e.FechaRecepcion }).HasDatabaseName("ix_consultas_contacto_bandeja");
         });
 
         // ── vw_metricas_conversion_online (la crea la migracion ObjetosProgramablesV6) ──

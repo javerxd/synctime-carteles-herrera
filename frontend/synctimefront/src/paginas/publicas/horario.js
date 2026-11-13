@@ -17,3 +17,19 @@ export function franja(dia) {
   if (!dia?.abierto || !dia.horaInicio || !dia.horaFin) return 'Cerrado';
   return `${hora(dia.horaInicio)} a ${hora(dia.horaFin)}`;
 }
+
+const DIAS = { 1: 'el lunes', 2: 'el martes', 3: 'el miércoles', 4: 'el jueves', 5: 'el viernes', 6: 'el sábado', 7: 'el domingo' };
+
+/**
+ * La frase del mostrador según el estado del local (GET /local/estado): abierto, ausente con el mensaje
+ * del cartel, o cerrado con la próxima apertura.
+ */
+export function textoEstado(estado) {
+  if (!estado) return '';
+  if (estado.motivo === 'abierto') return estado.cartel?.mensajeEstado || 'Abierto y atendiendo.';
+  if (estado.motivo === 'ausente') return estado.cartel?.mensajeEstado || 'Volvemos pronto.';
+  const proxima = estado.proximaApertura;
+  if (!proxima) return 'Cerrado por ahora.';
+  const cuando = proxima.esHoy ? 'hoy' : DIAS[proxima.diaSemana] ?? proxima.nombreDia;
+  return `Cerrado. Abrimos ${cuando} a las ${hora(proxima.hora)}.`;
+}

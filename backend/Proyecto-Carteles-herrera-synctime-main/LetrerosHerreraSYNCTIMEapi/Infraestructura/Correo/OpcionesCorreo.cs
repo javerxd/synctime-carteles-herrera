@@ -26,6 +26,10 @@ public sealed class OpcionesCorreo
     // agotarlo dejaria al dueño sin avisos de las solicitudes reales. 0 lo desactiva.
     public int TopeAvisosPorHora { get; set; } = 20;
 
+    // Parte del tope anterior que pueden usar las consultas del formulario de contacto. Asi, aunque un
+    // robot llene el formulario, las solicitudes de cotizacion conservan el resto del cupo. 0 = sin sublimite.
+    public int TopeConsultasPorHora { get; set; } = 5;
+
     public bool ModoValido => string.Equals(Modo, ModoSmtp, StringComparison.OrdinalIgnoreCase) || EsBandeja;
 
     public bool EsBandeja => string.Equals(Modo, ModoBandeja, StringComparison.OrdinalIgnoreCase);

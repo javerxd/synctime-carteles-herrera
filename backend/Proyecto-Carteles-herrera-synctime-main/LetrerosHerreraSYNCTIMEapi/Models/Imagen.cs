@@ -15,6 +15,9 @@ public class Imagen
     public int BytesGrande { get; set; }
     public int BytesMiniatura { get; set; }
 
+    // Imagen de ejemplo de la semilla demo (no es un trabajo real): la vitrina lo rotula.
+    public bool EsEjemplo { get; set; }
+
     public int IdEmpleadoSube { get; set; }
     public DateTimeOffset FechaSubida { get; set; }
 

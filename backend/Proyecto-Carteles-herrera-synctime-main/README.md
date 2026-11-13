@@ -68,7 +68,7 @@ dotnet user-secrets set "Demo:Password" "UNA_PASSWORD_PROPIA" --project .\Letrer
 dotnet run --project .\LetrerosHerreraSYNCTIMEapi -- sembrar-demo
 ```
 
-Crea un usuario por rol (`dueno`, `admin`, `disenador` y `operario`, todos `@letreria.test`), un cliente con cuenta (`cliente@letreria.test`), publicaciones y solicitudes. Desde la fase 3 tambien carga 12 pedidos de varios meses, con su solicitud, su cotizacion aprobada y sus abonos, que cubren todos los estados del pedido y de pago (entre ellos abonados, entregados sin pagar y anulados) y ambos origenes (cotizacion y pedido directo). Si la base demo ya tenia los datos de la fase 1, repetir el comando agrega solo los pedidos. El comando se niega a escribir en una base cuyo nombre no termine en `_Demo`, y repetirlo no duplica nada.
+Crea un usuario por rol (`dueno`, `admin`, `disenador` y `operario`, todos `@letreria.test`), un cliente con cuenta (`cliente@letreria.test`), publicaciones y solicitudes. Desde la fase 3 tambien carga 12 pedidos de varios meses, con su solicitud, su cotizacion aprobada y sus abonos, que cubren todos los estados del pedido y de pago (entre ellos abonados, entregados sin pagar y anulados) y ambos origenes (cotizacion y pedido directo). Desde la fase 5 tambien carga la vitrina de demostracion: 7 trabajos con imagenes de ejemplo, dibujadas en el codigo y rotuladas como tales. Si la base demo ya tenia los datos de la fase 1, repetir el comando agrega solo lo que falta (pedidos, trabajos e imagenes). El comando se niega a escribir en una base cuyo nombre no termine en `_Demo`, y repetirlo no duplica nada.
 
 ## Primer administrador
 
@@ -146,6 +146,7 @@ Otras opciones de `Correo`:
 - `Remitente:Direccion`. Si se deja vacia, se usa la cuenta, que es lo que exige Gmail.
 - `Smtp:TiempoEsperaSegundos` (20).
 - `TopeAvisosPorHora` (20). Pasado ese numero de solicitudes en una hora, llega un solo aviso de «muchas solicitudes» en vez de uno por cada una; todas se guardan igual. Protege el cupo diario de Gmail (unos 500 envios) ante un envio masivo de solicitudes falsas.
+- `TopeConsultasPorHora` (5): cuantos de esos avisos por hora pueden ser de consultas del formulario de contacto. El resto del cupo queda para las solicitudes.
 - `Cola:Activa`, `Cola:IntervaloSegundos` (30), `Cola:Lote` (10), `Cola:MaxIntentos` (6) y `Cola:DiasRetencion` (30).
 
 `Correo:Modo` y `Correo:Smtp:Seguridad` se revisan al arrancar: un valor mal escrito impide iniciar la API, en vez de aceptar solicitudes que nunca avisarian. Si el servidor o la cuenta fallan (Gmail caido, contraseña cambiada), los avisos se siguen intentando cada 3 horas sin agotarse y salen en cuanto se arregla. Solo un fallo del propio mensaje los agota.
@@ -156,6 +157,16 @@ Otras opciones de `Correo`:
 
 `POST /api/v1/imagenes` (dueño y administrador) recibe un JPG, PNG o WebP de hasta 10 MB y lo guarda en WebP en dos tamaños: 1600 y 640 px por el lado mayor. El tipo se reconoce por el contenido del archivo y no por su nombre. La foto se endereza segun la camara y pierde sus metadatos, incluida la ubicacion GPS. Los archivos quedan en `almacen/imagenes` (`Imagenes:Carpeta`), fuera del repositorio. En produccion esa carpeta debe ser un volumen persistente (fase 16).
 
+## Portada publica
+
+Los endpoints publicos de la portada estan en `Endpoints/PortadaApi.cs`, y la vitrina, en `Endpoints/CatalogoApi.cs`. Lo que devuelve cada uno esta en `docs/api/contrato.md`, seccion «Portada publica».
+
+- **Estado del local** (`GET /api/v1/local/estado`): abierto solo si la hora de Chile cae dentro del horario y el cartel dice abierto. Usa la zona `America/Santiago`. Si el servidor no la tiene, la API no arranca y lo indica. En Linux hace falta el paquete `tzdata`.
+- **Formulario de contacto** (`POST /api/v1/contacto`): guarda la consulta y su consentimiento de privacidad, y deja un aviso al taller por correo, con la respuesta dirigida a quien escribio. Tiene un campo trampa, un tamaño máximo de 16 KB y 5 envios por hora por IP.
+- **Cookies** (`POST /api/v1/consentimientos/cookies`): registra la aceptacion de la analitica o su retiro. Hoy el sitio no tiene analitica.
+- **Logotipos de clientes:** una publicacion con logo solo se muestra con la autorizacion registrada (`PUT /api/v1/catalogo/{id}/autorizacion-logo`, dueño o administrador).
+- **Base:** la tabla `consultas_contacto` y las columnas nuevas de `catalogo` estan en la migracion `PortadaPublica`. Esta aplicada en la base demo; la base real espera a que terminen todas las fases.
+
 ## Validacion
 
 ```powershell
@@ -164,7 +175,7 @@ dotnet test .\LetrerosHerreraSYNCTIMEapi.slnx -c Release
 
 Las pruebas de integracion crean una base temporal con las migraciones y la eliminan al terminar: nunca usan la base real ni la de demostracion. Usan `localhost\SQLEXPRESS`; con la variable de entorno `TEST_SQL_SERVER` se puede indicar otro servidor. El codigo de pruebas solo elimina bases cuyo nombre empiece por `SyncTime_Pruebas_`.
 
-Limites de intentos, todos por minuto y configurables en `RateLimiting`: `Login`, `LoginFacial`, `Reautenticacion` y `Publico` (10 por IP), `PorCuenta` (10 fallos por cuenta en los ingresos con contraseña), `ApiGeneral` (100 por usuario, o por IP sin sesion), `Salud` (60 por IP) e `Imagenes` (600 por IP, para servir las imagenes de la vitrina).
+Limites de intentos, configurables en `RateLimiting`. Son por minuto, salvo `ContactoPorHora` y `CookiesPorHora` (5 por hora cada uno, para el formulario de contacto y el aviso de cookies): `Login`, `LoginFacial`, `Reautenticacion` y `Publico` (10 por IP), `PorCuenta` (10 fallos por cuenta en los ingresos con contraseña), `ApiGeneral` (100 por usuario, o por IP sin sesion), `Salud` (60 por IP) e `Imagenes` (600 por IP, para servir las imagenes de la vitrina).
 
 Los secretos se configuran mediante User Secrets o variables de entorno. No se deben publicar claves JWT, passwords ni cadenas de conexion en GitHub.
 
@@ -180,6 +191,7 @@ Una revision de seguridad dejo estos puntos, que no afectan al desarrollo pero d
 - **Sesiones:** un token sigue valido despues de desactivar al usuario, hasta que expira (8 horas por defecto).
 - **HTTPS y sondas:** HSTS y la redireccion a HTTPS ya estan activos fuera de desarrollo. Una sonda de salud por HTTP recibira una redireccion: hay que sondear por HTTPS o desde la red interna.
 - **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`.
+- **Portada:** `frame-ancestors` (contra clickjacking) no funciona en la etiqueta `meta` de `index.html`: la cabecera la debe enviar el servidor. Las consultas de contacto y los consentimientos de cookies no tienen plazo de borrado todavia.
 - **Migraciones:** la API solo las aplica sola en Development. En produccion hay que ejecutarlas como un paso del despliegue.
 - **Login facial:**
   - Calibrar el umbral con pruebas consentidas de empleados reales. Hoy es un valor provisional, sin medicion.

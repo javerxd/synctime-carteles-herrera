@@ -73,6 +73,21 @@ CREATE TABLE [clientes] (
 GO
 
 
+CREATE TABLE [consultas_contacto] (
+    [id_consulta] int NOT NULL IDENTITY,
+    [nombre] nvarchar(100) NOT NULL,
+    [correo] nvarchar(254) NOT NULL,
+    [telefono] nvarchar(20) NULL,
+    [asunto] nvarchar(150) NOT NULL,
+    [mensaje] nvarchar(2000) NOT NULL,
+    [fecha_recepcion] datetimeoffset(0) NOT NULL DEFAULT (SYSDATETIMEOFFSET()),
+    [revisada] bit NOT NULL DEFAULT CAST(0 AS bit),
+    [fecha_revision] datetimeoffset(0) NULL,
+    CONSTRAINT [pk_consultas_contacto] PRIMARY KEY ([id_consulta])
+);
+GO
+
+
 CREATE TABLE [correos_salientes] (
     [id_correo] bigint NOT NULL IDENTITY,
     [tipo] varchar(40) NOT NULL,
@@ -193,6 +208,7 @@ CREATE TABLE [imagenes] (
     [alto] int NOT NULL,
     [bytes_grande] int NOT NULL,
     [bytes_miniatura] int NOT NULL,
+    [es_ejemplo] bit NOT NULL DEFAULT CAST(0 AS bit),
     [id_empleado_sube] int NOT NULL,
     [fecha_subida] datetimeoffset(0) NOT NULL DEFAULT (SYSDATETIMEOFFSET()),
     CONSTRAINT [pk_imagenes] PRIMARY KEY ([id_imagen]),
@@ -245,16 +261,24 @@ CREATE TABLE [catalogo] (
     [id_empleado_creador] int NULL,
     [titulo] nvarchar(120) NOT NULL,
     [descripcion] nvarchar(500) NOT NULL,
-    [imagen_url] nvarchar(500) NOT NULL,
+    [imagen_url] nvarchar(500) NULL,
+    [id_imagen] int NULL,
     [ancho_mm] int NULL,
     [alto_mm] int NULL,
     [precio_referencial] decimal(12,2) NULL,
     [fecha_publicacion] datetime2(0) NOT NULL DEFAULT (SYSDATETIME()),
     [visible] bit NOT NULL DEFAULT CAST(1 AS bit),
+    [incluye_logo_cliente] bit NOT NULL DEFAULT CAST(0 AS bit),
+    [id_empleado_autoriza_logo] int NULL,
+    [fecha_autorizacion_logo] datetimeoffset(0) NULL,
     CONSTRAINT [pk_catalogo] PRIMARY KEY ([id_catalogo]),
+    CONSTRAINT [ck_catalogo_autorizacion_logo] CHECK ((id_empleado_autoriza_logo IS NULL AND fecha_autorizacion_logo IS NULL) OR (id_empleado_autoriza_logo IS NOT NULL AND fecha_autorizacion_logo IS NOT NULL)),
+    CONSTRAINT [ck_catalogo_logo] CHECK (visible = 0 OR incluye_logo_cliente = 0 OR fecha_autorizacion_logo IS NOT NULL),
     CONSTRAINT [ck_catalogo_medidas] CHECK ((ancho_mm IS NULL AND alto_mm IS NULL) OR (ancho_mm > 0 AND alto_mm > 0)),
     CONSTRAINT [ck_catalogo_precio] CHECK (precio_referencial IS NULL OR precio_referencial >= 0),
     CONSTRAINT [fk_catalogo_empleado] FOREIGN KEY ([id_empleado_creador]) REFERENCES [empleados] ([id_empleado]),
+    CONSTRAINT [fk_catalogo_empleado_autoriza_logo] FOREIGN KEY ([id_empleado_autoriza_logo]) REFERENCES [empleados] ([id_empleado]),
+    CONSTRAINT [fk_catalogo_imagen] FOREIGN KEY ([id_imagen]) REFERENCES [imagenes] ([id_imagen]),
     CONSTRAINT [fk_catalogo_producto] FOREIGN KEY ([id_producto]) REFERENCES [productos] ([id_producto]) ON DELETE NO ACTION
 );
 GO
@@ -433,11 +457,19 @@ CREATE INDEX [IX_cartel_digital_id_empleado_modifica] ON [cartel_digital] ([id_e
 GO
 
 
+CREATE INDEX [ix_catalogo_autoriza_logo] ON [catalogo] ([id_empleado_autoriza_logo]);
+GO
+
+
 CREATE INDEX [IX_catalogo_id_empleado_creador] ON [catalogo] ([id_empleado_creador]);
 GO
 
 
 CREATE INDEX [IX_catalogo_id_producto] ON [catalogo] ([id_producto]);
+GO
+
+
+CREATE INDEX [ix_catalogo_imagen] ON [catalogo] ([id_imagen]);
 GO
 
 
@@ -482,6 +514,10 @@ GO
 
 
 CREATE UNIQUE INDEX [uq_consentimientos_envio_vigente] ON [consentimientos] ([referencia_envio], [tipo], [version_documento]) WHERE [referencia_envio] IS NOT NULL AND [fecha_revocacion] IS NULL;
+GO
+
+
+CREATE INDEX [ix_consultas_contacto_bandeja] ON [consultas_contacto] ([revisada], [fecha_recepcion]);
 GO
 
 
@@ -719,7 +755,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261106094459_AgregarRostrosEmpleado', N'10.0.11'),
     (N'20261112224624_SepararEstadoPedidoYPago', N'10.0.11'),
     (N'20261113010201_HistorialDePagos', N'10.0.11'),
-    (N'20261113111453_ServiciosComunes', N'10.0.11');
+    (N'20261113111453_ServiciosComunes', N'10.0.11'),
+    (N'20261113154234_PortadaPublica', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

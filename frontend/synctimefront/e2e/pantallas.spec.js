@@ -27,10 +27,22 @@ const RESPUESTAS = {
   '/api/v1/horarios': [1, 2, 3, 4, 5, 6, 7].map((d) => ({ diaSemana: d, nombreDia: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d - 1], horaInicio: d < 7 ? '09:00:00' : null, horaFin: d < 6 ? '18:30:00' : d === 6 ? '14:00:00' : null, abierto: d < 7 })),
   '/api/v1/metricas/conversion-online': [{ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1, totalSolicitudesOnline: 4, solicitudesConcretadasEnPedido: 1, porcentajeConversion: 25 }],
   '/api/v1/productos': [{ idProducto: 1, nombre: 'Cartel metálico impreso' }],
-  '/api/v1/catalogo': [
-    { idCatalogo: 1, titulo: 'Letrero luminoso para panadería', descripcion: 'Caja de luz con acrílico y LED.', imagenUrl: '/imagenes/demo/1.webp', producto: { nombre: 'Letrero luminoso', categoria: { idCategoria: 1, nombre: 'Luminosos' } } },
-    { idCatalogo: 2, titulo: 'Vinilo para vitrina de ferretería', descripcion: 'Vinilo de corte con horario.', imagenUrl: null, producto: { nombre: 'Vinilo', categoria: { idCategoria: 2, nombre: 'Vinilos' } } },
-  ],
+  '/api/v1/catalogo': {
+    total: 2, pagina: 1, tamano: 9, totalPaginas: 1,
+    elementos: [
+      { idCatalogo: 1, titulo: 'Letrero luminoso para panadería', descripcion: 'Caja de luz con acrílico y LED.', idProducto: 1, tipoLetrero: 'Letrero luminoso', categoria: { idCategoria: 1, nombre: 'Luminosos' }, anchoMm: 1200, altoMm: 600, precioReferencial: 85000, imagen: { urlGrande: '/marca/logo-lh-512.webp', urlMiniatura: '/marca/logo-lh-256.webp', ancho: 512, alto: 512, esEjemplo: true } },
+      { idCatalogo: 2, titulo: 'Vinilo para vitrina de ferretería', descripcion: 'Vinilo de corte con horario.', idProducto: 2, tipoLetrero: 'Vinilo', categoria: { idCategoria: 2, nombre: 'Vinilos' }, anchoMm: null, altoMm: null, precioReferencial: null, imagen: null },
+    ],
+  },
+  '/api/v1/local/estado': {
+    abiertoAhora: false, motivo: 'ausente', dentroDeHorario: true, horaChile: `${hoy.toISOString().slice(0, 10)}T11:30:00`,
+    hoy: { diaSemana: 1, nombreDia: 'Lunes', abierto: true, horaInicio: '09:00:00', horaFin: '18:30:00' },
+    proximaApertura: null,
+    cartel: { abiertoEnLocal: false, mensajeEstado: 'Salimos a una instalación', tiempoEstimadoRegreso: '16:30', fechaUltimaModificacion: fecha(0, 1) },
+    semana: [1, 2, 3, 4, 5, 6, 7].map((d) => ({ diaSemana: d, nombreDia: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d - 1], abierto: d < 7, horaInicio: d < 7 ? '09:00:00' : null, horaFin: d < 6 ? '18:30:00' : d === 6 ? '14:00:00' : null })),
+  },
+  '/api/v1/documentos-legales': ['privacidad', 'terminos', 'marketing', 'cookies'].map((tipo) => ({ tipo, version: '1.0' })),
+  '/api/v1/contacto': { recibida: true, mensaje: 'Recibimos tu consulta. Te responderemos a tu correo lo antes posible.' },
   '/api/v1/categorias': [{ idCategoria: 1, nombre: 'Luminosos' }, { idCategoria: 2, nombre: 'Vinilos' }],
 };
 
@@ -54,6 +66,8 @@ const PANTALLAS = [
   ['/', 'Letreros que se ven de lejos.'],
   ['/ingresar', 'Ingresar'],
   ['/personal/ingresar', 'Acceso del personal'],
+  ['/privacidad', 'Política de privacidad'],
+  ['/terminos', 'Términos y condiciones'],
   ['/panel', 'Hola, Marta'],
   ['/panel/pedidos', 'Pedidos'],
   ['/panel/local', 'Estado del local'],
@@ -149,7 +163,7 @@ test('desde otra página, «Horario» lleva a la portada y baja hasta la secció
 test('la portada abre el modal de solicitud, exige la privacidad y muestra el aviso de contacto directo', async ({ page }) => {
   await page.route('**/api/v1/**', (ruta) => {
     const destino = new URL(ruta.request().url()).pathname.replace(/\/$/, '');
-    if (destino === '/api/v1/catalogo') return ruta.fulfill({ json: [] });
+    if (destino === '/api/v1/catalogo') return ruta.fulfill({ json: { elementos: [], total: 0, pagina: 1, tamano: 9, totalPaginas: 0 } });
     return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
   });
   await page.goto('/');
@@ -164,4 +178,86 @@ test('la portada abre el modal de solicitud, exige la privacidad y muestra el av
   await modal.getByRole('checkbox', { name: 'Acepto la política de privacidad' }).check();
   await modal.getByRole('button', { name: 'Enviar solicitud' }).click();
   await expect(modal.getByText('Para esta solicitud es preferible contactarse directamente con el local')).toBeVisible();
+});
+
+// ── Fase 5 ──
+
+function simularApiPublica(page) {
+  return page.route('**/api/v1/**', (ruta) =>
+    ruta.fulfill({ status: ruta.request().method() === 'POST' ? 202 : 200, json: RESPUESTAS[new URL(ruta.request().url()).pathname.replace(/\/$/, '')] ?? [] }));
+}
+
+test('la portada muestra el estado del local, la vitrina con su imagen de ejemplo y el horario en hora de Chile', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.goto('/');
+  const mostrador = page.getByRole('complementary', { name: 'En el taller ahora' });
+  await expect(mostrador.getByText('Salimos a una instalación')).toBeVisible();
+  await expect(mostrador.getByText('16:30')).toBeVisible();
+  const vitrina = page.locator('#vitrina');
+  await expect(vitrina.getByRole('article', { name: 'Letrero luminoso para panadería' }).locator('img')).toHaveAttribute('loading', 'lazy');
+  await expect(vitrina.getByText('Imagen de ejemplo')).toBeVisible();
+  await expect(page.getByText(/Hora de Chile\. Ahora son las 11:30/)).toBeVisible();
+});
+
+test('el aviso de cookies ofrece dos opciones iguales y no vuelve tras decidir', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.goto('/');
+  const aviso = page.getByRole('region', { name: 'Cookies y privacidad' });
+  await expect(aviso.getByRole('checkbox', { name: /analítica/ })).not.toBeChecked();
+  const rechazar = aviso.getByRole('button', { name: 'Rechazar opcionales' });
+  const guardar = aviso.getByRole('button', { name: 'Guardar mi elección' });
+  const cajaR = await rechazar.boundingBox();
+  const cajaG = await guardar.boundingBox();
+  expect(Math.abs(cajaR.width - cajaG.width)).toBeLessThan(2);
+  expect(Math.abs(cajaR.height - cajaG.height)).toBeLessThan(2);
+  await rechazar.click();
+  await expect(aviso).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Cookies y privacidad' })).toHaveCount(0);
+});
+
+test('el formulario de contacto valida, exige la privacidad y confirma el envío', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
+  await page.goto('/#contacto');
+  const formulario = page.locator('#contacto');
+  await formulario.getByRole('button', { name: 'Enviar consulta' }).click();
+  await expect(formulario.getByRole('textbox', { name: /Nombre/ })).toBeFocused();
+  await formulario.getByRole('textbox', { name: /Nombre/ }).fill('Pedro Soto');
+  await formulario.getByRole('textbox', { name: /Correo/ }).fill('pedro@correo.cl');
+  await formulario.getByRole('textbox', { name: /Asunto/ }).fill('Letrero para mi local');
+  await formulario.getByRole('textbox', { name: /Mensaje/ }).fill('Quisiera cotizar un letrero luminoso de dos metros.');
+  await formulario.getByRole('button', { name: 'Enviar consulta' }).click();
+  await expect(formulario.getByRole('checkbox', { name: /política de privacidad/ })).toHaveAttribute('aria-invalid', 'true');
+  await formulario.getByRole('checkbox', { name: /política de privacidad/ }).check();
+  const envio = page.waitForRequest((r) => r.url().endsWith('/api/v1/contacto') && r.method() === 'POST');
+  await formulario.getByRole('button', { name: 'Enviar consulta' }).click();
+  expect((await envio).postDataJSON()).toMatchObject({ aceptaPrivacidad: true, versionPrivacidad: '1.0', sitioWeb: '' });
+  await expect(formulario.getByText('Consulta enviada')).toBeVisible();
+});
+
+test('el mapa no contacta a OpenStreetMap hasta que el visitante lo activa', async ({ page }) => {
+  const aTerceros = [];
+  page.on('request', (r) => { if (r.url().includes('tile.openstreetmap.org')) aTerceros.push(r.url()); });
+  await simularApiPublica(page);
+  await page.route('https://tile.openstreetmap.org/**', (r) => r.fulfill({ status: 204 }));
+  await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
+  await page.goto('/#ubicacion');
+  await expect(page.getByRole('img', { name: /Mapa de Villagrán 810/ })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  expect(aTerceros).toEqual([]);
+
+  await page.getByRole('button', { name: 'Usar mapa interactivo' }).click();
+  await expect(page.locator('.leaflet-container')).toBeVisible();
+  await expect.poll(() => aTerceros.length).toBeGreaterThan(0);
+});
+
+test('los documentos legales muestran su versión y que son borradores', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
+  await page.goto('/privacidad#cookies');
+  await expect(page.getByText(/Versión 1\.0/)).toBeVisible();
+  await expect(page.getByText('Borrador pendiente de revisión legal')).toBeVisible();
+  await expect(page.locator('#cookies')).toBeInViewport();
 });

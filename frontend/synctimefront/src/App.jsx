@@ -13,6 +13,7 @@ import { RequierePersonal } from './sesion/Guardas';
 // Cada pantalla se descarga al visitarla: la portada no carga el panel ni el reconocimiento facial.
 const Portada = lazy(() => import('./paginas/publicas/Portada'));
 const IngresoPersonal = lazy(() => import('./paginas/publicas/IngresoPersonal'));
+const DocumentoLegal = lazy(() => import('./paginas/publicas/legales/DocumentoLegal'));
 const InicioPanel = lazy(() => import('./paginas/panel/InicioPanel'));
 const Pedidos = lazy(() => import('./paginas/panel/Pedidos'));
 const EstadoLocal = lazy(() => import('./paginas/panel/EstadoLocal'));
@@ -41,8 +42,8 @@ export default function App() {
               <Route index element={enCarga(<Portada />)} />
               <Route path="ingresar" element={<ElegirIngreso />} />
               <Route path="personal/ingresar" element={enCarga(<IngresoPersonal />)} />
-              <Route path="privacidad" element={<SeccionPendiente publica titulo="Política de privacidad" fase={5} descripcion="El borrador de la política, con su versión y la revisión legal pendiente, se publica en la fase 5." />} />
-              <Route path="terminos" element={<SeccionPendiente publica titulo="Términos y condiciones" fase={5} descripcion="El borrador de los términos se publica en la fase 5." />} />
+              <Route path="privacidad" element={enCarga(<DocumentoLegal tipo="privacidad" />)} />
+              <Route path="terminos" element={enCarga(<DocumentoLegal tipo="terminos" />)} />
               {/* Direcciones antiguas del panel */}
               <Route path="login" element={<Navigate to="/personal/ingresar" replace />} />
               <Route path="dashboard" element={<Navigate to="/panel" replace />} />
