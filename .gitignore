@@ -75,3 +75,6 @@ Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+# Fotos de trabajos del taller: se quedan en este equipo (decisión del usuario, 13-11-2026)
+docs/imagenes-trabajos/

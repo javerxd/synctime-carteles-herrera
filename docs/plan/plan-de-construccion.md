@@ -358,7 +358,7 @@ Los puntos 2 y 3 ocurren fuera de este equipo: hasta que existan esas evidencias
 | Contraseñas de los usuarios de la base demo | 1 | No puedo crear la semilla |
 | WhatsApp, correo y teléfono del taller | 5 | Uso marcadores visibles |
 | Fotos de trabajos y permiso de logos | 5, 9 | Imágenes de ejemplo con licencia libre |
-| Revisión legal de privacidad, términos y consentimiento facial | 5, 6, 10 | Quedan como borradores marcados |
+| Revisión legal de privacidad, términos y consentimiento facial | 5, 6, 10 | No habrá (decisión del usuario, 13-11-2026): los textos quedan como versión vigente |
 | Revisar las decisiones del ajuste del 12-11-2026 (`desviaciones.md`) | antes de la fase 2 | Sigo con ellas |
 | Autorizar las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos` en la base real | cuando quieras, a más tardar en la fase 8 | La base real queda con el esquema anterior |
 | Confirmar los diagramas de estados | 7 | No programo el flujo |

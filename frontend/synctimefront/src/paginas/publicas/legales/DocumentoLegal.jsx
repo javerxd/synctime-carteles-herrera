@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Aviso } from '../../../componentes/ui';
 import { PRIVACIDAD, TERMINOS } from './textos';
 import estilos from './DocumentoLegal.module.css';
 
@@ -8,7 +7,8 @@ const DOCUMENTOS = { privacidad: PRIVACIDAD, terminos: TERMINOS };
 
 /**
  * Política de privacidad y términos y condiciones (S22, RFS12). Cada documento muestra su versión: es
- * la que queda registrada cuando alguien lo acepta. Son borradores hasta la revisión legal.
+ * la que queda registrada cuando alguien lo acepta. Por decisión del usuario (13-11-2026) no habrá revisión
+ * legal: son la versión vigente, con los datos que faltan marcados «[Pendiente de completar]».
  */
 export default function DocumentoLegal({ tipo }) {
   const documento = DOCUMENTOS[tipo];
@@ -24,9 +24,6 @@ export default function DocumentoLegal({ tipo }) {
       <header className={estilos.encabezado}>
         <h1 id="titulo-documento" className={estilos.titulo}>{documento.titulo}</h1>
         <p className={estilos.version}>Versión {documento.version} · vigente desde el {documento.vigenteDesde}</p>
-        <Aviso tono="aviso" titulo="Borrador pendiente de revisión legal">
-          Este texto todavía no fue revisado por un abogado. Lo marcado «[Pendiente de completar]» lo completa el taller.
-        </Aviso>
         <p className={estilos.resumen}>{documento.resumen}</p>
       </header>
 

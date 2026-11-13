@@ -266,11 +266,10 @@ test('el mapa no contacta a OpenStreetMap ni a Google hasta que el visitante lo 
   await expect.poll(() => google.length).toBeGreaterThan(0);
 });
 
-test('los documentos legales muestran su versión y que son borradores', async ({ page }) => {
+test('los documentos legales muestran su versión y llevan al apartado pedido', async ({ page }) => {
   await simularApiPublica(page);
   await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
   await page.goto('/privacidad#cookies');
   await expect(page.getByText(/Versión 1\.0/)).toBeVisible();
-  await expect(page.getByText('Borrador pendiente de revisión legal')).toBeVisible();
   await expect(page.locator('#cookies')).toBeInViewport();
 });

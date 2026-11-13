@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 5: portada pública
 
-Fecha: 13-11-2026 · Rama: `fase-05-portada-publica` (nace de `fase-04-servicios-comunes`) · Estado: **en revisión**, esperando tu aprobación
+Fecha: 13-11-2026 · Rama: `fase-05-portada-publica` (nace de `fase-04-servicios-comunes`) · Estado: **aprobada el 13-11-2026**
 
 La portada ya funciona sin sesión. Muestra si el local está abierto ahora, en hora de Chile, combinando el horario con el cartel. También muestra la vitrina de trabajos con filtro por categoría, el horario de la semana, cómo llegar (con la ubicación exacta), el formulario de contacto, el aviso de cookies y los borradores de la política de privacidad y de los términos. Cada consulta del formulario queda guardada con su consentimiento y le llega al taller como aviso por correo. El navegador no contacta a ningún tercero hasta que el visitante lo pide.
 
@@ -139,6 +139,12 @@ Verificación de los ajustes:
 ## Lo que necesito de ti
 
 1. **¿Se suben las fotos al repositorio?** `docs/imagenes-trabajos/` no está en el commit. El repositorio de GitHub es público y las fotos muestran negocios de clientes. Si las subes, cualquiera las verá; si no, la semilla funciona solo en este equipo (o con `Demo:CarpetaFotosVitrina`).
-2. **Datos pendientes de los textos legales:** razón social, RUT, y el abono y el momento del pago del saldo. Antes de publicar, los dos documentos necesitan revisión de un abogado.
+2. **Datos pendientes de los textos legales:** razón social, RUT, y el abono y el momento del pago del saldo.
 3. **WhatsApp y teléfono definitivos del taller**, antes de la entrega.
 4. **Tu visto bueno para cerrar la fase 5** e iniciar la fase 6.
+
+## Cierre (13-11-2026)
+
+- **Fase aprobada** por el usuario, con los ajustes de nombre, correos, ubicación, datos legales y fotos.
+- **Fotos de la vitrina:** quedan solo en este equipo; `docs/imagenes-trabajos/` pasa a `.gitignore`.
+- **Textos legales:** no habrá revisión de un abogado (sin presupuesto). Se quitó el aviso de «borrador» y quedan como la versión 1.0 vigente.

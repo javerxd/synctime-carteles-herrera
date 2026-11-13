@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 13-11-2026 (fase 5 en revisión).
+Última actualización: 13-11-2026 (fase 5 aprobada; fase 6 en curso).
 
 ## Hecho
 
@@ -12,26 +12,20 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 2 — Sistema de diseño** · rama `fase-02-sistema-diseno` · informe: `informes/fase-02.md` · aprobada el 13-11-2026
 - **Fase 3 — Estructura de la aplicación web y pantallas de la revisión** · rama `fase-03-estructura-y-pantallas` · informe: `informes/fase-03.md` · aprobada el 13-11-2026
 - **Fase 4 — Servicios comunes: correo, consentimientos e imágenes** · rama `fase-04-servicios-comunes` · informe: `informes/fase-04.md` · aprobada el 13-11-2026
+- **Fase 5 — Portada pública** · rama `fase-05-portada-publica` · informe: `informes/fase-05.md` · aprobada el 13-11-2026 · pendiente del usuario, sin bloquear: WhatsApp y teléfono definitivos, razón social, RUT y condiciones del abono
 
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 5 — Portada pública** · rama `fase-05-portada-publica` (nace de `fase-04-servicios-comunes`) · informe: `informes/fase-05.md`
-
-Ajustes del usuario aplicados (13-11-2026): nombre «Letreros Herrera», correo de contacto separado de la casilla de avisos, ubicación exacta con Google Maps y Street View, datos legales y plazos de conservación (con su purga), y 22 fotos reales en la vitrina.
-
-Pendiente del usuario, sin bloquear el cierre:
-- Número de WhatsApp y teléfono definitivos del taller (hoy de prueba, en `src/configuracion/taller.js`).
-- Razón social, RUT y el abono y momento del pago del saldo («[Pendiente de completar]» en los textos legales), y la revisión por un asesor legal.
+_(ninguna)_
 
 ## En curso
 
-_(ninguna)_
+- **Fase 6 — Cuentas y sesión** · rama `fase-06-cuentas-y-sesion` (nace de `fase-05-portada-publica`)
 
 ## Por hacer
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 6 | Cuentas y sesión | 3, 4 | Decidir sobre cuentas sin correo, si existen |
 | 7 | Solicitudes y clientes | 6 | Confirmar los diagramas de estados |
 | 8 | Cotizaciones, pedidos, pagos y abonos | 7 | Autorizar las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos` en la base real |
 | 9 | Mantenedores y estado del local | 4, 6 | Decidir si diseñador y operario dan vuelta el cartel |

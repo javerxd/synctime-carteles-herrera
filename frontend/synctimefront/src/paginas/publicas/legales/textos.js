@@ -1,4 +1,4 @@
-// Borradores de los documentos legales (fase 5). Pendientes de revisión por un abogado.
+// Documentos legales vigentes (fase 5). Sin revisión legal, por decisión del usuario (13-11-2026).
 // La versión debe coincidir con la del backend (Negocio/Consentimientos/DocumentosLegales.cs).
 export const PRIVACIDAD = {
   version: '1.0',
