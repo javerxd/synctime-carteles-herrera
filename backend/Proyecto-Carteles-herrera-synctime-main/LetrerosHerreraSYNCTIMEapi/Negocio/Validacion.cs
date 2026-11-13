@@ -77,7 +77,9 @@ public static class Reglas
     // Una direccion simple, sin nombre visible, y con un dominio que tenga al menos un punto.
     public static bool EsCorreo(string? correo)
     {
-        if (string.IsNullOrWhiteSpace(correo) || correo.Length > 254 || correo.Any(char.IsWhiteSpace))
+        // Sin comillas, punto y coma ni coma: son validas en direcciones exoticas ("a;b"@x.cl), pero aqui
+        // separan listas de correos (por ejemplo, los destinatarios de la cola).
+        if (string.IsNullOrWhiteSpace(correo) || correo.Length > 254 || correo.Any(char.IsWhiteSpace) || correo.IndexOfAny([';', ',', '"']) >= 0)
             return false;
 
         return MailAddress.TryCreate(correo, out var direccion)

@@ -319,6 +319,200 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Consentimiento", b =>
+                {
+                    b.Property<int>("IdConsentimiento")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_consentimiento");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdConsentimiento"));
+
+                    b.Property<DateTimeOffset>("FechaAceptacion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_aceptacion")
+                        .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                    b.Property<DateTimeOffset?>("FechaRevocacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_revocacion");
+
+                    b.Property<int?>("IdCliente")
+                        .HasColumnType("int")
+                        .HasColumnName("id_cliente");
+
+                    b.Property<int?>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.Property<string>("ReferenciaEnvio")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("referencia_envio");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("tipo");
+
+                    b.Property<string>("VersionDocumento")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("version_documento");
+
+                    b.HasKey("IdConsentimiento")
+                        .HasName("pk_consentimientos");
+
+                    b.HasIndex("IdCliente", "Tipo")
+                        .HasDatabaseName("ix_consentimientos_cliente")
+                        .HasFilter("[id_cliente] IS NOT NULL");
+
+                    b.HasIndex("IdEmpleado", "Tipo")
+                        .HasDatabaseName("ix_consentimientos_empleado")
+                        .HasFilter("[id_empleado] IS NOT NULL");
+
+                    b.HasIndex("ReferenciaEnvio", "Tipo")
+                        .HasDatabaseName("ix_consentimientos_envio")
+                        .HasFilter("[referencia_envio] IS NOT NULL");
+
+                    b.HasIndex("IdCliente", "Tipo", "VersionDocumento")
+                        .IsUnique()
+                        .HasDatabaseName("uq_consentimientos_cliente_vigente")
+                        .HasFilter("[id_cliente] IS NOT NULL AND [fecha_revocacion] IS NULL");
+
+                    b.HasIndex("IdEmpleado", "Tipo", "VersionDocumento")
+                        .IsUnique()
+                        .HasDatabaseName("uq_consentimientos_empleado_vigente")
+                        .HasFilter("[id_empleado] IS NOT NULL AND [fecha_revocacion] IS NULL");
+
+                    b.HasIndex("ReferenciaEnvio", "Tipo", "VersionDocumento")
+                        .IsUnique()
+                        .HasDatabaseName("uq_consentimientos_envio_vigente")
+                        .HasFilter("[referencia_envio] IS NOT NULL AND [fecha_revocacion] IS NULL");
+
+                    b.ToTable("consentimientos", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_consentimientos_revocacion", "fecha_revocacion IS NULL OR fecha_revocacion >= fecha_aceptacion");
+
+                            t.HasCheckConstraint("ck_consentimientos_tipo", "tipo IN ('privacidad', 'terminos', 'marketing', 'cookies')");
+
+                            t.HasCheckConstraint("ck_consentimientos_titular", "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) + (CASE WHEN referencia_envio IS NULL THEN 0 ELSE 1 END) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.CorreoSaliente", b =>
+                {
+                    b.Property<long>("IdCorreo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id_correo");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdCorreo"));
+
+                    b.Property<string>("Asunto")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("asunto");
+
+                    b.Property<DateTimeOffset?>("BloqueadoHasta")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("bloqueado_hasta");
+
+                    b.Property<string>("CuerpoHtml")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("cuerpo_html");
+
+                    b.Property<string>("CuerpoTexto")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("cuerpo_texto");
+
+                    b.Property<string>("Destinatarios")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("destinatarios");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)")
+                        .HasDefaultValue("pendiente")
+                        .HasColumnName("estado");
+
+                    b.Property<DateTimeOffset>("FechaCreacion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_creacion")
+                        .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                    b.Property<DateTimeOffset?>("FechaEnvio")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_envio");
+
+                    b.Property<int>("Intentos")
+                        .HasColumnType("int")
+                        .HasColumnName("intentos");
+
+                    b.Property<DateTimeOffset>("ProximoIntento")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("proximo_intento");
+
+                    b.Property<string>("Referencia")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("referencia");
+
+                    b.Property<string>("ResponderA")
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)")
+                        .HasColumnName("responder_a");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .HasColumnName("tipo");
+
+                    b.Property<string>("UltimoError")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("ultimo_error");
+
+                    b.HasKey("IdCorreo")
+                        .HasName("pk_correos_salientes");
+
+                    b.HasIndex("FechaCreacion")
+                        .HasDatabaseName("ix_correos_salientes_fecha");
+
+                    b.HasIndex("Referencia")
+                        .HasDatabaseName("ix_correos_salientes_referencia")
+                        .HasFilter("[referencia] IS NOT NULL");
+
+                    b.HasIndex("Estado", "ProximoIntento")
+                        .HasDatabaseName("ix_correos_salientes_pendientes")
+                        .HasFilter("[estado] IN ('pendiente', 'enviando')");
+
+                    b.ToTable("correos_salientes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_correos_salientes_estado", "estado IN ('pendiente', 'enviando', 'enviado', 'fallido')");
+
+                            t.HasCheckConstraint("ck_correos_salientes_intentos", "intentos >= 0");
+                        });
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Cotizacion", b =>
                 {
                     b.Property<int>("IdCotizacion")
@@ -633,6 +827,65 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                             HoraFin = new TimeOnly(14, 0, 0),
                             HoraInicio = new TimeOnly(9, 0, 0),
                             NombreDia = "Sábado"
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Imagen", b =>
+                {
+                    b.Property<int>("IdImagen")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_imagen");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdImagen"));
+
+                    b.Property<int>("Alto")
+                        .HasColumnType("int")
+                        .HasColumnName("alto");
+
+                    b.Property<int>("Ancho")
+                        .HasColumnType("int")
+                        .HasColumnName("ancho");
+
+                    b.Property<int>("BytesGrande")
+                        .HasColumnType("int")
+                        .HasColumnName("bytes_grande");
+
+                    b.Property<int>("BytesMiniatura")
+                        .HasColumnType("int")
+                        .HasColumnName("bytes_miniatura");
+
+                    b.Property<string>("Clave")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .IsUnicode(false)
+                        .HasColumnType("char(32)")
+                        .HasColumnName("clave")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("FechaSubida")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_subida")
+                        .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+                    b.Property<int>("IdEmpleadoSube")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_sube");
+
+                    b.HasKey("IdImagen")
+                        .HasName("pk_imagenes");
+
+                    b.HasIndex("Clave")
+                        .IsUnique()
+                        .HasDatabaseName("uq_imagenes_clave");
+
+                    b.HasIndex("IdEmpleadoSube")
+                        .HasDatabaseName("ix_imagenes_empleado");
+
+                    b.ToTable("imagenes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_imagenes_medidas", "ancho > 0 AND alto > 0 AND bytes_grande > 0 AND bytes_miniatura > 0");
                         });
                 });
 
@@ -1291,6 +1544,25 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("Producto");
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Consentimiento", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("IdCliente")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_consentimientos_cliente");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_consentimientos_empleado");
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Empleado");
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Cotizacion", b =>
                 {
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
@@ -1331,6 +1603,18 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("Cotizacion");
 
                     b.Navigation("Material");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Imagen", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoSube")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleadoSube")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_imagenes_empleado");
+
+                    b.Navigation("EmpleadoSube");
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pago", b =>

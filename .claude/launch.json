@@ -4,13 +4,38 @@
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "frontend/synctimefront"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "frontend/synctimefront"
+      ],
       "port": 3000
     },
     {
       "name": "api-demo",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerreraSYNCTIMEapi", "--launch-profile", "https"],
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerreraSYNCTIMEapi",
+        "--launch-profile",
+        "https"
+      ],
+      "port": 7112
+    },
+    {
+      "name": "api-demo-avisos",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerreraSYNCTIMEapi",
+        "--launch-profile",
+        "https",
+        "--",
+        "--Correo:AvisosTaller=avisos.demo@letreria.test"
+      ],
       "port": 7112
     }
   ]

@@ -106,6 +106,56 @@ SET descriptor_cifrado = NULL, token_equipo_hash = NULL, fecha_autorizacion_equi
 WHERE id_empleado = @id AND fecha_revocacion IS NULL;
 ```
 
+## Correo
+
+Por cada solicitud nueva, presencial o en linea, la API deja en una cola un aviso para el taller. Un proceso en segundo plano lo envia. Si el servidor de correo falla, reintenta a los 1, 5, 15, 60 y 180 minutos; la solicitud nunca espera ni falla por eso. Lo enviado o fallido se borra de la cola a los 30 dias, porque lleva datos del cliente.
+
+**Modos** (`Correo:Modo`):
+- `Smtp`: envio real. Es el valor por defecto.
+- `Bandeja`: el de desarrollo (`appsettings.Development.json`). Cada correo queda como un archivo `.eml` en `bandeja-correo/` y se ve en `https://localhost:7112/dev/bandeja`, una ruta que solo existe en desarrollo. No sale nada del equipo.
+
+### Gmail
+
+`appsettings.json` ya trae `smtp.gmail.com`, puerto 587 y STARTTLS. Faltan tres valores, que van en User Secrets y nunca en el codigo. En produccion van como variables de entorno: `Correo__Smtp__Usuario`, `Correo__Smtp__Password` y `Correo__AvisosTaller`.
+
+1. En la cuenta de Google que enviara los avisos, crear una **contraseña de aplicacion** en <https://myaccount.google.com/apppasswords>. Exige tener activa la verificacion en dos pasos. Son 16 letras y se escriben sin espacios.
+2. Guardar los valores. La contraseña se escribe sin que se vea en pantalla, y `Out-Null` evita que `user-secrets` la repita:
+
+```powershell
+dotnet user-secrets set "Correo:Smtp:Usuario" "cuenta.del.taller@gmail.com" --project .\LetrerosHerreraSYNCTIMEapi
+$clave = Read-Host "Contraseña de aplicacion" -AsSecureString
+dotnet user-secrets set "Correo:Smtp:Password" ([Net.NetworkCredential]::new('', $clave).Password) --project .\LetrerosHerreraSYNCTIMEapi | Out-Null
+Remove-Variable clave
+dotnet user-secrets set "Correo:AvisosTaller" "destino.de.los.avisos@gmail.com" --project .\LetrerosHerreraSYNCTIMEapi
+```
+
+   `Correo:AvisosTaller` admite varios correos separados por `;`. Ningun otro archivo lee ese valor: todo pasa por `IDestinatariosAvisos`, que en la fase 9 leera primero el correo que el dueño guarde desde el panel.
+
+3. Probar el envio real. No pasa por la cola ni toca la base de datos. Dice a cuantos destinatarios llego y, si falla, por que, sin mostrar credenciales:
+
+```powershell
+dotnet run --project .\LetrerosHerreraSYNCTIMEapi --launch-profile https -- probar-correo
+```
+
+4. Para que en desarrollo los avisos de las solicitudes salgan por Gmail en vez de la bandeja local, agregar `Correo:Modo` = `Smtp` a User Secrets. Para volver a la bandeja, quitarlo con `dotnet user-secrets remove "Correo:Modo"`.
+
+**Si la cuenta no admite contraseñas de aplicacion:** pasa, por ejemplo, si el administrador de Google Workspace las desactivo o si la cuenta tiene la Proteccion Avanzada. La alternativa es OAuth2 (XOAUTH2, que MailKit admite). Exige un proyecto en Google Cloud con su pantalla de consentimiento y un token de actualizacion. Mientras la aplicacion siga «en prueba», Google vence ese token a los 7 dias, asi que hay que publicarla. Se agrega solo si hace falta.
+
+Otras opciones de `Correo`:
+- `Remitente:Nombre` (`Letrería Los Herrera`).
+- `Remitente:Direccion`. Si se deja vacia, se usa la cuenta, que es lo que exige Gmail.
+- `Smtp:TiempoEsperaSegundos` (20).
+- `TopeAvisosPorHora` (20). Pasado ese numero de solicitudes en una hora, llega un solo aviso de «muchas solicitudes» en vez de uno por cada una; todas se guardan igual. Protege el cupo diario de Gmail (unos 500 envios) ante un envio masivo de solicitudes falsas.
+- `Cola:Activa`, `Cola:IntervaloSegundos` (30), `Cola:Lote` (10), `Cola:MaxIntentos` (6) y `Cola:DiasRetencion` (30).
+
+`Correo:Modo` y `Correo:Smtp:Seguridad` se revisan al arrancar: un valor mal escrito impide iniciar la API, en vez de aceptar solicitudes que nunca avisarian. Si el servidor o la cuenta fallan (Gmail caido, contraseña cambiada), los avisos se siguen intentando cada 3 horas sin agotarse y salen en cuanto se arregla. Solo un fallo del propio mensaje los agota.
+
+**Como saber si los avisos estan llegando:** `GET /salud/correo` responde `ok` o `degradado`, este ultimo si hay avisos fallidos o que llevan mas de 30 minutos sin salir, si falta configuracion o si no hay destinatarios. No afecta a `/salud/lista`: un problema del correo no saca la API de servicio. Un monitor externo gratuito puede revisar esa ruta y avisar al dueño por otro medio. Ademas, mientras haya problemas, la API los repite cada hora en el registro de errores.
+
+## Imagenes
+
+`POST /api/v1/imagenes` (dueño y administrador) recibe un JPG, PNG o WebP de hasta 10 MB y lo guarda en WebP en dos tamaños: 1600 y 640 px por el lado mayor. El tipo se reconoce por el contenido del archivo y no por su nombre. La foto se endereza segun la camara y pierde sus metadatos, incluida la ubicacion GPS. Los archivos quedan en `almacen/imagenes` (`Imagenes:Carpeta`), fuera del repositorio. En produccion esa carpeta debe ser un volumen persistente (fase 16).
+
 ## Validacion
 
 ```powershell
@@ -114,7 +164,7 @@ dotnet test .\LetrerosHerreraSYNCTIMEapi.slnx -c Release
 
 Las pruebas de integracion crean una base temporal con las migraciones y la eliminan al terminar: nunca usan la base real ni la de demostracion. Usan `localhost\SQLEXPRESS`; con la variable de entorno `TEST_SQL_SERVER` se puede indicar otro servidor. El codigo de pruebas solo elimina bases cuyo nombre empiece por `SyncTime_Pruebas_`.
 
-Limites de intentos, todos por minuto y configurables en `RateLimiting`: `Login`, `LoginFacial`, `Reautenticacion` y `Publico` (10 por IP), `PorCuenta` (10 fallos por cuenta en los ingresos con contraseña), `ApiGeneral` (100 por usuario, o por IP sin sesion) y `Salud` (60 por IP).
+Limites de intentos, todos por minuto y configurables en `RateLimiting`: `Login`, `LoginFacial`, `Reautenticacion` y `Publico` (10 por IP), `PorCuenta` (10 fallos por cuenta en los ingresos con contraseña), `ApiGeneral` (100 por usuario, o por IP sin sesion), `Salud` (60 por IP) e `Imagenes` (600 por IP, para servir las imagenes de la vitrina).
 
 Los secretos se configuran mediante User Secrets o variables de entorno. No se deben publicar claves JWT, passwords ni cadenas de conexion en GitHub.
 

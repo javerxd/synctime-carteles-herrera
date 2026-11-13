@@ -1,8 +1,8 @@
 ﻿-- =====================================================================================
 -- SyncTime - Letrería Los Herrera
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
--- triggers, vista y procedimiento almacenado. Estado: migración HistorialDePagos.
--- Generado el 12-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
+-- triggers, vista y procedimiento almacenado. Estado: migración ServiciosComunes.
+-- Generado el 13-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
 --
 -- Cambios de la revisión del 12-11-2026 (tabla pedidos):
 --   * estado        -> estado_pedido: aceptado, en_proceso, terminado, entregado, anulado.
@@ -13,6 +13,11 @@
 --   * pagos         (tabla nueva): historial de abonos con monto, fecha, medio de pago y quién lo
 --                      registró. Un trigger mantiene monto_abonado igual a la suma de los pagos.
 --   * ck_pedidos_montos_enteros (nueva): los montos del pedido van en pesos, sin decimales.
+--
+-- Fase 4 (13-11-2026), tablas nuevas:
+--   * correos_salientes: cola de salida del correo (avisos al taller), con reintentos.
+--   * consentimientos:   quién aceptó qué documento, en qué versión y cuándo, y su revocación.
+--   * imagenes:          imágenes subidas por el taller (los archivos WebP quedan fuera de la base).
 --
 -- Cómo ejecutarlo. Crea una base NUEVA y se detiene sin hacer nada si ya existe:
 --   sqlcmd -S localhost\SQLEXPRESS -E -C -I -f 65001 -i LetreriaLosHerreraDB.sql
@@ -64,6 +69,29 @@ CREATE TABLE [clientes] (
     [activo] bit NOT NULL DEFAULT CAST(1 AS bit),
     CONSTRAINT [pk_clientes] PRIMARY KEY ([id_cliente]),
     CONSTRAINT [ck_clientes_email] CHECK (email IS NULL OR (email LIKE N'%_@_%._%' AND email NOT LIKE N'% %'))
+);
+GO
+
+
+CREATE TABLE [correos_salientes] (
+    [id_correo] bigint NOT NULL IDENTITY,
+    [tipo] varchar(40) NOT NULL,
+    [referencia] varchar(64) NULL,
+    [destinatarios] nvarchar(1000) NOT NULL,
+    [responder_a] nvarchar(254) NULL,
+    [asunto] nvarchar(200) NOT NULL,
+    [cuerpo_html] nvarchar(max) NOT NULL,
+    [cuerpo_texto] nvarchar(max) NOT NULL,
+    [estado] varchar(10) NOT NULL DEFAULT 'pendiente',
+    [intentos] int NOT NULL,
+    [proximo_intento] datetimeoffset(0) NOT NULL,
+    [bloqueado_hasta] datetimeoffset(0) NULL,
+    [ultimo_error] nvarchar(200) NULL,
+    [fecha_creacion] datetimeoffset(0) NOT NULL DEFAULT (SYSDATETIMEOFFSET()),
+    [fecha_envio] datetimeoffset(0) NULL,
+    CONSTRAINT [pk_correos_salientes] PRIMARY KEY ([id_correo]),
+    CONSTRAINT [ck_correos_salientes_estado] CHECK (estado IN ('pendiente', 'enviando', 'enviado', 'fallido')),
+    CONSTRAINT [ck_correos_salientes_intentos] CHECK (intentos >= 0)
 );
 GO
 
@@ -135,6 +163,41 @@ CREATE TABLE [cartel_digital] (
     CONSTRAINT [pk_cartel_digital] PRIMARY KEY ([id_cartel]),
     CONSTRAINT [ck_cartel_unico] CHECK (id_cartel = 1),
     CONSTRAINT [fk_cartel_digital_empleado] FOREIGN KEY ([id_empleado_modifica]) REFERENCES [empleados] ([id_empleado])
+);
+GO
+
+
+CREATE TABLE [consentimientos] (
+    [id_consentimiento] int NOT NULL IDENTITY,
+    [id_cliente] int NULL,
+    [id_empleado] int NULL,
+    [referencia_envio] varchar(64) NULL,
+    [tipo] varchar(20) NOT NULL,
+    [version_documento] varchar(20) NOT NULL,
+    [fecha_aceptacion] datetimeoffset(0) NOT NULL DEFAULT (SYSDATETIMEOFFSET()),
+    [fecha_revocacion] datetimeoffset(0) NULL,
+    CONSTRAINT [pk_consentimientos] PRIMARY KEY ([id_consentimiento]),
+    CONSTRAINT [ck_consentimientos_revocacion] CHECK (fecha_revocacion IS NULL OR fecha_revocacion >= fecha_aceptacion),
+    CONSTRAINT [ck_consentimientos_tipo] CHECK (tipo IN ('privacidad', 'terminos', 'marketing', 'cookies')),
+    CONSTRAINT [ck_consentimientos_titular] CHECK ((CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) + (CASE WHEN referencia_envio IS NULL THEN 0 ELSE 1 END) = 1),
+    CONSTRAINT [fk_consentimientos_cliente] FOREIGN KEY ([id_cliente]) REFERENCES [clientes] ([id_cliente]),
+    CONSTRAINT [fk_consentimientos_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado])
+);
+GO
+
+
+CREATE TABLE [imagenes] (
+    [id_imagen] int NOT NULL IDENTITY,
+    [clave] char(32) NOT NULL,
+    [ancho] int NOT NULL,
+    [alto] int NOT NULL,
+    [bytes_grande] int NOT NULL,
+    [bytes_miniatura] int NOT NULL,
+    [id_empleado_sube] int NOT NULL,
+    [fecha_subida] datetimeoffset(0) NOT NULL DEFAULT (SYSDATETIMEOFFSET()),
+    CONSTRAINT [pk_imagenes] PRIMARY KEY ([id_imagen]),
+    CONSTRAINT [ck_imagenes_medidas] CHECK (ancho > 0 AND alto > 0 AND bytes_grande > 0 AND bytes_miniatura > 0),
+    CONSTRAINT [fk_imagenes_empleado] FOREIGN KEY ([id_empleado_sube]) REFERENCES [empleados] ([id_empleado])
 );
 GO
 
@@ -398,6 +461,42 @@ CREATE UNIQUE INDEX [uq_clientes_telefono] ON [clientes] ([telefono]);
 GO
 
 
+CREATE INDEX [ix_consentimientos_cliente] ON [consentimientos] ([id_cliente], [tipo]) WHERE [id_cliente] IS NOT NULL;
+GO
+
+
+CREATE INDEX [ix_consentimientos_empleado] ON [consentimientos] ([id_empleado], [tipo]) WHERE [id_empleado] IS NOT NULL;
+GO
+
+
+CREATE INDEX [ix_consentimientos_envio] ON [consentimientos] ([referencia_envio], [tipo]) WHERE [referencia_envio] IS NOT NULL;
+GO
+
+
+CREATE UNIQUE INDEX [uq_consentimientos_cliente_vigente] ON [consentimientos] ([id_cliente], [tipo], [version_documento]) WHERE [id_cliente] IS NOT NULL AND [fecha_revocacion] IS NULL;
+GO
+
+
+CREATE UNIQUE INDEX [uq_consentimientos_empleado_vigente] ON [consentimientos] ([id_empleado], [tipo], [version_documento]) WHERE [id_empleado] IS NOT NULL AND [fecha_revocacion] IS NULL;
+GO
+
+
+CREATE UNIQUE INDEX [uq_consentimientos_envio_vigente] ON [consentimientos] ([referencia_envio], [tipo], [version_documento]) WHERE [referencia_envio] IS NOT NULL AND [fecha_revocacion] IS NULL;
+GO
+
+
+CREATE INDEX [ix_correos_salientes_fecha] ON [correos_salientes] ([fecha_creacion]);
+GO
+
+
+CREATE INDEX [ix_correos_salientes_pendientes] ON [correos_salientes] ([estado], [proximo_intento]) WHERE [estado] IN ('pendiente', 'enviando');
+GO
+
+
+CREATE INDEX [ix_correos_salientes_referencia] ON [correos_salientes] ([referencia]) WHERE [referencia] IS NOT NULL;
+GO
+
+
 CREATE INDEX [ix_cot_mat_cotizacion] ON [cotizacion_materiales] ([id_cotizacion]);
 GO
 
@@ -423,6 +522,14 @@ GO
 
 
 CREATE UNIQUE INDEX [uq_horarios_dia] ON [horarios_atencion] ([dia_semana]);
+GO
+
+
+CREATE INDEX [ix_imagenes_empleado] ON [imagenes] ([id_empleado_sube]);
+GO
+
+
+CREATE UNIQUE INDEX [uq_imagenes_clave] ON [imagenes] ([clave]);
 GO
 
 
@@ -611,7 +718,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261106031126_ObjetosProgramablesV6', N'10.0.11'),
     (N'20261106094459_AgregarRostrosEmpleado', N'10.0.11'),
     (N'20261112224624_SepararEstadoPedidoYPago', N'10.0.11'),
-    (N'20261113010201_HistorialDePagos', N'10.0.11');
+    (N'20261113010201_HistorialDePagos', N'10.0.11'),
+    (N'20261113111453_ServiciosComunes', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

@@ -1,6 +1,6 @@
 # Diccionario de datos — LetreriaLosHerreraDB
 
-Estado del esquema: migración `HistorialDePagos` (12-11-2026), 15 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
+Estado del esquema: migración `ServiciosComunes` (13-11-2026), 18 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
 
 **Convenciones**
 - Motor SQL Server 2025 Express, intercalación `Modern_Spanish_CI_AS` (ordena y compara en español, sin distinguir mayúsculas).
@@ -8,10 +8,10 @@ Estado del esquema: migración `HistorialDePagos` (12-11-2026), 15 tablas. Diagr
 - **PK** clave primaria (entera, autoincremental salvo que se diga otra cosa). **FK** clave foránea. **UQ** valor único.
 - **Calculada**: columna que calcula SQL Server y guarda (`PERSISTED`); no se escribe a mano.
 - **Montos en pesos chilenos sin decimales** (RNFO05). Las columnas nuevas usan `int`. Las anteriores son `decimal(12,2)` y siempre guardan valores enteros: la API y la interfaz validan que no tengan decimales.
-- Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, que usan `datetimeoffset(0)` porque deciden bloqueos y caducidades.
+- Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro y las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local.
 - `row_version` es un `rowversion`: cambia en cada modificación y permite rechazar el cambio de un registro que otra persona modificó después de abrirlo (RNFP10).
 
-Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha.
+Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026).
 
 ---
 
@@ -295,6 +295,75 @@ Restricciones: `pk_rostros_empleado`, `fk_rostros_empleado_empleado`. Índice ú
 
 ---
 
+## correos_salientes
+
+**Tabla nueva (13-11-2026, fase 4).** Cola de salida del correo (RFS08). Quien origina un correo (por ejemplo, una solicitud nueva que avisa al taller) solo inserta aquí una fila; un proceso en segundo plano la envía después, con reintentos. Así un servidor de correo lento o caído nunca hace esperar ni falla la petición.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_correo` | bigint | No | autoincremental | PK |
+| `tipo` | varchar(40) | No | | `aviso_solicitud_nueva`, `prueba`, … |
+| `referencia` | varchar(64) | Sí | | A qué se refiere, sin abrir el cuerpo: por ejemplo `solicitud:123` |
+| `destinatarios` | nvarchar(1000) | No | | Direcciones separadas por punto y coma, validadas al encolar |
+| `responder_a` | nvarchar(254) | Sí | | A quién va la respuesta (en el aviso de solicitud, el correo del cliente) |
+| `asunto` | nvarchar(200) | No | | Sin saltos de línea |
+| `cuerpo_html` | nvarchar(max) | No | | Versión HTML (plantilla base) |
+| `cuerpo_texto` | nvarchar(max) | No | | Versión de texto plano |
+| `estado` | varchar(10) | No | `pendiente` | `pendiente`, `enviando`, `enviado` o `fallido` |
+| `intentos` | int | No | | Intentos hechos. Se suma al tomar el correo, antes de enviarlo |
+| `proximo_intento` | datetimeoffset(0) | No | | Desde cuándo puede intentarse. Tras un fallo: 1, 5, 15, 60 y 180 minutos |
+| `bloqueado_hasta` | datetimeoffset(0) | Sí | | Mientras un proceso lo envía nadie más lo toma; si ese proceso se cae, al vencer se retoma |
+| `ultimo_error` | nvarchar(200) | Sí | | Categoría y mensaje fijo en español (por ejemplo `tiempo_agotado: …`). **Nunca** el texto del servidor, que puede repetir el usuario de la cuenta o una dirección |
+| `fecha_creacion` | datetimeoffset(0) | No | `SYSDATETIMEOFFSET()` | Cuándo se encoló |
+| `fecha_envio` | datetimeoffset(0) | Sí | | Cuándo se entregó |
+
+Restricciones: `pk_correos_salientes`, `ck_correos_salientes_estado`, `ck_correos_salientes_intentos` (`intentos >= 0`).
+
+Índices:
+- `ix_correos_salientes_pendientes` (`estado`, `proximo_intento`), filtrado a `pendiente` y `enviando`: lo que busca el proceso en cada vuelta. Solo indexa lo que falta enviar.
+- `ix_correos_salientes_referencia` (`referencia`), filtrado a los no nulos: encontrar el correo de una solicitud.
+- `ix_correos_salientes_fecha` (`fecha_creacion`): la purga de lo antiguo.
+
+**Retención:** lo enviado o fallido se borra a los 30 días (`Correo:Cola:DiasRetencion`), porque el cuerpo lleva datos personales del cliente.
+
+## consentimientos
+
+**Tabla nueva (13-11-2026, fase 4).** Registro de consentimientos (RFS12): quién aceptó, qué documento, en qué versión y cuándo; y, si lo retiró, cuándo. Solo se inserta y se marca la revocación: nunca se borra ni se edita otra cosa. El consentimiento del rostro tiene su propio registro en `rostros_empleado`.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_consentimiento` | int | No | autoincremental | PK |
+| `id_cliente` | int | Sí | | FK a `clientes`, si el titular es un cliente |
+| `id_empleado` | int | Sí | | FK a `empleados`, si el titular es del personal |
+| `referencia_envio` | varchar(64) | Sí | | Si es un visitante sin cuenta: el envío que hizo, por ejemplo `contacto:15` |
+| `tipo` | varchar(20) | No | | `privacidad`, `terminos`, `marketing` o `cookies` |
+| `version_documento` | varchar(20) | No | | Versión del documento que la persona leyó. Si el texto cambia, sube la versión y debe aceptarse de nuevo |
+| `fecha_aceptacion` | datetimeoffset(0) | No | `SYSDATETIMEOFFSET()` | Cuándo aceptó |
+| `fecha_revocacion` | datetimeoffset(0) | Sí | | Cuándo lo retiró |
+
+Restricciones: `pk_consentimientos`, `fk_consentimientos_cliente`, `fk_consentimientos_empleado` (sin cascada: la constancia sobrevive a la inhabilitación de la cuenta), `ck_consentimientos_tipo`, `ck_consentimientos_titular` (exactamente uno de `id_cliente`, `id_empleado` o `referencia_envio`), `ck_consentimientos_revocacion` (la revocación no es anterior a la aceptación).
+
+Índices: `ix_consentimientos_cliente` (`id_cliente`, `tipo`), `ix_consentimientos_empleado` (`id_empleado`, `tipo`) e `ix_consentimientos_envio` (`referencia_envio`, `tipo`), cada uno filtrado a sus filas no nulas: responden «¿qué tiene vigente este titular?» y cubren las claves foráneas.
+
+## imagenes
+
+**Tabla nueva (13-11-2026, fase 4).** Imágenes subidas por el taller (RNFP22). Los archivos se guardan fuera de la base, en la carpeta `Imagenes:Carpeta`, como `{clave}-grande.webp` (1600 px por el lado mayor) y `{clave}-miniatura.webp` (640 px). Aquí queda quién la subió, cuándo y sus medidas.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_imagen` | int | No | autoincremental | PK |
+| `clave` | char(32) | No | | UQ. Aleatoria (128 bits): una imagen aún no publicada, como un logotipo sin la autorización del cliente, no se encuentra probando números |
+| `ancho` | int | No | | Ancho de la original, ya enderezada |
+| `alto` | int | No | | Alto de la original, ya enderezada |
+| `bytes_grande` | int | No | | Peso de la versión grande |
+| `bytes_miniatura` | int | No | | Peso de la miniatura |
+| `id_empleado_sube` | int | No | | FK a `empleados` |
+| `fecha_subida` | datetimeoffset(0) | No | `SYSDATETIMEOFFSET()` | |
+
+Restricciones: `pk_imagenes`, `fk_imagenes_empleado`, `uq_imagenes_clave`, `ck_imagenes_medidas` (medidas y pesos mayores que cero). Índice `ix_imagenes_empleado` para la clave foránea.
+
+---
+
 ## Vista, triggers y procedimiento
 
 | Objeto | Tipo | Qué hace |
@@ -313,3 +382,4 @@ Restricciones: `pk_rostros_empleado`, `fk_rostros_empleado_empleado`. Índice ú
 | `AgregarRostrosEmpleado` | 06-11-2026 | Tabla `rostros_empleado` |
 | `SepararEstadoPedidoYPago` | 12-11-2026 | Pedido con estado operativo y de pago independientes, monto abonado, saldo, factura y origen; «cancelado» pasa a «anulado» |
 | `HistorialDePagos` | 12-11-2026 | Tabla `pagos` (historial de abonos con fecha, medio y quién lo registró) y su trigger; restricción `ck_pedidos_montos_enteros`. Si algún pedido ya tenía un monto abonado, se conserva como un pago inicial. Si alguno tuviera centavos, la migración se detiene sin cambiar nada |
+| `ServiciosComunes` | 13-11-2026 | Tablas nuevas `correos_salientes` (cola de correo), `consentimientos` e `imagenes`. Solo crea tablas: no toca datos ni tablas existentes |

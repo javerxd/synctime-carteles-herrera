@@ -23,6 +23,8 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Crear y modificar pedidos | No | No | Sí | No | Sí |
 | Eliminar clientes, cotizaciones y pedidos | No | No | No | No | Sí |
 | Mantener categorías, productos y publicaciones | No | No | No | No | Sí |
+| Subir imágenes (`POST /imagenes`) | No | No | No | No | Sí |
+| Ver una imagen subida (`GET /imagenes/{archivo}`) | Sí | Sí | Sí | Sí | Sí |
 | Cambiar el estado del local | No | No | No | No | Sí |
 | Crear empleados | No | No | No | No | Sí |
 | Ver la métrica de conversión | No | No | No | No | Sí |

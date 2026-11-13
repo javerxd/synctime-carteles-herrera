@@ -1,4 +1,7 @@
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Correo;
 using LetrerosHerreraSYNCTIMEapi.Models;
+using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
+using LetrerosHerreraSYNCTIMEapi.Services;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -15,9 +18,38 @@ public sealed class SaludBaseDeDatos(LetrerosHerreradbContext db) : IHealthCheck
             : HealthCheckResult.Unhealthy();
 }
 
+// Estado de los avisos por correo. "degradado" (nunca "fallo") si hay avisos que no salieron, que esperan
+// hace mas de 30 minutos o que ni siquiera llegaron a la cola, si no hay a quien avisar, o si falta
+// configuracion para enviar. No afecta /salud/lista: un problema del correo no debe sacar la API de
+// servicio. Un monitor externo gratuito puede revisar esta ruta y avisar al dueño por otro medio.
+public sealed class SaludCorreo(
+    TrabajadorColaCorreo cola,
+    IDestinatariosAvisos destinatarios,
+    RegistroFallosAvisos fallosAvisos,
+    TimeProvider reloj) : IHealthCheck
+{
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var resumen = await cola.ResumirAsync(cancellationToken);
+            var sinDestinatarios = (await destinatarios.ObtenerAsync(cancellationToken)).Count == 0;
+            var problemas = resumen.HayProblemas || sinDestinatarios || !cola.Listo(out _)
+                || fallosAvisos.HuboFalloDesde(reloj.GetUtcNow().AddDays(-1));
+            return problemas ? HealthCheckResult.Degraded() : HealthCheckResult.Healthy();
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            // Por ejemplo, la base sin la migracion de la cola.
+            return HealthCheckResult.Degraded(exception: error);
+        }
+    }
+}
+
 public static class Salud
 {
     public const string EtiquetaLista = "lista";
+    public const string EtiquetaCorreo = "correo";
 
     public static void MapSalud(this WebApplication app)
     {
@@ -25,6 +57,9 @@ public static class Salud
             .AllowAnonymous();
         // Esta si consulta la base en cada llamada: sin limite, serviria para agotar sus conexiones.
         app.MapHealthChecks("/salud/lista", new HealthCheckOptions { Predicate = c => c.Tags.Contains(EtiquetaLista), ResponseWriter = Escribir })
+            .AllowAnonymous()
+            .RequireRateLimiting(PoliticaDeLimite);
+        app.MapHealthChecks("/salud/correo", new HealthCheckOptions { Predicate = c => c.Tags.Contains(EtiquetaCorreo), ResponseWriter = Escribir })
             .AllowAnonymous()
             .RequireRateLimiting(PoliticaDeLimite);
     }
@@ -39,7 +74,12 @@ public static class Salud
             comprobaciones = informe.Entries.ToDictionary(e => e.Key, e => Texto(e.Value.Status))
         });
 
-    private static string Texto(HealthStatus estado) => estado == HealthStatus.Healthy ? "ok" : "fallo";
+    private static string Texto(HealthStatus estado) => estado switch
+    {
+        HealthStatus.Healthy => "ok",
+        HealthStatus.Degraded => "degradado",
+        _ => "fallo"
+    };
 }
 
 public static class CabecerasDeSeguridad

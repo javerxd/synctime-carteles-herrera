@@ -41,4 +41,31 @@ public class SolicitudRepository(LetrerosHerreradbContext db) : ISolicitudReposi
 
     public async Task SaveChangesAsync(CancellationToken ct) =>
         await db.SaveChangesAsync(ct);
+
+    public async Task<SolicitudParaAviso?> DatosParaAvisoAsync(int idSolicitud, CancellationToken ct)
+    {
+        var fila = await db.Solicitudes.AsNoTracking()
+            .Where(s => s.IdSolicitud == idSolicitud)
+            .Select(s => new
+            {
+                s.IdSolicitud,
+                s.FechaSolicitud,
+                s.Origen,
+                RegistradaPor = s.EmpleadoRegistra == null ? null : s.EmpleadoRegistra.Nombre + " " + s.EmpleadoRegistra.Apellido,
+                ClienteNombre = s.Cliente!.Nombre + " " + s.Cliente.Apellido,
+                ClienteTelefono = s.Cliente.Telefono,
+                ClienteEmail = s.Cliente.Email,
+                s.DescripcionGeneral,
+                Detalles = s.Detalles
+                    .OrderBy(d => d.IdSolicitudDetalle)
+                    .Select(d => new DetalleParaAviso(d.Producto!.Nombre, d.Descripcion, d.AnchoMm, d.AltoMm, d.Cantidad))
+                    .ToList()
+            })
+            .SingleOrDefaultAsync(ct);
+
+        return fila is null
+            ? null
+            : new SolicitudParaAviso(fila.IdSolicitud, fila.FechaSolicitud, fila.Origen, fila.RegistradaPor, fila.ClienteNombre,
+                fila.ClienteTelefono, fila.ClienteEmail, fila.DescripcionGeneral, fila.Detalles);
+    }
 }

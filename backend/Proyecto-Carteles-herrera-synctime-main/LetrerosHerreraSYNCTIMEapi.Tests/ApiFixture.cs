@@ -29,9 +29,15 @@ public sealed class ApiFixture : IAsyncLifetime
     public static readonly string AdminPassword = $"Pr-{Guid.NewGuid():N}"[..24];
     public const int TiempoMinimoFalloMs = 60;
     public const string ServidorPredeterminado = @"localhost\SQLEXPRESS";
+    public const string AvisosTaller = "avisos.taller@test.local";
 
     // El prefijo identifica las bases temporales: es lo unico que este codigo tiene permitido eliminar.
     private readonly string nombreBase = $"{BasesDeDatos.PrefijoPruebas}{Guid.NewGuid():N}";
+
+    // Carpetas propias de esta ejecucion para la bandeja de correo y las imagenes; se borran al terminar.
+    private readonly string carpetaTemporal = Path.Combine(Path.GetTempPath(), $"synctime-pruebas-{Guid.NewGuid():N}");
+    public string CarpetaBandeja => Path.Combine(carpetaTemporal, "bandeja");
+    public string CarpetaImagenes => Path.Combine(carpetaTemporal, "imagenes");
     private WebApplicationFactory<Program> factory = null!;
     private string? tokenAdmin;
     private int secuencia;
@@ -63,7 +69,24 @@ public sealed class ApiFixture : IAsyncLifetime
             ["RateLimiting__PorCuenta"] = "100000",
             ["RateLimiting__Salud"] = "100000",
             ["RostroFacial__ClaveCifrado"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
-            ["RostroFacial__TiempoMinimoFalloMs"] = TiempoMinimoFalloMs.ToString()
+            ["RostroFacial__TiempoMinimoFalloMs"] = TiempoMinimoFalloMs.ToString(),
+            // Los correos van a una bandeja temporal y la cola no corre sola: cada prueba procesa cuando lo
+            // necesita. Las variables de entorno pisan los User Secrets del equipo, asi que ni la cuenta real
+            // ni su contraseña pueden llegar a estas pruebas: el SMTP apunta a un puerto local sin servidor.
+            ["Correo__Modo"] = "Bandeja",
+            ["Correo__Bandeja__Carpeta"] = CarpetaBandeja,
+            ["Correo__AvisosTaller"] = AvisosTaller,
+            ["Correo__Cola__Activa"] = "false",
+            // Muchas pruebas crean solicitudes: el tope contra envios masivos se prueba aparte.
+            ["Correo__TopeAvisosPorHora"] = "100000",
+            ["Correo__Smtp__Servidor"] = "127.0.0.1",
+            ["Correo__Smtp__Puerto"] = "9",
+            ["Correo__Smtp__Seguridad"] = "Ninguna",
+            ["Correo__Smtp__Usuario"] = "sin-uso@test.local",
+            ["Correo__Smtp__Password"] = "sin-uso",
+            ["Correo__Remitente__Direccion"] = "synctime@test.local",
+            ["Sitio__UrlPublica"] = "https://synctime.test",
+            ["Imagenes__Carpeta"] = CarpetaImagenes
         };
 
         // Program lee la configuracion antes de que WebApplicationFactory pueda cambiarla,
@@ -93,8 +116,15 @@ public sealed class ApiFixture : IAsyncLifetime
         finally
         {
             await factory.DisposeAsync();
+            if (Directory.Exists(carpetaTemporal))
+                Directory.Delete(carpetaTemporal, recursive: true);
         }
     }
+
+    // Las pruebas de la cola de correo procesan "lo pendiente" y cuentan lo enviado en la ultima hora: se
+    // vacia antes, para que los avisos que dejaron otras pruebas al crear solicitudes no se mezclen.
+    public Task LimpiarColaDeCorreoAsync() =>
+        ConsultarAsync(db => db.CorreosSalientes.ExecuteDeleteAsync());
 
     public HttpClient Cliente(string? token = null)
     {
@@ -157,11 +187,26 @@ public sealed class ApiFixture : IAsyncLifetime
 
     // Otra API sobre la misma base con un valor de configuracion distinto. Program lo lee al arrancar:
     // la variable se cambia solo para eso, y se restaura aunque falle, para no afectar a las demas pruebas.
-    public ApiTemporal ConVariable(string variable, string valor)
+    public ApiTemporal ConVariable(string variable, string valor) =>
+        ConVariables(new Dictionary<string, string> { [variable] = valor });
+
+    // Igual, con varios valores a la vez y, si se pide, con sus logs entregados a un proveedor.
+    public ApiTemporal ConVariables(IReadOnlyDictionary<string, string> variables, ILoggerProvider? logs = null)
     {
-        var anterior = Environment.GetEnvironmentVariable(variable);
-        Environment.SetEnvironmentVariable(variable, valor);
-        var otra = new WebApplicationFactory<Program>();
+        var anteriores = variables.Keys.ToDictionary(v => v, Environment.GetEnvironmentVariable);
+        foreach (var (variable, valor) in variables)
+            Environment.SetEnvironmentVariable(variable, valor);
+
+        WebApplicationFactory<Program> otra = new();
+        if (logs is not null)
+        {
+            otra = otra.WithWebHostBuilder(host => host.ConfigureLogging(logging =>
+            {
+                logging.SetMinimumLevel(LogLevel.Trace);
+                logging.AddFilter(_ => true);
+                logging.AddProvider(logs);
+            }));
+        }
         try
         {
             _ = otra.Server;
@@ -173,14 +218,23 @@ public sealed class ApiFixture : IAsyncLifetime
         }
         finally
         {
-            Environment.SetEnvironmentVariable(variable, anterior);
+            foreach (var (variable, valor) in anteriores)
+                Environment.SetEnvironmentVariable(variable, valor);
         }
         return new ApiTemporal(otra);
     }
 
     public sealed class ApiTemporal(WebApplicationFactory<Program> factory) : IAsyncDisposable
     {
-        public HttpClient Cliente() => factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        public IServiceProvider Services => factory.Services;
+
+        public HttpClient Cliente(string? token = null)
+        {
+            var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            if (token is not null)
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            return client;
+        }
 
         public ValueTask DisposeAsync() => factory.DisposeAsync();
     }

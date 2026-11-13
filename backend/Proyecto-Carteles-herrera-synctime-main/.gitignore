@@ -23,3 +23,7 @@ secrets.json
 *.tmp
 TestResults/
 **/.test-obj/
+
+# Bandeja local de correo (desarrollo) e imagenes subidas: datos, no codigo
+**/bandeja-correo/
+**/almacen/

@@ -8,9 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.18.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="SkiaSharp" Version="4.154.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.154.1" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <PrivateAssets>all</PrivateAssets>
@@ -23,6 +26,11 @@
     </PackageReference>
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.6" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.20" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Logotipo de los correos: viaja dentro del mensaje (cid:) y no depende de que el sitio este publicado. -->
+    <EmbeddedResource Include="Recursos\logo-lh-correo.png" LogicalName="SyncTime.logo-lh-correo.png" />
   </ItemGroup>
 
 </Project>

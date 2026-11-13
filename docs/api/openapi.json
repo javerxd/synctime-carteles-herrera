@@ -35,6 +35,9 @@
     },
     {
       "name": "Indicadores"
+    },
+    {
+      "name": "Imágenes"
     }
   ],
   "paths": {
@@ -543,6 +546,24 @@
         ],
         "summary": "Devuelve la conversión mensual de las solicitudes en línea",
         "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/imagenes": {
+      "post": {
+        "tags": [
+          "Imágenes"
+        ],
+        "summary": "Sube una imagen JPG, PNG o WebP de hasta 10 MB y la guarda en WebP en dos tamaños (1600 y 640 px)",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/imagenes/{archivo}": {
+      "get": {
+        "tags": [
+          "Imágenes"
+        ],
+        "summary": "Sirve una imagen subida ({clave}-grande.webp o {clave}-miniatura.webp) con caché de un año",
+        "x-acceso": "publico"
       }
     }
   },

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Repositories;
 using LetrerosHerreraSYNCTIMEapi.Security;
+using LetrerosHerreraSYNCTIMEapi.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,7 +17,7 @@ public static class PortalClienteApi
     {
         // ── Solicitud rapida, sin cuenta ──
         // Solo confirma la recepcion: no devuelve datos del cliente para no exponerlos conociendo un telefono.
-        app.MapPost("/api/v1/solicitudes/online", async (CrearSolicitudOnlineRequest req, LetrerosHerreradbContext db, ISolicitudRepository repo, CancellationToken ct) =>
+        app.MapPost("/api/v1/solicitudes/online", async (CrearSolicitudOnlineRequest req, LetrerosHerreradbContext db, ISolicitudRepository repo, IAvisosDelTaller avisos, CancellationToken ct) =>
         {
             var contacto = req.Cliente;
             if (contacto is null || string.IsNullOrWhiteSpace(contacto.Nombre) || string.IsNullOrWhiteSpace(contacto.Apellido) || string.IsNullOrWhiteSpace(contacto.Telefono))
@@ -56,6 +57,7 @@ public static class PortalClienteApi
             };
             await repo.AddAsync(solicitud, ct);
             await repo.SaveChangesAsync(ct);
+            await avisos.SolicitudNuevaAsync(solicitud.IdSolicitud);
 
             return Results.Created($"/api/v1/solicitudes/online/{solicitud.IdSolicitud}",
                 new { solicitud.IdSolicitud, solicitud.Origen, solicitud.Estado, solicitud.FechaSolicitud });
@@ -124,7 +126,7 @@ public static class PortalClienteApi
                 .ToListAsync(ct));
         });
 
-        mis.MapPost("/solicitudes", async (CrearMiSolicitudRequest req, ClaimsPrincipal user, ISolicitudRepository repo, CancellationToken ct) =>
+        mis.MapPost("/solicitudes", async (CrearMiSolicitudRequest req, ClaimsPrincipal user, ISolicitudRepository repo, IAvisosDelTaller avisos, CancellationToken ct) =>
         {
             var error = await SolicitudValidacion.ValidarAsync(req.DescripcionGeneral, req.Detalles, repo, ct);
             if (error is not null)
@@ -138,6 +140,7 @@ public static class PortalClienteApi
             };
             await repo.AddAsync(solicitud, ct);
             await repo.SaveChangesAsync(ct);
+            await avisos.SolicitudNuevaAsync(solicitud.IdSolicitud);
 
             return Results.Created("/api/v1/mis/solicitudes",
                 new { solicitud.IdSolicitud, solicitud.Origen, solicitud.Estado, solicitud.FechaSolicitud });

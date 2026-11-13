@@ -47,4 +47,9 @@ Ninguna de estas licencias exige publicar el código propio del proyecto. La MPL
 
 ## Paquetes del backend
 
-Se inventarían en la fase 16 junto con las imágenes de contenedor.
+El inventario completo se hace en la fase 16, junto con las imágenes de contenedor. Los que agrega cada fase se anotan aquí al incorporarlos:
+
+| Paquete | Versión | Licencia | Uso |
+|---|---|---|---|
+| MailKit (incluye MimeKit) | 4.18.2 | MIT | Fase 4: envío de correo por SMTP y armado de los mensajes. Se eligió la 4.18.2 y no la 5.0.0, publicada tres días antes, para no estrenar una versión mayor |
+| SkiaSharp y `SkiaSharp.NativeAssets.Linux.NoDependencies` | 4.154.1 | MIT (bibliotecas nativas de Skia, libwebp, libpng y libjpeg-turbo: BSD y similares) | Fase 4: conversión de imágenes a WebP. El paquete de Linux deja lista la imagen de contenedor de la fase 16 |

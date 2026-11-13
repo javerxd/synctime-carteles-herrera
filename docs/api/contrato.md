@@ -110,6 +110,15 @@ Todas llevan el prefijo `/api/v1`. Un `?` indica un campo opcional.
 | `GET /cartel-digital` | Publico | `{ abiertoEnLocal, mensajeEstado, tiempoEstimadoRegreso, fechaUltimaModificacion }` |
 | `PUT /cartel-digital` | Gestion | `{ abiertoEnLocal, mensajeEstado, tiempoEstimadoRegreso? }` |
 
+### Imagenes (fase 4)
+
+| Ruta | Quien | Cuerpo y notas |
+| --- | --- | --- |
+| `POST /imagenes` | Gestion | `multipart/form-data` con el campo `archivo`: JPG, PNG o WebP de hasta 10 MB (el tipo se reconoce por el contenido, no por el nombre). Responde `201` con `{ clave, ancho, alto, urlGrande, urlMiniatura }`. Se guarda en WebP: 1600 px y 640 px por el lado mayor, sin agrandar, enderezada y sin metadatos. `400` si no es una imagen valida, `413` si supera 10 MB |
+| `GET /imagenes/{archivo}` | Publico | `{clave}-grande.webp` o `{clave}-miniatura.webp`. `Cache-Control: public, max-age=31536000, immutable` y `ETag`. `404` para cualquier otro nombre |
+
+Al crear una solicitud (`POST /solicitudes`, `POST /solicitudes/online` y `POST /mis/solicitudes`) la API deja en la cola de correo un aviso para el taller. La respuesta no cambia ni espera al servidor de correo: si el aviso no se puede encolar, la solicitud igual queda guardada y el problema se registra.
+
 ### Solicitudes
 
 Un detalle tiene la forma `{ idProducto, descripcion, anchoMm?, altoMm?, cantidad? }`. Ancho y alto van juntos, la cantidad por defecto es 1 y se admiten hasta 50 detalles. Toda solicitud nueva necesita una `descripcionGeneral` o al menos un detalle.

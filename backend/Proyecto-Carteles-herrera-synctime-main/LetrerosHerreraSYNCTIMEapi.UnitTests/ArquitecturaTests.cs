@@ -63,6 +63,10 @@ public class ArquitecturaTests
     [InlineData("Microsoft.EntityFrameworkCore")]
     [InlineData("LetrerosHerreradbContext")]
     [InlineData("IResult")]
+    // El negocio compone los correos y decide sobre las imagenes; enviarlos y procesarlas es de Infraestructura.
+    [InlineData("MailKit")]
+    [InlineData("MimeKit")]
+    [InlineData("SkiaSharp")]
     public void ElNegocio_NoConoceHttpNiLaBase(string prohibido)
     {
         var infractores = Fuentes("Negocio").Where(f => f.Texto.Contains(prohibido)).Select(f => f.Nombre);
@@ -76,8 +80,23 @@ public class ArquitecturaTests
     [InlineData("IResult")]
     public void LosDatos_NoConocenLaCapaDeApi(string prohibido)
     {
-        var infractores = Fuentes("Datos").Concat(Fuentes("Repositories"))
+        var infractores = Fuentes("Datos").Concat(Fuentes("Repositories")).Concat(Fuentes("Infraestructura"))
             .Where(f => f.Texto.Contains(prohibido)).Select(f => f.Nombre);
         Assert.Empty(infractores);
+    }
+
+    // Los destinatarios de los avisos del taller salen de un solo servicio (IDestinatariosAvisos): hoy lo lee
+    // de Correo:AvisosTaller y en la fase 9 leera primero el valor guardado en la base. Si otro archivo
+    // leyera esa configuracion, ese cambio no le llegaria.
+    [Fact]
+    public void SoloUnArchivo_ConoceLaConfiguracionDeLosAvisosDelTaller()
+    {
+        var lectores = Directory.EnumerateFiles(Proyecto, "*.cs", SearchOption.AllDirectories)
+            .Where(ruta => !ruta.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                        && !ruta.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+            .Where(ruta => System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(ruta), @"\bAvisosTaller\b"))
+            .Select(ruta => Path.GetRelativePath(Proyecto, ruta).Replace(Path.DirectorySeparatorChar, '/'));
+
+        Assert.Equal(["Datos/Correo/DestinatariosAvisos.cs"], lectores);
     }
 }

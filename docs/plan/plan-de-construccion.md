@@ -65,7 +65,7 @@ Tras cerrar la fase 1, la profesora guía revisó el proyecto y pidió cambios o
 - **Montos:** enteros en pesos, validados en API e interfaz. No cambio el tipo de las columnas existentes.
 - **Capas del backend:** carpetas `Api`, `Negocio` y `Datos` dentro del mismo proyecto, con pruebas de arquitectura. No separo en proyectos para no arriesgar las migraciones aplicadas.
 - **Mapa:** imagen estática de la ubicación, alojada en el sitio, que pasa a mapa interactivo (Leaflet con OpenStreetMap) cuando el visitante lo activa. Así nada se pide a terceros sin una acción suya.
-- **Correo:** MailKit con cola de salida. Como no hay Docker local, en desarrollo los correos se guardan en una bandeja local (archivos `.eml` en una carpeta, visibles en una ruta que solo existe en desarrollo). El envío SMTP real se prueba con el contenedor de correo en Codespaces o con la cuenta del taller.
+- **Correo:** MailKit con cola de salida. Como no hay Docker local, en desarrollo los correos se guardan en una bandeja local (archivos `.eml` en una carpeta, visibles en una ruta que solo existe en desarrollo). El envío SMTP real se prueba con la cuenta de Gmail del taller desde la fase 4 (cambio del 13-11-2026).
 - **Contra el spam en formularios públicos:** campo trampa, tiempo mínimo y límite por IP. Sin captcha de terceros. Las solicitudes en línea, además, exigen cuenta con correo verificado o Google y respetan los límites de RNFP33.
 - **Gráficos, PDF, QR y proveedor de IA:** se eligen en su fase, verificando peso y licencia (RNFO16, RNFO17). El proveedor de IA queda detrás de una interfaz; tu documento nombra Gemini y la clave la pones tú.
 - **"Claude Design":** no hay una skill instalada con ese nombre. Sus criterios (componentes limpios, HTML semántico, separación modular, cero dependencias pesadas) los aplico con `ecc:react-patterns`, `ecc:frontend-patterns` y el agente `ecc:react-reviewer`. Si te refieres a un plugin concreto, dímelo.
@@ -183,11 +183,19 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 
 ### Fase 4 — Servicios comunes: correo, consentimientos e imágenes
 **Requisitos:** RFS08 (infraestructura de correo), RFS12 (registro de consentimientos), RNFP17, RNFP22 (imágenes), RNFE05.
+**Objetivo principal del sistema (indicado por el usuario el 13-11-2026):** que el dueño reciba en su Gmail un aviso por cada solicitud nueva.
 - **Correo:** `IServicioCorreo`, cola `correos_salientes`, envío en segundo plano con reintentos y tiempo máximo de espera; bandeja local en desarrollo. Un fallo del servidor de correo nunca bloquea la petición.
+  - **SMTP con MailKit**, configurado por variables (`Correo:Smtp:*`) con valores listos para Gmail: `smtp.gmail.com`, puerto 587 y STARTTLS. El usuario y la contraseña de aplicación van en User Secrets (en producción, variables de entorno); nunca en el código ni en el repositorio. Si la cuenta no admite contraseña de aplicación, se propone OAuth2.
+  - **Destinatarios de los avisos del taller:** un único servicio, `IDestinatariosAvisos`, que por ahora lee `Correo:AvisosTaller` (uno o más correos). Nada más lee esa configuración; en la fase 9 el servicio leerá primero un valor guardado en la base.
+  - **Plantilla base** de correo en HTML y texto plano, en español, legible en el teléfono y con la identidad visual del sistema.
+  - **Aviso de solicitud nueva** al taller por cada solicitud, presencial o en línea.
+  - **Envío real de prueba** al correo de destino con un comando de mantenimiento. El usuario escribe la contraseña de aplicación en User Secrets; si aún no la tiene, la fase cierra con la bandeja local y queda anotado en el informe.
+  - **Pruebas:** la cola reintenta y nunca bloquea la petición; un SMTP caído no rompe la API; ninguna credencial aparece en los registros ni en las respuestas.
 - **Consentimientos:** tabla `consentimientos` con el identificador del usuario (o del envío, si es un visitante sin cuenta), tipo, versión del documento, fecha y hora, y su revocación. Los documentos legales llevan número de versión.
 - **Imágenes:** subida con validación de tipo y tamaño, conversión a WebP en dos tamaños y servicio con `Cache-Control`.
+- **Necesito de ti:** la cuenta de Gmail que enviará los avisos, con su contraseña de aplicación escrita por ti en User Secrets, y el correo de destino de los avisos.
 
-**Cierre:** un correo de prueba llega a la bandeja local y un servidor de correo caído no rompe la API; una imagen subida se sirve en WebP; un consentimiento queda registrado con versión y hora.
+**Cierre:** un correo de prueba llega a la bandeja local y un servidor de correo caído no rompe la API; si la contraseña de aplicación está disponible, un correo real llega a la casilla de destino; una imagen subida se sirve en WebP; un consentimiento queda registrado con versión y hora.
 
 ### Fase 5 — Portada pública
 **Requisitos:** RFS01, RFS02 (lectura y QR), RFS08 (contacto), RFS12 (documentos legales, consentimiento del formulario y cookies), RNFP32 (catálogo), RFU01–03, RFU30–33, RNFP21, RNFE01, RNFE09, RNFO17 (logos), E22, E23, S01, S02, S22. Parte de la interfaz ya existe desde la fase 3; esta fase completa su lógica y sus datos.
@@ -240,7 +248,7 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 
 ### Fase 9 — Mantenedores y estado del local
 **Requisitos:** RFS07, RFS02 (edición del horario y del cartel), RFS01 (autorización de logos), RNFP32, RNFO03, RNFO08, RNFP10, RFU16–18, RFU20, E10–E15.
-- **Backend:** mantenimiento de materiales y de empleados (editar, cambiar rol, desactivar; al desactivar se borra su rostro y se revoca su sesión en el mismo paso); horario editable y estado del local (abierto, ausente, mensaje, regreso estimado) modificable por todo el personal, ambos con registro de quién y cuándo; disponibilidad horaria de los empleados y su consulta pública.
+- **Backend:** mantenimiento de materiales y de empleados (editar, cambiar rol, desactivar; al desactivar se borra su rostro y se revoca su sesión en el mismo paso); horario editable y estado del local (abierto, ausente, mensaje, regreso estimado) modificable por todo el personal, ambos con registro de quién y cuándo; disponibilidad horaria de los empleados y su consulta pública; correo de destino de los avisos del taller editable por el dueño y guardado en la base (`IDestinatariosAvisos` lo lee primero ahí y, si no hay valor, desde `Correo:AvisosTaller`).
 - **Frontend:** mantenedores (la interfaz dice «administrar», nunca «CRUD») de categorías, tipos de letrero, publicaciones (con subida de imagen y marca de permiso de logo), materiales y empleados, con búsqueda y paginación; horario y estado del local; registro de disponibilidad, y su vista para los clientes en la portada, mostrando franjas de atención sin datos personales del empleado.
 
 **Cierre:** cada mantenedor probado con sus roles; una publicación con logo sin autorización no se puede hacer visible.
@@ -263,7 +271,7 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
   - Descarga de los datos personales e historial (JSON) y **baja de la cuenta por inhabilitación** (borrado lógico): se conservan los pedidos para la integridad histórica y contable, el cliente deja de ingresar y de recibir correos, se borran los datos que no hacen falta (como la contraseña) y se entrega un comprobante. Pendiente de revisión legal (ver `desviaciones.md`).
   - La auditoría registra cada abono o pago (quién, cuándo y cuánto).
 - **Frontend:** preferencias y página de baja; "Mis datos" (descargar, dar de baja la cuenta); visor de auditoría con filtros.
-- **Necesito de ti:** una cuenta SMTP del taller para el envío real. Sin ella queda probado contra la bandeja local, y el envío SMTP solo en Codespaces (fase 16).
+- La cuenta SMTP del taller se pide en la fase 4 (cambio del 13-11-2026). Los correos al cliente usan la misma cola y la misma plantilla base.
 
 **Cierre:** cada cambio de estado genera su correo; la baja funciona sin sesión; toda escritura en entidades principales deja registro.
 
@@ -354,7 +362,7 @@ Los puntos 2 y 3 ocurren fuera de este equipo: hasta que existan esas evidencias
 | Revisar las decisiones del ajuste del 12-11-2026 (`desviaciones.md`) | antes de la fase 2 | Sigo con ellas |
 | Autorizar las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos` en la base real | cuando quieras, a más tardar en la fase 8 | La base real queda con el esquema anterior |
 | Confirmar los diagramas de estados | 7 | No programo el flujo |
-| Cuenta SMTP del taller | 11 | Probado solo contra el receptor local |
+| Cuenta SMTP del taller (Gmail con contraseña de aplicación) y correo de destino de los avisos | 4 | Probado solo contra la bandeja local y un servidor SMTP de pruebas |
 | ID de cliente OAuth de Google y clave de IA | 14 | Probado con simulador |
 | Prueba manual con NVDA y prueba en Safari real | 15 | Queda el guion sin ejecutar |
 | Permiso para subir la rama, y ejecutar el guion de verificación en un Codespace | 16 | Contenedores construidos pero sin evidencia de `docker compose up` |

@@ -3,7 +3,11 @@ using System.Security.Claims;
 using System.Text;
 using LetrerosHerreraSYNCTIMEapi.Api;
 using LetrerosHerreraSYNCTIMEapi.Datos;
+using LetrerosHerreraSYNCTIMEapi.Datos.Correo;
 using LetrerosHerreraSYNCTIMEapi.Endpoints;
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Correo;
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Imagenes;
+using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
 using LetrerosHerreraSYNCTIMEapi.Middleware;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.OpenApi;
@@ -14,6 +18,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Threading.RateLimiting;
@@ -59,6 +64,32 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddSingleton<RostroFacialService>();
 builder.Services.AddScoped<ISolicitudRepository, SolicitudRepository>();
 builder.Services.AddScoped<IUnidadDeTrabajo, UnidadDeTrabajo>();
+builder.Services.AddSingleton(TimeProvider.System);
+
+// Servicios comunes (fase 4): correo con cola de salida, consentimientos e imagenes.
+// El correo se envia en segundo plano: una peticion solo deja el mensaje en correos_salientes.
+// Un valor mal escrito impide arrancar: es preferible a una API que acepta solicitudes y nunca avisa.
+builder.Services.AddOptions<OpcionesCorreo>()
+    .Bind(builder.Configuration.GetSection(OpcionesCorreo.Seccion))
+    .Validate(o => o.ModoValido, "Correo:Modo debe ser Smtp o Bandeja.")
+    .Validate(o => o.Smtp.Opciones is not null, "Correo:Smtp:Seguridad debe ser StartTls, SslAlIniciar o Ninguna.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<RegistroFallosAvisos>();
+builder.Services.AddSingleton<SenalColaCorreo>();
+builder.Services.AddSingleton<IServicioCorreo, ServicioCorreoEnCola>();
+builder.Services.AddScoped<IDestinatariosAvisos, DestinatariosAvisosDesdeConfiguracion>();
+builder.Services.AddSingleton<EnviadorSmtp>();
+builder.Services.AddSingleton<EnviadorBandejaLocal>();
+builder.Services.AddSingleton<IEnviadorCorreo>(sp => sp.GetRequiredService<IOptions<OpcionesCorreo>>().Value.EsBandeja
+    ? sp.GetRequiredService<EnviadorBandejaLocal>()
+    : sp.GetRequiredService<EnviadorSmtp>());
+builder.Services.AddSingleton<TrabajadorColaCorreo>();
+builder.Services.AddHostedService<ProcesadorColaCorreo>();
+builder.Services.AddScoped<IAvisosDelTaller, AvisosDelTaller>();
+builder.Services.AddScoped<IServicioConsentimientos, ServicioConsentimientos>();
+builder.Services.AddOptions<OpcionesImagenes>().Bind(builder.Configuration.GetSection(OpcionesImagenes.Seccion));
+builder.Services.AddSingleton<AlmacenImagenes>();
+builder.Services.AddScoped<ServicioImagenes>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
 builder.Services.AddProblemDetails(options =>
@@ -81,7 +112,8 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.
 builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
 
 builder.Services.AddHealthChecks()
-    .AddCheck<SaludBaseDeDatos>("base_de_datos", tags: [Salud.EtiquetaLista]);
+    .AddCheck<SaludBaseDeDatos>("base_de_datos", tags: [Salud.EtiquetaLista])
+    .AddCheck<SaludCorreo>("correo", tags: [Salud.EtiquetaCorreo]);
 
 // Controles transversales: solo el frontend permitido y limites contra abuso.
 builder.Services.AddCors(options =>
@@ -117,6 +149,8 @@ var limiteLoginFacial = builder.Configuration.GetValue("RateLimiting:LoginFacial
 var limiteReautenticacion = builder.Configuration.GetValue("RateLimiting:Reautenticacion", limiteLogin);
 var limitePublico = builder.Configuration.GetValue("RateLimiting:Publico", 10);
 var limiteSalud = builder.Configuration.GetValue("RateLimiting:Salud", 60);
+// Una pagina de la vitrina pide varias imagenes a la vez; el navegador las guarda despues por un año.
+var limiteImagenes = builder.Configuration.GetValue("RateLimiting:Imagenes", 600);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -129,6 +163,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("Publico", context => Ventana(Ip(context), limitePublico));
     // Holgado para que un orquestador pueda sondear cada pocos segundos, pero no ilimitado.
     options.AddPolicy(Salud.PoliticaDeLimite, context => Ventana(Ip(context), limiteSalud));
+    options.AddPolicy("Imagenes", context => Ventana(Ip(context), limiteImagenes));
 });
 // El limite por IP no basta contra quien reparte sus intentos entre muchas IP: este cuenta por cuenta.
 builder.Services.AddSingleton(new LimitadorPorCuenta(builder.Configuration.GetValue("RateLimiting:PorCuenta", limiteLogin)));
@@ -151,6 +186,13 @@ if (args.Contains(SemillaDemo.Comando))
     return;
 }
 
+// Comando de mantenimiento: envia un correo de prueba por SMTP a los destinatarios de los avisos y termina.
+if (args.Contains(PruebaDeCorreo.Comando))
+{
+    Environment.ExitCode = await PruebaDeCorreo.EjecutarAsync(app.Services);
+    return;
+}
+
 if (app.Environment.IsDevelopment())
 {
     await using var scope = app.Services.CreateAsyncScope();
@@ -163,6 +205,19 @@ if (app.Environment.IsDevelopment())
     else if ((await db.Database.GetPendingMigrationsAsync()).Any())
         app.Logger.LogWarning("La base {Base} tiene migraciones pendientes. No se aplican solas: respalde la base y ejecute 'dotnet ef database update'.", nombreBase);
 }
+else
+{
+    // Fuera de desarrollo tampoco se migra sola, pero una base atrasada debe notarse: sin la tabla de la
+    // cola, por ejemplo, ninguna solicitud avisaria al taller.
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
+    if ((await db.Database.GetPendingMigrationsAsync()).Any())
+        app.Logger.LogCritical("La base {Base} tiene migraciones pendientes: partes de la API (como los avisos por correo) fallaran hasta aplicarlas con respaldo previo.", nombreBase);
+}
+
+// A quien avisar de las solicitudes nuevas: si no hay nadie, se dice al arrancar (y lo muestra /salud/correo).
+await using (var scope = app.Services.CreateAsyncScope())
+    await scope.ServiceProvider.GetRequiredService<IDestinatariosAvisos>().ObtenerAsync(CancellationToken.None);
 
 // La base de demostracion recibe sus usuarios de la semilla, no de Bootstrap:Admin.
 if (!BasesDeDatos.EsDemo(nombreBase))
@@ -194,6 +249,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+    // Los correos del modo Bandeja, para verlos sin un programa de correo. Solo en desarrollo y en ese modo.
+    if (app.Services.GetRequiredService<IOptions<OpcionesCorreo>>().Value.EsBandeja)
+        app.MapBandejaLocal();
 }
 
 app.MapSalud();
@@ -206,6 +264,7 @@ app.MapSolicitudApi();
 app.MapPortalClienteApi();
 app.MapCotizacionApi();
 app.MapPedidoApi();
+app.MapImagenApi();
 
 app.Run();
 

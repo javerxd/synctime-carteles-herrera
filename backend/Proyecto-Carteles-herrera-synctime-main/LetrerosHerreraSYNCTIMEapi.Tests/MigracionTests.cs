@@ -34,6 +34,23 @@ public sealed class MigracionTests(ApiFixture api)
             Assert.DoesNotContain(prohibido, script);
     }
 
+    // Fase 4: la migracion solo agrega tablas nuevas. No toca datos ni tablas existentes, asi que no
+    // puede fallar por lo que ya haya guardado en la base real cuando se aplique alli.
+    [Fact]
+    public async Task ServiciosComunes_SoloCreaSusTablas()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_ServiciosComunes", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(
+            db.GetService<IMigrator>().GenerateScript("20261113010201_HistorialDePagos", ultima)));
+
+        Assert.Contains("CREATE TABLE [correos_salientes]", script);
+        Assert.Contains("CREATE TABLE [consentimientos]", script);
+        Assert.Contains("CREATE TABLE [imagenes]", script);
+        foreach (var prohibido in new[] { "ALTER TABLE", "DROP ", "UPDATE [", "DELETE FROM" })
+            Assert.DoesNotContain(prohibido, script);
+    }
+
     [Fact]
     public async Task Migrations_CreateTriggerViewAndProcedure()
     {
@@ -50,7 +67,14 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(25, restricciones.Count);
+        Assert.Equal(31, restricciones.Count);
+        // Fase 4: cola de correo, consentimientos e imagenes.
+        Assert.Contains("ck_correos_salientes_estado", restricciones);
+        Assert.Contains("ck_correos_salientes_intentos", restricciones);
+        Assert.Contains("ck_consentimientos_tipo", restricciones);
+        Assert.Contains("ck_consentimientos_titular", restricciones);
+        Assert.Contains("ck_consentimientos_revocacion", restricciones);
+        Assert.Contains("ck_imagenes_medidas", restricciones);
         Assert.Contains("ck_pedidos_montos_enteros", restricciones);
         // Historial de abonos: cada pago es positivo y usa un medio conocido.
         Assert.Contains("ck_pagos_monto", restricciones);

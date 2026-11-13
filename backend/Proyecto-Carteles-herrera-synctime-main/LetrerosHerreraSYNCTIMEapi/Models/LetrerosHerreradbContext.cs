@@ -25,6 +25,9 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<CartelDigital> CartelDigital { get; set; } = null!;
     public DbSet<MetricaConversionOnline> MetricasConversionOnline { get; set; } = null!;
     public DbSet<RostroEmpleado> RostrosEmpleado { get; set; } = null!;
+    public DbSet<CorreoSaliente> CorreosSalientes { get; set; } = null!;
+    public DbSet<Consentimiento> Consentimientos { get; set; } = null!;
+    public DbSet<Imagen> Imagenes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -538,6 +541,115 @@ public class LetrerosHerreradbContext : DbContext
                 .HasConstraintName("fk_rostros_empleado_empleado");
 
             entity.HasIndex(e => e.IdEmpleado).IsUnique().HasFilter("[fecha_revocacion] IS NULL").HasDatabaseName("uq_rostros_empleado_vigente");
+        });
+
+        // ── correos_salientes (fase 4) ──
+        // Las fechas son datetimeoffset: deciden cuando reintentar y no deben depender de la hora local.
+        modelBuilder.Entity<CorreoSaliente>(entity =>
+        {
+            entity.ToTable("correos_salientes", t =>
+            {
+                t.HasCheckConstraint("ck_correos_salientes_estado", "estado IN ('pendiente', 'enviando', 'enviado', 'fallido')");
+                t.HasCheckConstraint("ck_correos_salientes_intentos", "intentos >= 0");
+            });
+            entity.HasKey(e => e.IdCorreo).HasName("pk_correos_salientes");
+            entity.Property(e => e.IdCorreo).HasColumnName("id_correo");
+            entity.Property(e => e.Tipo).HasColumnName("tipo").HasMaxLength(40).IsUnicode(false);
+            entity.Property(e => e.Referencia).HasColumnName("referencia").HasMaxLength(64).IsUnicode(false);
+            entity.Property(e => e.Destinatarios).HasColumnName("destinatarios").HasMaxLength(1000);
+            entity.Property(e => e.ResponderA).HasColumnName("responder_a").HasMaxLength(254);
+            entity.Property(e => e.Asunto).HasColumnName("asunto").HasMaxLength(200);
+            entity.Property(e => e.CuerpoHtml).HasColumnName("cuerpo_html");
+            entity.Property(e => e.CuerpoTexto).HasColumnName("cuerpo_texto");
+            entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(10).IsUnicode(false)
+                .HasDefaultValue(EstadosCorreo.Pendiente);
+            entity.Property(e => e.Intentos).HasColumnName("intentos");
+            entity.Property(e => e.ProximoIntento).HasColumnName("proximo_intento").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.BloqueadoHasta).HasColumnName("bloqueado_hasta").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.UltimoError).HasColumnName("ultimo_error").HasMaxLength(200);
+            entity.Property(e => e.FechaCreacion).HasColumnName("fecha_creacion").HasColumnType("datetimeoffset(0)")
+                .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+            entity.Property(e => e.FechaEnvio).HasColumnName("fecha_envio").HasColumnType("datetimeoffset(0)");
+
+            // Lo que el trabajador busca en cada vuelta: lo pendiente cuya hora llego. Solo indexa lo que
+            // falta enviar, que es poco; lo enviado se acumula hasta la purga sin agrandar este indice.
+            entity.HasIndex(e => new { e.Estado, e.ProximoIntento })
+                .HasFilter("[estado] IN ('pendiente', 'enviando')")
+                .HasDatabaseName("ix_correos_salientes_pendientes");
+            entity.HasIndex(e => e.Referencia).HasFilter("[referencia] IS NOT NULL").HasDatabaseName("ix_correos_salientes_referencia");
+            // Purga de lo ya resuelto por antiguedad.
+            entity.HasIndex(e => e.FechaCreacion).HasDatabaseName("ix_correos_salientes_fecha");
+        });
+
+        // ── consentimientos (fase 4) ──
+        modelBuilder.Entity<Consentimiento>(entity =>
+        {
+            entity.ToTable("consentimientos", t =>
+            {
+                t.HasCheckConstraint("ck_consentimientos_tipo", "tipo IN ('privacidad', 'terminos', 'marketing', 'cookies')");
+                t.HasCheckConstraint("ck_consentimientos_titular",
+                    "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) + (CASE WHEN referencia_envio IS NULL THEN 0 ELSE 1 END) = 1");
+                t.HasCheckConstraint("ck_consentimientos_revocacion", "fecha_revocacion IS NULL OR fecha_revocacion >= fecha_aceptacion");
+            });
+            entity.HasKey(e => e.IdConsentimiento).HasName("pk_consentimientos");
+            entity.Property(e => e.IdConsentimiento).HasColumnName("id_consentimiento");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.ReferenciaEnvio).HasColumnName("referencia_envio").HasMaxLength(64).IsUnicode(false);
+            entity.Property(e => e.Tipo).HasColumnName("tipo").HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.VersionDocumento).HasColumnName("version_documento").HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.FechaAceptacion).HasColumnName("fecha_aceptacion").HasColumnType("datetimeoffset(0)")
+                .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+            entity.Property(e => e.FechaRevocacion).HasColumnName("fecha_revocacion").HasColumnType("datetimeoffset(0)");
+
+            // Consultas de "¿que tiene vigente este titular?"; tambien cubren las claves foraneas.
+            entity.HasIndex(e => new { e.IdCliente, e.Tipo }).HasFilter("[id_cliente] IS NOT NULL").HasDatabaseName("ix_consentimientos_cliente");
+            entity.HasIndex(e => new { e.IdEmpleado, e.Tipo }).HasFilter("[id_empleado] IS NOT NULL").HasDatabaseName("ix_consentimientos_empleado");
+            entity.HasIndex(e => new { e.ReferenciaEnvio, e.Tipo }).HasFilter("[referencia_envio] IS NOT NULL").HasDatabaseName("ix_consentimientos_envio");
+
+            // Una sola aceptacion vigente por titular, documento y version: dos peticiones simultaneas
+            // (un doble clic) no pueden dejar el mismo consentimiento dos veces.
+            entity.HasIndex(e => new { e.IdCliente, e.Tipo, e.VersionDocumento }).IsUnique()
+                .HasFilter("[id_cliente] IS NOT NULL AND [fecha_revocacion] IS NULL").HasDatabaseName("uq_consentimientos_cliente_vigente");
+            entity.HasIndex(e => new { e.IdEmpleado, e.Tipo, e.VersionDocumento }).IsUnique()
+                .HasFilter("[id_empleado] IS NOT NULL AND [fecha_revocacion] IS NULL").HasDatabaseName("uq_consentimientos_empleado_vigente");
+            entity.HasIndex(e => new { e.ReferenciaEnvio, e.Tipo, e.VersionDocumento }).IsUnique()
+                .HasFilter("[referencia_envio] IS NOT NULL AND [fecha_revocacion] IS NULL").HasDatabaseName("uq_consentimientos_envio_vigente");
+
+            // Sin cascada: la constancia debe sobrevivir aunque la cuenta se inhabilite.
+            entity.HasOne(e => e.Cliente).WithMany()
+                .HasForeignKey(e => e.IdCliente)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_consentimientos_cliente");
+            entity.HasOne(e => e.Empleado).WithMany()
+                .HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_consentimientos_empleado");
+        });
+
+        // ── imagenes (fase 4) ──
+        modelBuilder.Entity<Imagen>(entity =>
+        {
+            entity.ToTable("imagenes", t =>
+                t.HasCheckConstraint("ck_imagenes_medidas", "ancho > 0 AND alto > 0 AND bytes_grande > 0 AND bytes_miniatura > 0"));
+            entity.HasKey(e => e.IdImagen).HasName("pk_imagenes");
+            entity.Property(e => e.IdImagen).HasColumnName("id_imagen");
+            entity.Property(e => e.Clave).HasColumnName("clave").HasMaxLength(32).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.Ancho).HasColumnName("ancho");
+            entity.Property(e => e.Alto).HasColumnName("alto");
+            entity.Property(e => e.BytesGrande).HasColumnName("bytes_grande");
+            entity.Property(e => e.BytesMiniatura).HasColumnName("bytes_miniatura");
+            entity.Property(e => e.IdEmpleadoSube).HasColumnName("id_empleado_sube");
+            entity.Property(e => e.FechaSubida).HasColumnName("fecha_subida").HasColumnType("datetimeoffset(0)")
+                .HasDefaultValueSql("SYSDATETIMEOFFSET()");
+
+            entity.HasIndex(e => e.Clave).IsUnique().HasDatabaseName("uq_imagenes_clave");
+            entity.HasIndex(e => e.IdEmpleadoSube).HasDatabaseName("ix_imagenes_empleado");
+
+            entity.HasOne(e => e.EmpleadoSube).WithMany()
+                .HasForeignKey(e => e.IdEmpleadoSube)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_imagenes_empleado");
         });
 
         // ── vw_metricas_conversion_online (la crea la migracion ObjetosProgramablesV6) ──

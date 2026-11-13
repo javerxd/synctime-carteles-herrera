@@ -1,8 +1,8 @@
 # Modelo entidad-relación — LetreriaLosHerreraDB
 
-Estado del esquema: migración `HistorialDePagos` (12-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
+Estado del esquema: migración `ServiciosComunes` (13-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
 
-15 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
+18 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
 
 ## Diagrama
 
@@ -32,6 +32,10 @@ erDiagram
 
     empleados |o--o{ cartel_digital : "actualiza"
     empleados ||--o{ rostros_empleado : "registra su rostro"
+
+    clientes |o--o{ consentimientos : "acepta"
+    empleados |o--o{ consentimientos : "acepta"
+    empleados ||--o{ imagenes : "sube"
 
     categorias {
         int id_categoria PK
@@ -195,9 +199,40 @@ erDiagram
         varbinary token_equipo_hash
         datetimeoffset fecha_autorizacion_equipo
     }
+    consentimientos {
+        int id_consentimiento PK
+        int id_cliente FK "o"
+        int id_empleado FK "o"
+        varchar referencia_envio "o, visitante sin cuenta"
+        varchar tipo "privacidad, terminos, marketing, cookies"
+        varchar version_documento
+        datetimeoffset fecha_aceptacion
+        datetimeoffset fecha_revocacion
+    }
+    imagenes {
+        int id_imagen PK
+        char clave UK "aleatoria, nombre de los archivos"
+        int ancho
+        int alto
+        int bytes_grande
+        int bytes_miniatura
+        int id_empleado_sube FK
+        datetimeoffset fecha_subida
+    }
+    correos_salientes {
+        bigint id_correo PK
+        varchar tipo
+        varchar referencia "por ejemplo solicitud:123"
+        nvarchar destinatarios
+        nvarchar asunto
+        varchar estado "pendiente, enviando, enviado, fallido"
+        int intentos
+        datetimeoffset proximo_intento
+        nvarchar ultimo_error
+    }
 ```
 
-`horarios_atencion` no se relaciona con otras tablas: guarda el horario semanal publicado. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
+`horarios_atencion` no se relaciona con otras tablas: guarda el horario semanal publicado. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
 
 ## Flujo de negocio que expresa el modelo
 
