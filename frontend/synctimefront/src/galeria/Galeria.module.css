@@ -1,0 +1,343 @@
+/* Barra superior flotante de cristal (documento del cliente: backdrop-blur y blanco al 80 %) */
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: var(--capa-barra);
+  border-bottom: 1px solid transparent; /* solo se ve en alto contraste */
+  background: var(--barra-fondo);
+  backdrop-filter: var(--barra-desenfoque);
+  -webkit-backdrop-filter: var(--barra-desenfoque);
+  box-shadow: var(--barra-sombra);
+}
+
+.barraInterior {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-6);
+  max-width: var(--ancho-contenido);
+  min-height: var(--altura-barra);
+  margin: 0 auto;
+  padding: 0 var(--margen-pagina);
+}
+
+.marca {
+  display: grid;
+  flex: none;
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+  line-height: 1.15;
+}
+
+.marcaSistema {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-medio);
+  letter-spacing: 0;
+}
+
+.navegacion {
+  min-width: 0;
+  margin-inline-start: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.navegacion ul {
+  display: flex;
+  gap: var(--espacio-1);
+  margin: 0;
+  padding: var(--espacio-1);
+  list-style: none;
+}
+
+.navegacion a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tamano-control);
+  padding: 0 var(--espacio-3);
+  border-radius: var(--radio-md);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--duracion-estado) var(--curva-estandar),
+    color var(--duracion-estado) var(--curva-estandar);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .navegacion a:hover {
+    background: var(--color-hover-neutro);
+    color: var(--color-texto);
+  }
+}
+
+/* En el teléfono la barra apila marca y navegación y es más alta: deja de ser fija, para que nunca
+   tape el elemento con foco (WCAG 2.4.11) ni ocupe media pantalla con zoom. */
+@media (max-width: 47.99rem), (max-height: 30rem) {
+  .barra {
+    position: static;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .barraInterior {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding-top: var(--espacio-2);
+  }
+
+  .navegacion {
+    margin-inline: calc(-1 * var(--espacio-2));
+  }
+}
+
+.principal:focus {
+  outline: none;
+}
+
+.contenedor {
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  padding: 0 var(--margen-pagina);
+}
+
+.portada {
+  padding: var(--espacio-20) 0 var(--espacio-12);
+}
+
+.portada .contenedor {
+  display: grid;
+  justify-items: start;
+  gap: var(--espacio-4);
+}
+
+.tituloPortada {
+  max-width: 18ch;
+  font-size: clamp(var(--tamano-3xl), 6vw, var(--tamano-4xl));
+  letter-spacing: var(--tracking-portada);
+  line-height: 1.05;
+}
+
+.bajada {
+  max-width: var(--medida-lectura);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-md);
+}
+
+.seccion,
+.seccionAlterna {
+  padding: var(--espacio-16) 0;
+  scroll-margin-top: var(--altura-barra);
+}
+
+.seccionAlterna {
+  background: var(--color-fondo-alterno);
+}
+
+.encabezadoSeccion {
+  display: grid;
+  gap: var(--espacio-2);
+  margin-bottom: var(--espacio-8);
+}
+
+.descripcion {
+  max-width: var(--medida-lectura);
+  color: var(--color-texto-secundario);
+}
+
+.subtitulo {
+  margin-bottom: var(--espacio-3);
+  font-size: var(--tamano-md);
+}
+
+.grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-3);
+  margin-bottom: var(--espacio-4);
+}
+
+.pila {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.pequeno {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* Color */
+.muestras {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: var(--espacio-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muestra {
+  display: grid;
+  gap: var(--espacio-1);
+  font-size: var(--tamano-sm);
+}
+
+.color {
+  height: 4.5rem;
+  margin-bottom: var(--espacio-2);
+  border: 1px solid var(--color-borde-sutil);
+  border-radius: var(--radio-md);
+}
+
+.nombreToken {
+  font-weight: var(--peso-seminegrita);
+}
+
+.valor,
+.contraste {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tipografía */
+.escala {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.muestraPortada {
+  font-size: clamp(var(--tamano-3xl), 6vw, var(--tamano-4xl));
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-portada);
+  line-height: 1.05;
+}
+
+.parrafo {
+  max-width: var(--medida-lectura);
+}
+
+/* Campos */
+.formulario,
+.formularioDialogo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--espacio-5) var(--espacio-6);
+  align-items: start;
+}
+
+.formularioDialogo {
+  grid-template-columns: 1fr;
+}
+
+/* Estados */
+.bloqueEstados {
+  display: grid;
+  gap: var(--espacio-8);
+}
+
+.cartel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-4);
+}
+
+/* Tarjetas de la vitrina */
+.vitrina {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: var(--espacio-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trabajo {
+  height: 100%;
+}
+
+.foto {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  border-bottom: 1px solid var(--color-borde-sutil);
+  background: var(--color-fondo-hundido);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.cuerpoTrabajo {
+  display: grid;
+  justify-items: start;
+  gap: var(--espacio-2);
+  padding: var(--espacio-5);
+}
+
+.tituloTrabajo {
+  font-size: var(--tamano-lg);
+}
+
+/* El enlace del título cubre toda la tarjeta */
+.enlaceTarjeta {
+  color: inherit;
+  text-decoration: none;
+}
+
+.enlaceTarjeta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.enlaceTarjeta:focus-visible {
+  outline: none;
+}
+
+.trabajo:has(.enlaceTarjeta:focus-visible) {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+.costo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-1);
+  font-size: var(--tamano-lg);
+}
+
+/* Listados */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.resumenPeriodo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.dosColumnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--espacio-4);
+}
+
+.esqueletoTarjeta {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-4);
+}
+
+.esqueletoTarjeta > :last-child {
+  flex: 1;
+}

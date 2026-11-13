@@ -1,0 +1,174 @@
+/* =====================================================================================
+   SyncTime — estilos base del sistema de diseño
+   Reinicio mínimo, tipografía, foco, selección y partes del navegador que también llevan diseño.
+   ===================================================================================== */
+@import './fuentes.css';
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+  scroll-padding-top: calc(var(--altura-barra) + var(--espacio-4)); /* el foco no queda bajo la barra */
+}
+
+/* Con un diálogo abierto la página de fondo no se desplaza */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--color-fondo);
+  color: var(--color-texto);
+  font-family: var(--tipografia-familia);
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-normal);
+  line-height: var(--interlineado-texto);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  caret-color: var(--color-acento);
+  accent-color: var(--color-acento);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: var(--peso-seminegrita);
+  letter-spacing: var(--tracking-titulo);
+  line-height: var(--interlineado-titulo);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--tamano-3xl);
+  font-weight: var(--peso-negrita);
+}
+
+h2 {
+  font-size: var(--tamano-2xl);
+}
+
+h3 {
+  font-size: var(--tamano-xl);
+}
+
+h4 {
+  font-size: var(--tamano-lg);
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+img {
+  height: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+/* Datos que se comparan en columna: montos, fechas, números de pedido */
+table,
+.cifras {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--color-seleccion);
+  color: var(--color-texto);
+}
+
+/* Foco visible para todo lo enfocable, con el ámbar del documento y separado del borde */
+:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Barra de desplazamiento de la misma familia de grises */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-borde-fuerte) transparent;
+}
+
+/* Solo para lectores de pantalla: el texto existe, pero no se ve */
+.solo-lectores {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Enlace para saltar al contenido: aparece al recibir el foco */
+.enlace-salto {
+  position: fixed;
+  top: var(--espacio-3);
+  left: var(--espacio-3);
+  z-index: calc(var(--capa-barra) + 10);
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radio-md);
+  background: var(--color-texto);
+  color: var(--color-fondo);
+  font-weight: var(--peso-seminegrita);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.enlace-salto:focus {
+  transform: none;
+}
+
+/* Movimiento reducido: se mantienen los cambios de color y opacidad, que ayudan a entender, y se
+   quitan los desplazamientos y las escalas. Cada componente apaga además sus animaciones repetidas
+   (el brillo del esqueleto); el indicador de carga sigue girando, porque es lo único que dice que
+   algo avanza. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --escala-presion: 1;
+    --elevacion-hover: 0px;
+    --duracion-entrada: 1ms;
+    --duracion-salida: 1ms;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}

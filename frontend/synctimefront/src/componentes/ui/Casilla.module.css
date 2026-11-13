@@ -1,0 +1,61 @@
+.casilla {
+  display: grid;
+  gap: var(--espacio-1);
+}
+
+.fila {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+  min-height: var(--tamano-control);
+  padding-block: var(--espacio-2);
+}
+
+/* Casilla nativa con el ámbar del sistema: accesible y conocida en todos los navegadores */
+.control {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.1rem 0 0;
+  accent-color: var(--color-acento);
+  cursor: pointer;
+}
+
+.control[aria-invalid='true'] {
+  outline: var(--foco-ancho) solid var(--campo-borde-error);
+  outline-offset: 1px;
+}
+
+.etiqueta {
+  color: var(--color-texto);
+  font-size: var(--tamano-base);
+  line-height: var(--interlineado-compacto);
+  cursor: pointer;
+}
+
+.descripcion,
+.error {
+  padding-inline-start: calc(1.25rem + var(--espacio-3));
+  font-size: var(--tamano-sm);
+  line-height: var(--interlineado-compacto);
+}
+
+.descripcion {
+  color: var(--color-texto-secundario);
+}
+
+.error {
+  display: flex;
+  gap: var(--espacio-1-5);
+  color: var(--campo-error);
+  font-weight: var(--peso-medio);
+}
+
+.error:empty {
+  display: none;
+}
+
+.iconoError {
+  flex: none;
+  margin-top: 0.1em;
+}

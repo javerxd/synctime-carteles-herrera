@@ -1,0 +1,121 @@
+.campo {
+  display: grid;
+  gap: var(--espacio-1-5);
+  min-width: 0;
+}
+
+.etiqueta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--espacio-2);
+  color: var(--campo-etiqueta);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  line-height: var(--interlineado-compacto);
+}
+
+.obligatorio {
+  color: var(--campo-ayuda);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-medio);
+}
+
+.ayuda {
+  color: var(--campo-ayuda);
+  font-size: var(--tamano-sm);
+  line-height: var(--interlineado-compacto);
+}
+
+.marco {
+  position: relative;
+}
+
+.control {
+  display: block;
+  width: 100%;
+  min-height: var(--campo-alto);
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--campo-borde);
+  border-radius: var(--campo-radio);
+  background: var(--campo-fondo);
+  color: var(--campo-texto);
+  font-size: var(--tamano-base); /* 16 px: el teléfono no acerca la página al escribir */
+  line-height: 1.4;
+  transition:
+    border-color var(--duracion-estado) var(--curva-estandar),
+    box-shadow var(--duracion-estado) var(--curva-estandar);
+}
+
+.control::placeholder {
+  color: var(--campo-marcador);
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .control:hover:not(:disabled, :focus) {
+    border-color: var(--campo-borde-hover);
+  }
+}
+
+/* El foco del campo: el anillo global más el borde en el mismo tono */
+.control:focus-visible {
+  border-color: var(--color-foco);
+  outline-offset: 1px;
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--campo-borde-error);
+}
+
+.control[aria-invalid='true']:focus-visible {
+  outline-color: var(--campo-borde-error);
+}
+
+.control:disabled {
+  background: var(--campo-fondo-deshabilitado);
+  color: var(--color-texto-secundario);
+  border-color: var(--color-borde);
+  cursor: not-allowed;
+}
+
+.area {
+  min-height: calc(var(--campo-alto) * 2.5);
+  resize: vertical;
+}
+
+/* Lista desplegable con la flecha del sistema de iconos */
+.marcoLista .control {
+  appearance: none;
+  padding-inline-end: var(--espacio-10);
+  cursor: pointer;
+}
+
+.flecha {
+  position: absolute;
+  top: 50%;
+  right: var(--espacio-3);
+  color: var(--color-texto-secundario);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* La región del error siempre existe (para que el anuncio funcione) y no ocupa sitio vacía */
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-1-5);
+  color: var(--campo-error);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+  line-height: var(--interlineado-compacto);
+}
+
+.error:empty {
+  display: none;
+}
+
+.iconoError {
+  flex: none;
+  margin-top: 0.1em;
+}

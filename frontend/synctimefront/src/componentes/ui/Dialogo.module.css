@@ -1,0 +1,131 @@
+/* Entra con la curva elástica del documento (opacidad, una escala mínima y un leve ascenso) y sale
+   más rápido de lo que entra. Centrado en la pantalla; en el teléfono ocupa el ancho disponible. */
+.dialogo {
+  width: min(var(--_ancho, var(--dialogo-ancho)), calc(100vw - 2 * var(--espacio-4)));
+  max-height: min(90dvh, 48rem);
+  padding: 0;
+  border: 1px solid transparent; /* invisible, salvo en alto contraste, donde marca el borde */
+  border-radius: var(--dialogo-radio);
+  background: var(--color-superficie);
+  box-shadow: var(--dialogo-sombra);
+  color: var(--color-texto);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition:
+    opacity var(--duracion-salida) var(--curva-estandar),
+    transform var(--duracion-salida) var(--curva-estandar),
+    overlay var(--duracion-salida) allow-discrete,
+    display var(--duracion-salida) allow-discrete;
+}
+
+.dialogo[open] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--duracion-entrada) var(--curva-resorte),
+    transform var(--duracion-entrada) var(--curva-resorte),
+    overlay var(--duracion-entrada) allow-discrete,
+    display var(--duracion-entrada) allow-discrete;
+}
+
+@starting-style {
+  .dialogo[open] {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.dialogo::backdrop {
+  background: var(--dialogo-telon);
+  backdrop-filter: var(--desenfoque-telon);
+  opacity: 0;
+  transition:
+    opacity var(--duracion-salida) var(--curva-estandar),
+    overlay var(--duracion-salida) allow-discrete,
+    display var(--duracion-salida) allow-discrete;
+}
+
+.dialogo[open]::backdrop {
+  opacity: 1;
+  transition-duration: var(--duracion-entrada);
+}
+
+@starting-style {
+  .dialogo[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+.caja {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+}
+
+.cabecera {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+  padding: var(--espacio-6) var(--espacio-6) var(--espacio-4);
+}
+
+.encabezado {
+  display: grid;
+  flex: 1;
+  gap: var(--espacio-1);
+  min-width: 0;
+}
+
+.titulo {
+  font-size: var(--tamano-xl);
+}
+
+.descripcion {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.cerrar {
+  flex: none;
+  margin: calc(-1 * var(--espacio-2)) calc(-1 * var(--espacio-2)) 0 0;
+  padding: 0;
+  color: var(--color-texto-secundario);
+}
+
+.contenido {
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--espacio-6) var(--espacio-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pie {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4) var(--espacio-6);
+  border-top: 1px solid var(--color-borde);
+  background: var(--color-fondo-alterno);
+}
+
+/* En el teléfono las acciones ocupan todo el ancho, una sobre otra */
+@media (max-width: 30rem) {
+  .cabecera {
+    padding: var(--espacio-5) var(--espacio-5) var(--espacio-3);
+  }
+
+  .contenido {
+    padding: 0 var(--espacio-5) var(--espacio-5);
+  }
+
+  .pie {
+    padding: var(--espacio-4) var(--espacio-5);
+  }
+
+  .pie > * {
+    flex: 1 1 100%;
+  }
+}

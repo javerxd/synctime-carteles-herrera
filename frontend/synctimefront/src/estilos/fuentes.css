@@ -1,0 +1,7 @@
+/* Plus Jakarta Sans (licencia SIL OFL 1.1), alojada en el propio sitio: no se pide nada a terceros.
+   Solo los cuatro grosores que usa el sistema y el subconjunto latino, que incluye todas las letras
+   del español (á, é, í, ó, ú, ñ, ü, ¿, ¡). RNFP22 y RNFO17. */
+@import '@fontsource/plus-jakarta-sans/latin-400.css';
+@import '@fontsource/plus-jakarta-sans/latin-500.css';
+@import '@fontsource/plus-jakarta-sans/latin-600.css';
+@import '@fontsource/plus-jakarta-sans/latin-700.css';

@@ -1,0 +1,24 @@
+/* Los enlaces son tinta subrayada: el ámbar queda para las acciones principales y lo activo */
+.enlace {
+  display: inline;
+  color: var(--color-texto);
+  font-weight: var(--peso-medio);
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-borde-control);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+  border-radius: var(--radio-sm);
+  transition: text-decoration-color var(--duracion-estado) var(--curva-estandar);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .enlace:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+.icono {
+  display: inline-block;
+  margin-inline-start: 0.2em;
+  vertical-align: -0.1em;
+}

@@ -1,0 +1,68 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1-5);
+  min-height: var(--tamano-control);
+  padding: 0 var(--espacio-4);
+  border: 1px solid var(--chip-borde);
+  border-radius: var(--radio-pildora);
+  background: var(--chip-fondo);
+  color: var(--color-texto);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--duracion-estado) var(--curva-estandar),
+    border-color var(--duracion-estado) var(--curva-estandar),
+    color var(--duracion-estado) var(--curva-estandar),
+    transform var(--duracion-presion) var(--curva-resorte);
+}
+
+@media (pointer: fine) {
+  .chip {
+    min-height: var(--tamano-control-compacto);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover {
+    border-color: var(--color-borde-control);
+  }
+}
+
+.chip:active {
+  transform: scale(var(--escala-presion));
+}
+
+/* Activo: el ámbar marca el estado activo, como pide el documento */
+.chip[aria-pressed='true'] {
+  border-color: var(--chip-borde-activo);
+  background: var(--chip-fondo-activo);
+  color: var(--chip-texto-activo);
+  font-weight: var(--peso-seminegrita);
+}
+
+.marca {
+  flex: none;
+}
+
+.contador {
+  min-width: 1.5rem;
+  padding: 0 var(--espacio-1-5);
+  border-radius: var(--radio-pildora);
+  background: var(--color-fondo-hundido);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-seminegrita);
+  line-height: 1.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip[aria-pressed='true'] .contador {
+  background: var(--color-superficie);
+  color: var(--chip-texto-activo);
+}

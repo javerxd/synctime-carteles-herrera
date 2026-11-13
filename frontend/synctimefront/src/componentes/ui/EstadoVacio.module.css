@@ -1,0 +1,37 @@
+.vacio {
+  display: grid;
+  justify-items: center;
+  gap: var(--espacio-2);
+  padding: var(--espacio-12) var(--espacio-6);
+  border: 1px dashed var(--color-borde-fuerte);
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo-alterno);
+  text-align: center;
+}
+
+.marcoIcono {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: var(--espacio-2);
+  border-radius: var(--radio-pildora);
+  background: var(--color-superficie);
+  box-shadow: var(--sombra-reposo);
+  color: var(--color-texto-secundario);
+}
+
+.titulo {
+  font-size: var(--tamano-lg);
+  font-weight: var(--peso-seminegrita);
+}
+
+.descripcion {
+  max-width: 44ch;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.accion {
+  margin-top: var(--espacio-3);
+}

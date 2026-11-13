@@ -1,0 +1,289 @@
+/* =====================================================================================
+   SyncTime — tokens del sistema de diseño (modo claro)
+   Fuente: docs/requisitos/reglas-de-diseno.md y frontend/synctimefront/DESIGN.md.
+
+   Tres capas, y cada una solo mira a la de abajo:
+     Capa 1, primitivos:   valores crudos (colores, medidas). Nadie fuera de este archivo los usa.
+     Capa 2, semánticos:   el propósito (fondo, texto, acento, foco, tonos de estado).
+     Capa 3, componentes:  lo que usa cada componente; apunta solo a semánticos.
+   La prueba src/test/ui/tokens.test.js comprueba los contrastes y esta regla de capas.
+   ===================================================================================== */
+
+/* -------------------------------------------------------------------------------------
+   Capa 1 · Primitivos
+   ------------------------------------------------------------------------------------- */
+:root {
+  /* Neutros: pizarra fría, del blanco puro a la tinta */
+  --primitivo-blanco: #ffffff;
+  --primitivo-pizarra-50: #f8fafc;
+  --primitivo-pizarra-100: #f1f5f9;
+  --primitivo-pizarra-200: #e2e8f0;
+  --primitivo-pizarra-300: #cbd5e1;
+  --primitivo-pizarra-450: #828da0; /* borde de campos: 3:1 sobre los tres fondos */
+  --primitivo-pizarra-500: #64748b;
+  --primitivo-pizarra-600: #475569;
+  --primitivo-pizarra-700: #334155;
+  --primitivo-pizarra-800: #1e293b;
+  --primitivo-pizarra-900: #0f172a;
+
+  /* Ámbar de taller: el único acento */
+  --primitivo-ambar-50: #fffbeb;
+  --primitivo-ambar-100: #fef3c7;
+  --primitivo-ambar-700: #b45309;
+  --primitivo-ambar-800: #92400e;
+  --primitivo-ambar-900: #78350f;
+
+  /* Familias de estado (fondo 50, borde 200, sólido 700, texto 800) */
+  --primitivo-azul-50: #eff6ff;
+  --primitivo-azul-200: #bfdbfe;
+  --primitivo-azul-700: #1d4ed8;
+  --primitivo-azul-800: #1e40af;
+  --primitivo-violeta-50: #f5f3ff;
+  --primitivo-violeta-200: #ddd6fe;
+  --primitivo-violeta-700: #6d28d9;
+  --primitivo-violeta-800: #5b21b6;
+  --primitivo-verde-50: #f0fdf4;
+  --primitivo-verde-200: #bbf7d0;
+  --primitivo-verde-700: #15803d;
+  --primitivo-verde-800: #166534;
+  --primitivo-amarillo-50: #fefce8;
+  --primitivo-amarillo-200: #fde68a;
+  --primitivo-amarillo-700: #a16207;
+  --primitivo-amarillo-800: #854d0e;
+  --primitivo-rojo-50: #fef2f2;
+  --primitivo-rojo-200: #fecaca;
+  --primitivo-rojo-700: #b91c1c;
+  --primitivo-rojo-800: #991b1b;
+
+  /* Espaciado: base de 4 px */
+  --espacio-0: 0;
+  --espacio-0-5: 0.125rem;
+  --espacio-1: 0.25rem;
+  --espacio-1-5: 0.375rem;
+  --espacio-2: 0.5rem;
+  --espacio-2-5: 0.625rem;
+  --espacio-3: 0.75rem;
+  --espacio-4: 1rem;
+  --espacio-5: 1.25rem;
+  --espacio-6: 1.5rem;
+  --espacio-8: 2rem;
+  --espacio-10: 2.5rem;
+  --espacio-12: 3rem;
+  --espacio-16: 4rem;
+  --espacio-20: 5rem;
+  --espacio-24: 6rem;
+
+  /* Tipografía: escala fija en rem, razón cercana a 1,2 (interfaz de trabajo) */
+  --tamano-xs: 0.75rem;   /* 12 px: solo metadatos, nunca texto de lectura */
+  --tamano-sm: 0.875rem;  /* 14 px */
+  --tamano-base: 1rem;    /* 16 px */
+  --tamano-md: 1.125rem;  /* 18 px */
+  --tamano-lg: 1.25rem;   /* 20 px */
+  --tamano-xl: 1.5rem;    /* 24 px */
+  --tamano-2xl: 1.875rem; /* 30 px */
+  --tamano-3xl: 2.25rem;  /* 36 px */
+  --tamano-4xl: 3rem;     /* 48 px: portada */
+  --peso-normal: 400;
+  --peso-medio: 500;
+  --peso-seminegrita: 600;
+  --peso-negrita: 700;
+
+  /* Formas */
+  --radio-sm: 6px;
+  --radio-md: 10px;
+  --radio-lg: 14px;
+  --radio-xl: 20px;
+  --radio-pildora: 999px;
+}
+
+/* -------------------------------------------------------------------------------------
+   Capa 2 · Semánticos
+   ------------------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* Fondos: blanco pulcro y secciones alternadas en gris seda */
+  --color-fondo: var(--primitivo-blanco);
+  --color-fondo-alterno: var(--primitivo-pizarra-50);
+  --color-fondo-hundido: var(--primitivo-pizarra-100);
+  --color-superficie: var(--primitivo-blanco);
+
+  /* Texto */
+  --color-texto: var(--primitivo-pizarra-900);
+  --color-texto-secundario: var(--primitivo-pizarra-600);
+  --color-texto-tenue: var(--primitivo-pizarra-500); /* solo sobre fondo o fondo alterno */
+  --color-sobre-acento: var(--primitivo-blanco);
+
+  /* Bordes: el sutil separa superficies; el de control delimita campos (3:1) */
+  --color-borde-sutil: rgb(15 23 42 / 0.08);
+  --color-borde: var(--primitivo-pizarra-200);
+  --color-borde-fuerte: var(--primitivo-pizarra-300);
+  --color-borde-control: var(--primitivo-pizarra-450);
+
+  /* Acento ámbar: solo llamadas a la acción y estados activos */
+  --color-acento: var(--primitivo-ambar-700);
+  --color-acento-hover: var(--primitivo-ambar-800);
+  --color-acento-presionado: var(--primitivo-ambar-900);
+  --color-acento-suave: var(--primitivo-ambar-50);
+  --color-acento-suave-borde: var(--primitivo-ambar-100);
+
+  /* Interacción */
+  --color-foco: var(--primitivo-ambar-700);
+  --color-hover-neutro: var(--primitivo-pizarra-100);
+  --color-presionado-neutro: var(--primitivo-pizarra-200);
+  --color-seleccion: var(--primitivo-ambar-100);
+  --color-cristal: rgb(255 255 255 / 0.8);
+  --color-telon: rgb(15 23 42 / 0.4);
+
+  /* Tonos de estado. Siempre van con texto e icono: el color nunca es la única señal */
+  --tono-neutro-fondo: var(--primitivo-pizarra-100);
+  --tono-neutro-borde: var(--primitivo-pizarra-200);
+  --tono-neutro-solido: var(--primitivo-pizarra-600);
+  --tono-neutro-texto: var(--primitivo-pizarra-700);
+  --tono-info-fondo: var(--primitivo-azul-50);
+  --tono-info-borde: var(--primitivo-azul-200);
+  --tono-info-solido: var(--primitivo-azul-700);
+  --tono-info-texto: var(--primitivo-azul-800);
+  --tono-listo-fondo: var(--primitivo-violeta-50);
+  --tono-listo-borde: var(--primitivo-violeta-200);
+  --tono-listo-solido: var(--primitivo-violeta-700);
+  --tono-listo-texto: var(--primitivo-violeta-800);
+  --tono-exito-fondo: var(--primitivo-verde-50);
+  --tono-exito-borde: var(--primitivo-verde-200);
+  --tono-exito-solido: var(--primitivo-verde-700);
+  --tono-exito-texto: var(--primitivo-verde-800);
+  --tono-aviso-fondo: var(--primitivo-amarillo-50);
+  --tono-aviso-borde: var(--primitivo-amarillo-200);
+  --tono-aviso-solido: var(--primitivo-amarillo-700);
+  --tono-aviso-texto: var(--primitivo-amarillo-800);
+  --tono-peligro-fondo: var(--primitivo-rojo-50);
+  --tono-peligro-borde: var(--primitivo-rojo-200);
+  --tono-peligro-solido: var(--primitivo-rojo-700);
+  --tono-peligro-texto: var(--primitivo-rojo-800);
+
+  /* Tipografía */
+  --tipografia-familia: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tracking-titulo: -0.02em;
+  --tracking-portada: -0.03em;
+  --interlineado-titulo: 1.2;
+  --interlineado-texto: 1.6;
+  --interlineado-compacto: 1.35;
+  --medida-lectura: 68ch;
+
+  /* Sombras difusas multicapa, teñidas con la tinta. Una superficie usa borde o sombra, no ambos */
+  --sombra-reposo: 0 1px 2px rgb(15 23 42 / 0.05), 0 1px 1px rgb(15 23 42 / 0.03);
+  --sombra-elevada: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 8px -2px rgb(15 23 42 / 0.06),
+    0 14px 28px -8px rgb(15 23 42 / 0.12);
+  --sombra-flotante: 0 2px 4px rgb(15 23 42 / 0.04), 0 12px 24px -6px rgb(15 23 42 / 0.12),
+    0 32px 64px -16px rgb(15 23 42 / 0.2);
+  --sombra-barra: 0 1px 0 rgb(15 23 42 / 0.06), 0 8px 24px -16px rgb(15 23 42 / 0.16);
+  --desenfoque-cristal: blur(12px) saturate(180%);
+  --desenfoque-telon: blur(4px);
+
+  /* Foco: anillo de 2 px separado 2 px del elemento */
+  --foco-ancho: 2px;
+  --foco-separacion: 2px;
+
+  /* Movimiento. La curva elástica es la del documento del cliente */
+  --curva-resorte: cubic-bezier(0.16, 1, 0.3, 1);
+  --curva-estandar: ease;
+  --duracion-presion: 140ms;
+  --duracion-estado: 160ms;
+  --duracion-entrada: 260ms;
+  --duracion-salida: 160ms;
+  --duracion-brillo: 1.6s;
+  --escala-presion: 0.98;
+  --elevacion-hover: -2px;
+
+  /* Medidas de la página */
+  --ancho-contenido: 1200px;
+  --margen-pagina: clamp(1rem, 4vw, 2rem);
+  --altura-barra: 4rem;
+  --tamano-control: 2.75rem;          /* 44 px: objetivo táctil del documento */
+  --tamano-control-compacto: 2.25rem; /* 36 px: solo con puntero fino */
+
+  /* Capas */
+  --capa-barra: 50;
+  --capa-flotante: 60;
+}
+
+/* -------------------------------------------------------------------------------------
+   Capa 3 · Componentes (solo apuntan a semánticos)
+   ------------------------------------------------------------------------------------- */
+:root {
+  /* Botón */
+  --boton-alto: var(--tamano-control);
+  --boton-alto-compacto: var(--tamano-control-compacto);
+  --boton-radio: var(--radio-md);
+  --boton-relleno-x: var(--espacio-5);
+  --boton-relleno-x-compacto: var(--espacio-3);
+  --boton-primario-fondo: var(--color-acento);
+  --boton-primario-fondo-hover: var(--color-acento-hover);
+  --boton-primario-fondo-presionado: var(--color-acento-presionado);
+  --boton-primario-texto: var(--color-sobre-acento);
+  --boton-secundario-fondo: var(--color-superficie);
+  --boton-secundario-fondo-hover: var(--color-hover-neutro);
+  --boton-secundario-texto: var(--color-texto);
+  --boton-secundario-borde: var(--color-borde-control);
+  --boton-fantasma-texto: var(--color-texto);
+  --boton-fantasma-fondo-hover: var(--color-hover-neutro);
+  --boton-peligro-fondo: var(--tono-peligro-solido);
+  --boton-peligro-texto: var(--color-sobre-acento);
+
+  /* Campos */
+  --campo-alto: var(--tamano-control);
+  --campo-radio: var(--radio-md);
+  --campo-fondo: var(--color-superficie);
+  --campo-fondo-deshabilitado: var(--color-fondo-hundido);
+  --campo-borde: var(--color-borde-control);
+  --campo-borde-hover: var(--color-texto-secundario);
+  --campo-borde-error: var(--tono-peligro-solido);
+  --campo-texto: var(--color-texto);
+  --campo-marcador: var(--color-texto-tenue);
+  --campo-etiqueta: var(--color-texto);
+  --campo-ayuda: var(--color-texto-secundario);
+  --campo-error: var(--tono-peligro-texto);
+
+  /* Tarjeta */
+  --tarjeta-fondo: var(--color-superficie);
+  --tarjeta-borde: var(--color-borde-sutil);
+  --tarjeta-radio: var(--radio-lg);
+  --tarjeta-relleno: var(--espacio-6);
+  --tarjeta-sombra: var(--sombra-reposo);
+  --tarjeta-sombra-hover: var(--sombra-elevada);
+
+  /* Insignia y chip */
+  --insignia-alto: 1.625rem;
+  --insignia-radio: var(--radio-pildora);
+  --chip-fondo: var(--color-superficie);
+  --chip-borde: var(--color-borde-fuerte);
+  --chip-fondo-activo: var(--color-acento-suave);
+  --chip-borde-activo: var(--color-acento);
+  --chip-texto-activo: var(--color-acento-hover);
+
+  /* Diálogo */
+  --dialogo-ancho: 32rem;
+  --dialogo-radio: var(--radio-xl);
+  --dialogo-sombra: var(--sombra-flotante);
+  --dialogo-telon: var(--color-telon);
+
+  /* Tabla */
+  --tabla-encabezado-fondo: var(--color-fondo-alterno);
+  --tabla-encabezado-texto: var(--color-texto-secundario);
+  --tabla-borde: var(--color-borde);
+  --tabla-fila-hover: var(--color-fondo-alterno);
+
+  /* Esqueleto */
+  --esqueleto-base: var(--color-fondo-hundido);
+  --esqueleto-brillo: var(--color-fondo-alterno);
+
+  /* Pestañas */
+  --pestana-indicador: var(--color-acento);
+  --pestana-texto: var(--color-texto-secundario);
+  --pestana-texto-activa: var(--color-texto);
+
+  /* Barra superior de cristal */
+  --barra-fondo: var(--color-cristal);
+  --barra-desenfoque: var(--desenfoque-cristal);
+  --barra-sombra: var(--sombra-barra);
+}

@@ -1,0 +1,36 @@
+/* En reposo, un filo de 1 px y apenas sombra; la elevación llega con la interacción */
+.tarjeta {
+  position: relative;
+  min-width: 0;
+  padding: var(--tarjeta-relleno);
+  border: 1px solid var(--tarjeta-borde);
+  border-radius: var(--tarjeta-radio);
+  background: var(--tarjeta-fondo);
+  box-shadow: var(--tarjeta-sombra);
+}
+
+.sinRelleno {
+  padding: 0;
+  overflow: hidden;
+}
+
+.interactiva {
+  transition:
+    transform var(--duracion-entrada) var(--curva-resorte),
+    box-shadow var(--duracion-entrada) var(--curva-resorte),
+    border-color var(--duracion-estado) var(--curva-estandar);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .interactiva:hover {
+    border-color: transparent;
+    box-shadow: var(--tarjeta-sombra-hover);
+    transform: translateY(var(--elevacion-hover));
+  }
+}
+
+/* Si la tarjeta contiene el foco (su enlace), se eleva igual que con el cursor */
+.interactiva:focus-within {
+  border-color: transparent;
+  box-shadow: var(--tarjeta-sombra-hover);
+}

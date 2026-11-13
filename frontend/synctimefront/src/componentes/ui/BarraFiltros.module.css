@@ -1,0 +1,32 @@
+.barra {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-borde-sutil);
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo-alterno);
+}
+
+/* Los filtros se acomodan solos: uno por fila en el teléfono, varios por fila en el escritorio */
+.controles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  align-items: end;
+  gap: var(--espacio-3) var(--espacio-4);
+}
+
+.pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-4);
+  min-height: var(--tamano-control-compacto);
+}
+
+.resumen {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+}

@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 12-11-2026 (ajuste aprobado; empieza la fase 2).
+Última actualización: 12-11-2026 (fase 2 en revisión).
 
 ## Hecho
 
@@ -12,7 +12,7 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 2 — Sistema de diseño** · rama `fase-02-sistema-diseno` (nace de `ajuste-revision-profesora`) · informe: `informes/fase-02.md`
 
 ## En curso
 
@@ -22,7 +22,6 @@ _(ninguna)_
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 2 | Sistema de diseño | 0 | — |
 | 3 | Estructura de la aplicación web y pantallas de la revisión del lunes | 1, 2 | Probar su ingreso con rostro; recorrer las pantallas antes de la revisión |
 | 4 | Servicios comunes: correo, consentimientos e imágenes | 1 | — |
 | 5 | Portada pública | 3, 4 | WhatsApp, correo y teléfono del taller; fotos y permiso de logos |

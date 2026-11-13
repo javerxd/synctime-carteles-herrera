@@ -1,0 +1,76 @@
+.insignia {
+  --_fondo: var(--tono-neutro-fondo);
+  --_borde: var(--tono-neutro-borde);
+  --_texto: var(--tono-neutro-texto);
+  --_solido: var(--tono-neutro-solido);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  min-height: var(--insignia-alto);
+  max-width: 100%;
+  padding: 0 var(--espacio-2-5);
+  border: 1px solid var(--_borde);
+  border-radius: var(--insignia-radio);
+  background: var(--_fondo);
+  color: var(--_texto);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  line-height: 1.2;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.icono {
+  flex: none;
+}
+
+.info {
+  --_fondo: var(--tono-info-fondo);
+  --_borde: var(--tono-info-borde);
+  --_texto: var(--tono-info-texto);
+  --_solido: var(--tono-info-solido);
+}
+
+.listo {
+  --_fondo: var(--tono-listo-fondo);
+  --_borde: var(--tono-listo-borde);
+  --_texto: var(--tono-listo-texto);
+  --_solido: var(--tono-listo-solido);
+}
+
+.exito {
+  --_fondo: var(--tono-exito-fondo);
+  --_borde: var(--tono-exito-borde);
+  --_texto: var(--tono-exito-texto);
+  --_solido: var(--tono-exito-solido);
+}
+
+.aviso {
+  --_fondo: var(--tono-aviso-fondo);
+  --_borde: var(--tono-aviso-borde);
+  --_texto: var(--tono-aviso-texto);
+  --_solido: var(--tono-aviso-solido);
+}
+
+.peligro {
+  --_fondo: var(--tono-peligro-fondo);
+  --_borde: var(--tono-peligro-borde);
+  --_texto: var(--tono-peligro-texto);
+  --_solido: var(--tono-peligro-solido);
+}
+
+.solido {
+  border-color: var(--_solido);
+  background: var(--_solido);
+  color: var(--color-sobre-acento);
+}
+
+/* Tamaño cartel: para la portada y la pantalla del estado del local */
+.grande {
+  gap: var(--espacio-2);
+  min-height: var(--tamano-control);
+  padding: 0 var(--espacio-5);
+  font-size: var(--tamano-md);
+  letter-spacing: var(--tracking-titulo);
+}

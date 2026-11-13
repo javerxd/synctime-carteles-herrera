@@ -59,7 +59,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RFU26 | (Dueño, trabajador) exportar los reportes autorizados para su rol a archivos Excel (.xlsx), PDF y CSV… | 13 | Pendiente |  |
 | RFU27 | (Dueño) filtrar interactivamente el dashboard por fechas, categorías y estados, y consultar la tabla de datos… | 12 | Pendiente |  |
 | RFU28 | (Dueño) consultar el registro de auditoría del sistema para revisar quién creó o modificó registros… | 11 | Pendiente |  |
-| RFU29 | (Visitante, cliente, trabajador, dueño) navegar y operar todas las pantallas del sistema utilizando… | 2,3,15 | Pendiente |  |
+| RFU29 | (Visitante, cliente, trabajador, dueño) navegar y operar todas las pantallas del sistema utilizando… | 2,3,15 | En curso | Fase 2: sistema de diseño (`src/estilos/`, `src/componentes/ui/`) y galería `/galeria.html`: componentes operables con teclado, errores y cargas anunciados; pruebas `src/test/ui/*` y `e2e/galeria.spec.js`. Faltan las pantallas (fase 3) y la prueba con NVDA (fase 15) |
 | RFU30 | (Visitante, cliente registrado) visualizar en la vista principal (con o sin sesión iniciada) un mapa… | 5 | Pendiente |  |
 | RFU31 | (Visitante, cliente) contactar directamente al taller mediante un botón en la vista principal que redirija al… | 5 | Pendiente |  |
 | RFU32 | (Visitante, cliente) enviar consultas generales a través del formulario de contacto de la vista principal… | 5 | Pendiente |  |
@@ -74,7 +74,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 |---|---|---|---|---|
 | RNFP01 | (Rendimiento) responder cada consulta o registro en 2 segundos o menos en el 95 % de las peticiones, con… | 15 | Pendiente |  |
 | RNFP02 | (Facilidad de uso) que un cliente sin capacitación registre una solicitud desde el celular en 5 minutos o… | 7,15 | Pendiente |  |
-| RNFP03 | (Facilidad de uso) adaptar todas las pantallas a anchos desde 360 px sin desplazamiento horizontal. | 2,15 | Pendiente |  |
+| RNFP03 | (Facilidad de uso) adaptar todas las pantallas a anchos desde 360 px sin desplazamiento horizontal. | 2,15 | En curso | Fase 2: sistema de diseño (`src/estilos/`, `src/componentes/ui/`) y galería `/galeria.html`: sin desplazamiento horizontal a 320, 360, 640, 768 y 1440 px (Playwright). Faltan las pantallas |
 | RNFP04 | (Disponibilidad) 99 % de disponibilidad mensual, 24 horas, aunque el local esté cerrado. | 16 (externo) | Pendiente |  |
 | RNFP05 | (Compatibilidad) funcionar en las dos últimas versiones de Chrome, Edge, Firefox y Safari, sin complementos. | 15 | Pendiente |  |
 | RNFP06 | (Seguridad) guardar contraseñas solo como hash con sal. | 6 | Pendiente |  |
@@ -85,15 +85,15 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RNFP11 | (Mantenibilidad) documentar todas las rutas de la API en OpenAPI, consultables con Scalar o Swagger en… | 1 | Cumplido | OpenAPI y Scalar en desarrollo; contrato en `docs/api/openapi.json` |
 | RNFP12 | (Seguridad) resolver el ingreso facial en 3 s o menos, con el mismo límite de 10 intentos por minuto que el… | 10 | Pendiente |  |
 | RNFP13 | (Seguridad) completar el flujo de recuperación de contraseña mediante un enlace o código temporal de un solo… | 6 | Pendiente |  |
-| RNFP14 | (Facilidad de uso y Responsive) aplicar un diseño mobile first con sistema de diseño propio y consistente,… | 2,3 | Pendiente |  |
-| RNFP15 | (Accesibilidad) cumplir el estándar WCAG 2.2 nivel AA en todas las pantallas, incluyendo HTML semántico,… | 2,15 | Pendiente |  |
+| RNFP14 | (Facilidad de uso y Responsive) aplicar un diseño mobile first con sistema de diseño propio y consistente,… | 2,3 | En curso | Fase 2: sistema de diseño (`src/estilos/`, `src/componentes/ui/`) y galería `/galeria.html`: tokens en tres capas, tabla adaptable, esqueletos, estados vacíos, objetivos de 44 px (Playwright). Faltan la navegación colapsable y las páginas 403 y 404 (fase 3) |
+| RNFP15 | (Accesibilidad) cumplir el estándar WCAG 2.2 nivel AA en todas las pantallas, incluyendo HTML semántico,… | 2,15 | En curso | Fase 2: sistema de diseño (`src/estilos/`, `src/componentes/ui/`) y galería `/galeria.html`: axe sin violaciones a 360 y 1440 px; contrastes medidos en `tokens.test.js`; Esc y retorno del foco en diálogos; movimiento reducido y alto contraste comprobados. Faltan las pantallas y la prueba manual |
 | RNFP16 | (Seguridad) autenticar mediante JWT en la API con autorización basada en al menos tres roles diferenciados y… | 1,17 | Pendiente |  |
 | RNFP17 | (Confiabilidad e IA) gestionar las claves de APIs externas (IA, OAuth, SMTP) exclusivamente mediante… | 4,14 | Pendiente |  |
 | RNFP18 | (Rendimiento) ejecutar la generación y exportación de reportes grandes a Excel, PDF y CSV de forma asíncrona… | 13 | Pendiente |  |
 | RNFP19 | (Mantenibilidad) mantener el contrato OpenAPI actualizado y accesible desde la API, habiéndolo definido antes… | 1 y cada fase | En curso | Fase 1: contrato con las 58 operaciones y prueba `ContratoTests`. Faltan los códigos de respuesta por operación |
 | RNFP20 | (Confiabilidad) contar con una estrategia de respaldo y restauración de la base de datos documentada y… | 16 | Pendiente |  |
 | RNFP21 | (Ética y usabilidad) diseñar todas las pantallas y flujos libres de patrones engañosos (dark patterns),… | 5 y cada fase | Pendiente |  |
-| RNFP22 | (Rendimiento de recursos y fuentes) servir las imágenes del catálogo y la interfaz optimizadas en formatos… | 2,4,5 | Pendiente |  |
+| RNFP22 | (Rendimiento de recursos y fuentes) servir las imágenes del catálogo y la interfaz optimizadas en formatos… | 2,4,5 | En curso | Fase 2: Plus Jakarta Sans alojada en el sitio, solo 4 grosores y el subconjunto latino. Faltan las imágenes en WebP con carga diferida (fases 4 y 5) |
 | RNFP23 | (Rendimiento de red en cliente) evitar llamadas duplicadas a la API al enviar formularios o cargar vistas,… | 3,15 | Pendiente |  |
 | RNFP24 | (Rendimiento de renderizado en cliente) dividir el código de React por ruta o página (`code splitting` con… | 3,15 | Pendiente |  |
 | RNFP25 | (Caché y compresión HTTP) activar la compresión estándar (Gzip/Brotli) en las respuestas de ASP.NET Core y… | 1,16 | En curso | Fase 1: compresión Brotli y Gzip, probada. Falta la caché de archivos estáticos (fase 16) |
@@ -122,11 +122,11 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RNFO10 | estructurar el backend en cuatro capas claramente separadas (presentación, API, servicios de negocio y acceso… | 1, cada fase y 17 | En curso | Fase 1: capas, repositorio base y pruebas de arquitectura (`docs/arquitectura.md`). Quedan 8 módulos por migrar |
 | RNFO11 | normalizar el modelo de datos relacional con al menos seis entidades relacionadas, gestionando el esquema… | cada migración y 12 | En curso | Esquema normalizado de 15 tablas con migraciones versionadas, restricciones, índices justificados, vista, triggers y procedimiento; documentado en `docs/base-de-datos/`. Faltan las vistas del dashboard (fase 12) |
 | RNFO12 | poblar la base de datos para pruebas y demostración con datos sintéticos verosímiles (nunca datos personales… | 1 (reducido) | En curso | Fase 1: base `LetreriaLosHerreraDB_Demo` y comando `sembrar-demo`. Reducido por decisión del usuario |
-| RNFO13 | implementar pruebas unitarias automatizadas para la capa de negocio, pruebas de integración automatizadas… | 1,14,15 | En curso | Fase 1: 96 pruebas unitarias y 166 de integración. Faltan IA simulada, axe y prueba manual |
+| RNFO13 | implementar pruebas unitarias automatizadas para la capa de negocio, pruebas de integración automatizadas… | 1,14,15 | En curso | Fase 1: 96 pruebas unitarias y 166 de integración (187 tras el ajuste). Fase 2: axe automático en `e2e/galeria.spec.js`. Faltan IA simulada y prueba manual |
 | RNFO14 | contenerizar el sistema mediante `Dockerfile` multi-stage con imagen base ligera de versión fija y un archivo… | 16 | Pendiente |  |
 | RNFO15 | automatizar un pipeline CI/CD que construya las imágenes, ejecute las suites de pruebas y publique únicamente… | 0,16 | Pendiente |  |
 | RNFO16 | revisar las dependencias del proyecto para eliminar paquetes o librerías sin usar tanto en el front end como… | 3,16 | Pendiente |  |
-| RNFO17 | verificar y documentar el cumplimiento de las licencias de todas las imágenes, fuentes tipográficas, iconos y… | 2,5,16 | Pendiente |  |
+| RNFO17 | verificar y documentar el cumplimiento de las licencias de todas las imágenes, fuentes tipográficas, iconos y… | 2,5,16 | En curso | Fase 2: `docs/licencias.md` (fuente OFL, iconos ISC, paquetes del frontend). Faltan las imágenes, los logos con autorización (fase 5) y el backend (fase 16) |
 
 ## Requisitos no funcionales externos (9)
 
@@ -139,7 +139,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RNFE05 | integrarse con un servicio de correo saliente con remitente autenticado. | 4,11 | Pendiente |  |
 | RNFE06 | tratar el rostro como dato personal sensible: consentimiento expreso, guardar solo el descriptor y permitir… | 10 | Pendiente |  |
 | RNFE07 | integrarse mediante HTTPS desde el backend con una API externa de inteligencia artificial generativa (como… | 14 | Pendiente |  |
-| RNFE08 | cumplir con las pautas de accesibilidad de contenido web WCAG 2.2 en su nivel de conformidad AA del W3C. | 2,15 | Pendiente |  |
+| RNFE08 | cumplir con las pautas de accesibilidad de contenido web WCAG 2.2 en su nivel de conformidad AA del W3C. | 2,15 | En curso | Igual que RNFP15 |
 | RNFE09 | cumplir con los términos de licencia de los componentes open source, activos gráficos y tipografías… | 5,16 | Pendiente |  |
 
 ## Entradas (27)

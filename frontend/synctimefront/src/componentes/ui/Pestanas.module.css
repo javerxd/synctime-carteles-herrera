@@ -1,0 +1,71 @@
+.pestanas {
+  display: grid;
+  gap: var(--espacio-5);
+  min-width: 0;
+}
+
+/* La lista se desplaza a lo ancho en pantallas angostas en vez de romper la página */
+.lista {
+  display: flex;
+  gap: var(--espacio-1);
+  border-bottom: 1px solid var(--color-borde);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pestana {
+  position: relative;
+  flex: none;
+  min-height: var(--tamano-control);
+  padding: 0 var(--espacio-4);
+  border: none;
+  background: none;
+  color: var(--pestana-texto);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duracion-estado) var(--curva-estandar);
+}
+
+/* El indicador del estado activo, en ámbar; se cambia de pestaña muy seguido, así que no se desliza */
+.pestana::after {
+  content: '';
+  position: absolute;
+  inset: auto var(--espacio-2) -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pestana:hover {
+    color: var(--pestana-texto-activa);
+  }
+}
+
+.pestana[aria-selected='true'] {
+  color: var(--pestana-texto-activa);
+}
+
+.pestana[aria-selected='true']::after {
+  background: var(--pestana-indicador);
+}
+
+.pestana:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radio-sm);
+}
+
+.panel {
+  min-width: 0;
+  border-radius: var(--radio-sm);
+}
+
+/* Alto contraste de Windows: el indicador se pinta con el color de resaltado del sistema */
+@media (forced-colors: active) {
+  .pestana[aria-selected='true']::after {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+}

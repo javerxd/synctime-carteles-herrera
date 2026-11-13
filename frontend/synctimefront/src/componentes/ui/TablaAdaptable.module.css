@@ -1,0 +1,139 @@
+.contenedor {
+  min-width: 0;
+  border: 1px solid var(--tabla-borde);
+  border-radius: var(--radio-lg);
+  background: var(--color-superficie);
+  overflow: hidden;
+}
+
+.esqueleto {
+  display: grid;
+  gap: var(--espacio-2);
+  padding: var(--espacio-4);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--tamano-sm);
+}
+
+.titulo {
+  padding: var(--espacio-4) var(--espacio-5);
+  font-size: var(--tamano-md);
+  font-weight: var(--peso-seminegrita);
+  text-align: start;
+}
+
+.tabla thead th {
+  padding: var(--espacio-3) var(--espacio-4);
+  border-bottom: 1px solid var(--tabla-borde);
+  background: var(--tabla-encabezado-fondo);
+  color: var(--tabla-encabezado-texto);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-seminegrita);
+  letter-spacing: 0.02em;
+  text-align: start;
+  white-space: nowrap;
+}
+
+/* Celdas del cuerpo: los datos y el encabezado de fila (la columna principal) */
+.tabla tbody td,
+.tabla tbody th {
+  padding: var(--espacio-3) var(--espacio-4);
+  border-bottom: 1px solid var(--tabla-borde);
+  color: var(--color-texto);
+  font-weight: var(--peso-normal);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.tabla tbody th {
+  font-weight: var(--peso-seminegrita);
+}
+
+.tabla tbody tr:last-child > * {
+  border-bottom: none;
+}
+
+.tabla [data-alinear='fin'] {
+  text-align: end;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tabla tbody tr:hover > * {
+    background: var(--tabla-fila-hover);
+  }
+}
+
+/* Angosto: cada fila es una ficha; el encabezado de fila la titula y cada dato muestra su columna */
+@media (max-width: 47.99rem) {
+  .contenedor {
+    border: none;
+    background: none;
+    overflow: visible;
+  }
+
+  .tabla thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .tabla,
+  .tabla tbody,
+  .tabla tr,
+  .tabla tbody td,
+  .tabla tbody th {
+    display: block;
+  }
+
+  .tabla tbody {
+    display: grid;
+    gap: var(--espacio-3);
+  }
+
+  .tabla tbody tr {
+    padding: var(--espacio-2) var(--espacio-4);
+    border: 1px solid var(--tabla-borde);
+    border-radius: var(--radio-lg);
+    background: var(--color-superficie);
+  }
+
+  .tabla tbody td {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espacio-1) var(--espacio-4);
+    padding: var(--espacio-2) 0;
+    text-align: end;
+  }
+
+  /* El nombre de la columna se muestra, pero no se vuelve a leer: el lector ya anuncia el encabezado */
+  .tabla tbody td::before {
+    content: attr(data-etiqueta);
+    content: attr(data-etiqueta) / '';
+    color: var(--tabla-encabezado-texto);
+    font-size: var(--tamano-xs);
+    font-weight: var(--peso-seminegrita);
+    text-align: start;
+  }
+
+  .tabla tbody th {
+    padding: var(--espacio-2) 0;
+    border-bottom: 1px solid var(--tabla-borde);
+    font-size: var(--tamano-base);
+  }
+
+  .tabla tbody tr > :last-child {
+    border-bottom: none;
+  }
+
+  .tabla tbody tr:hover > * {
+    background: none;
+  }
+}

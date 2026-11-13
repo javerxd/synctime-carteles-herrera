@@ -1,0 +1,143 @@
+.boton {
+  --_fondo: transparent;
+  --_fondo-hover: transparent;
+  --_fondo-presionado: transparent;
+  --_texto: var(--color-texto);
+  --_borde: transparent;
+  --_sombra: none;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-2);
+  min-height: var(--boton-alto);
+  min-width: var(--boton-alto);
+  padding: 0 var(--boton-relleno-x);
+  border: 1px solid var(--_borde);
+  border-radius: var(--boton-radio);
+  background: var(--_fondo);
+  box-shadow: var(--_sombra);
+  color: var(--_texto);
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--duracion-estado) var(--curva-estandar),
+    border-color var(--duracion-estado) var(--curva-estandar),
+    color var(--duracion-estado) var(--curva-estandar),
+    transform var(--duracion-presion) var(--curva-resorte);
+}
+
+/* La sensación de pulsar: una compresión mínima e inmediata */
+.boton:active:not(:disabled, [aria-disabled='true']) {
+  background: var(--_fondo-presionado);
+  transform: scale(var(--escala-presion));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .boton:hover:not(:disabled, [aria-disabled='true']) {
+    background: var(--_fondo-hover);
+  }
+}
+
+.primario {
+  --_fondo: var(--boton-primario-fondo);
+  --_fondo-hover: var(--boton-primario-fondo-hover);
+  --_fondo-presionado: var(--boton-primario-fondo-presionado);
+  --_texto: var(--boton-primario-texto);
+  --_sombra: var(--sombra-reposo);
+}
+
+.secundario {
+  --_fondo: var(--boton-secundario-fondo);
+  --_fondo-hover: var(--boton-secundario-fondo-hover);
+  --_fondo-presionado: var(--color-presionado-neutro);
+  --_texto: var(--boton-secundario-texto);
+  --_borde: var(--boton-secundario-borde);
+}
+
+.fantasma {
+  --_fondo-hover: var(--boton-fantasma-fondo-hover);
+  --_fondo-presionado: var(--color-presionado-neutro);
+  --_texto: var(--boton-fantasma-texto);
+}
+
+.peligro {
+  --_fondo: var(--boton-peligro-fondo);
+  --_fondo-hover: var(--tono-peligro-texto);
+  --_fondo-presionado: var(--tono-peligro-texto);
+  --_texto: var(--boton-peligro-texto);
+  --_sombra: var(--sombra-reposo);
+}
+
+/* Compacto solo con puntero fino: en pantallas táctiles conserva los 44 px */
+.compacto {
+  font-size: var(--tamano-sm);
+}
+
+@media (pointer: fine) {
+  .compacto {
+    min-height: var(--boton-alto-compacto);
+    min-width: var(--boton-alto-compacto);
+    padding: 0 var(--boton-relleno-x-compacto);
+  }
+}
+
+.anchoCompleto {
+  width: 100%;
+}
+
+.texto {
+  /* Evita que una etiqueta larga empuje el botón fuera de la pantalla en 320 px */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Deshabilitado: sin opacidad global, con colores propios para que siga legible */
+.boton:disabled {
+  --_fondo: var(--color-fondo-hundido);
+  --_texto: var(--color-texto-tenue);
+  --_borde: var(--color-borde);
+  --_sombra: none;
+  cursor: not-allowed;
+}
+
+.boton[aria-busy='true'] {
+  cursor: progress;
+}
+
+.boton[aria-busy='true'] .texto {
+  opacity: 0.85;
+}
+
+.giro {
+  animation: girar 0.7s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .giro {
+    animation-duration: 1.6s;
+  }
+}
+
+/* Alto contraste de Windows: el deshabilitado usa el gris del sistema */
+@media (forced-colors: active) {
+  .boton:disabled,
+  .boton[aria-disabled='true'] {
+    border-color: GrayText;
+    color: GrayText;
+  }
+}

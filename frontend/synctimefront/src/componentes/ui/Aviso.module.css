@@ -1,0 +1,64 @@
+/* Un borde de 1 px en el tono, sin franja lateral gruesa */
+.mensaje {
+  --_fondo: var(--tono-info-fondo);
+  --_borde: var(--tono-info-borde);
+  --_texto: var(--tono-info-texto);
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  border: 1px solid var(--_borde);
+  border-radius: var(--radio-lg);
+  background: var(--_fondo);
+  color: var(--color-texto);
+}
+
+.exito {
+  --_fondo: var(--tono-exito-fondo);
+  --_borde: var(--tono-exito-borde);
+  --_texto: var(--tono-exito-texto);
+}
+
+.aviso {
+  --_fondo: var(--tono-aviso-fondo);
+  --_borde: var(--tono-aviso-borde);
+  --_texto: var(--tono-aviso-texto);
+}
+
+.peligro {
+  --_fondo: var(--tono-peligro-fondo);
+  --_borde: var(--tono-peligro-borde);
+  --_texto: var(--tono-peligro-texto);
+}
+
+.icono {
+  flex: none;
+  margin-top: 0.1rem;
+  color: var(--_texto);
+}
+
+.cuerpo {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: var(--espacio-1);
+  min-width: 0;
+}
+
+.titulo {
+  color: var(--_texto);
+  font-weight: var(--peso-seminegrita);
+  line-height: var(--interlineado-compacto);
+}
+
+.texto {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  line-height: var(--interlineado-texto);
+}
+
+.accion {
+  flex: none;
+  align-self: center;
+}
