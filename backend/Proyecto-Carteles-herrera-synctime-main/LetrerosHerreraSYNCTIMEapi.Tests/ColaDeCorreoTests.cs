@@ -83,7 +83,7 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
     }
 
     [Fact]
-    public async Task LasSolicitudesDelClienteYLasPresenciales_TambienAvisan()
+    public async Task LaSolicitudDelCliente_Avisa_YLaPresencial_No()
     {
         var cliente = await api.RegistrarClienteAsync();
         var propia = await api.Cliente(cliente.Token)
@@ -92,13 +92,10 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
         var presencial = await api.CrearSolicitudAsync();
 
         var avisoPropia = await AvisoDeAsync(propia.GetProperty("idSolicitud").GetInt32());
-        var avisoPresencial = await AvisoDeAsync(presencial);
-
         Assert.NotNull(avisoPropia);
-        Assert.NotNull(avisoPresencial);
         Assert.Contains("en línea", avisoPropia.CuerpoTexto);
-        Assert.Contains("presencial", avisoPresencial.CuerpoTexto);
-        Assert.Contains("Admin Pruebas", avisoPresencial.CuerpoTexto);
+        // La presencial la registra el personal en el taller: avisarla seria ruido (decision del 13-11-2026).
+        Assert.Null(await AvisoDeAsync(presencial));
     }
 
     [Fact]

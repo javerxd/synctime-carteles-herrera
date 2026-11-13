@@ -41,9 +41,11 @@ No son desviaciones: el usuario los agregó a los requisitos.
 | Cuenta SMTP | Se necesita en la fase 4, no en la 11. Gmail por SMTP (587, STARTTLS) con contraseña de aplicación en User Secrets | Plan, fases 4 y 11 |
 | Destinatarios | Uno o más correos en `Correo:AvisosTaller`, leídos solo por `IDestinatariosAvisos`. En la fase 9 el servicio leerá primero el valor que guarde el dueño en la base | Fase 4 y fase 9 |
 
-Decisiones de Claude en la fase 4 (objetables):
-- **Aviso también para las solicitudes presenciales**, no solo las en línea, porque el pedido fue «por cada solicitud nueva». Si avisar las que registra el propio dueño resulta ruido, se quitan con una línea.
-- **Tope de 20 avisos por hora** (`Correo:TopeAvisosPorHora`). Pasado el tope, llega un solo aviso de «muchas solicitudes» y las demás quedan en el panel. Protege el cupo diario de Gmail (unos 500 envíos) ante un envío masivo de solicitudes falsas, que dejaría al dueño sin los avisos reales.
+Decisiones del usuario al revisar la fase 4 (13-11-2026):
+- **Sin aviso para las solicitudes presenciales:** las registra el personal en el taller y serían ruido. El correo queda para las solicitudes en línea y el formulario de contacto (fase 5).
+- **Cuentas de correo:** `letrerosherrera.avisos@gmail.com` solo envía y recibe los avisos automáticos; `contacto.letrerosherrera@gmail.com` es el correo público del taller. WhatsApp de prueba: el número del desarrollador, que se reemplaza antes de la entrega.
+- **Base real:** no se le aplican migraciones hasta terminar todas las fases; se trabaja sobre la demo.
+- **Tope de 20 avisos por hora** (se mantiene) (`Correo:TopeAvisosPorHora`). Pasado el tope, llega un solo aviso de «muchas solicitudes» y las demás quedan en el panel. Protege el cupo diario de Gmail (unos 500 envíos) ante un envío masivo de solicitudes falsas, que dejaría al dueño sin los avisos reales.
 - **El aviso no es atómico con la solicitud:** se encola justo después de guardarla. Si ese paso fallara, la solicitud queda guardada, el error se registra y `/salud/correo` pasa a «degradado» por un día. El patrón *outbox* (todo en una transacción) se evaluará en la fase 7, cuando se rehaga el flujo de solicitudes.
 
 ## Decisiones que tomé al aplicar la revisión

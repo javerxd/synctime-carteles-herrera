@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 4: servicios comunes (correo, consentimientos e imágenes)
 
-Fecha: 13-11-2026 · Rama: `fase-04-servicios-comunes` (nace de `fase-03-estructura-y-pantallas`) · Estado: **en revisión, esperando el visto bueno del usuario**
+Fecha: 13-11-2026 · Rama: `fase-04-servicios-comunes` (nace de `fase-03-estructura-y-pantallas`) · Estado: **aprobada el 13-11-2026**, tras el envío real a Gmail
 
 Esta fase deja listos tres servicios que usan las fases siguientes: el correo con cola de salida, el registro de consentimientos y la subida de imágenes. Por pedido del usuario se agregó el **objetivo principal del sistema**: que el dueño reciba en su Gmail un aviso por cada solicitud nueva. Ese aviso ya funciona con las solicitudes que existen hoy (en línea, desde la cuenta del cliente y presenciales).
 
@@ -154,3 +154,10 @@ Están en `desviaciones.md`:
    Avísame cuando estén y ejecuto `probar-correo`. Si quieres, también una solicitud de prueba sobre la base demo con el envío real activado. Si la cuenta no admite contraseñas de aplicación, la alternativa es OAuth2, explicada en el README: exige un proyecto en Google Cloud y publicar la aplicación, porque si no, el permiso vence a los 7 días.
 2. Tu visto bueno a esta fase, o lo que quieras cambiar.
 3. Pendiente de antes: el WhatsApp, el teléfono y el correo del taller para la portada (fase 5), y cuándo aplicar a la base real las migraciones pendientes, que ahora son 3.
+
+## Cierre (13-11-2026)
+
+- **Envío real verificado:** `probar-correo` envió el correo de prueba por `smtp.gmail.com:587` a la cuenta de avisos sin errores.
+- Por decisión del usuario, las solicitudes presenciales ya no avisan por correo (`LaSolicitudDelCliente_Avisa_YLaPresencial_No`). El tope de 20 avisos por hora se mantiene.
+- Contactos del taller para la portada: correo `contacto.letrerosherrera@gmail.com` y WhatsApp de prueba en `src/configuracion/taller.js`.
+- La base real no recibe migraciones hasta terminar las fases.

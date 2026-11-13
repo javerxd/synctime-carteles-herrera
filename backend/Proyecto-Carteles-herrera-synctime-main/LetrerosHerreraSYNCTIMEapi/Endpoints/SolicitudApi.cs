@@ -3,7 +3,6 @@ using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Repositories;
 using LetrerosHerreraSYNCTIMEapi.Security;
-using LetrerosHerreraSYNCTIMEapi.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,7 +26,7 @@ public static class SolicitudApi
             return s is null ? Results.NotFound() : Results.Ok(s);
         });
 
-        group.MapPost("/", async (CrearSolicitudRequest req, ClaimsPrincipal user, ISolicitudRepository repo, IAvisosDelTaller avisos, CancellationToken ct) =>
+        group.MapPost("/", async (CrearSolicitudRequest req, ClaimsPrincipal user, ISolicitudRepository repo, CancellationToken ct) =>
         {
             var error = await SolicitudValidacion.ValidarAsync(req.DescripcionGeneral, req.Detalles, repo, ct);
             if (error is not null)
@@ -47,7 +46,7 @@ public static class SolicitudApi
 
             await repo.AddAsync(solicitud, ct);
             await repo.SaveChangesAsync(ct);
-            await avisos.SolicitudNuevaAsync(solicitud.IdSolicitud);
+            // Sin aviso por correo: la registra el propio personal en el taller (decision del 13-11-2026).
             return Results.Created($"/api/v1/solicitudes/{solicitud.IdSolicitud}", solicitud);
         });
 
