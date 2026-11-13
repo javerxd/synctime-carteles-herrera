@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import CapturaFacial from '../components/CapturaFacial';
+import CapturaFacial from '../componentes/CapturaFacial';
 import { capturarDescriptores } from '../rostro/motorFacial';
 import { crearCamara, errorDeCamara, simularNavegador } from './rostroAuxiliares';
 

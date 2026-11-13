@@ -43,6 +43,10 @@ public static class SemillaDemo
             logger.LogInformation("Semilla de demostracion cargada en {Base}. Usuarios: dueno, admin, disenador, operario y cliente, todos {Dominio}.", nombreBase, DominioCorreo);
         else
             logger.LogInformation("La base {Base} ya tenia la semilla de demostracion: no se cambio nada.", nombreBase);
+
+        // Los pedidos se cargan aparte, para que una base demo ya sembrada tambien los reciba.
+        if (await SembrarPedidosAsync(db))
+            logger.LogInformation("Pedidos de demostracion cargados en {Base}: todos los estados del pedido y de pago, con abonos.", nombreBase);
         return 0;
     }
 
@@ -108,6 +112,125 @@ public static class SemillaDemo
                 Cliente = conCuenta, DescripcionGeneral = "Lienzo para una feria.",
                 Detalles = { new SolicitudDetalle { IdProducto = 2, Descripcion = "Lienzo con logo y fecha", AnchoMm = 3000, AltoMm = 1000, Cantidad = 1 } }
             });
+
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    private sealed record PedidoDemo(
+        string Cliente, int Producto, string Trabajo, int Monto, int Instalacion, string Origen, string Estado,
+        int MesesAtras, int Dia, int DiasEntrega, int? DiasEntregaReal, string? Factura, (int Monto, string Medio, int DiasDespues)[] Abonos);
+
+    // Datos inventados para la revision: cubren cada estado del pedido y de pago, los dos origenes
+    // (cotizacion y presencial directo), un cliente habitual con pedido entregado sin pagar y entregas a
+    // tiempo y atrasadas, repartidos en los ultimos seis meses.
+    private static readonly PedidoDemo[] Pedidos =
+    [
+        new("trigal", 1, "Letrero metálico de fachada", 185000, 0, "cotizacion", "en_proceso", 0, 4, 12, null, null, [(100000, "transferencia", 0)]),
+        new("biobio", 2, "Lienzos para liquidación de temporada", 96000, 0, "cotizacion", "entregado", 0, 2, 5, 4, null, []),
+        new("sonrie", 1, "Letras metálicas para la recepción", 240000, 35000, "cotizacion", "terminado", 1, 28, 10, null, null, [(275000, "transferencia", 1)]),
+        new("lucho", 3, "Palomita de doble cara para la vereda", 54000, 0, "directo", "aceptado", 0, 6, 7, null, null, []),
+        new("ruiz", 1, "Cartel metálico para la bodega", 410000, 0, "cotizacion", "entregado", 1, 15, 14, 13, "F-1021", [(200000, "transferencia", 0), (210000, "transferencia", 13)]),
+        new("900000202", 3, "Palomita para cafetería", 72000, 0, "cotizacion", "anulado", 2, 1, 7, null, null, []),
+        new("900000201", 2, "Lienzo con logo para una feria", 128000, 0, "cotizacion", "entregado", 2, 10, 6, 8, null, [(100000, "efectivo", 0)]),
+        new("biobio", 1, "Cartel de horario de atención", 64000, 0, "directo", "entregado", 3, 5, 4, 4, "F-0998", [(64000, "tarjeta_debito", 4)]),
+        new("trigal", 2, "Lienzo de temporada", 45000, 0, "cotizacion", "entregado", 4, 12, 5, 5, "F-0975", [(45000, "efectivo", 5)]),
+        new("sonrie", 3, "Señalética para el estacionamiento", 88000, 0, "cotizacion", "en_proceso", 0, 1, 3, null, null, []),
+        new("900000203", 1, "Cartel para el almacén", 150000, 25000, "directo", "entregado", 5, 20, 10, 12, null, [(175000, "transferencia", 12)]),
+        new("ruiz", 2, "Lienzos para la feria del transporte", 99000, 0, "cotizacion", "terminado", 0, 3, 6, null, null, [(30000, "efectivo", 0)]),
+    ];
+
+    /// <summary>
+    /// Pedidos de demostracion con su solicitud, su cotizacion aprobada y sus abonos. Devuelve false, sin
+    /// cambiar nada, si ya hay pedidos o si falta la semilla del personal.
+    /// </summary>
+    public static async Task<bool> SembrarPedidosAsync(LetrerosHerreradbContext db)
+    {
+        if (await db.Pedidos.AnyAsync())
+            return false;
+        var personal = await db.Empleados.Where(e => e.Email.EndsWith(DominioCorreo)).ToDictionaryAsync(e => e.Email);
+        if (!personal.TryGetValue($"dueno{DominioCorreo}", out var dueno)
+            || !personal.TryGetValue($"operario{DominioCorreo}", out var operario)
+            || !personal.TryGetValue($"disenador{DominioCorreo}", out var disenador))
+            return false;
+
+        var clientes = new Dictionary<string, Cliente>();
+        foreach (var (clave, nombre, apellido, telefono, rut) in new[]
+        {
+            ("trigal", "Panadería", "El Trigal", "900000211", 46000011),
+            ("biobio", "Ferretería", "Biobío", "900000212", 46000012),
+            ("sonrie", "Clínica Dental", "Sonríe", "900000213", 46000013),
+            ("lucho", "Minimarket", "Don Lucho", "900000214", 46000014),
+            ("ruiz", "Transportes", "Ruiz", "900000215", 46000015),
+        })
+        {
+            clientes[clave] = await db.Clientes.FirstOrDefaultAsync(c => c.Telefono == telefono)
+                ?? new Cliente { Rut = RutDe(rut), Nombre = nombre, Apellido = apellido, Telefono = telefono };
+        }
+        foreach (var telefono in new[] { "900000201", "900000202", "900000203" })
+        {
+            var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.Telefono == telefono);
+            if (cliente is not null)
+                clientes[telefono] = cliente;
+        }
+
+        var hoy = DateTime.Today;
+        DateTime Tope(DateTime fecha) => fecha > hoy ? hoy : fecha;
+
+        foreach (var d in Pedidos.Where(d => clientes.ContainsKey(d.Cliente)))
+        {
+            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1).AddMonths(-d.MesesAtras);
+            var fecha = Tope(inicioMes.AddDays(d.Dia - 1).AddHours(10));
+            var directo = d.Origen == "directo";
+            var solicitud = new Solicitud
+            {
+                Cliente = clientes[d.Cliente],
+                // La de Rosa Pino llega desde la web (sin empleado); las demas, desde el mostrador.
+                EmpleadoRegistra = d.Cliente == "900000201" ? null : operario,
+                Estado = "aceptado",
+                FechaSolicitud = fecha.AddDays(directo ? 0 : -3),
+                DescripcionGeneral = d.Trabajo,
+                Detalles = { new SolicitudDetalle { IdProducto = d.Producto, Descripcion = d.Trabajo, Cantidad = 1 } },
+            };
+            var cotizacion = new Cotizacion
+            {
+                Solicitud = solicitud,
+                Empleado = disenador,
+                FechaCotizacion = fecha.AddDays(directo ? 0 : -1),
+                CostoManoObra = d.Monto,
+                Estado = "aprobada",
+                Observaciones = directo ? "Generada en el mostrador junto con el pedido." : null,
+            };
+            var pedido = new Pedido
+            {
+                Solicitud = solicitud,
+                Cotizacion = cotizacion,
+                Origen = d.Origen,
+                EmpleadoResponsable = operario,
+                FechaPedido = fecha,
+                FechaEntregaEstimada = fecha.AddDays(d.DiasEntrega),
+                FechaEntregaReal = d.Estado == "entregado" && d.DiasEntregaReal is { } real ? Tope(fecha.AddDays(real)) : null,
+                ModalidadEntrega = d.Instalacion > 0 ? "instalacion_terreno" : "retiro_local",
+                RequiereInstalacion = d.Instalacion > 0,
+                DireccionInstalacion = d.Instalacion > 0 ? "Dirección del cliente, Los Ángeles" : null,
+                CostoInstalacionAdicional = d.Instalacion,
+                MontoBaseTrabajo = d.Monto,
+                EstadoPedido = d.Estado,
+                NumeroFactura = d.Factura,
+            };
+            db.Pedidos.Add(pedido);
+            foreach (var abono in d.Abonos)
+            {
+                db.Pagos.Add(new Pago
+                {
+                    Pedido = pedido,
+                    Monto = abono.Monto,
+                    MedioPago = abono.Medio,
+                    FechaPago = DateOnly.FromDateTime(Tope(fecha.AddDays(abono.DiasDespues))),
+                    EmpleadoRegistra = dueno,
+                });
+            }
+        }
 
         await db.SaveChangesAsync();
         return true;

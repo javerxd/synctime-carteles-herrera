@@ -1,9 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import LoginPage from '../pages/LoginPage';
-import { AuthProvider } from '../context/AuthContext';
-import { ToastProvider } from '../context/ToastContext';
+import IngresoPersonal from '../paginas/publicas/IngresoPersonal';
+import { almacenSesion } from '../sesion/sesion';
 import authService from '../api/authService';
 
 vi.mock('../api/authService', () => ({
@@ -14,20 +13,17 @@ vi.mock('../api/authService', () => ({
 
 function renderLogin() {
   return render(
-    <MemoryRouter initialEntries={['/login']}>
-      <AuthProvider>
-        <ToastProvider>
-          <LoginPage />
-        </ToastProvider>
-      </AuthProvider>
+    <MemoryRouter initialEntries={['/personal/ingresar']}>
+      <IngresoPersonal />
     </MemoryRouter>
   );
 }
 
-describe('LoginPage Component', () => {
+describe('Acceso del personal con contraseña', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    almacenSesion.cerrar();
   });
 
   it('renders login form with inputs and submit button', () => {
@@ -45,7 +41,7 @@ describe('LoginPage Component', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/el email es obligatorio/i)).toBeInTheDocument();
+      expect(screen.getByText(/el correo es obligatorio/i)).toBeInTheDocument();
       expect(screen.getByText(/la contraseña es obligatoria/i)).toBeInTheDocument();
     });
     expect(authService.login).not.toHaveBeenCalled();
@@ -70,13 +66,12 @@ describe('LoginPage Component', () => {
 
     await waitFor(() => {
       expect(authService.login).toHaveBeenCalledWith('admin@letrerosherrera.cl', 'Password123!');
-      expect(sessionStorage.getItem('synctime_token')).toBe('fake-jwt-token-123');
+      expect(JSON.parse(sessionStorage.getItem('synctime_sesion'))?.token).toBe('fake-jwt-token-123');
     });
   });
 
   it('displays error alert on 401 unauthorized credentials', async () => {
-    authService.login.mockRejectedValueOnce({
-      status: 401,
+    authService.login.mockRejectedValueOnce({ estado: 401,
       message: 'Credenciales inválidas.',
     });
 
@@ -92,7 +87,7 @@ describe('LoginPage Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /iniciar sesión/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/email o contraseña incorrectos/i)).toBeInTheDocument();
+      expect(screen.getByText(/correo o contraseña incorrectos/i)).toBeInTheDocument();
     });
   });
 });

@@ -19,17 +19,17 @@ export class ErrorFacial extends Error {
 }
 
 const MENSAJES = {
-  permiso_denegado: 'El navegador no tiene permiso para usar la cámara. Permítalo, o entre con su contraseña.',
-  sin_camara: 'No se encontró una cámara en este equipo. Entre con su contraseña.',
-  camara_ocupada: 'Otro programa está usando la cámara. Ciérrelo e intente de nuevo, o entre con su contraseña.',
-  no_soportado: 'Este navegador no permite usar la cámara en esta página. Entre con su contraseña.',
-  sin_rostro: 'No se detectó ningún rostro. Mire a la cámara con buena luz e intente de nuevo, o entre con su contraseña.',
-  varios_rostros: 'Se detectó más de un rostro. Debe aparecer solo usted en la imagen.',
-  carga: 'No se pudieron cargar los archivos de reconocimiento. Revise la conexión, o entre con su contraseña.',
+  permiso_denegado: 'El navegador no tiene permiso para usar la cámara. Permítelo o entra con tu contraseña.',
+  sin_camara: 'No encontramos una cámara en este equipo. Entra con tu contraseña.',
+  camara_ocupada: 'Otro programa está usando la cámara. Ciérralo e inténtalo de nuevo, o entra con tu contraseña.',
+  no_soportado: 'Este navegador no permite usar la cámara en esta página. Entra con tu contraseña.',
+  sin_rostro: 'No se detectó ningún rostro. Mira a la cámara con buena luz e inténtalo de nuevo, o entra con tu contraseña.',
+  varios_rostros: 'Se detectó más de un rostro. Debes aparecer solo tú en la imagen.',
+  carga: 'No pudimos cargar los archivos de reconocimiento. Revisa la conexión o entra con tu contraseña.',
 };
 
 export function mensajeDeError(error) {
-  return MENSAJES[error?.codigo] || 'No se pudo usar el reconocimiento facial. Entre con su contraseña.';
+  return MENSAJES[error?.codigo] || 'No pudimos usar el reconocimiento facial. Entra con tu contraseña.';
 }
 
 export async function abrirCamara() {

@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "frontend/synctimefront"],
       "port": 3000
+    },
+    {
+      "name": "api-demo",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerreraSYNCTIMEapi", "--launch-profile", "https"],
+      "port": 7112
     }
   ]
 }

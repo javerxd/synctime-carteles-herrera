@@ -1,0 +1,33 @@
+.publica {
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  padding: var(--espacio-12) var(--margen-pagina);
+}
+
+.titulo {
+  margin-bottom: var(--espacio-6);
+  font-size: var(--tamano-2xl);
+}
+
+.opciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--espacio-6);
+}
+
+.opcion {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--espacio-3);
+  color: var(--color-texto-secundario);
+}
+
+.subtitulo {
+  color: var(--color-texto);
+  font-size: var(--tamano-xl);
+}
+
+.texto {
+  font-size: var(--tamano-sm);
+}

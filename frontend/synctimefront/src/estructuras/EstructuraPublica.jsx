@@ -1,0 +1,111 @@
+import { useEffect, useRef, useState } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
+import { Boton, Enlace } from '../componentes/ui';
+import { unirClases } from '../componentes/ui/clases';
+import { TALLER } from '../configuracion/taller';
+import ErrorBoundary from '../componentes/ErrorBoundary';
+import { Marca } from './Marca';
+import { BotonSolicitar, ProveedorSolicitud } from './Solicitud';
+import estilos from './EstructuraPublica.module.css';
+
+const ANIO_ACTUAL = new Date().getFullYear();
+
+const SECCIONES = [
+  ['/#vitrina', 'Trabajos'],
+  ['/#horario', 'Horario'],
+  ['/#ubicacion', 'Cómo llegar'],
+];
+
+/** Estructura del portal público: barra flotante de cristal, contenido y pie con enlaces legales. */
+export function EstructuraPublica() {
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const refBotonMenu = useRef(null);
+  const ubicacion = useLocation();
+
+  // Al cambiar de página o de sección, el menú del teléfono se cierra.
+  const [rutaAnterior, setRutaAnterior] = useState(ubicacion.key);
+  if (rutaAnterior !== ubicacion.key) {
+    setRutaAnterior(ubicacion.key);
+    setMenuAbierto(false);
+  }
+
+  // Esc cierra el menú y devuelve el foco a su botón.
+  useEffect(() => {
+    if (!menuAbierto) return undefined;
+    function alTeclear(evento) {
+      if (evento.key === 'Escape') {
+        setMenuAbierto(false);
+        refBotonMenu.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', alTeclear);
+    return () => document.removeEventListener('keydown', alTeclear);
+  }, [menuAbierto]);
+
+  return (
+    <ProveedorSolicitud>
+      <a href="#contenido" className="enlace-salto">Saltar al contenido</a>
+      <header className={estilos.barra}>
+        <div className={estilos.interior}>
+          <Marca />
+          <button
+            ref={refBotonMenu}
+            type="button"
+            className={estilos.botonMenu}
+            aria-expanded={menuAbierto}
+            aria-controls="menu-publico"
+            onClick={() => setMenuAbierto((abierto) => !abierto)}
+          >
+            {menuAbierto ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
+            <span>Menú</span>
+          </button>
+          <nav id="menu-publico" aria-label="Principal" className={unirClases(estilos.navegacion, menuAbierto && estilos.abierta)}>
+            <ul className={estilos.enlaces}>
+              {SECCIONES.map(([destino, nombre]) => (
+                <li key={destino}>
+                  <a href={destino} onClick={() => setMenuAbierto(false)}>{nombre}</a>
+                </li>
+              ))}
+            </ul>
+            <div className={estilos.acciones}>
+              <Boton como={Link} to="/ingresar" variante="fantasma" tamano="compacto">Ingresar</Boton>
+              <BotonSolicitar tamano="compacto" variante="secundario" />
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      <main id="contenido" tabIndex={-1} className={estilos.principal}>
+        <ErrorBoundary resetKey={ubicacion.pathname}>
+          <Outlet />
+        </ErrorBoundary>
+      </main>
+
+      <footer className={estilos.pie}>
+        <div className={estilos.pieInterior}>
+          <div className={estilos.pieMarca}>
+            <Marca />
+            <p className={estilos.pieTexto}>Letreros, rotulación de vehículos y gráfica, diseñados y fabricados en el taller.</p>
+          </div>
+          <div>
+            <h2 className={estilos.pieTitulo}>Visítanos</h2>
+            <address className={estilos.pieTexto}>
+              {TALLER.direccion}<br />{TALLER.ciudad}
+            </address>
+            <Enlace href={TALLER.mapa} externo className={estilos.pieEnlace}>Ver en el mapa</Enlace>
+          </div>
+          <nav aria-label="Información legal">
+            <h2 className={estilos.pieTitulo}>Información</h2>
+            <ul className={estilos.pieLista}>
+              <li><Enlace como={Link} to="/privacidad">Política de privacidad</Enlace></li>
+              <li><Enlace como={Link} to="/terminos">Términos y condiciones</Enlace></li>
+              <li><Enlace como={Link} to="/personal/ingresar">Acceso del personal</Enlace></li>
+            </ul>
+          </nav>
+        </div>
+        <p className={estilos.derechos}>© {ANIO_ACTUAL} {TALLER.nombre} · SyncTime</p>
+      </footer>
+    </ProveedorSolicitud>
+  );
+}

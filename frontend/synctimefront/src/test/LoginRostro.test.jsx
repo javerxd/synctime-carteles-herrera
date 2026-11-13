@@ -1,9 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import LoginPage from '../pages/LoginPage';
-import { AuthProvider } from '../context/AuthContext';
-import { ToastProvider } from '../context/ToastContext';
+import IngresoPersonal from '../paginas/publicas/IngresoPersonal';
+import { almacenSesion } from '../sesion/sesion';
 import authService from '../api/authService';
 import { capturarDescriptores } from '../rostro/motorFacial';
 import { crearCamara, errorDeCamara, simularNavegador } from './rostroAuxiliares';
@@ -19,12 +18,8 @@ vi.mock('../rostro/motorFacial', async (original) => ({
 
 function renderLogin() {
   return render(
-    <MemoryRouter initialEntries={['/login']}>
-      <AuthProvider>
-        <ToastProvider>
-          <LoginPage />
-        </ToastProvider>
-      </AuthProvider>
+    <MemoryRouter initialEntries={['/personal/ingresar']}>
+      <IngresoPersonal />
     </MemoryRouter>
   );
 }
@@ -34,13 +29,14 @@ const escribirEmail = (valor = 'empleado@letrerosherrera.cl') =>
 
 const pulsarRostro = () => fireEvent.click(screen.getByRole('button', { name: /entrar con rostro/i }));
 
-describe('LoginPage: entrar con rostro', () => {
+describe('Acceso del personal: entrar con rostro', () => {
   let getUserMedia;
   let pista;
 
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    almacenSesion.cerrar();
     const simulada = crearCamara();
     pista = simulada.pista;
     getUserMedia = vi.fn().mockResolvedValue(simulada.camara);
@@ -62,7 +58,7 @@ describe('LoginPage: entrar con rostro', () => {
 
     pulsarRostro();
 
-    expect(await screen.findByText(/el email es obligatorio/i)).toBeInTheDocument();
+    expect(await screen.findByText(/el correo es obligatorio/i)).toBeInTheDocument();
     expect(getUserMedia).not.toHaveBeenCalled();
   });
 
@@ -75,30 +71,30 @@ describe('LoginPage: entrar con rostro', () => {
 
     await waitFor(() => expect(authService.loginFacial).toHaveBeenCalledWith('empleado@letrerosherrera.cl', [0.1, 0.2]));
     expect(screen.queryByText(/la contraseña es obligatoria/i)).not.toBeInTheDocument();
-    await waitFor(() => expect(sessionStorage.getItem('synctime_token')).toBe('t'));
+    await waitFor(() => expect(JSON.parse(sessionStorage.getItem('synctime_sesion'))?.token).toBe('t'));
     expect(pista.stop).toHaveBeenCalled();
   });
 
   it('ante un rechazo muestra un mensaje genérico y deja usar la contraseña', async () => {
-    authService.loginFacial.mockRejectedValue({ status: 401 });
+    authService.loginFacial.mockRejectedValue({ estado: 401 });
     authService.login.mockResolvedValue({ token: 'con-password', usuario: { nombre: 'Ana', rol: 'operario' } });
     renderLogin();
     escribirEmail();
 
     pulsarRostro();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/no se pudo verificar su rostro.*contraseña/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no pudimos verificar tu rostro.*contraseña/i);
     expect(pista.stop).toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText(/^contraseña/i), { target: { value: 'una-password' } });
     fireEvent.click(screen.getByRole('button', { name: /iniciar sesión/i }));
 
-    await waitFor(() => expect(sessionStorage.getItem('synctime_token')).toBe('con-password'));
+    await waitFor(() => expect(JSON.parse(sessionStorage.getItem('synctime_sesion'))?.token).toBe('con-password'));
   });
 
   it.each([
     ['NotAllowedError', /no tiene permiso/i],
-    ['NotFoundError', /no se encontró una cámara/i],
+    ['NotFoundError', /no encontramos una cámara/i],
   ])('ante %s explica el problema y deja usar la contraseña', async (nombre, mensaje) => {
     getUserMedia.mockRejectedValue(errorDeCamara(nombre));
     renderLogin();
@@ -113,7 +109,7 @@ describe('LoginPage: entrar con rostro', () => {
   });
 
   it('explica un error de red', async () => {
-    authService.loginFacial.mockRejectedValue({ status: 0, message: 'No se pudo conectar con el servidor.' });
+    authService.loginFacial.mockRejectedValue({ estado: 0, message: 'No se pudo conectar con el servidor.' });
     renderLogin();
     escribirEmail();
 
@@ -123,7 +119,7 @@ describe('LoginPage: entrar con rostro', () => {
   });
 
   it('explica cuando se supera el límite de intentos', async () => {
-    authService.loginFacial.mockRejectedValue({ status: 429 });
+    authService.loginFacial.mockRejectedValue({ estado: 429 });
     renderLogin();
     escribirEmail();
 
@@ -176,7 +172,7 @@ describe('LoginPage: entrar con rostro', () => {
   });
 
   it('tras un rechazo del servidor el foco vuelve al botón', async () => {
-    authService.loginFacial.mockRejectedValue({ status: 401 });
+    authService.loginFacial.mockRejectedValue({ estado: 401 });
     renderLogin();
     escribirEmail();
 

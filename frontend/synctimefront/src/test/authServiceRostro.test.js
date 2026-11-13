@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import authService from '../api/authService';
-import httpClient from '../api/httpClient';
+import { api } from '../api/cliente';
 import { guardarTokenEquipo } from '../rostro/tokenEquipo';
 
-vi.mock('../api/httpClient', () => ({
-  default: { post: vi.fn().mockResolvedValue({ data: {} }) },
+vi.mock('../api/cliente', () => ({
+  api: { post: vi.fn().mockResolvedValue({}) },
 }));
 
 describe('authService.loginFacial', () => {
@@ -19,7 +19,7 @@ describe('authService.loginFacial', () => {
 
     await authService.loginFacial('dueno@letreros.cl', [0.1]);
 
-    expect(httpClient.post).toHaveBeenCalledWith('/auth/login-facial', {
+    expect(api.post).toHaveBeenCalledWith('/auth/login-facial', {
       email: 'dueno@letreros.cl',
       descriptor: [0.1],
       tokenEquipo: 'token-del-dueno',
@@ -29,6 +29,6 @@ describe('authService.loginFacial', () => {
   it('funciona sin token: el navegador no conoce el rol', async () => {
     await authService.loginFacial('operario@letreros.cl', [0.1]);
 
-    expect(httpClient.post.mock.calls[0][1].tokenEquipo).toBeNull();
+    expect(api.post.mock.calls[0][1].tokenEquipo).toBeNull();
   });
 });

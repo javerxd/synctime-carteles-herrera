@@ -172,3 +172,23 @@ table,
     scroll-behavior: auto;
   }
 }
+
+/* Impresión: si la página marca una zona para imprimir (el código QR del local), solo se imprime esa
+   zona, sin menús ni botones (RFS10 pide lo mismo para los reportes en la fase 13). */
+@media print {
+  body:has(.zona-impresion) * {
+    visibility: hidden;
+  }
+
+  body:has(.zona-impresion) .zona-impresion,
+  body:has(.zona-impresion) .zona-impresion * {
+    visibility: visible;
+  }
+
+  .zona-impresion {
+    position: absolute;
+    inset: 0;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

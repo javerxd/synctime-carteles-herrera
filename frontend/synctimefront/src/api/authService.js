@@ -1,62 +1,52 @@
-import httpClient from './httpClient';
+import { api } from './cliente';
 import { leerTokenEquipo } from '../rostro/tokenEquipo';
 
 /**
- * Servicio de autenticación.
- * Gestiona login, perfil del usuario autenticado.
+ * Autenticación del personal y de clientes, y acceso con rostro (contrato en docs/api/contrato.md).
+ * Mismas funciones que antes; ahora sobre el cliente fetch (api/cliente.js).
  */
 const authService = {
-  /** POST /auth/login — devuelve { token, usuario } */
-  async login(email, password) {
-    const { data } = await httpClient.post('/auth/login', { email, password });
-    return data;
+  /** POST /auth/login: personal con correo y contraseña. Devuelve { token, usuario }. */
+  login(email, password) {
+    return api.post('/auth/login', { email, password });
   },
 
   /**
-   * POST /auth/login-facial — devuelve lo mismo que login.
+   * POST /auth/login-facial: devuelve lo mismo que login.
    * Se envía el token de equipo si existe: el navegador no conoce el rol antes de iniciar sesión.
    */
-  async loginFacial(email, descriptor) {
-    const { data } = await httpClient.post('/auth/login-facial', {
-      email,
-      descriptor,
-      tokenEquipo: leerTokenEquipo(email),
-    });
-    return data;
+  loginFacial(email, descriptor) {
+    return api.post('/auth/login-facial', { email, descriptor, tokenEquipo: leerTokenEquipo(email) });
   },
 
-  /** GET /auth/rostro — estado del acceso con rostro y texto del consentimiento */
-  async estadoRostro() {
-    const { data } = await httpClient.get('/auth/rostro');
-    return data;
+  /** POST /auth/login-cliente: cliente con teléfono y contraseña (la fase 6 lo pasa a correo). */
+  loginCliente(telefono, password) {
+    return api.post('/auth/login-cliente', { telefono, password });
   },
 
-  /** PUT /auth/rostro — activa el acceso; devuelve tokenEquipo si el rol lo necesita */
-  async activarRostro({ password, versionConsentimiento, descriptores }) {
-    const { data } = await httpClient.put('/auth/rostro', {
-      password,
-      consentimiento: true,
-      versionConsentimiento,
-      descriptores,
-    });
-    return data;
+  /** GET /auth/rostro: estado del acceso con rostro y texto del consentimiento. */
+  estadoRostro() {
+    return api.get('/auth/rostro');
   },
 
-  /** POST /auth/rostro/equipo — autoriza este equipo y anula el anterior */
-  async autorizarEquipo(password) {
-    const { data } = await httpClient.post('/auth/rostro/equipo', { password });
-    return data;
+  /** PUT /auth/rostro: activa el acceso; devuelve tokenEquipo si el rol lo necesita. */
+  activarRostro({ password, versionConsentimiento, descriptores }) {
+    return api.put('/auth/rostro', { password, consentimiento: true, versionConsentimiento, descriptores });
   },
 
-  /** DELETE /auth/rostro — desactiva el acceso y borra los datos biométricos */
+  /** POST /auth/rostro/equipo: autoriza este equipo y anula el anterior. */
+  autorizarEquipo(password) {
+    return api.post('/auth/rostro/equipo', { password });
+  },
+
+  /** DELETE /auth/rostro: desactiva el acceso y borra los datos biométricos. */
   async desactivarRostro() {
-    await httpClient.delete('/auth/rostro');
+    await api.delete('/auth/rostro');
   },
 
-  /** GET /auth/me — devuelve datos del usuario autenticado */
-  async getProfile() {
-    const { data } = await httpClient.get('/auth/me');
-    return data;
+  /** GET /auth/me: datos del usuario autenticado. */
+  getProfile() {
+    return api.get('/auth/me');
   },
 };
 

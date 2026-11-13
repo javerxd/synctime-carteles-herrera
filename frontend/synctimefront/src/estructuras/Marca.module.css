@@ -1,0 +1,40 @@
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  min-height: var(--tamano-control);
+  border-radius: var(--radio-md);
+  color: var(--color-texto);
+  text-decoration: none;
+}
+
+.logo {
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.textos {
+  display: grid;
+  line-height: 1.15;
+}
+
+.nombre {
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+  white-space: nowrap;
+}
+
+.subtitulo {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-medio);
+}
+
+.invertida {
+  color: var(--color-sobre-acento);
+}
+
+.invertida .subtitulo {
+  color: var(--color-borde);
+}

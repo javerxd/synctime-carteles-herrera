@@ -1,0 +1,199 @@
+/* Barra flotante de cristal (documento del cliente). Mide lo mismo en todas las pantallas, así el
+   espacio reservado para el foco (scroll-padding) es exacto; con poca altura (zoom) deja de ser fija. */
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: var(--capa-barra);
+  border-bottom: 1px solid transparent; /* solo se ve en alto contraste */
+  background: var(--barra-fondo);
+  backdrop-filter: var(--barra-desenfoque);
+  -webkit-backdrop-filter: var(--barra-desenfoque);
+  box-shadow: var(--barra-sombra);
+}
+
+@media (max-height: 30rem) {
+  .barra {
+    position: static;
+  }
+}
+
+.interior {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-4);
+  max-width: var(--ancho-contenido);
+  min-height: var(--altura-barra);
+  margin: 0 auto;
+  padding: 0 var(--margen-pagina);
+}
+
+.botonMenu {
+  display: none;
+}
+
+.navegacion {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--espacio-4);
+}
+
+.enlaces {
+  display: flex;
+  gap: var(--espacio-1);
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.enlaces a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tamano-control);
+  padding: 0 var(--espacio-3);
+  border-radius: var(--radio-md);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+  text-decoration: none;
+  transition:
+    background-color var(--duracion-estado) var(--curva-estandar),
+    color var(--duracion-estado) var(--curva-estandar);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .enlaces a:hover {
+    background: var(--color-hover-neutro);
+    color: var(--color-texto);
+  }
+}
+
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+/* Teléfono y tableta angosta: el menú se despliega bajo la barra */
+@media (max-width: 55.99rem) {
+  .botonMenu {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espacio-2);
+    min-height: var(--tamano-control);
+    margin-left: auto;
+    padding: 0 var(--espacio-3);
+    border: 1px solid var(--color-borde-fuerte);
+    border-radius: var(--radio-md);
+    background: var(--color-superficie);
+    color: var(--color-texto);
+    font-size: var(--tamano-sm);
+    font-weight: var(--peso-seminegrita);
+    cursor: pointer;
+  }
+
+  .navegacion {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--espacio-4);
+    padding: var(--espacio-4) var(--margen-pagina) var(--espacio-6);
+    border-top: 1px solid var(--color-borde);
+    background: var(--color-superficie);
+    box-shadow: var(--sombra-elevada);
+  }
+
+  .abierta {
+    display: flex;
+  }
+
+  .enlaces {
+    flex-direction: column;
+    margin: 0;
+  }
+
+  .enlaces a {
+    width: 100%;
+    font-size: var(--tamano-base);
+  }
+
+  .acciones {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}
+
+.principal:focus {
+  outline: none;
+}
+
+/* Pie: tinta profunda, como el remate de un letrero */
+.pie {
+  margin-top: var(--espacio-20);
+  border-top: 1px solid var(--color-borde);
+  background: var(--color-fondo-alterno);
+}
+
+.pieInterior {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--espacio-8);
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  padding: var(--espacio-12) var(--margen-pagina) var(--espacio-8);
+}
+
+.pieMarca {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-3);
+}
+
+.pieTitulo {
+  margin-bottom: var(--espacio-3);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  letter-spacing: 0;
+}
+
+.pieTexto {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-style: normal;
+  line-height: var(--interlineado-texto);
+}
+
+.pieEnlace {
+  display: inline-block;
+  margin-top: var(--espacio-2);
+  font-size: var(--tamano-sm);
+}
+
+.pieLista {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--tamano-sm);
+}
+
+.pieLista a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tamano-control-compacto);
+}
+
+.derechos {
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  padding: var(--espacio-4) var(--margen-pagina) var(--espacio-8);
+  border-top: 1px solid var(--color-borde);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}

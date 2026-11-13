@@ -1,4 +1,4 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -440,6 +440,21 @@ public class CimientosTests(ApiFixture api)
             Assert.True(await db.Catalogos.CountAsync() >= 3);
             Assert.True(await db.Solicitudes.CountAsync() >= 3);
             Assert.Contains(await db.Solicitudes.Select(s => s.Origen).ToListAsync(), origen => origen == "online");
+
+            // Pedidos de demostracion (fase 3): todos los estados del pedido y de pago, los dos origenes,
+            // abonos con fecha y varios meses, para que los filtros y los indicadores muestren datos.
+            Assert.True(await SemillaDemo.SembrarPedidosAsync(db));
+            Assert.False(await SemillaDemo.SembrarPedidosAsync(db));
+            db.ChangeTracker.Clear();
+            var pedidos = await db.Pedidos.AsNoTracking().ToListAsync();
+            Assert.Equal(["aceptado", "anulado", "en_proceso", "entregado", "terminado"], pedidos.Select(p => p.EstadoPedido).Distinct().Order());
+            Assert.Equal(["abonado", "no_pagado", "pagado_total"], pedidos.Select(p => p.EstadoPago).Distinct().Order());
+            Assert.Equal(["cotizacion", "directo"], pedidos.Select(p => p.Origen).Distinct().Order());
+            Assert.True(pedidos.Select(p => (p.FechaPedido.Year, p.FechaPedido.Month)).Distinct().Count() >= 4);
+            Assert.Contains(pedidos, p => p.EstadoPedido == "entregado" && p.EstadoPago == "no_pagado");
+            var sumas = await db.Pagos.GroupBy(pg => pg.IdPedido).Select(g => new { g.Key, Total = g.Sum(pg => pg.Monto) }).ToListAsync();
+            Assert.NotEmpty(sumas);
+            Assert.All(pedidos, p => Assert.Equal(sumas.FirstOrDefault(s => s.Key == p.IdPedido)?.Total ?? 0, p.MontoAbonado));
         }
         finally
         {

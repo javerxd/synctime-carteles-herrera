@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import ErrorBoundary from '../components/ErrorBoundary';
-import AppLayout from '../components/AppLayout';
-import { AuthProvider } from '../context/AuthContext';
+import ErrorBoundary from '../componentes/ErrorBoundary';
+import { EstructuraPanel } from '../estructuras/EstructuraPanel';
+import { almacenSesion } from '../sesion/sesion';
 
 function Bomba({ falla = true }) {
   if (falla) throw new Error('detalle-tecnico-secreto');
@@ -50,35 +50,34 @@ describe('ErrorBoundary', () => {
   });
 });
 
-describe('AppLayout con una pantalla que falla', () => {
+describe('El panel con una pantalla que falla', () => {
   beforeEach(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    sessionStorage.setItem('synctime_token', 't');
-    sessionStorage.setItem('synctime_user', JSON.stringify({ nombre: 'Ana', apellido: 'Díaz', email: 'a@b.cl', rol: 'dueño' }));
+    almacenSesion.guardar({ token: 't', usuario: { tipo: 'empleado', nombre: 'Ana', apellido: 'Díaz', email: 'a@b.cl', rol: 'dueño' } });
   });
   afterEach(() => {
     vi.restoreAllMocks();
-    sessionStorage.clear();
+    almacenSesion.cerrar();
   });
 
   it('conserva el menú y permite navegar a otra pantalla', () => {
     render(
-      <MemoryRouter initialEntries={['/productos']}>
-        <AuthProvider>
+      <MemoryRouter initialEntries={['/panel/pedidos']}>
+        <>
           <Routes>
-            <Route path="/" element={<AppLayout />}>
-              <Route path="productos" element={<Bomba />} />
+            <Route path="/panel" element={<EstructuraPanel />}>
+              <Route path="pedidos" element={<Bomba />} />
               <Route path="clientes" element={<p>lista de clientes</p>} />
             </Route>
           </Routes>
-        </AuthProvider>
+        </>
       </MemoryRouter>
     );
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Panel del taller' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('link', { name: 'Clientes' }));
+    fireEvent.click(screen.getByRole('link', { name: /^Clientes/ }));
 
     expect(screen.getByText('lista de clientes')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -86,44 +85,44 @@ describe('AppLayout con una pantalla que falla', () => {
 
   it('pasar de una pantalla rota a otra también rota no tumba el menú', () => {
     render(
-      <MemoryRouter initialEntries={['/productos']}>
-        <AuthProvider>
+      <MemoryRouter initialEntries={['/panel/pedidos']}>
+        <>
           <ErrorBoundary recargar>
             <Routes>
-              <Route path="/" element={<AppLayout />}>
-                <Route path="productos" element={<Bomba />} />
+              <Route path="/panel" element={<EstructuraPanel />}>
+                <Route path="pedidos" element={<Bomba />} />
                 <Route path="solicitudes" element={<Bomba />} />
               </Route>
             </Routes>
           </ErrorBoundary>
-        </AuthProvider>
+        </>
       </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByRole('link', { name: 'Solicitudes' }));
+    fireEvent.click(screen.getByRole('link', { name: /^Solicitudes/ }));
 
     // El menú sigue ahí: el error no escaló a la barrera exterior.
-    expect(screen.getByRole('link', { name: 'Clientes' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Clientes/ })).toBeInTheDocument();
     expect(screen.getAllByRole('alert')).toHaveLength(1);
   });
 
   it('"Reintentar" con el fallo persistente mantiene el aviso y el menú', () => {
     render(
-      <MemoryRouter initialEntries={['/productos']}>
-        <AuthProvider>
+      <MemoryRouter initialEntries={['/panel/pedidos']}>
+        <>
           <Routes>
-            <Route path="/" element={<AppLayout />}>
-              <Route path="productos" element={<Bomba />} />
+            <Route path="/panel" element={<EstructuraPanel />}>
+              <Route path="pedidos" element={<Bomba />} />
             </Route>
           </Routes>
-        </AuthProvider>
+        </>
       </MemoryRouter>
     );
 
     fireEvent.click(screen.getByRole('button', { name: /reintentar/i }));
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Clientes' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Clientes/ })).toBeInTheDocument();
   });
 });
 
