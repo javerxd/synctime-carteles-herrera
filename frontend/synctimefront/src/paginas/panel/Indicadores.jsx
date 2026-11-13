@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Aviso, Esqueleto, EstadoVacio, Tarjeta, TEXTOS_ESTADO_PAGO, TEXTOS_ESTADO_PEDIDO } from '../../componentes/ui';
 import { panel } from '../../api/panel';
 import { formatearPesos, nombreMes } from '../../utilidades/formato';
@@ -18,7 +19,7 @@ function ultimosMeses(cantidad = 6) {
   });
 }
 
-function calcular(pedidos, conversion) {
+function calcular(pedidos, conversion, estadoConversion) {
   const meses = ultimosMeses();
   const esteMes = meses.at(-1);
   const validos = pedidos.filter((p) => p.estadoPedido !== 'anulado');
@@ -35,7 +36,7 @@ function calcular(pedidos, conversion) {
       { nombre: 'Ingresos del mes', valor: formatearPesos(ingresosMes), formula: 'Monto final de los pedidos entregados este mes (S11)' },
       { nombre: 'Ticket promedio', valor: formatearPesos(validos.length ? validos.reduce((s, p) => s + Number(p.montoTotalFinal), 0) / validos.length : 0), formula: 'Monto final promedio de los pedidos no anulados' },
       { nombre: 'Saldo por cobrar', valor: formatearPesos(pedidos.filter(esPorCobrar).reduce((s, p) => s + Number(p.saldoPendiente), 0)), formula: 'Saldo de los pedidos no anulados sin pagar del todo' },
-      { nombre: 'Conversión en línea', valor: ultimaConversion ? `${Number(ultimaConversion.porcentajeConversion).toLocaleString('es-CL', { maximumFractionDigits: 1 })} %` : 'Sin datos', formula: 'Solicitudes en línea con pedido no anulado sobre las solicitudes en línea, último mes con datos (S14)' },
+      { nombre: 'Conversión en línea', valor: estadoConversion === 'cargando' ? '—' : estadoConversion === 'error' ? 'No disponible' : ultimaConversion ? `${Number(ultimaConversion.porcentajeConversion).toLocaleString('es-CL', { maximumFractionDigits: 1 })} %` : 'Sin datos', formula: 'Solicitudes en línea con pedido no anulado sobre las solicitudes en línea, último mes con datos (S14)' },
       { nombre: 'Entregas a tiempo', valor: entregados.length ? `${Math.round((aTiempo / entregados.length) * 100)} %` : 'Sin datos', formula: 'Entregados en o antes de la fecha estimada, sobre el total entregado' },
     ],
     porMes: meses.map((m) => ({ etiqueta: etiquetaMes(m), valor: validos.filter((p) => mesDe(p.fechaPedido) === m).length })),
@@ -52,7 +53,9 @@ function calcular(pedidos, conversion) {
 export default function Indicadores() {
   const pedidos = useConsulta('pedidos', panel.pedidos);
   const conversion = useConsulta('conversion', panel.conversionEnLinea);
-  const datos = pedidos.datos ? calcular(pedidos.datos, conversion.datos) : null;
+  const estadoConversion = conversion.cargando ? 'cargando' : conversion.error ? 'error' : 'listo';
+  const datos = useMemo(() => (pedidos.datos ? calcular(pedidos.datos, conversion.datos, estadoConversion) : null),
+    [pedidos.datos, conversion.datos, estadoConversion]);
 
   return (
     <div className={estilos.pagina}>

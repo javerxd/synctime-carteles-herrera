@@ -206,7 +206,7 @@ Biblioteca en `src/componentes/ui/` (importar desde `src/componentes/ui`). Cada 
 - Un estado desconocido se muestra tal como llega, en neutro: nunca se inventa.
 
 ### Data (`TablaAdaptable`, `BarraFiltros`, `Paginacion`, `Pestanas`)
-- Tabla real con `caption`, encabezados de columna y la columna principal como encabezado de fila. Bajo 768 px cada fila es una ficha y cada dato muestra su columna; los roles ARIA explícitos conservan la semántica.
+- Tabla real con `caption`, encabezados de columna y la columna principal como encabezado de fila. Cuando el espacio de la tabla (no la ventana: en el panel el menú lateral se lleva parte del ancho) baja de 768 px, cada fila es una ficha y cada dato muestra su columna; los roles ARIA explícitos conservan la semántica. Si en modo tabla las columnas no caben, la tabla se desplaza dentro de su marco y nunca ensancha la página.
 - La barra de filtros es una zona `search` con nombre propio, su resumen se anuncia al cambiar y «Limpiar filtros» aparece solo con filtros aplicados.
 - Paginación con la página actual en ámbar (`aria-current`) y extremos inactivos pero enfocables.
 - Pestañas con el patrón de WAI-ARIA (flechas, Inicio, Fin), indicador ámbar de 2 px que no se desliza (se usa muy seguido).
@@ -222,7 +222,7 @@ Biblioteca en `src/componentes/ui/` (importar desde `src/componentes/ui`). Cada 
 - Un clic en el telón cierra, salvo que el gesto haya empezado dentro (seleccionar texto).
 
 ### Navigation (barra superior)
-- Barra flotante de cristal, 64 px. En pantallas de menos de 768 px, o de poca altura (zoom), deja de ser fija para no tapar el foco.
+- Barra flotante de cristal de una sola fila (64 px, igual a `--altura-barra`, que reserva `scroll-padding-top` para que el foco no quede tapado). En el teléfono el menú se despliega bajo la barra. Con poca altura (zoom) deja de ser fija. Una barra que crezca a dos filas no puede ser fija (caso de la galería).
 - Enlace «Saltar al contenido» (`.enlace-salto`) como primer elemento enfocable.
 
 ## Do's and Don'ts

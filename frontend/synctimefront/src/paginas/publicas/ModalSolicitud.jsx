@@ -45,7 +45,7 @@ export function ModalSolicitud({ abierto, trabajo, alCerrar }) {
       descripcion="Cuéntanos qué necesitas. Te respondemos con una cotización sin compromiso."
       ancho="36rem"
     >
-      {abierto && <FormularioSolicitud trabajo={trabajo} alCerrar={alCerrar} />}
+      <FormularioSolicitud trabajo={trabajo} alCerrar={alCerrar} />
     </Dialogo>
   );
 }

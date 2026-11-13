@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScanFace, ShieldCheck, Trash2 } from 'lucide-react';
 import { Aviso, Boton, Campo, Casilla, Dialogo, Esqueleto, Insignia, Tarjeta } from '../../componentes/ui';
 import authService from '../../api/authService';
@@ -29,6 +29,7 @@ export default function Perfil() {
   const [enviando, setEnviando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const botonActivar = useDevolverFoco(capturando || enviando);
+  const refCancelar = useRef(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -187,11 +188,12 @@ export default function Perfil() {
       <Dialogo
         abierto={confirmando}
         alCerrar={() => setConfirmando(false)}
+        enfoqueInicial={refCancelar}
         titulo="Desactivar el acceso con rostro"
         descripcion="Se borrarán tus datos biométricos y seguirás entrando con tu contraseña. Solo se conserva la constancia de las fechas de aceptación y retiro."
         pie={(
           <>
-            <Boton variante="secundario" onClick={() => setConfirmando(false)}>Cancelar</Boton>
+            <Boton ref={refCancelar} variante="secundario" onClick={() => setConfirmando(false)}>Cancelar</Boton>
             <Boton variante="peligro" onClick={alDesactivar} cargando={enviando} textoCargando="Desactivando…">Desactivar y borrar</Boton>
           </>
         )}

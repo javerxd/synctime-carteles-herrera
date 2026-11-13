@@ -41,7 +41,7 @@ export function PedidoDirecto({ abierto, alCerrar }) {
   return (
     <Dialogo abierto={abierto} alCerrar={alCerrar} titulo="Pedido presencial directo"
       descripcion="Para un trabajo acordado en el taller, sin solicitud previa." ancho="40rem" cerrarAlPulsarFondo={false}>
-      {abierto && <Formulario alCerrar={alCerrar} />}
+      <Formulario alCerrar={alCerrar} />
     </Dialogo>
   );
 }

@@ -33,11 +33,11 @@ export default function Reportes() {
     </div>
   );
 
-  const operativo = (
+  const tabla = (titulo, filas) => (
     <TablaAdaptable
-      titulo="Reporte operativo de pedidos"
+      titulo={titulo}
       cargando={consulta.cargando}
-      filas={pedidos}
+      filas={filas}
       claveFila="idPedido"
       columnas={[
         { clave: 'cliente', encabezado: 'Cliente', principal: true, render: nombreCliente },
@@ -62,12 +62,12 @@ export default function Reportes() {
       <Pestanas
         etiqueta="Tipo de reporte"
         pestanas={[
-          { id: 'operativo', etiqueta: 'Operativo', contenido: operativo },
+          { id: 'operativo', etiqueta: 'Operativo', contenido: tabla('Reporte operativo de pedidos', filtrarPedidos(consulta.datos ?? [], {})) },
           {
             id: 'gerencial', etiqueta: 'Gerencial',
             contenido: <Aviso tono="info" titulo="Ingresos, costos y totales por período">Usa los mismos cálculos de Indicadores; se completa en la fase 13.</Aviso>,
           },
-          { id: 'parametrizable', etiqueta: 'Parametrizable', contenido: <div className={estilos.ficha}>{filtrosParametrizables}{operativo}</div> },
+          { id: 'parametrizable', etiqueta: 'Parametrizable', contenido: <div className={estilos.ficha}>{filtrosParametrizables}{tabla('Reporte parametrizable de pedidos', pedidos)}</div> },
         ]}
       />
     </div>

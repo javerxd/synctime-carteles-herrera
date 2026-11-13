@@ -88,7 +88,8 @@ function DarVuelta({ actual, alGuardar }) {
   const [mensaje, setMensaje] = useState(actual.mensajeEstado ?? '');
   const [regreso, setRegreso] = useState(actual.tiempoEstimadoRegreso ?? '');
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState(null);
+  const [errorMensaje, setErrorMensaje] = useState(null);
+  const [errorGuardado, setErrorGuardado] = useState(null);
 
   function alCambiarEstado(evento) {
     const valor = evento.target.value;
@@ -99,11 +100,13 @@ function DarVuelta({ actual, alGuardar }) {
   async function alEnviar(evento) {
     evento.preventDefault();
     if (!mensaje.trim()) {
-      setError('Escribe el mensaje que verán los clientes.');
+      setErrorMensaje('Escribe el mensaje que verán los clientes.');
+      evento.currentTarget.querySelector('[name="mensaje"]')?.focus();
       return;
     }
     setGuardando(true);
-    setError(null);
+    setErrorMensaje(null);
+    setErrorGuardado(null);
     try {
       await panel.actualizarCartel({
         abiertoEnLocal: abierto === 'abierto',
@@ -113,7 +116,7 @@ function DarVuelta({ actual, alGuardar }) {
       anunciar({ tono: 'exito', titulo: abierto === 'abierto' ? 'El cartel dice Abierto' : 'El cartel dice Cerrado' });
       alGuardar();
     } catch (e) {
-      setError(e.message);
+      setErrorGuardado(e.message);
     } finally {
       setGuardando(false);
     }
@@ -125,11 +128,12 @@ function DarVuelta({ actual, alGuardar }) {
         <option value="abierto">Abierto / Disponible</option>
         <option value="cerrado">Cerrado / Ausente</option>
       </Campo>
-      <Campo etiqueta="Mensaje para los clientes" maxLength={250} value={mensaje} onChange={(e) => setMensaje(e.target.value)} error={error} />
+      <Campo name="mensaje" etiqueta="Mensaje para los clientes" maxLength={250} value={mensaje} onChange={(e) => setMensaje(e.target.value)} error={errorMensaje} />
       {abierto === 'cerrado' && (
         <Campo etiqueta="Regreso estimado" ayuda="Por ejemplo: 16:30, o mañana a las 9:00" maxLength={80}
           value={regreso} onChange={(e) => setRegreso(e.target.value)} />
       )}
+      {errorGuardado && <Aviso tono="peligro" titulo="No pudimos dar vuelta el cartel">{errorGuardado}</Aviso>}
       <Boton type="submit" iconoInicio={RefreshCw} cargando={guardando} textoCargando="Guardando…">Dar vuelta el cartel</Boton>
     </form>
   );

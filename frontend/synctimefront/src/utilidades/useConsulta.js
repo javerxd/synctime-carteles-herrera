@@ -6,10 +6,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * llegar la respuesta, así una carga nunca deja la pantalla con datos de otra consulta.
  */
 export function useConsulta(clave, consulta) {
-  const [estado, setEstado] = useState({ clave: null, datos: undefined, error: null });
+  const [estado, setEstado] = useState({ base: null, version: -1, datos: undefined, error: null });
   const [version, setVersion] = useState(0);
   const refConsulta = useRef(consulta);
-  const claveActual = `${clave}#${version}`;
 
   useEffect(() => {
     refConsulta.current = consulta;
@@ -20,15 +19,23 @@ export function useConsulta(clave, consulta) {
     Promise.resolve()
       .then(() => refConsulta.current())
       .then(
-        (datos) => vigente && setEstado({ clave: claveActual, datos, error: null }),
-        (error) => vigente && setEstado({ clave: claveActual, datos: undefined, error }),
+        (datos) => vigente && setEstado({ base: clave, version, datos, error: null }),
+        (error) => vigente && setEstado((anterior) => ({ base: clave, version, datos: anterior.base === clave ? anterior.datos : undefined, error })),
       );
     return () => {
       vigente = false;
     };
-  }, [claveActual]);
+  }, [clave, version]);
 
   const recargar = useCallback(() => setVersion((v) => v + 1), []);
-  const cargando = estado.clave !== claveActual;
-  return { datos: cargando ? undefined : estado.datos, error: cargando ? null : estado.error, cargando, recargar };
+  // Mientras se recarga la misma clave, se siguen mostrando los datos anteriores (recargando = true).
+  const listo = estado.base === clave && estado.version === version;
+  const datos = estado.base === clave ? estado.datos : undefined;
+  return {
+    datos,
+    error: listo ? estado.error : null,
+    cargando: !listo && datos === undefined,
+    recargando: !listo && datos !== undefined,
+    recargar,
+  };
 }

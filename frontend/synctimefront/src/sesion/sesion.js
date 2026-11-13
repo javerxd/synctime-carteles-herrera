@@ -19,8 +19,9 @@ function vencimientoDe(token) {
 
 function vigente(sesion) {
   if (!sesion?.token || !sesion?.usuario) return false;
+  // Un token sin vencimiento legible se trata como vencido: la API siempre emite "exp".
   const vence = vencimientoDe(sesion.token);
-  return vence === null || vence > Date.now();
+  return vence !== null && vence > Date.now();
 }
 
 function leerGuardada() {

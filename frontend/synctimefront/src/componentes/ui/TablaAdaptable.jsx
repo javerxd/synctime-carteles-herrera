@@ -3,9 +3,11 @@ import { EstadoVacio } from './EstadoVacio';
 import estilos from './TablaAdaptable.module.css';
 
 /**
- * Tabla de datos que en pantallas angostas pasa a fichas apiladas (sin desplazamiento horizontal):
- * cada celda muestra su encabezado gracias a `data-etiqueta`. Los roles explícitos conservan la
- * semántica de tabla cuando el CSS cambia su forma.
+ * Tabla de datos que, cuando el espacio que tiene es angosto, pasa a fichas apiladas (sin
+ * desplazamiento horizontal): cada celda muestra su encabezado gracias a `data-etiqueta`. Decide por
+ * el ancho de su contenedor, no de la ventana, porque en el panel el menú lateral se lleva parte del
+ * ancho. Si en modo tabla las columnas no caben, la tabla se desplaza dentro de su marco y nunca
+ * ensancha la página. Los roles explícitos conservan la semántica de tabla cuando el CSS cambia su forma.
  * columnas: [{ clave, encabezado, alinear: 'inicio' | 'fin', render: (fila) => nodo, principal }]
  * claveFila: nombre de la propiedad única de cada fila, o una función (fila) => clave.
  */
@@ -50,7 +52,7 @@ export function TablaAdaptable({
   }
 
   return (
-    <div className={className}>
+    <div className={[estilos.adaptable, className].filter(Boolean).join(' ')}>
       {anuncio}
       <div className={estilos.contenedor}>
         <table role="table" className={estilos.tabla}>

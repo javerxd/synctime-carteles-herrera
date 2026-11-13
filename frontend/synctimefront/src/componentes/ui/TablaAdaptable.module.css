@@ -1,9 +1,13 @@
+.adaptable {
+  container-type: inline-size;
+}
+
 .contenedor {
   min-width: 0;
   border: 1px solid var(--tabla-borde);
   border-radius: var(--radio-lg);
   background: var(--color-superficie);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .esqueleto {
@@ -66,8 +70,9 @@
   }
 }
 
-/* Angosto: cada fila es una ficha; el encabezado de fila la titula y cada dato muestra su columna */
-@media (max-width: 47.99rem) {
+/* Angosto (el espacio de la tabla, no la ventana): cada fila es una ficha; el encabezado de fila la
+   titula y cada dato muestra su columna */
+@container (max-width: 47.99rem) {
   .contenedor {
     border: none;
     background: none;

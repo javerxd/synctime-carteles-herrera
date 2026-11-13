@@ -28,7 +28,8 @@ export default function IngresoPersonal() {
   const [verificando, setVerificando] = useState(false);
   const botonRostro = useDevolverFoco(capturando || verificando);
 
-  const destino = ubicacion.state?.desde?.pathname || '/panel';
+  // Tras salir no se vuelve a la pantalla del usuario anterior: quien entre después parte en el inicio.
+  const destino = (ubicacion.state?.motivo !== 'salida' && ubicacion.state?.desde?.pathname) || '/panel';
   const sesionVencida = ubicacion.state?.motivo === 'vencida';
 
   const validarCorreo = useCallback(() => {

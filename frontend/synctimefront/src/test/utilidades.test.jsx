@@ -1,7 +1,8 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { formatearFecha, formatearFechaHora, formatearPesos } from '../utilidades/formato';
 import { formatearRut, validarRut } from '../utilidades/rut';
 import { useDebounce } from '../utilidades/useDebounce';
+import { useConsulta } from '../utilidades/useConsulta';
 
 describe('formatearPesos', () => {
   it('escribe pesos chilenos sin decimales y con punto de miles', () => {
@@ -71,5 +72,55 @@ describe('useDebounce', () => {
     expect(result.current).toBe('pan');
     act(() => vi.advanceTimersByTime(1));
     expect(result.current).toBe('panadería');
+  });
+});
+
+describe('useConsulta', () => {
+  it('carga, y al recargar sigue mostrando los datos anteriores hasta que llegan los nuevos', async () => {
+    let n = 0;
+    let responder;
+    const consulta = vi.fn(() => {
+      n += 1;
+      return n === 1 ? Promise.resolve('primera') : new Promise((r) => { responder = r; });
+    });
+    const { result } = renderHook(() => useConsulta('cartel', consulta));
+    expect(result.current.cargando).toBe(true);
+    await waitFor(() => expect(result.current.datos).toBe('primera'));
+    expect(result.current.cargando).toBe(false);
+
+    act(() => result.current.recargar());
+    await waitFor(() => expect(consulta).toHaveBeenCalledTimes(2));
+    expect(result.current.datos).toBe('primera');
+    expect(result.current.recargando).toBe(true);
+    expect(result.current.cargando).toBe(false);
+
+    await act(async () => responder('segunda'));
+    expect(result.current.datos).toBe('segunda');
+    expect(result.current.recargando).toBe(false);
+  });
+
+  it('con otra clave no muestra los datos de la anterior y descarta la respuesta tardía', async () => {
+    const respuestas = {};
+    const consulta = (clave) => () => new Promise((r) => { respuestas[clave] = r; });
+    const { result, rerender } = renderHook(({ clave }) => useConsulta(clave, consulta(clave)), { initialProps: { clave: 'a' } });
+    await waitFor(() => expect(respuestas.a).toBeDefined());
+    rerender({ clave: 'b' });
+    await waitFor(() => expect(respuestas.b).toBeDefined());
+    await act(async () => respuestas.a('de a'));
+    expect(result.current.datos).toBeUndefined();
+    expect(result.current.cargando).toBe(true);
+    await act(async () => respuestas.b('de b'));
+    expect(result.current.datos).toBe('de b');
+  });
+
+  it('un error al recargar conserva los datos y lo informa', async () => {
+    let n = 0;
+    const consulta = () => (++n === 1 ? Promise.resolve('datos') : Promise.reject(new Error('sin conexión')));
+    const { result } = renderHook(() => useConsulta('pedidos', consulta));
+    await waitFor(() => expect(result.current.datos).toBe('datos'));
+    act(() => result.current.recargar());
+    await waitFor(() => expect(result.current.error?.message).toBe('sin conexión'));
+    expect(result.current.datos).toBe('datos');
+    expect(result.current.recargando).toBe(false);
   });
 });

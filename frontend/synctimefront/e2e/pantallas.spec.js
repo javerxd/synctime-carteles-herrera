@@ -27,6 +27,11 @@ const RESPUESTAS = {
   '/api/v1/horarios': [1, 2, 3, 4, 5, 6, 7].map((d) => ({ diaSemana: d, nombreDia: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d - 1], horaInicio: d < 7 ? '09:00:00' : null, horaFin: d < 6 ? '18:30:00' : d === 6 ? '14:00:00' : null, abierto: d < 7 })),
   '/api/v1/metricas/conversion-online': [{ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1, totalSolicitudesOnline: 4, solicitudesConcretadasEnPedido: 1, porcentajeConversion: 25 }],
   '/api/v1/productos': [{ idProducto: 1, nombre: 'Cartel metálico impreso' }],
+  '/api/v1/catalogo': [
+    { idCatalogo: 1, titulo: 'Letrero luminoso para panadería', descripcion: 'Caja de luz con acrílico y LED.', imagenUrl: '/imagenes/demo/1.webp', producto: { nombre: 'Letrero luminoso', categoria: { idCategoria: 1, nombre: 'Luminosos' } } },
+    { idCatalogo: 2, titulo: 'Vinilo para vitrina de ferretería', descripcion: 'Vinilo de corte con horario.', imagenUrl: null, producto: { nombre: 'Vinilo', categoria: { idCategoria: 2, nombre: 'Vinilos' } } },
+  ],
+  '/api/v1/categorias': [{ idCategoria: 1, nombre: 'Luminosos' }, { idCategoria: 2, nombre: 'Vinilos' }],
 };
 
 function tokenDePrueba() {
@@ -46,6 +51,9 @@ async function entrarComo(page, rol) {
 }
 
 const PANTALLAS = [
+  ['/', 'Letreros que se ven de lejos.'],
+  ['/ingresar', 'Ingresar'],
+  ['/personal/ingresar', 'Acceso del personal'],
   ['/panel', 'Hola, Marta'],
   ['/panel/pedidos', 'Pedidos'],
   ['/panel/local', 'Estado del local'],
@@ -53,13 +61,14 @@ const PANTALLAS = [
   ['/panel/reportes', 'Reportes'],
 ];
 
-for (const ancho of [360, 1440]) {
+for (const ancho of [360, 768, 1440]) {
   for (const [ruta, titulo] of PANTALLAS) {
     test(`${ruta} a ${ancho} px: carga, sin desborde ni fallas graves de accesibilidad`, async ({ page }) => {
       const errores = [];
       page.on('console', (m) => m.type() === 'error' && errores.push(m.text()));
       await page.setViewportSize({ width: ancho, height: 900 });
-      await entrarComo(page, 'dueño');
+      if (ruta.startsWith('/panel')) await entrarComo(page, 'dueño');
+      else await page.route('**/api/v1/**', (r) => r.fulfill({ json: RESPUESTAS[new URL(r.request().url()).pathname.replace(/\/$/, '')] ?? [] }));
       await page.goto(ruta);
       await expect(page.getByRole('heading', { level: 1, name: titulo })).toBeVisible();
       await page.waitForLoadState('networkidle');
@@ -107,6 +116,34 @@ test('el código QR del portal se dibuja y se puede descargar', async ({ page })
   const descarga = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar SVG' }).click();
   expect((await descarga).suggestedFilename()).toBe('qr-letreria-los-herrera.svg');
+});
+
+test('dar vuelta el cartel: el error enfoca el mensaje y al guardar el foco no se pierde', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel/local');
+  const mensaje = page.getByRole('textbox', { name: 'Mensaje para los clientes' });
+  await mensaje.fill('');
+  const boton = page.getByRole('button', { name: 'Dar vuelta el cartel' });
+  await boton.click();
+  await expect(mensaje).toBeFocused();
+  await expect(page.getByText('Escribe el mensaje que verán los clientes.')).toBeVisible();
+  await mensaje.fill('Volvemos pronto');
+  await boton.click();
+  await expect(page.getByText('El cartel dice Cerrado').first()).toBeVisible();
+  await expect(boton).toBeFocused();
+  await expect(mensaje).toHaveValue('Volvemos pronto');
+});
+
+test('desde otra página, «Horario» lleva a la portada y baja hasta la sección', async ({ page }) => {
+  await page.route('**/api/v1/**', (ruta) => {
+    const destino = new URL(ruta.request().url()).pathname.replace(/\/$/, '');
+    return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
+  });
+  await page.setViewportSize({ width: 1440, height: 700 });
+  await page.goto('/ingresar');
+  await page.getByRole('navigation').getByRole('link', { name: 'Horario' }).first().click();
+  await expect(page).toHaveURL(/\/#horario$/);
+  await expect(page.locator('#horario')).toBeInViewport();
 });
 
 test('la portada abre el modal de solicitud, exige la privacidad y muestra el aviso de contacto directo', async ({ page }) => {

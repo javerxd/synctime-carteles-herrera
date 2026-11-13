@@ -89,6 +89,20 @@ describe('cliente de la API', () => {
     expect(alSesionVencida).toHaveBeenCalledTimes(1);
   });
 
+  it('un 401 que llega después de cambiar de sesión no cierra la sesión nueva', async () => {
+    let token = 'de-la-sesion-anterior';
+    configurarClienteApi({ obtenerToken: () => token, alSesionVencida });
+    let responder;
+    fetchSimulado.mockReturnValue(new Promise((r) => { responder = r; }));
+    const pendiente = api.get('/pedidos').catch((e) => e);
+    token = 'de-la-sesion-nueva';
+    responder(new Response(JSON.stringify({ error: 'Debes iniciar sesión.' }), { status: 401, headers: { 'Content-Type': 'application/json' } }));
+    const error = await pendiente;
+    expect(error).toBeInstanceOf(ErrorApi);
+    expect(error.estado).toBe(401);
+    expect(alSesionVencida).not.toHaveBeenCalled();
+  });
+
   it('dos lecturas iguales al mismo tiempo comparten una sola petición', async () => {
     fetchSimulado.mockImplementation(() => respuesta(200, [{ id: 7 }]));
     const [a, b] = await Promise.all([api.get('/categorias'), api.get('/categorias')]);

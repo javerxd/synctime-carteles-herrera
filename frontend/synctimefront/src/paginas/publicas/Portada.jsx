@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ArrowRight, Clock, MapPin, MessageCircle } from 'lucide-react';
 import {
   Aviso, Boton, Chip, Enlace, Esqueleto, EstadoCartel, EstadoVacio, Insignia, Tarjeta,
@@ -20,6 +21,13 @@ export default function Portada() {
   const cartel = useConsulta('cartel', publico.cartel);
   const horarios = useConsulta('horarios', publico.horarios);
   const catalogo = useConsulta('catalogo', publico.catalogo);
+  const { hash, key } = useLocation();
+
+  // Con un ancla (/#vitrina, /#horario) se baja a la sección cuando ya existe, también al repetir el
+  // mismo enlace (cada navegación trae otra key) y otra vez cuando los datos cambian la altura de arriba.
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash, key, catalogo.datos, horarios.datos]);
 
   return (
     <>
@@ -90,7 +98,8 @@ function Mostrador({ cartel, horarios }) {
 
 // La semilla demo apunta a fotos de ejemplo que llegan en la fase 5 (subida de imágenes en WebP).
 // Mientras tanto no se piden, para no provocar errores 404: la tarjeta muestra «Foto pendiente».
-const fotoDisponible = (url) => Boolean(url) && !url.startsWith('/imagenes/demo/');
+// Solo rutas del propio sitio o https (la CSP bloquea además cualquier otro origen).
+const fotoDisponible = (url) => typeof url === 'string' && /^(https:\/\/|\/(?!\/))/.test(url) && !url.startsWith('/imagenes/demo/');
 
 function medidas(trabajo) {
   if (!trabajo.anchoMm || !trabajo.altoMm) return null;

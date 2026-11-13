@@ -53,6 +53,7 @@ public static class SemillaDemo
     // Devuelve false, sin cambiar nada, si la semilla ya estaba cargada.
     public static async Task<bool> SembrarAsync(LetrerosHerreradbContext db, AuthService auth, string password)
     {
+        ExigirBaseDeDemostracion(db);
         if (await db.Empleados.AnyAsync(e => e.Email.EndsWith(DominioCorreo)))
             return false;
 
@@ -146,6 +147,7 @@ public static class SemillaDemo
     /// </summary>
     public static async Task<bool> SembrarPedidosAsync(LetrerosHerreradbContext db)
     {
+        ExigirBaseDeDemostracion(db);
         if (await db.Pedidos.AnyAsync())
             return false;
         var personal = await db.Empleados.Where(e => e.Email.EndsWith(DominioCorreo)).ToDictionaryAsync(e => e.Email);
@@ -234,6 +236,14 @@ public static class SemillaDemo
 
         await db.SaveChangesAsync();
         return true;
+    }
+
+    // Segunda barrera, por si alguien llama a la semilla sin pasar por EjecutarAsync: solo bases demo o de pruebas.
+    private static void ExigirBaseDeDemostracion(LetrerosHerreradbContext db)
+    {
+        var nombre = db.Database.GetDbConnection().Database;
+        if (!BasesDeDatos.EsDemo(nombre) && !BasesDeDatos.EsDePruebas(nombre))
+            throw new InvalidOperationException($"La semilla de demostracion no se carga en la base {nombre}.");
     }
 
     private static Empleado Empleado(int cuerpoRut, string nombre, string apellido, string telefono, string usuario, string rol, string hash) => new()

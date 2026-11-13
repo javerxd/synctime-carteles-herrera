@@ -23,6 +23,7 @@ export default function Pedidos() {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const [pagina, setPagina] = useState(1);
   const [ficha, setFicha] = useState(null);
+  const [fichaAbierta, setFichaAbierta] = useState(false);
   const [directoAbierto, setDirectoAbierto] = useState(false);
   const refTitulo = useRef(null);
   const clienteBuscado = useDebounce(filtros.cliente);
@@ -57,7 +58,7 @@ export default function Pedidos() {
     {
       clave: 'acciones', encabezado: 'Acciones', alinear: 'fin',
       render: (p) => (
-        <Boton variante="fantasma" tamano="compacto" iconoInicio={Eye} onClick={() => setFicha(p)}>
+        <Boton variante="fantasma" tamano="compacto" iconoInicio={Eye} onClick={() => { setFicha(p); setFichaAbierta(true); }}>
           Ver ficha<span className="solo-lectores"> del pedido {p.idPedido}</span>
         </Boton>
       ),
@@ -127,7 +128,7 @@ export default function Pedidos() {
       )}
       <Paginacion pagina={paginaActual} totalPaginas={consulta.cargando ? 0 : totalPaginas} alCambiar={irAPagina} etiqueta="Paginación de pedidos" />
 
-      <FichaPedido pedido={ficha} alCerrar={() => setFicha(null)} />
+      <FichaPedido pedido={ficha} abierta={fichaAbierta} alCerrar={() => setFichaAbierta(false)} />
       <PedidoDirecto abierto={directoAbierto} alCerrar={() => setDirectoAbierto(false)} />
     </div>
   );
@@ -143,10 +144,10 @@ function Dato({ termino, children }) {
 }
 
 /** Ficha del pedido (S07), con los datos que ya entrega el listado. */
-function FichaPedido({ pedido, alCerrar }) {
+function FichaPedido({ pedido, abierta, alCerrar }) {
   const cliente = pedido?.solicitud?.cliente;
   return (
-    <Dialogo abierto={Boolean(pedido)} alCerrar={alCerrar} titulo={pedido ? `Pedido N.º ${pedido.idPedido}` : 'Pedido'}
+    <Dialogo abierto={abierta && Boolean(pedido)} alCerrar={alCerrar} titulo={pedido ? `Pedido N.º ${pedido.idPedido}` : 'Pedido'}
       descripcion={pedido ? `${nombreCliente(pedido)} · ${formatearFecha(pedido.fechaPedido)}` : undefined} ancho="38rem">
       {pedido && (
         <div className={estilos.ficha}>

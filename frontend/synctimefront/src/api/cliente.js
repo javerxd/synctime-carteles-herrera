@@ -92,7 +92,8 @@ async function pedir(metodo, ruta, { cuerpo, parametros, senal } = {}) {
   const datos = await leerCuerpo(respuesta);
   if (respuesta.ok) return datos;
 
-  if (respuesta.status === 401 && token) opciones.alSesionVencida();
+  // Solo si el token sigue siendo el de la sesión actual (una respuesta tardía de otra sesión no cuenta).
+  if (respuesta.status === 401 && token && opciones.obtenerToken() === token) opciones.alSesionVencida();
   throw errorDesde(respuesta, datos);
 }
 

@@ -14,16 +14,16 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 
 | Requisito | Macro-requerimiento | Fase | Estado | Evidencia |
 |---|---|---|---|---|
-| RFS01 | Publicitar el catálogo de trabajos realizados y enviar una solicitud. | 3 (pantalla), 5, 7, 9 | Pendiente |  |
-| RFS02 | Gestionar la disponibilidad horaria y el cartel electrónico. | 3 (pantalla), 5, 9 | Pendiente |  |
+| RFS01 | Publicitar el catálogo de trabajos realizados y enviar una solicitud. | 3 (pantalla), 5, 7, 9 | En curso | Fase 3: portada «Mostrador» con vitrina desde `GET /catalogo`, filtro por categoría y «Cotizar uno similar» (`src/paginas/publicas/Portada.jsx`); captura revisada a 390 y 1440 px. Faltan las fotos (fase 5), el envío (fase 7) y la publicación desde el panel (fase 9) |
+| RFS02 | Gestionar la disponibilidad horaria y el cartel electrónico. | 3 (pantalla), 5, 9 | En curso | Fase 3: cartel con texto, mensaje, regreso y última actualización en la portada y en `/panel/local`, que dueño y administrador dan vuelta (`PUT /cartel-digital`); horario semanal con «Hoy»; código QR descargable en PNG y SVG e imprimible (`EstadoLocal.jsx`, `CodigoQr.jsx`, `e2e/pantallas.spec.js`). Faltan editar el horario y registrar quién cambió el cartel (fase 9) |
 | RFS03 | Autenticación, gestión de cuentas y acceso biométrico facial. | 6, 10, 14 | Pendiente | Incluye desviaciones del ingreso facial (ver `desviaciones.md`) |
-| RFS04 | Gestión integral de solicitudes y prevención de solicitudes falsas. | 3 (modal), 6, 7 | Pendiente |  |
+| RFS04 | Gestión integral de solicitudes y prevención de solicitudes falsas. | 3 (modal), 6, 7 | En curso | Fase 3: modal de solicitud con tipo, medidas, cantidad, detalle y contacto; validación que enfoca el primer error; casilla de privacidad desmarcada (`ModalSolicitud.jsx`, `e2e/pantallas.spec.js`). No envía: muestra el aviso S25 hasta la fase 7 |
 | RFS05 | Gestión de cotizaciones y aprobación por doble vía. | 8 | Pendiente |  |
-| RFS06 | Gestión de pedidos, control independiente de pagos y abonos, y calendario. | 3 (pantalla), 8 | En curso | Ajuste del 12-11-2026: modelo de datos con estado de pedido y de pago independientes e historial de abonos (migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos`, pruebas `PedidoPagoTests`). Falta la lógica de negocio y la interfaz |
+| RFS06 | Gestión de pedidos, control independiente de pagos y abonos, y calendario. | 3 (pantalla), 8 | En curso | Ajuste del 12-11-2026: modelo de datos con estado de pedido y de pago independientes e historial de abonos (migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos`, pruebas `PedidoPagoTests`). Fase 3: listado con ambos estados, monto final, abonado y saldo, filtros, ficha y formulario del pedido directo (`Pedidos.jsx`, `reglasPedidos.js`, `pedidos.test.js`, `e2e/pantallas.spec.js`); semilla demo con 12 pedidos (`SemillaDemo.cs`, `CimientosTests`). Falta la lógica de negocio (fase 8) |
 | RFS07 | Mantenedores del sistema (catálogo, tipos de letrero, materiales y personal). | 9 | Pendiente |  |
 | RFS08 | Notificaciones por correo y formulario de contacto. | 4, 5, 11 | Pendiente |  |
-| RFS09 | Análisis de datos, indicadores (KPIs) y dashboard interactivo. | 3 (pantalla), 12 | Pendiente |  |
-| RFS10 | Generación, exportación (Excel, PDF y CSV) e impresión de reportes. | 3 (pantalla), 13 | Pendiente |  |
+| RFS09 | Análisis de datos, indicadores (KPIs) y dashboard interactivo. | 3 (pantalla), 12 | En curso | Fase 3: estructura del panel de indicadores con 6 KPI y su fórmula, 4 gráficos de barras con tabla de datos (`Indicadores.jsx`, `GraficoBarras.jsx`), calculados en el navegador con la base demo y rotulados como tales. Los cálculos en la API llegan en la fase 12 |
+| RFS10 | Generación, exportación (Excel, PDF y CSV) e impresión de reportes. | 3 (pantalla), 13 | En curso | Fase 3: pestañas Operativo, Gerencial y Parametrizable con filtros por fechas, estado y pago y vista previa (`Reportes.jsx`). Exportación e impresión en la fase 13 |
 | RFS11 | Asistente con inteligencia artificial externa. | 14 | Pendiente |  |
 | RFS12 | Auditoría transversal, gestión de consentimientos e inhabilitación de cuentas. | 4, 5, 6, 11 | Pendiente |  |
 
@@ -46,7 +46,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RFU13 **CAMBIA** | (Trabajador) convertir la cotización aprobada en pedido y registrar los abonos y pagos del cliente, con el… | 8 | Pendiente |  |
 | RFU14 | (Trabajador) asignar responsable, actualizar el avance y registrar la entrega o instalación. | 8 | Pendiente |  |
 | RFU15 | (Trabajador) ver en un calendario las entregas comprometidas. | 8 | Pendiente |  |
-| RFU16 **CAMBIA** | (Trabajador) dar vuelta el cartel electrónico para avisar si el local está abierto o cerrado, con un mensaje… | 3 (pantalla), 9 | Pendiente |  |
+| RFU16 **CAMBIA** | (Trabajador) dar vuelta el cartel electrónico para avisar si el local está abierto o cerrado, con un mensaje… | 3 (pantalla), 9 | En curso | Fase 3: formulario «Dar vuelta el cartel» en `/panel/local` (prueba `e2e/pantallas.spec.js`). Hoy solo dueño y administrador, por el permiso de la API: ver `desviaciones.md` (decisión en la fase 9) |
 | RFU17 | (Dueño) mantener catálogo, productos, categorías y materiales, indicando si se cuenta con el permiso del… | 9 | Pendiente |  |
 | RFU18 | (Dueño) mantener empleados y sus roles. | 9 | Pendiente |  |
 | RFU19 | (Dueño) acceder al iniciar sesión a la vista de administración con las solicitudes pendientes y ver gráficos… | 7,12 | Pendiente |  |
@@ -59,14 +59,14 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RFU26 | (Dueño, trabajador) exportar los reportes autorizados para su rol a archivos Excel (.xlsx), PDF y CSV… | 13 | Pendiente |  |
 | RFU27 | (Dueño) filtrar interactivamente el dashboard por fechas, categorías y estados, y consultar la tabla de datos… | 12 | Pendiente |  |
 | RFU28 | (Dueño) consultar el registro de auditoría del sistema para revisar quién creó o modificó registros… | 11 | Pendiente |  |
-| RFU29 | (Visitante, cliente, trabajador, dueño) navegar y operar todas las pantallas del sistema utilizando… | 2,3,15 | En curso | Fase 2: sistema de diseño (`src/estilos/`, `src/componentes/ui/`) y galería `/galeria.html`: componentes operables con teclado, errores y cargas anunciados; pruebas `src/test/ui/*` y `e2e/galeria.spec.js`. Faltan las pantallas (fase 3) y la prueba con NVDA (fase 15) |
+| RFU29 | (Visitante, cliente, trabajador, dueño) navegar y operar todas las pantallas del sistema utilizando… | 2,3,15 | En curso | Fase 2: sistema de diseño y galería `/galeria.html`. Fase 3: todas las pantallas con enlace de salto, navegación por teclado, menú del panel en `<dialog>` en el teléfono, avisos anunciados; axe sin errores críticos ni serios a 360, 768 y 1440 px (`e2e/pantallas.spec.js`). Falta la prueba con NVDA (fase 15) |
 | RFU30 | (Visitante, cliente registrado) visualizar en la vista principal (con o sin sesión iniciada) un mapa… | 5 | Pendiente |  |
 | RFU31 | (Visitante, cliente) contactar directamente al taller mediante un botón en la vista principal que redirija al… | 5 | Pendiente |  |
 | RFU32 | (Visitante, cliente) enviar consultas generales a través del formulario de contacto de la vista principal… | 5 | Pendiente |  |
 | RFU33 | (Visitante, cliente) leer la Política de Privacidad y los Términos y Condiciones, y decidir en el banner de… | 5 | Pendiente |  |
 | RFU34 **CAMBIA** | (Cliente registrado) descargar una copia de todos sus datos personales almacenados en el sistema y dar de… | 11 | Pendiente |  |
-| RFU35 **NUEVO** | (Dueño, trabajador) registrar un pedido presencial directo cuando el cliente acuerda el trabajo en el taller,… | 3 (pantalla), 8 | Pendiente |  |
-| RFU36 **NUEVO** | (Dueño) filtrar los pedidos por estado del pedido, estado de pago, año, mes y cliente, y listar los pedidos… | 3 (pantalla), 8, 13 | Pendiente |  |
+| RFU35 **NUEVO** | (Dueño, trabajador) registrar un pedido presencial directo cuando el cliente acuerda el trabajo en el taller,… | 3 (pantalla), 8 | En curso | Fase 3: formulario del pedido presencial directo con validación (RUT con dígito verificador, montos enteros, abono no mayor al monto final), solo de presentación (`PedidoDirecto.jsx`). El guardado en una transacción llega en la fase 8 |
+| RFU36 **NUEVO** | (Dueño) filtrar los pedidos por estado del pedido, estado de pago, año, mes y cliente, y listar los pedidos… | 3 (pantalla), 8, 13 | En curso | Fase 3: filtros por estado del pedido, estado de pago, año, mes y cliente (nombre sin tildes, RUT o teléfono), y «Por cobrar», aplicados en la interfaz (`reglasPedidos.js`, `pedidos.test.js`, `e2e/pantallas.spec.js`). Pasan a la API en la fase 8 |
 
 ## Requisitos no funcionales del producto (33)
 
@@ -85,7 +85,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RNFP11 | (Mantenibilidad) documentar todas las rutas de la API en OpenAPI, consultables con Scalar o Swagger en… | 1 | Cumplido | OpenAPI y Scalar en desarrollo; contrato en `docs/api/openapi.json` |
 | RNFP12 | (Seguridad) resolver el ingreso facial en 3 s o menos, con el mismo límite de 10 intentos por minuto que el… | 10 | Pendiente |  |
 | RNFP13 | (Seguridad) completar el flujo de recuperación de contraseña mediante un enlace o código temporal de un solo… | 6 | Pendiente |  |
-| RNFP14 | (Facilidad de uso y Responsive) aplicar un diseño mobile first con sistema de diseño propio y consistente,… | 2,3 | En curso | Fase 2: sistema de diseño (`src/estilos/`, `src/componentes/ui/`) y galería `/galeria.html`: tokens en tres capas, tabla adaptable, esqueletos, estados vacíos, objetivos de 44 px (Playwright). Faltan la navegación colapsable y las páginas 403 y 404 (fase 3) |
+| RNFP14 | (Facilidad de uso y Responsive) aplicar un diseño mobile first con sistema de diseño propio y consistente,… | 2,3 | En curso | Fase 2: tokens, tabla adaptable, esqueletos, estados vacíos, objetivos de 44 px. Fase 3: estructura pública (barra de una fila, pie con enlaces legales) y del panel (menú lateral filtrado por rol, cajón en el teléfono), páginas 403, 404 y de error (`src/estructuras/`, `PaginasDeError.jsx`); sin desborde a 360, 768 y 1440 px (`e2e/pantallas.spec.js`). Falta la revisión de la fase 15 |
 | RNFP15 | (Accesibilidad) cumplir el estándar WCAG 2.2 nivel AA en todas las pantallas, incluyendo HTML semántico,… | 2,15 | En curso | Fase 2: sistema de diseño (`src/estilos/`, `src/componentes/ui/`) y galería `/galeria.html`: axe sin violaciones a 360 y 1440 px; contrastes medidos en `tokens.test.js`; Esc y retorno del foco en diálogos; movimiento reducido y alto contraste comprobados. Faltan las pantallas y la prueba manual |
 | RNFP16 | (Seguridad) autenticar mediante JWT en la API con autorización basada en al menos tres roles diferenciados y… | 1,17 | Pendiente |  |
 | RNFP17 | (Confiabilidad e IA) gestionar las claves de APIs externas (IA, OAuth, SMTP) exclusivamente mediante… | 4,14 | Pendiente |  |
@@ -94,14 +94,14 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RNFP20 | (Confiabilidad) contar con una estrategia de respaldo y restauración de la base de datos documentada y… | 16 | Pendiente |  |
 | RNFP21 | (Ética y usabilidad) diseñar todas las pantallas y flujos libres de patrones engañosos (dark patterns),… | 5 y cada fase | Pendiente |  |
 | RNFP22 | (Rendimiento de recursos y fuentes) servir las imágenes del catálogo y la interfaz optimizadas en formatos… | 2,4,5 | En curso | Fase 2: Plus Jakarta Sans alojada en el sitio, solo 4 grosores y el subconjunto latino. Faltan las imágenes en WebP con carga diferida (fases 4 y 5) |
-| RNFP23 | (Rendimiento de red en cliente) evitar llamadas duplicadas a la API al enviar formularios o cargar vistas,… | 3,15 | Pendiente |  |
-| RNFP24 | (Rendimiento de renderizado en cliente) dividir el código de React por ruta o página (`code splitting` con… | 3,15 | Pendiente |  |
+| RNFP23 | (Rendimiento de red en cliente) evitar llamadas duplicadas a la API al enviar formularios o cargar vistas,… | 3,15 | En curso | Fase 3: cliente `fetch` único que comparte las lecturas iguales en curso (`src/api/cliente.js`, `clienteApi.test.js`); botones que no repiten la acción mientras cargan; peticiones independientes de cada pantalla en paralelo. Falta la revisión de la fase 15 (cada pantalla vuelve a pedir sus datos al abrirse) |
+| RNFP24 | (Rendimiento de renderizado en cliente) dividir el código de React por ruta o página (`code splitting` con… | 3,15 | En curso | Fase 3: cada página se carga aparte con `lazy` y `Suspense` (`src/App.jsx`); el reconocimiento facial solo al usarlo. JavaScript inicial de 101,8 KB comprimido (presupuesto: 150 KB). Falta la medición de la fase 15 |
 | RNFP25 | (Caché y compresión HTTP) activar la compresión estándar (Gzip/Brotli) en las respuestas de ASP.NET Core y… | 1,16 | En curso | Fase 1: compresión Brotli y Gzip, probada. Falta la caché de archivos estáticos (fase 16) |
 | RNFP26 | (Eficiencia en base de datos) utilizar el pool de conexiones por defecto de ADO.NET / Entity Framework Core… | 1 y cada fase | En curso | Fase 1: proyecciones y paginación disponibles. Se aplican por módulo |
 | RNFP27 | (Verificación en condiciones reales) comprobar el rendimiento y la usabilidad del sistema en dispositivos… | 15 | Pendiente |  |
 | RNFP28 | (Seguridad en consultas y aislamiento de datos) utilizar exclusivamente consultas parametrizadas o LINQ en… | 1 | En curso | Fase 1: orden solo por campos permitidos, probado contra inyección. `/mis` filtra por el token |
 | RNFP29 | (Seguridad de orígenes) configurar una política de CORS cerrada en la API que permita peticiones únicamente… | 6,16 | Pendiente |  |
-| RNFP30 **NUEVO** | (Validación y errores; antes RFS31) validar todos los datos de entrada en tres niveles (formularios del front… | 1, 3 | En curso | Fase 1: error estándar y validadores (`Negocio/Validacion.cs`). Falta aplicarlos por módulo y el nivel de formulario (fase 3) |
+| RNFP30 **NUEVO** | (Validación y errores; antes RFS31) validar todos los datos de entrada en tres niveles (formularios del front… | 1, 3 | En curso | Fase 1: error estándar y validadores (`Negocio/Validacion.cs`). Fase 3: nivel de formulario en el acceso, el modal de solicitud, el pedido directo y el cartel: mensajes en español que dicen cómo seguir y foco en el primer error; el cliente traduce el error estándar de la API (`ErrorApi`). Falta aplicarlos por módulo en la API (fases 6 a 9) |
 | RNFP31 **NUEVO** | (Autorización; antes RFS23) permitir cada función solo a los roles autorizados, verificándolo siempre en el… | 1 y cada fase | En curso | Fase 1: `docs/api/permisos.md`, verificada por `ContratoTests`. Faltan los ajustes de las fases 7 a 10 |
 | RNFP32 **NUEVO** | (Listados; antes RFS32) permitir buscar, filtrar, ordenar y paginar los listados principales del sistema… | 1, 5, 7, 8, 9 | En curso | Fase 1: `ParametrosListado`, `PaginarAsync` y `Ordenar`, probados. Falta adaptar cada listado |
 | RNFP33 **NUEVO** | (Protección contra solicitudes falsas; parte técnica de RFS04) limitar las solicitudes en línea por cuenta,… | 7 | Pendiente |  |
@@ -114,8 +114,8 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RNFO02 **CAMBIA** | aplicar el flujo solicitud -> cotización -> aprobación -> pedido, o registrar un pedido presencial directo;… | 8 | En curso | Ajuste del 12-11-2026: el esquema ya separa el pago del pedido y admite el pedido directo. Falta la lógica de negocio (fase 8) |
 | RNFO03 | publicar el horario que fije el dueño y permitir que solo el personal cambie el estado del local. | 9 | Pendiente |  |
 | RNFO04 | conservar solicitudes rechazadas y eliminadas al menos 12 meses, para estadísticas. | 7,11 | Pendiente |  |
-| RNFO05 | montos en pesos chilenos sin decimales y fechas en formato dd-mm-aaaa. | 1,3 | En curso | Fase 1: `Reglas.EsMontoEnPesos`. Falta aplicarlo y el formato en la interfaz (fase 3) |
-| RNFO06 | validar el RUT con su dígito verificador. | 1,3 | En curso | Fase 1: `Rut` con dígito verificador, 20 casos de prueba. Falta aplicarlo en cuentas, clientes y empleados |
+| RNFO05 | montos en pesos chilenos sin decimales y fechas en formato dd-mm-aaaa. | 1,3 | En curso | Fase 1: `Reglas.EsMontoEnPesos`. Fase 3: `formatearPesos` y `formatearFecha` (dd-mm-aaaa, sin corrimiento por zona horaria) en todas las pantallas (`src/utilidades/formato.js`, `utilidades.test.jsx`). Falta aplicarlo en los módulos de la API (fase 8) |
+| RNFO06 | validar el RUT con su dígito verificador. | 1,3 | En curso | Fase 1: `Rut` con dígito verificador, 20 casos de prueba. Fase 3: `validarRut` y `formatearRut` en el frontend (`src/utilidades/rut.js`, `utilidades.test.jsx`), usados en el pedido directo. Falta aplicarlo en cuentas, clientes y empleados (fases 6 y 9) |
 | RNFO07 | todas las pantallas y mensajes en español. | todas | Pendiente |  |
 | RNFO08 | permitir solo los roles administrador, dueño, diseñador y operario para el personal. | 9 | Pendiente |  |
 | RNFO09 | desarrollar con Kanban y mantener el código en un repositorio con control de versiones. | 0 | En curso | Repositorio único y tablero Kanban creados en la fase 0 (`tablero.md`) |
@@ -125,7 +125,7 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | RNFO13 | implementar pruebas unitarias automatizadas para la capa de negocio, pruebas de integración automatizadas… | 1,14,15 | En curso | Fase 1: 96 pruebas unitarias y 166 de integración (187 tras el ajuste). Fase 2: axe automático en `e2e/galeria.spec.js`. Faltan IA simulada y prueba manual |
 | RNFO14 | contenerizar el sistema mediante `Dockerfile` multi-stage con imagen base ligera de versión fija y un archivo… | 16 | Pendiente |  |
 | RNFO15 | automatizar un pipeline CI/CD que construya las imágenes, ejecute las suites de pruebas y publique únicamente… | 0,16 | Pendiente |  |
-| RNFO16 | revisar las dependencias del proyecto para eliminar paquetes o librerías sin usar tanto en el front end como… | 3,16 | Pendiente |  |
+| RNFO16 | revisar las dependencias del proyecto para eliminar paquetes o librerías sin usar tanto en el front end como… | 3,16 | En curso | Fase 3: se eliminaron `axios`, `prop-types`, las páginas, estilos, recursos y pruebas del contrato antiguo; `npm audit --omit=dev` sin vulnerabilidades; `uqr` (MIT, sin dependencias) para el QR (`docs/licencias.md`). Falta la revisión del backend (fase 16) |
 | RNFO17 | verificar y documentar el cumplimiento de las licencias de todas las imágenes, fuentes tipográficas, iconos y… | 2,5,16 | En curso | Fase 2: `docs/licencias.md` (fuente OFL, iconos ISC, paquetes del frontend). Faltan las imágenes, los logos con autorización (fase 5) y el backend (fase 16) |
 
 ## Requisitos no funcionales externos (9)
@@ -172,14 +172,14 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | E24 **CAMBIA** | Solicitud sobre datos personales o baja de correo: petición de descarga de datos personales, solicitud de… | 11 | Pendiente |  |
 | E25 **NUEVO** | Abono o pago del pedido: monto, fecha de pago, medio de pago (efectivo, transferencia, tarjeta de débito o de… | 8 | En curso | Tabla `pagos` con su trigger y restricciones (migración `HistorialDePagos`, pruebas `PedidoPagoTests`). Falta el formulario y la ruta de la API (fase 8) |
 | E26 **NUEVO** | Pedido presencial directo: cliente (búsqueda por RUT o teléfono, o sus datos si es nuevo), tipo de letrero,… | 8 | Pendiente |  |
-| E27 **NUEVO** | Filtros de pedidos: estado del pedido, estado de pago, cobranza (no pagados o abonados), año, mes y cliente.… | 3 (pantalla), 8 | Pendiente |  |
+| E27 **NUEVO** | Filtros de pedidos: estado del pedido, estado de pago, cobranza (no pagados o abonados), año, mes y cliente.… | 3 (pantalla), 8 | En curso | Fase 3: barra de filtros de pedidos con resumen anunciado de cantidad y saldo por cobrar (`Pedidos.jsx`, `e2e/pantallas.spec.js`). Pasa a la API en la fase 8 |
 
 ## Salidas (25)
 
 | Requisito | Descripción | Fase | Estado | Evidencia |
 |---|---|---|---|---|
 | S01 | Catálogo público y vitrina principal («Letrería Los Herrera»): título y datos de contacto de la empresa,… | 5 | Pendiente |  |
-| S02 **CAMBIA** | Horario y cartel electrónico: horario de lunes a domingo, cartel verde «Abierto / Disponible» o rojo «Cerrado… | 3 (pantalla), 5 | Pendiente |  |
+| S02 **CAMBIA** | Horario y cartel electrónico: horario de lunes a domingo, cartel verde «Abierto / Disponible» o rojo «Cerrado… | 3 (pantalla), 5 | En curso | Fase 3: horario de lunes a domingo con «Hoy» y cartel verde «Abierto / Disponible» o rojo «Cerrado / Ausente» con texto e icono, en la portada y el panel (`Portada.jsx`, `EstadoLocal.jsx`). Completa en la fase 5 |
 | S03 | Comprobante de solicitud: número, fecha y hora, nombre del cliente, ítems (producto, medidas, área, cantidad)… | 7 | Pendiente |  |
 | S04 **CAMBIA** | Seguimiento del cliente en vista principal: por solicitud, número, fecha, estado y motivo de rechazo; total y… | 8 | Pendiente |  |
 | S05 | Bandeja de solicitudes y vista principal de administración: resumen de solicitudes pendientes, métricas clave… | 7 | Pendiente |  |
@@ -201,8 +201,8 @@ Cada macro-requerimiento agrupa las acciones de una pantalla o proceso. Su detal
 | S21 | Respuesta de error estándar: estructura uniforme de error de la API con código de estado HTTP, mensaje… | 1 | Cumplido | Fase 1: `Api/ErrorApi.cs`; pruebas `CimientosTests` (401, 403, 404, 400, 409, 429 y 500) |
 | S22 | Documentos legales y banner de cookies: vista de Términos y Condiciones, Política de Privacidad, inventario… | 5,16 | Pendiente |  |
 | S23 **CAMBIA** | Archivo de portabilidad y comprobante de baja: archivo descargable (JSON o CSV) con todos los datos… | 11 | Pendiente |  |
-| S24 **NUEVO** | Listado de pedidos por cobrar: pedidos no anulados con pago «No pagado» o «Abonado», con cliente, estado del… | 3 (pantalla), 8, 13 | Pendiente |  |
-| S25 **NUEVO** | Aviso de contacto directo: mensaje «Para esta solicitud es preferible contactarse directamente con el local»,… | 3 (pantalla), 7 | Pendiente |  |
+| S24 **NUEVO** | Listado de pedidos por cobrar: pedidos no anulados con pago «No pagado» o «Abonado», con cliente, estado del… | 3 (pantalla), 8, 13 | En curso | Fase 3: «Por cobrar» deja los pedidos no anulados con pago «No pagado» o «Abonado» y suma el saldo (`reglasPedidos.js`, `pedidos.test.js`, `e2e/pantallas.spec.js`). Completa en las fases 8 y 13 |
+| S25 **NUEVO** | Aviso de contacto directo: mensaje «Para esta solicitud es preferible contactarse directamente con el local»,… | 3 (pantalla), 7 | En curso | Fase 3: el modal muestra «Para esta solicitud es preferible contactarse directamente con el local» al enviar (`ModalSolicitud.jsx`, `e2e/pantallas.spec.js`). La regla que decide cuándo se muestra llega en la fase 7 |
 
 ## Equivalencia de los códigos antiguos (versión 1 del documento, 47 RFS)
 

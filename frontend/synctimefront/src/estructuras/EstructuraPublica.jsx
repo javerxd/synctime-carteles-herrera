@@ -64,7 +64,7 @@ export function EstructuraPublica() {
             <ul className={estilos.enlaces}>
               {SECCIONES.map(([destino, nombre]) => (
                 <li key={destino}>
-                  <a href={destino} onClick={() => setMenuAbierto(false)}>{nombre}</a>
+                  <Link to={destino} onClick={() => setMenuAbierto(false)}>{nombre}</Link>
                 </li>
               ))}
             </ul>

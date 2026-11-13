@@ -68,7 +68,7 @@ dotnet user-secrets set "Demo:Password" "UNA_PASSWORD_PROPIA" --project .\Letrer
 dotnet run --project .\LetrerosHerreraSYNCTIMEapi -- sembrar-demo
 ```
 
-Crea un usuario por rol (`dueno`, `admin`, `disenador` y `operario`, todos `@letreria.test`), un cliente con cuenta (`cliente@letreria.test`), publicaciones y solicitudes. El comando se niega a escribir en una base cuyo nombre no termine en `_Demo`, y repetirlo no duplica nada.
+Crea un usuario por rol (`dueno`, `admin`, `disenador` y `operario`, todos `@letreria.test`), un cliente con cuenta (`cliente@letreria.test`), publicaciones y solicitudes. Desde la fase 3 tambien carga 12 pedidos de varios meses, con su solicitud, su cotizacion aprobada y sus abonos, que cubren todos los estados del pedido y de pago (entre ellos abonados, entregados sin pagar y anulados) y ambos origenes (cotizacion y pedido directo). Si la base demo ya tenia los datos de la fase 1, repetir el comando agrega solo los pedidos. El comando se niega a escribir en una base cuyo nombre no termine en `_Demo`, y repetirlo no duplica nada.
 
 ## Primer administrador
 
