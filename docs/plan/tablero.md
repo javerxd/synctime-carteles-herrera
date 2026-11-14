@@ -22,7 +22,7 @@ _(ninguna)_
 
 ## En curso
 
-- **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · plan: `fase-08-plan.md`, esperando la aprobación del usuario y sus respuestas a cuatro preguntas
+- **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · plan: `fase-08-plan.md`, cuatro decisiones del usuario tomadas el 14-11-2026; esperando la aprobación del plan
 
 ## Por hacer
 

@@ -82,7 +82,7 @@ stateDiagram-v2
 - **Tope:** ningún abono puede hacer superar el monto final. Lo impide la base, y la API responde con un 409 claro que indica el saldo.
 - **Abonos simultáneos:** la ruta bloquea primero la fila del pedido (`UPDLOCK`), así que dos abonos al mismo tiempo se registran uno tras otro.
 - **Pedido anulado:** no recibe abonos nuevos.
-- **Corrección de un abono mal ingresado (propuesta, ver pregunta 2):** el abono no se edita ni se borra. Se **anula** con un motivo, queda tachado en el historial con quién y cuándo, y el trigger deja de sumarlo. Después se ingresa el correcto. Así no se pierde rastro antes de la auditoría de la fase 11.
+- **Corrección de un abono mal ingresado (decisión 2):** el abono no se edita ni se borra. Se **anula** con un motivo, queda tachado en el historial con quién y cuándo, y el trigger deja de sumarlo. Después se ingresa el correcto. Así no se pierde rastro antes de la auditoría de la fase 11.
 
 ## 5. Listados, cobranza y calendario (RFU36, E27, S24, RFU15, S08)
 
@@ -135,9 +135,9 @@ stateDiagram-v2
 - **Revisiones de ECC:** seguridad y C#, React y accesibilidad, y base de datos.
 - **Al cerrar:** contrato, permisos, diccionario, modelo ER, trazabilidad, tablero e informe al día.
 
-## Preguntas antes de programar
+## Decisiones del usuario (14-11-2026)
 
-1. **Montos e IVA:** propongo que los montos de la cotización y del pedido sean **precios finales con IVA incluido**, sin una línea de IVA aparte, como se cobra hoy en el taller. La otra opción es mostrar neto + IVA (19 %) = total.
-2. **Corregir un abono mal ingresado:** propongo **anularlo con motivo** (queda tachado en el historial) y registrar el correcto. La otra opción es permitir editarlo, solo para gestión.
-3. **Aviso al cliente cuando su cotización está lista:** propongo enviarle un correo («Tu cotización #N está lista», con el botón para verla) desde la cola de la fase 4. El resto de los avisos de cambio de estado (RFU09) sigue en la fase 11. La otra opción es dejar todos los avisos para la fase 11, y el cliente se entera por WhatsApp como hoy.
-4. **Anular un pedido que ya tiene abonos:** propongo permitirlo solo a gestión, con motivo, y que la ficha muestre lo abonado como «a devolver o a favor del cliente», sin registrar la devolución en el sistema. La otra opción es impedir anular mientras tenga abonos activos.
+1. **Montos con IVA incluido:** cada monto de la cotización y del pedido es el precio final, sin una línea de IVA aparte.
+2. **Corrección de un abono:** se anula con motivo, queda tachado en el historial con quién y cuándo, deja de sumar y se registra el correcto. No se edita.
+3. **Aviso de cotización lista:** el cliente recibe un correo «Tu cotización #N está lista», con el botón para verla. Sale de la cola de la fase 4, desde la casilla automática. Los demás avisos de cambio de estado (RFU09) siguen en la fase 11.
+4. **Anular un pedido con abonos:** solo gestión, con motivo. La ficha muestra lo abonado como «a devolver o a favor del cliente», y la devolución no se registra en el sistema.
