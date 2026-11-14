@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026 (fase 7 aprobada; sigue la fase 8).
+Última actualización: 14-11-2026 (fase 7 aprobada; plan de la fase 8 propuesto).
 
 ## Hecho
 
@@ -22,13 +22,12 @@ _(ninguna)_
 
 ## En curso
 
-_(ninguna)_
+- **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · plan: `fase-08-plan.md`, esperando la aprobación del usuario y sus respuestas a cuatro preguntas
 
 ## Por hacer
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 8 | Cotizaciones, pedidos, pagos y abonos | 7 | — (las migraciones a la base real esperan al final de las fases, por decisión del usuario) |
 | 9 | Mantenedores y estado del local | 4, 6 | Decidir si diseñador y operario dan vuelta el cartel |
 | 10 | Rostro según requisitos | 6, 9 | — |
 | 11 | Notificaciones, auditoría y privacidad | 4, 8, 9 | — (la cuenta SMTP se pidió en la fase 4) |
