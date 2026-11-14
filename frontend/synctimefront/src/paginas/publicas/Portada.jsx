@@ -6,7 +6,7 @@ import {
 } from '../../componentes/ui';
 import { publico } from '../../api/publico';
 import { enlaceTelefono, enlaceWhatsapp, TALLER } from '../../configuracion/taller';
-import { BotonSolicitar, useSolicitud } from '../../estructuras/Solicitud';
+import { BotonSolicitar } from '../../estructuras/Solicitud';
 import { formatearFechaHora, formatearPesos } from '../../utilidades/formato';
 import { useConsulta } from '../../utilidades/useConsulta';
 import { FormularioContacto } from './contacto/FormularioContacto';
@@ -155,7 +155,6 @@ function Vitrina() {
   const [categoria, setCategoria] = useState(null);
   const [pagina, setPagina] = useState(1);
   const categorias = useConsulta('categorias', publico.categorias);
-  const { abrir } = useSolicitud();
   const claveActual = categoria ?? 'todas';
   const consulta = useConsulta(`catalogo:${claveActual}:${pagina}`,
     () => publico.catalogo({ categoria: categoria ?? undefined, pagina, tamano: POR_PAGINA }));
@@ -249,7 +248,7 @@ function Vitrina() {
           <ul ref={refLista} className={estilos.rejilla}>
             {trabajos.map((trabajo) => (
               <li key={trabajo.idCatalogo}>
-                <TarjetaTrabajo trabajo={trabajo} alCotizar={() => abrir(trabajo)} />
+                <TarjetaTrabajo trabajo={trabajo} />
               </li>
             ))}
           </ul>
@@ -267,7 +266,7 @@ function Vitrina() {
   );
 }
 
-function TarjetaTrabajo({ trabajo, alCotizar }) {
+function TarjetaTrabajo({ trabajo }) {
   const { imagen } = trabajo;
   return (
     <Tarjeta como="article" interactiva sinRelleno tabIndex={-1} className={estilos.trabajo} aria-labelledby={`trabajo-${trabajo.idCatalogo}`}>
@@ -297,9 +296,9 @@ function TarjetaTrabajo({ trabajo, alCotizar }) {
         {trabajo.precioReferencial > 0 && (
           <p className={estilos.precio}><span>Desde</span> <strong className="cifras">{formatearPesos(trabajo.precioReferencial)}</strong></p>
         )}
-        <Boton variante="secundario" tamano="compacto" className={estilos.accionTrabajo} onClick={alCotizar}>
-          Cotizar uno similar
-        </Boton>
+        <BotonSolicitar trabajo={trabajo} variante="secundario" tamano="compacto" iconoInicio={null} className={estilos.accionTrabajo}>
+          Cotizar uno similar <span className="solo-lectores">a {trabajo.titulo}</span>
+        </BotonSolicitar>
       </div>
     </Tarjeta>
   );

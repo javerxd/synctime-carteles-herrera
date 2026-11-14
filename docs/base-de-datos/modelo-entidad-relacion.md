@@ -1,8 +1,8 @@
 # Modelo entidad-relación — LetreriaLosHerreraDB
 
-Estado del esquema: migración `CuentasYSesion` (13-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
+Estado del esquema: migración `SolicitudesYAdjuntos` (14-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
 
-21 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
+23 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
 
 ## Diagrama
 
@@ -18,6 +18,12 @@ erDiagram
     clientes ||--o{ solicitudes : "pide"
     empleados |o--o{ solicitudes : "registra (presencial)"
     solicitudes ||--o{ solicitud_detalles : "contiene"
+    solicitudes |o--o{ adjuntos_solicitud : "tiene (vacío mientras es borrador)"
+    clientes |o--o{ adjuntos_solicitud : "sube (borrador o archivo de su solicitud)"
+    empleados |o--o{ adjuntos_solicitud : "sube desde la ficha"
+    solicitudes ||--o{ solicitudes_historial : "registra cada cambio de estado"
+    clientes |o--o{ solicitudes_historial : "cambia (envío en línea)"
+    empleados |o--o{ solicitudes_historial : "cambia"
 
     solicitudes ||--o{ cotizaciones : "se cotiza en"
     empleados ||--o{ cotizaciones : "elabora"
@@ -105,12 +111,13 @@ erDiagram
         int id_cliente FK
         int id_empleado_registra FK
         nvarchar origen "calculada: online o presencial"
-        nvarchar descripcion_general
+        nvarchar descripcion_general "hasta 2000"
         datetime2 fecha_solicitud
         nvarchar estado "solicitado, cotizado, aceptado, rechazado"
         nvarchar motivo_rechazo
         bit eliminado_logico
         datetime2 fecha_eliminacion_logica
+        char huella_ip "HMAC de la IP; nunca la IP"
         rowversion row_version
     }
     solicitud_detalles {
@@ -122,6 +129,30 @@ erDiagram
         int alto_mm
         int cantidad
         decimal area_m2 "calculada"
+    }
+    solicitudes_historial {
+        int id_historial PK
+        int id_solicitud FK
+        nvarchar estado_anterior "nulo al crearse"
+        nvarchar estado_nuevo
+        nvarchar motivo "hasta 500"
+        int id_empleado FK "o"
+        int id_cliente FK "o"
+        datetimeoffset fecha
+    }
+    adjuntos_solicitud {
+        int id_adjunto PK
+        int id_solicitud FK "nulo mientras es borrador"
+        int id_cliente FK "o"
+        int id_empleado FK "o"
+        char clave UK "aleatoria, nombre del archivo en disco"
+        varchar tipo "imagen o pdf"
+        nvarchar nombre_original "saneado, hasta 120"
+        int bytes
+        int ancho "solo imagenes"
+        int alto "solo imagenes"
+        datetimeoffset fecha_subida
+        datetimeoffset fecha_vinculo "presente si hay solicitud"
     }
     materiales {
         int id_material PK
@@ -280,6 +311,8 @@ erDiagram
 
 `horarios_atencion` no se relaciona con otras tablas: guarda el horario semanal publicado. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
 
+`adjuntos_solicitud` guarda los logos y diseños que acompañan a una solicitud. Mientras no tiene solicitud es un borrador del cliente, y se vincula al enviarla. Sus archivos son privados (carpeta `Adjuntos:Carpeta`, fuera del repositorio). `solicitudes_historial` guarda cada cambio de estado de una solicitud, con quién lo hizo: un empleado, el cliente o, si ninguno, el sistema.
+
 `tokens_renovacion` y `codigos_cuenta` son de la cuenta: cada fila pertenece a un cliente o a un empleado, nunca a los dos, y se borran con su titular. `clientes.fecha_verificacion_correo` dice si el correo del cliente está confirmado.
 
 ## Flujo de negocio que expresa el modelo
@@ -328,4 +361,47 @@ stateDiagram-v2
 - **Saldo pendiente** = monto final − monto abonado. La base impide abonar más que el monto final (`ck_pedidos_monto_abonado`): un pago que haría superarlo no se guarda.
 - **Cierre del ciclo:** un pedido está cerrado solo cuando su estado es `entregado` y su pago es `pagado_total`.
 - **Cobranza:** el índice `ix_pedidos_cobranza` resuelve el listado de pedidos no anulados con pago `no_pagado` o `abonado` y su saldo.
-- Las transiciones del estado operativo (qué paso puede seguir a cuál) las valida la capa de negocio en la fase 8. El diagrama de arriba es la propuesta que se confirmará en la fase 7.
+- Las transiciones del estado operativo (qué paso puede seguir a cuál) las valida la capa de negocio en la fase 8. El diagrama de arriba es el que aprobó el plan de la fase 7.
+
+
+## Estados de la solicitud y de la cotización (fase 7)
+
+Diagramas aprobados en el plan de la fase 7 (`docs/plan/fase-07-plan.md`, 14-11-2026). La API aplica las transiciones de la solicitud en `Negocio/Solicitudes/ReglasSolicitud.cs` (`TransicionesSolicitud`). Las de la cotización se aplican en la fase 8.
+
+### Solicitud
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> solicitado : el cliente la envía o el personal la registra
+    solicitado --> cotizado : el personal emite una cotización
+    cotizado --> solicitado : el cliente rechaza la cotización (se puede cotizar de nuevo)
+    cotizado --> aceptado : se aprueba la cotización (nace el pedido)
+    solicitado --> rechazado : el personal la rechaza, con motivo
+    cotizado --> rechazado : el personal la rechaza, con motivo
+    aceptado --> [*]
+    rechazado --> [*]
+```
+
+- **Quién cambia cada estado.** El personal rechaza una solicitud con motivo, de 10 a 500 caracteres, y puede devolver una «cotizado» a «solicitado». El sistema pasa a «cotizado» y a «aceptado» al emitir y aprobar una cotización (fase 8). El diagrama aprobado muestra la vuelta a «solicitado» solo para el cliente; la API también la permite al personal (`PATCH /solicitudes/{id}/estado`), que además la hace sola al editar una cotizada.
+- **Edición:** los datos y los ítems solo cambian en «solicitado» o «cotizado». Editar en «cotizado» deja la cotización vigente como «rechazada» y la solicitud vuelve a «solicitado».
+- **Borrado:** es lógico (la fila se conserva), solo en «solicitado» o «rechazado», y sin pedido.
+- **Transición inválida:** responde `409` con `transicion_invalida` y una explicación (por ejemplo, «Una solicitud «rechazado» ya no cambia de estado.»).
+- **Historial:** cada transición escribe una fila en `solicitudes_historial`, con quién la hizo y cuándo.
+
+### Cotización
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> pendiente
+    pendiente --> aprobada : el cliente o el personal la aprueba
+    pendiente --> rechazada : el cliente la rechaza, o la solicitud se edita
+    aprobada --> [*]
+    rechazada --> [*]
+```
+
+- **Varias por solicitud, una pendiente a la vez.** Las anteriores quedan como historial. La regla está fijada, pero la base todavía no impide tener dos pendientes: lo aplica la fase 8.
+- **Cuándo queda rechazada una pendiente:** también al rechazar o devolver la solicitud, además de cuando el cliente la rechaza o la solicitud se edita. La API ya lo hace en esos casos.
+- **Edición:** una cotización aprobada o rechazada ya no se edita.
+- **Pedido y pago:** siguen la propuesta de las secciones anteriores. Se programan en la fase 8.

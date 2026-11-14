@@ -130,6 +130,42 @@ Pendiente antes de cerrar la fase 6 (encontrado al documentarla):
 |---|---|---|---|
 | RNFP08, RFS03 | `frontend/synctimefront/.env.example` trae `VITE_API_URL=https://localhost:7112`, que es otro origen que la página (`localhost:3000`). `src/api/cliente.js` usa `credentials: 'same-origin'`, así que el navegador no envía la cookie de renovación: con esa configuración la sesión dura solo el token de 15 minutos. Con `VITE_API_URL` vacía, la API se llama por el proxy de Vite (`/api`) en el mismo origen | Corregir la configuración de desarrollo (o el modo de `fetch`) y comprobarlo en el navegador antes de cerrar la fase | Claude, en la siguiente tarea de código; el usuario lo revisa |
 
+## Cambios y pendientes de la fase 7 (14-11-2026)
+
+Recoge lo que se decidió en el plan y en la especificación de la fase 7 (aprobados el 14-11-2026), los cambios pedidos después de la especificación, y lo que queda para fases siguientes. Solo la primera tabla son cambios respecto de un requisito; el resto son decisiones de construcción y pendientes.
+
+| Requisito | Qué pide | Qué se hace | Quién lo decidió | Fecha |
+|---|---|---|---|---|
+| RFU11 | El trabajador consulta, modifica, rechaza y elimina solicitudes | Todo el personal rechaza, devuelve a «solicitado» y elimina de forma lógica (`PATCH`). `DELETE /solicitudes/{id}` queda solo para gestión (borrado lógico, no físico) | Cambio posterior a la especificación | 14-11-2026 |
+| Solicitudes en línea (pendiente de la fase 6) | Exigir correo confirmado para enviarlas | Resuelto: el envío en línea exige correo confirmado (`403` con `correo_sin_confirmar`). Cumple RFS03, que pide verificar el correo antes de aceptar solicitudes en línea | Plan de la fase 7, aprobado el 14-11-2026 | 14-11-2026 |
+
+Decisiones de Claude en la fase 7 (objetables):
+
+- **Outbox en la misma transacción.** El aviso al taller y la confirmación al cliente se escriben en la cola junto con la solicitud. Si la cola falla, no se guarda la solicitud. Es más estricto que la fase 4, que encolaba después de guardar: así, si la solicitud queda guardada, su aviso no se pierde. El envío real sigue fuera de la petición, así que un fallo del servidor de correo no impide guardar.
+- **Adjuntos privados.** Los archivos no van a la carpeta pública de las fotos de la vitrina ni tienen ruta pública. Se sirven solo con sesión (el cliente dueño o el personal), con nombres aleatorios y con `Cache-Control: private, no-store`.
+- **SVG y AI no se aceptan.** Pueden llevar código. El mensaje pide exportarlos a PDF o PNG. El formato se decide por el contenido, no por el nombre: un SVG renombrado a `.png` no pasa.
+- **PDF guardado tal cual.** Un PDF no se reescribe: conserva sus metadatos (por ejemplo, el autor) y cualquier contenido activo. Se sirve solo como descarga (`Content-Disposition: attachment`) y no se revisa su contenido. Si se quiere un análisis (JavaScript o enlaces dentro del PDF), habría que agregarlo antes de la fase 16. Pendiente de decisión del usuario.
+- **Huella de la IP.** La IP nunca se guarda en claro: se guarda su HMAC-SHA256 con una clave derivada de `Jwt:Key` con HKDF (etiqueta `synctime:huella-ip`), o con `Solicitudes:ClaveHuella` si existe. En IPv6 se usa el prefijo /64, porque un mismo hogar puede recibir una dirección distinta en cada envío.
+- **ForwardedHeaders para la fase 16.** Detrás de un proxy, todas las solicitudes llegan con la IP del proxy, y la regla contra solicitudes falsas frenaría a todos los clientes a la vez (3 envíos en 24 horas). Antes de publicar hay que configurar `ForwardedHeaders` con la lista de proxies de confianza. Hasta entonces, la regla por IP no es fiable en el despliegue.
+- **Presenciales sin aviso al taller.** Decisión de la fase 4, confirmada por el usuario el 14-11-2026. La confirmación al cliente sale solo si su correo está confirmado, porque el personal pudo escribirlo mal.
+- **El RUT se revisa en todas las solicitudes pendientes,** también en las presenciales, para que un RUT ajeno no sirva para llenar la base desde el local. Las presenciales del personal no pasan por la regla contra solicitudes falsas.
+- **Adjuntos: límites y correo.** 5 archivos por solicitud y 5 borradores por cliente; 10 subidas por minuto por usuario (`RateLimiting:Adjuntos`). Subir exige correo confirmado, para que una cuenta recién creada no use el disco. Un borrador que no se envía en 24 horas se borra con su archivo.
+- **Pedido de la vitrina.** «Solicitar cotización» lleva al formulario del cliente (`/cuenta/solicitud`), no a un modal. El modal `ModalSolicitud.jsx` se retiró.
+
+Pendientes que quedan para las fases siguientes:
+
+| Requisito | Qué falta | Por qué queda para después | Responsable |
+|---|---|---|---|
+| RNFP02 | Comprobar que un cliente registra una solicitud desde el teléfono en 5 minutos o menos | Es una prueba con una persona real. El flujo ya está probado de punta a punta (`e2e/pantallas.spec.js`) | Usuario, que lo cronometra |
+| RNFO04 | Programar `sp_depurar_solicitudes_no_concretadas` (12 meses) | Hoy lo ejecuta la base a mano; nada lo ejecuta solo | Fase 16 |
+| RFS05, RFU08 | Cotizaciones: crear, aprobar o rechazar. Una sola pendiente por solicitud (la base todavía no lo impide) | Es la fase 8 | Fase 8 |
+| RFS09, RFU19, S05 | Gráficos y métricas del inicio (pedidos, ingresos y conversión) | Dependen de los pedidos y las cotizaciones | Fases 8 y 12 |
+| RFS12 | Bitácora de auditoría general: quién creó, modificó o eliminó cada entidad | Es la auditoría de la fase 11. La fase 7 solo registra el historial de las solicitudes | Fase 11 |
+| RFU06 | Enviar la solicitud con cuenta de Google | Requiere el ID de cliente OAuth de Google | Fase 14 y usuario |
+| RNFP10 | Control de concurrencia en la ficha de clientes | La tabla `clientes` no tiene versión; agregarla exige una migración | Decisión del usuario |
+| Adjuntos | Revisión del contenido de los PDF | No se hace hoy (ver «PDF guardado tal cual») | Decisión del usuario |
+| RNFP07 | Proxies y `ForwardedHeaders` para la IP de la regla contra solicitudes falsas y de los límites por IP | Depende del despliegue | Fase 16 |
+
 ## Restricciones del equipo de desarrollo
 
 | Tema | Situación | Consecuencia |

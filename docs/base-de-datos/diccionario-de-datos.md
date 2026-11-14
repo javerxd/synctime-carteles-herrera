@@ -114,16 +114,17 @@ Cabecera de cada pedido de trabajo de un cliente, en línea o en el local (RFS04
 | `id_solicitud` | int | No | autoincremental | PK |
 | `id_cliente` | int | No | | FK a `clientes` |
 | `id_empleado_registra` | int | Sí | | FK a `empleados`: quién la registró en el local. Nulo si la envió el cliente |
-| `origen` | nvarchar(10) | — | Calculada: `online` si no la registró un empleado; si no, `presencial` | Origen |
-| `descripcion_general` | nvarchar(500) | Sí | | Especificaciones generales |
-| `fecha_solicitud` | datetime2(0) | No | `SYSDATETIME()` | Fecha y hora automáticas |
-| `estado` | nvarchar(15) | No | `solicitado` | `solicitado`, `cotizado`, `aceptado` o `rechazado` |
-| `motivo_rechazo` | nvarchar(250) | Sí | | Obligatorio al rechazar (lo exige la API) |
+| `origen` | nvarchar(15) | — | Calculada: `online` si no la registró un empleado; si no, `presencial` | Origen |
+| `descripcion_general` | nvarchar(2000) | Sí | | Especificaciones generales. **Fase 7:** hasta 2000 caracteres (antes 500). La API exige de 10 a 2000 |
+| `fecha_solicitud` | datetime2(0) | No | `SYSDATETIME()` | Fecha y hora automáticas, en hora de Chile |
+| `estado` | nvarchar(15) | No | `solicitado` | `solicitado`, `cotizado`, `aceptado` o `rechazado` (`ck_solicitudes_estado`). Las transiciones las valida la API; cada cambio queda en `solicitudes_historial` |
+| `motivo_rechazo` | nvarchar(500) | Sí | | Obligatorio al rechazar (lo exige la API, de 10 a 500 caracteres). **Fase 7:** hasta 500 (antes 250) |
 | `eliminado_logico` | bit | No | 0 | 1 = eliminada; se conserva para estadísticas (RNFO04) |
 | `fecha_eliminacion_logica` | datetime2(0) | Sí | | Cuándo se eliminó |
-| `row_version` | rowversion | No | automática | Control de concurrencia |
+| `row_version` | rowversion | No | automática | Control de concurrencia: la API lo recibe en `If-Match` y lo compara al editar o cambiar el estado |
+| `huella_ip` | char(64) | Sí | | **Nueva (fase 7).** HMAC-SHA256 de la IP de envío con una clave del servidor (`Solicitudes:ClaveHuella` o una derivada de `Jwt:Key`). En IPv6 se usa el prefijo /64. Nunca se guarda la IP en claro. Solo la usa la regla contra solicitudes falsas; es nula en las presenciales |
 
-Restricciones: `pk_solicitudes`, `fk_solicitudes_cliente`, `fk_solicitudes_empleado`, `ck_solicitudes_estado`. Índices: `ix_solicitudes_metricas` (`fecha_solicitud`, `origen`, `estado`, `eliminado_logico`) para indicadores y bandeja; `ix_solicitudes_cliente` (`id_cliente`, `eliminado_logico`) para el historial de un cliente y la regla contra solicitudes falsas.
+Restricciones: `pk_solicitudes`, `fk_solicitudes_cliente`, `fk_solicitudes_empleado`, `ck_solicitudes_estado`. Índices: `ix_solicitudes_metricas` (`fecha_solicitud`, `origen`, `estado`, `eliminado_logico`) para indicadores y bandeja; `ix_solicitudes_cliente` (`id_cliente`, `eliminado_logico`) para el historial de un cliente; `ix_solicitudes_huella_ip` (`huella_ip`, `fecha_solicitud`, filtrado a las no nulas), que busca las solicitudes de las últimas 24 horas de una misma IP para la regla contra solicitudes falsas.
 
 ## solicitud_detalles
 
@@ -134,12 +135,59 @@ Restricciones: `pk_solicitudes`, `fk_solicitudes_cliente`, `fk_solicitudes_emple
 | `id_solicitud_detalle` | int | No | autoincremental | PK |
 | `id_solicitud` | int | No | | FK a `solicitudes` (se borra con ella) |
 | `id_producto` | int | No | | FK a `productos`: tipo de letrero |
-| `descripcion` | nvarchar(300) | No | | Glosa de especificaciones |
+| `descripcion` | nvarchar(500) | No | | Glosa de especificaciones. **Fase 7:** hasta 500 caracteres (antes 300). Sigue siendo obligatoria: sin descripción se guarda vacía (`""`) |
 | `ancho_mm`, `alto_mm` | int | Sí | | Medidas en milímetros. CHECK: ambas nulas o ambas mayores que 0 |
 | `cantidad` | int | No | 1 | Cantidad. CHECK > 0 |
 | `area_m2` | decimal(12,4) | — | Calculada: ancho × alto / 1.000.000 | Área en m² |
 
 Restricciones: `pk_solicitud_detalles`, `fk_sol_detalles_solicitud` (en cascada), `fk_sol_detalles_producto`, `ck_sol_detalles_cantidad`, `ck_sol_detalles_medidas`. Índices: `ix_sol_detalles_solicitud`, `ix_sol_detalles_producto`.
+
+## solicitudes_historial
+
+**Tabla nueva (14-11-2026, fase 7).** Cada cambio de estado de una solicitud, y también su creación (`estado_anterior` nulo). Dice quién lo hizo: un empleado, el cliente (cuando envió la solicitud en línea) o nadie, cuando lo hace el sistema (por ejemplo, al cotizar). Quitar un adjunto también queda anotado aquí, sin cambio de estado (`estado_anterior` igual a `estado_nuevo`, con el motivo «Se quitó el adjunto …»).
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_historial` | int | No | autoincremental | PK |
+| `id_solicitud` | int | No | | FK a `solicitudes`, en cascada: el historial se va con la solicitud |
+| `estado_anterior` | nvarchar(15) | Sí | | Estado antes del cambio. Nulo al crearse la solicitud |
+| `estado_nuevo` | nvarchar(15) | No | | Estado después del cambio |
+| `motivo` | nvarchar(500) | Sí | | Motivo del rechazo, o la nota del cambio (por ejemplo, al editar una solicitud cotizada) |
+| `id_empleado` | int | Sí | | FK a `empleados`: quién hizo el cambio, si fue el personal |
+| `id_cliente` | int | Sí | | FK a `clientes`: quién hizo el cambio, si fue el cliente (envío en línea) |
+| `fecha` | datetimeoffset(0) | No | | Cuándo ocurrió |
+
+Si `id_empleado` e `id_cliente` están nulos, el cambio lo hizo el sistema.
+
+Restricciones: `pk_solicitudes_historial`, `fk_solicitudes_historial_solicitud` (en cascada), `fk_solicitudes_historial_empleado` y `fk_solicitudes_historial_cliente` (sin acción en cascada), `ck_solicitudes_historial_estados` (los dos estados son de los cuatro válidos) y `ck_solicitudes_historial_actor` (nunca un cliente y un empleado a la vez).
+
+Índices: `ix_solicitudes_historial_solicitud` (`id_solicitud`, `fecha`), `IX_solicitudes_historial_id_empleado` e `IX_solicitudes_historial_id_cliente`.
+
+## adjuntos_solicitud
+
+**Tabla nueva (14-11-2026, fase 7).** Una fila por archivo: el logo o diseño que el cliente adjunta a su solicitud, o el que el personal agrega desde la ficha. Mientras `id_solicitud` es nulo, es un **borrador** del cliente: se vincula a la solicitud al enviarla, en la misma transacción. Los archivos están en una carpeta privada del servidor (`Adjuntos:Carpeta`, `almacen/adjuntos`), fuera del repositorio. El archivo se nombra con `clave`, que nunca se muestra, y solo se sirve con sesión (`GET /api/v1/adjuntos/{id}/miniatura` y `/archivo`).
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_adjunto` | int | No | autoincremental | PK |
+| `id_solicitud` | int | Sí | | FK a `solicitudes`, en cascada. Nulo mientras es un borrador |
+| `id_cliente` | int | Sí | | FK a `clientes`: quién lo subió, si fue el cliente |
+| `id_empleado` | int | Sí | | FK a `empleados`: quién lo subió, si fue el personal |
+| `clave` | char(32) | No | aleatoria (128 bits) | Nombre de los archivos en disco. Único (`uq_adjuntos_solicitud_clave`) |
+| `tipo` | varchar(10) | No | | `imagen` o `pdf` |
+| `nombre_original` | nvarchar(120) | No | | Nombre saneado: sin rutas ni caracteres de control, de hasta 120 caracteres. Solo se muestra |
+| `bytes` | int | No | | Tamaño del archivo subido, antes de convertirlo. Mayor que 0 |
+| `ancho`, `alto` | int | Sí | | Medidas de la imagen en píxeles. Nulas en un PDF |
+| `fecha_subida` | datetimeoffset(0) | No | | Cuándo se subió |
+| `fecha_vinculo` | datetimeoffset(0) | Sí | | Cuándo se vinculó a la solicitud. Está presente si y solo si `id_solicitud` está presente |
+
+Exactamente uno de `id_cliente` e `id_empleado` tiene valor.
+
+Restricciones: `pk_adjuntos_solicitud`, `fk_adjuntos_solicitud_solicitud` (en cascada), `fk_adjuntos_solicitud_cliente` y `fk_adjuntos_solicitud_empleado` (sin acción en cascada); `ck_adjuntos_solicitud_autor`, `ck_adjuntos_solicitud_vinculo`, `ck_adjuntos_solicitud_tipo`, `ck_adjuntos_solicitud_bytes` y `ck_adjuntos_solicitud_medidas` (una imagen tiene medidas; un PDF, no).
+
+Índices: `uq_adjuntos_solicitud_clave` (único), `ix_adjuntos_solicitud_solicitud` (`id_solicitud`, filtrado a las no nulas), `ix_adjuntos_solicitud_borrador` (`id_cliente`, `fecha_subida`, filtrado a los borradores) e `IX_adjuntos_solicitud_id_empleado`.
+
+**Límites y retención:** 10 MB por archivo y 5 por solicitud; el tope se revisa al subir y otra vez al vincular. Un borrador que pasa 24 horas sin enviarse se borra junto con su archivo (`PurgaDatosPersonales`, una vez al día). Si se borra una solicitud, sus filas se van en cascada; sus archivos quedan en disco hasta la purga, que borra los que ya no tienen registro.
 
 ## materiales
 
@@ -468,3 +516,4 @@ Límites de envío, en la API y no en la base: como máximo 1 código por minuto
 | `ServiciosComunes` | 13-11-2026 | Tablas nuevas `correos_salientes` (cola de correo), `consentimientos` e `imagenes`. Solo crea tablas: no toca datos ni tablas existentes |
 | `PortadaPublica` | 13-11-2026 | Tabla nueva `consultas_contacto`. En `catalogo`, `imagen_url` deja de ser obligatoria y se agregan `id_imagen`, `incluye_logo_cliente`, `id_empleado_autoriza_logo` y `fecha_autorizacion_logo`, con sus claves foráneas, las restricciones `ck_catalogo_logo` y `ck_catalogo_autorizacion_logo` e índices. En `imagenes`, `es_ejemplo`. No borra tablas, columnas ni filas (prueba `PortadaPublica_SoloAgrega`) |
 | `CuentasYSesion` | 13-11-2026 | Tablas nuevas `tokens_renovacion` (sesiones; solo se guarda el hash del token) y `codigos_cuenta` (enlaces de verificación y códigos de recuperación; solo el hash). En `clientes`, la columna `fecha_verificacion_correo` y la restricción `ck_clientes_cuenta_con_correo`, que impide una contraseña sin correo: si algún cliente tuviera contraseña sin correo, la migración se detiene. En la base real no hay clientes (consultado el 13-11-2026). Solo agrega (prueba `CuentasYSesion_SoloAgrega`). Aplicada en la base demo; no en la real |
+| `SolicitudesYAdjuntos` | 14-11-2026 | Tablas nuevas `adjuntos_solicitud` (archivos de las solicitudes, privados) y `solicitudes_historial` (cambios de estado). En `solicitudes`, la columna nueva `huella_ip` con su índice `ix_solicitudes_huella_ip`, y se amplían `descripcion_general` (2000), `motivo_rechazo` (500) y `solicitud_detalles.descripcion` (500). No borra tablas, columnas ni filas (prueba `SolicitudesYAdjuntos_SoloAgrega`). Aplicada en la base demo; no en la real |

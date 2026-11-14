@@ -46,6 +46,56 @@ const RESPUESTAS = {
   '/api/v1/categorias': [{ idCategoria: 1, nombre: 'Luminosos' }, { idCategoria: 2, nombre: 'Vinilos' }],
 };
 
+// ── Fase 7: solicitudes, adjuntos y clientes ──
+const ROSA = { nombre: 'Rosa', apellido: 'Pino', telefono: '912345678', correo: 'rosa@correo.test' };
+const COMPROBANTE = {
+  idSolicitud: 123, numero: '#123', fechaChile: `${hoy.toISOString().slice(0, 10)}T10:32:00`, origen: 'online', estado: 'solicitado', cliente: ROSA,
+  detalles: [
+    { idProducto: 1, producto: 'Cartel metálico impreso', descripcion: 'Fondo blanco, letras rojas', anchoMm: 1200, altoMm: 600, cantidad: 2, areaM2: 1.44 },
+    { idProducto: 1, producto: 'Cartel metálico impreso', descripcion: null, anchoMm: null, altoMm: null, cantidad: 1, areaM2: null },
+  ],
+  areaTotalM2: 1.44, descripcionGeneral: 'Letrero para la fachada de la panadería, con el horario abajo.', rowVersion: 'AAAAAAAAB9E=',
+  adjuntos: [
+    { idAdjunto: 8, tipo: 'imagen', nombre: 'fachada.jpg', bytes: 240000, urlMiniatura: '/api/v1/adjuntos/8/miniatura' },
+    { idAdjunto: 9, tipo: 'pdf', nombre: 'logo-panaderia-version-final.pdf', bytes: 120000, urlMiniatura: null },
+  ],
+};
+const FICHA = {
+  ...COMPROBANTE,
+  idCliente: 9,
+  registradaPor: null,
+  historial: [{ estadoAnterior: null, estadoNuevo: 'solicitado', motivo: null, fechaChile: COMPROBANTE.fechaChile, actor: 'cliente', por: 'Rosa Pino' }],
+};
+const FILA = (id, estado, origen, cliente, items, adjuntos) => ({
+  idSolicitud: id, numero: `#${id}`, fechaChile: fecha(0, (id % 9) + 1), estado, origen, cliente, cantidadItems: items, cantidadAdjuntos: adjuntos,
+  registradaPor: origen === 'presencial' ? { nombre: 'Hugo', apellido: 'Vera' } : null,
+});
+const BANDEJA = {
+  elementos: [
+    FILA(123, 'solicitado', 'online', ROSA, 2, 2),
+    FILA(122, 'cotizado', 'presencial', { nombre: 'Ferretería', apellido: 'Biobío', telefono: '900000212' }, 1, 0),
+    FILA(121, 'rechazado', 'online', { nombre: 'Luis', apellido: 'Araya', telefono: '900000202' }, 3, 1),
+  ],
+  total: 3, pagina: 1, tamano: 20, totalPaginas: 1,
+};
+const CLIENTES = {
+  elementos: [
+    { idCliente: 9, nombre: 'Rosa', apellido: 'Pino', telefono: '912345678', rut: '12.345.678-5', email: 'rosa@correo.test', activo: true },
+    { idCliente: 10, nombre: 'Ferretería', apellido: 'Biobío', telefono: '900000212', rut: null, email: null, activo: true },
+  ],
+  total: 2, pagina: 1, tamano: 20, totalPaginas: 1,
+};
+Object.assign(RESPUESTAS, {
+  '/api/v1/solicitudes': BANDEJA,
+  '/api/v1/solicitudes/123': FICHA,
+  '/api/v1/mis/solicitudes': { elementos: BANDEJA.elementos.slice(0, 2), total: 2, pagina: 1, tamano: 10, totalPaginas: 1 },
+  '/api/v1/mis/solicitudes/123': COMPROBANTE,
+  '/api/v1/clientes': CLIENTES,
+  '/api/v1/clientes/9': CLIENTES.elementos[0],
+  '/api/v1/mis/adjuntos': [],
+});
+const IMAGEN_PRUEBA = 'public/marca/logo-lh-256.webp';
+
 function tokenDePrueba() {
   const carga = Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url');
   return `cabecera.${carga}.firma`;
@@ -68,6 +118,7 @@ async function conSesion(page, sesion, extras = {}) {
     const destino = destinoDe(ruta);
     if (destino === '/api/v1/auth/renovar') return ruta.fulfill({ json: { token: tokenDePrueba(), ...sesion } });
     if (destino === '/api/v1/auth/salir') return ruta.fulfill({ status: 204 });
+    if (/^\/api\/v1\/adjuntos\/\d+\/(miniatura|archivo)$/.test(destino)) return ruta.fulfill({ path: IMAGEN_PRUEBA, contentType: 'image/webp' });
     const cuerpo = extras[destino] ?? RESPUESTAS[destino];
     return cuerpo ? ruta.fulfill({ json: cuerpo }) : ruta.fulfill({ status: 404, json: { error: 'No encontrado' } });
   });
@@ -80,8 +131,9 @@ function entrarComo(page, rol) {
   });
 }
 
-function entrarComoCliente(page) {
-  return conSesion(page, { tipo: 'cliente', usuario: CLIENTE }, { '/api/v1/mi-cuenta': MI_CUENTA });
+function entrarComoCliente(page, { verificado = false } = {}) {
+  return conSesion(page, { tipo: 'cliente', usuario: { ...CLIENTE, correoVerificado: verificado } },
+    { '/api/v1/mi-cuenta': { ...MI_CUENTA, correoVerificado: verificado } });
 }
 
 const PANTALLAS = [
@@ -98,6 +150,14 @@ const PANTALLAS = [
   ['/panel/local', 'Estado del local'],
   ['/panel/indicadores', 'Indicadores'],
   ['/panel/reportes', 'Reportes'],
+  ['/cuenta/solicitud', 'Solicitar una cotización'],
+  ['/cuenta/solicitudes', 'Mis solicitudes'],
+  ['/cuenta/solicitudes/123', 'Solicitud #123'],
+  ['/panel/solicitudes', 'Solicitudes'],
+  ['/panel/solicitudes/123', 'Solicitud #123'],
+  ['/panel/solicitudes/nueva', 'Registrar solicitud presencial'],
+  ['/panel/clientes', 'Clientes'],
+  ['/panel/clientes/9', 'Rosa Pino'],
 ];
 
 for (const ancho of [360, 768, 1440]) {
@@ -108,6 +168,7 @@ for (const ancho of [360, 768, 1440]) {
       await page.setViewportSize({ width: ancho, height: 900 });
       if (ruta.startsWith('/panel')) await entrarComo(page, 'dueño');
       else if (ruta === '/cuenta') await entrarComoCliente(page);
+      else if (ruta.startsWith('/cuenta/solicitud')) await entrarComoCliente(page, { verificado: true });
       else await page.route('**/api/v1/**', (r) => r.fulfill({ json: RESPUESTAS[new URL(r.request().url()).pathname.replace(/\/$/, '')] ?? [] }));
       await page.goto(ruta);
       await expect(page.getByRole('heading', { level: 1, name: titulo })).toBeVisible();
@@ -184,26 +245,6 @@ test('desde otra página, «Horario» lleva a la portada y baja hasta la secció
   await page.getByRole('navigation').getByRole('link', { name: 'Horario' }).first().click();
   await expect(page).toHaveURL(/\/#horario$/);
   await expect(page.locator('#horario')).toBeInViewport();
-});
-
-test('la portada abre el modal de solicitud, exige la privacidad y muestra el aviso de contacto directo', async ({ page }) => {
-  await page.route('**/api/v1/**', (ruta) => {
-    const destino = new URL(ruta.request().url()).pathname.replace(/\/$/, '');
-    if (destino === '/api/v1/catalogo') return ruta.fulfill({ json: { elementos: [], total: 0, pagina: 1, tamano: 9, totalPaginas: 0 } });
-    return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
-  });
-  await page.goto('/');
-  await page.getByRole('main').getByRole('button', { name: 'Solicitar cotización' }).first().click();
-  const modal = page.getByRole('dialog', { name: 'Solicitar una cotización' });
-  await modal.getByRole('combobox', { name: 'Tipo de letrero' }).selectOption('1');
-  await modal.getByRole('textbox', { name: 'Detalle' }).fill('Letrero luminoso para la fachada del local');
-  await modal.getByRole('textbox', { name: 'Nombre' }).fill('María Herrera');
-  await modal.getByRole('textbox', { name: 'Celular' }).fill('912345678');
-  await modal.getByRole('button', { name: 'Enviar solicitud' }).click();
-  await expect(modal.getByRole('checkbox', { name: 'Acepto la política de privacidad' })).toHaveAttribute('aria-invalid', 'true');
-  await modal.getByRole('checkbox', { name: 'Acepto la política de privacidad' }).check();
-  await modal.getByRole('button', { name: 'Enviar solicitud' }).click();
-  await expect(modal.getByText('Para esta solicitud es preferible contactarse directamente con el local')).toBeVisible();
 });
 
 // ── Fase 5 ──
@@ -437,4 +478,242 @@ test('verificar el correo: llama una sola vez a la API y lo confirma', async ({ 
       await page.screenshot({ path: `${process.env.CAPTURAS}/_cuenta_verificar-${ancho}.png`, fullPage: true });
     }
   }
+});
+
+// ── Fase 7: flujos de solicitudes, adjuntos y clientes ──
+
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const TEXTO_SOLICITUD = 'Letrero para la fachada de la panadería, con el horario abajo.';
+
+/** Llena el primer letrero y la descripción del formulario del cliente. */
+async function llenarSolicitud(page) {
+  await page.getByRole('combobox', { name: /Tipo de letrero/ }).selectOption('1');
+  await page.getByRole('textbox', { name: /^Ancho/ }).fill('120');
+  await page.getByRole('textbox', { name: /^Alto/ }).fill('60');
+  await page.getByRole('textbox', { name: /^Cantidad/ }).fill('2');
+  await page.getByRole('textbox', { name: /^Descripción/ }).fill(TEXTO_SOLICITUD);
+}
+
+test('sin sesión, «Solicitar cotización» pasa por el ingreso y vuelve al formulario', async ({ page }) => {
+  await page.route('**/api/v1/**', (ruta) => {
+    const destino = destinoDe(ruta);
+    if (destino === '/api/v1/auth/login-cliente') {
+      return ruta.fulfill({ json: { token: tokenDePrueba(), tipo: 'cliente', usuario: { ...CLIENTE, correoVerificado: true } } });
+    }
+    if (destino === '/api/v1/mi-cuenta') return ruta.fulfill({ json: { ...MI_CUENTA, correoVerificado: true } });
+    return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
+  });
+  await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
+  await page.goto('/');
+  await page.getByRole('main').getByRole('link', { name: 'Solicitar cotización' }).first().click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Ingresar a tu cuenta' })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Correo electrónico' }).fill('rosa@correo.test');
+  await page.getByLabel(/^Contraseña/).fill('clave-de-prueba');
+  await page.getByRole('button', { name: 'Ingresar' }).click();
+  await expect(page).toHaveURL(/\/cuenta\/solicitud$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Solicitar una cotización' })).toBeVisible();
+});
+
+test('«Cotizar uno similar» abre el formulario con el tipo de letrero elegido', async ({ page }) => {
+  await entrarComoCliente(page, { verificado: true });
+  await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
+  await page.goto('/#vitrina');
+  await page.getByRole('link', { name: /Cotizar uno similar a Letrero luminoso para panadería/ }).click();
+  await expect(page).toHaveURL(/\/cuenta\/solicitud\?producto=1&referencia=/);
+  await expect(page.getByRole('combobox', { name: /Tipo de letrero/ })).toHaveValue('1');
+  await expect(page.getByText('Trabajo de referencia:')).toBeVisible();
+});
+
+test('solicitud en línea con un adjunto, de punta a punta, termina en el comprobante', async ({ page }) => {
+  await entrarComoCliente(page, { verificado: true });
+  const subidas = [];
+  let enviada = null;
+  await page.route('**/api/v1/mis/adjuntos', (ruta) => {
+    if (ruta.request().method() !== 'POST') return ruta.fallback();
+    subidas.push(ruta.request().headers()['content-type']);
+    return ruta.fulfill({ status: 201, json: { idAdjunto: 41, tipo: 'imagen', nombre: 'logo.png', bytes: PNG_1X1.length, ancho: 1, alto: 1, urlMiniatura: '/api/v1/adjuntos/41/miniatura' } });
+  });
+  await page.route('**/api/v1/mis/solicitudes', (ruta) => {
+    if (ruta.request().method() !== 'POST') return ruta.fallback();
+    enviada = ruta.request().postDataJSON();
+    return ruta.fulfill({ status: 201, json: { ...COMPROBANTE, adjuntos: [{ idAdjunto: 41, tipo: 'imagen', nombre: 'logo.png', bytes: 70, urlMiniatura: '/api/v1/adjuntos/41/miniatura' }] } });
+  });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/cuenta/solicitud');
+  await llenarSolicitud(page);
+  await expect(page.getByText('1,44 m²').first()).toBeVisible();
+
+  // Un SVG se rechaza en el navegador, sin subirlo; el PNG se sube y queda con su «×».
+  await page.locator('input[type=file]').setInputFiles([
+    { name: 'logo.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') },
+    { name: 'logo.png', mimeType: 'image/png', buffer: PNG_1X1 },
+  ]);
+  await expect(page.getByText(/expórtalo a PDF o PNG/).first()).toBeVisible();
+  const quitar = page.getByRole('button', { name: 'Quitar logo.png' });
+  await expect(quitar).toBeVisible();
+  await expect(page.getByText('1 de 5', { exact: true })).toBeVisible();
+  const caja = await quitar.boundingBox();
+  expect(caja.width).toBeGreaterThanOrEqual(24);
+  expect(caja.height).toBeGreaterThanOrEqual(24);
+  expect(subidas).toHaveLength(1);
+  expect(subidas[0]).toMatch(/^multipart\/form-data/);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/_cuenta_solicitud_adjunto-360.png`, fullPage: true });
+
+  await page.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Recibimos tu solicitud #123' })).toBeFocused();
+  expect(enviada).toEqual({
+    descripcionGeneral: TEXTO_SOLICITUD,
+    detalles: [{ idProducto: 1, descripcion: null, anchoMm: 1200, altoMm: 600, cantidad: 2 }],
+    adjuntos: [41],
+  });
+  await expect(page.getByRole('button', { name: 'Ver logo.png en grande' }).locator('img')).toHaveAttribute('src', /^blob:/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.filter((v) => ['critical', 'serious'].includes(v.impact)).map((v) => v.id)).toEqual([]);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/_cuenta_solicitud_comprobante-360.png`, fullPage: true });
+});
+
+test('si el servidor está ocupado (503), reintenta una vez tras Retry-After y termina en el comprobante', async ({ page }) => {
+  await entrarComoCliente(page, { verificado: true });
+  let intentos = 0;
+  await page.route('**/api/v1/mis/solicitudes', (ruta) => {
+    if (ruta.request().method() !== 'POST') return ruta.fallback();
+    intentos += 1;
+    return intentos === 1
+      ? ruta.fulfill({ status: 503, headers: { 'Retry-After': '1' }, json: { error: 'Ocupado', codigo: 'servicio_ocupado', nivel: 'api' } })
+      : ruta.fulfill({ status: 201, json: COMPROBANTE });
+  });
+  await page.goto('/cuenta/solicitud');
+  await llenarSolicitud(page);
+  await page.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Recibimos tu solicitud #123' })).toBeVisible();
+  expect(intentos).toBe(2);
+});
+
+test('si sigue ocupado tras el reintento, lo explica sin perder lo escrito', async ({ page }) => {
+  await entrarComoCliente(page, { verificado: true });
+  await page.route('**/api/v1/mis/solicitudes', (ruta) => (ruta.request().method() === 'POST'
+    ? ruta.fulfill({ status: 503, headers: { 'Retry-After': '0' }, json: { error: 'Ocupado', codigo: 'servicio_ocupado', nivel: 'api' } })
+    : ruta.fallback()));
+  await page.goto('/cuenta/solicitud');
+  await llenarSolicitud(page);
+  await page.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(page.getByText('Estamos recibiendo muchas solicitudes; vuelve a intentarlo en unos segundos.')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /^Descripción/ })).toHaveValue(TEXTO_SOLICITUD);
+});
+
+test('contacto directo: la regla contra solicitudes falsas muestra cómo contactarnos sin perder lo escrito', async ({ page }) => {
+  await entrarComoCliente(page, { verificado: true });
+  const mensaje = 'Para esta solicitud es preferible contactarse directamente con el local.';
+  await page.route('**/api/v1/mis/solicitudes', (ruta) => (ruta.request().method() === 'POST'
+    ? ruta.fulfill({ status: 409, json: { error: mensaje, codigo: 'contacto_directo', nivel: 'negocio' } })
+    : ruta.fallback()));
+  await page.goto('/cuenta/solicitud');
+  await llenarSolicitud(page);
+  await page.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(page.getByText('Para esta solicitud es preferible contactarse directamente con el local')).toBeVisible();
+  await expect(page.getByText(/Escríbenos por WhatsApp o llámanos/)).toBeVisible();
+  await expect(page.getByText(/Hoy: 9:00 a 18:30/)).toBeVisible();
+  await expect(page.getByRole('main').getByText('Cerrado / Ausente')).toBeVisible();
+  await expect(page.getByRole('main').getByRole('link', { name: /Escribir por WhatsApp/ })).toHaveAttribute('href', /^https:\/\/wa\.me\//);
+  await expect(page.getByRole('link', { name: /^Llamar al/ })).toHaveAttribute('href', /^tel:/);
+  await expect(page.getByRole('textbox', { name: /^Descripción/ })).toHaveValue(TEXTO_SOLICITUD);
+  if (process.env.CAPTURAS) {
+    for (const ancho of [360, 1440]) {
+      await page.setViewportSize({ width: ancho, height: 900 });
+      await page.screenshot({ path: `${process.env.CAPTURAS}/_cuenta_solicitud_contacto-${ancho}.png`, fullPage: true });
+    }
+  }
+});
+
+test('con el correo sin confirmar, el formulario explica cómo hacerlo y ofrece reenviar el enlace', async ({ page }) => {
+  await entrarComoCliente(page);
+  await page.goto('/cuenta/solicitud');
+  await expect(page.getByText('Confirma tu correo para enviar solicitudes')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reenviar enlace' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enviar solicitud' })).toHaveCount(0);
+});
+
+test('bandeja → ficha → rechazar con motivo', async ({ page }) => {
+  let rechazo = null;
+  let metodo = null;
+  // RFU11: también el operario rechaza.
+  await entrarComo(page, 'operario');
+  let version = null;
+  await page.route('**/api/v1/solicitudes/123/estado', (ruta) => {
+    rechazo = ruta.request().postDataJSON();
+    version = ruta.request().headers()['if-match'];
+    metodo = ruta.request().method();
+    return ruta.fulfill({ status: 204 });
+  });
+  await page.route('**/api/v1/solicitudes/123', (ruta) => ruta.fulfill({
+    json: rechazo ? {
+      ...FICHA, estado: 'rechazado', motivoRechazo: rechazo.motivo,
+      historial: [...FICHA.historial, {
+        estadoAnterior: 'solicitado', estadoNuevo: 'rechazado', motivo: rechazo.motivo, fechaChile: COMPROBANTE.fechaChile,
+        actor: 'personal', por: 'Marta Fuentes',
+      }],
+    } : FICHA,
+  }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/panel/solicitudes');
+  const filtros = page.getByRole('search', { name: 'Filtros de solicitudes' });
+  await expect(filtros.getByRole('status')).toHaveText('3 solicitudes');
+  const pedido = page.waitForRequest((r) => r.url().includes('/api/v1/solicitudes?') && r.url().includes('estado=solicitado'));
+  await filtros.getByRole('combobox', { name: 'Estado' }).selectOption('solicitado');
+  await pedido;
+  await expect(page).toHaveURL(/estado=solicitado/);
+
+  await page.getByRole('link', { name: 'Solicitud #123' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Solicitud #123' })).toBeVisible();
+  const miniatura = page.getByRole('button', { name: 'Ver fachada.jpg en grande' });
+  await expect(miniatura.locator('img')).toHaveAttribute('src', /^blob:/);
+  await miniatura.click();
+  await expect(page.getByRole('dialog', { name: 'fachada.jpg' }).getByRole('img')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Rechazar con motivo' }).click();
+  const dialogo = page.getByRole('dialog', { name: 'Rechazar la solicitud #123' });
+  const motivo = dialogo.getByRole('textbox', { name: /Motivo del rechazo/ });
+  await expect(motivo).toBeFocused();
+  await dialogo.getByRole('button', { name: 'Rechazar solicitud' }).click();
+  await expect(motivo).toHaveAttribute('aria-invalid', 'true');
+  expect(rechazo).toBeNull();
+  await motivo.fill('No fabricamos letreros de ese tamaño');
+  await dialogo.getByRole('button', { name: 'Rechazar solicitud' }).click();
+  await expect(dialogo).toBeHidden();
+  expect(metodo).toBe('PATCH');
+  expect(version).toBe('"AAAAAAAAB9E="');
+  expect(rechazo).toEqual({ estado: 'rechazado', motivo: 'No fabricamos letreros de ese tamaño' });
+  await expect(page.getByText('Motivo: No fabricamos letreros de ese tamaño')).toBeVisible();
+  await expect(page.getByRole('main').getByText('Rechazada', { exact: true }).first()).toBeVisible();
+});
+
+test('el enlace «Ver solicitud» del correo pide ingresar y vuelve a la ficha', async ({ page }) => {
+  let conectado = false;
+  const sesion = () => ({ token: tokenDePrueba(), tipo: 'empleado', usuario: { idEmpleado: 2, nombre: 'Hugo', apellido: 'Vera', email: 'operario@letreria.test', rol: 'operario' } });
+  await page.route('**/api/v1/**', (ruta) => {
+    const destino = destinoDe(ruta);
+    if (destino === '/api/v1/auth/login') {
+      conectado = true;
+      return ruta.fulfill({ json: sesion() });
+    }
+    if (destino === '/api/v1/auth/renovar') return conectado ? ruta.fulfill({ json: sesion() }) : ruta.fulfill({ status: 401, json: { error: 'Sin sesión' } });
+    if (/\/adjuntos\/\d+\/miniatura$/.test(destino)) return ruta.fulfill({ path: IMAGEN_PRUEBA, contentType: 'image/webp' });
+    return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
+  });
+  await page.goto('/panel/solicitudes/123');
+  await expect(page.getByRole('heading', { name: 'Acceso del personal' })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Correo electrónico' }).fill('operario@letreria.test');
+  await page.getByLabel(/^Contraseña/).fill('clave-de-prueba');
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await expect(page).toHaveURL(/\/panel\/solicitudes\/123$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Solicitud #123' })).toBeVisible();
+});
+
+test('el inicio del panel muestra las solicitudes por atender', async ({ page }) => {
+  await entrarComo(page, 'diseñador');
+  await page.goto('/panel');
+  const seccion = page.getByRole('region', { name: /Solicitudes por atender/ });
+  await expect(seccion.getByRole('link', { name: /#123 · Rosa Pino/ })).toHaveAttribute('href', '/panel/solicitudes/123');
 });

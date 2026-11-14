@@ -22,4 +22,28 @@ public static class Concurrencia
             ? null
             : ErrorApi.Crear(StatusCodes.Status409Conflict, CodigoVersionObsoleta, VersionObsoleta);
     }
+
+    // Fase 7: la version vigente viaja como ETag ("base64") y vuelve en la cabecera If-Match. Devuelve
+    // false si la cabecera viene pero no se puede leer; version queda null si no vino.
+    public static bool TryLeerIfMatch(HttpRequest peticion, out byte[]? version)
+    {
+        version = null;
+        var valor = peticion.Headers.IfMatch.ToString().Trim();
+        if (valor.Length == 0)
+            return true;
+        if (valor.StartsWith("W/", StringComparison.Ordinal))
+            valor = valor[2..];
+        valor = valor.Trim('"');
+        try
+        {
+            version = Convert.FromBase64String(valor);
+            return version.Length > 0;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
+    public static string ETag(byte[] version) => $"\"{Convert.ToBase64String(version)}\"";
 }

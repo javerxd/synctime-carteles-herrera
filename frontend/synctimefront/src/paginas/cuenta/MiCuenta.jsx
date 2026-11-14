@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, Send } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ClipboardList, LogOut, Send } from 'lucide-react';
 import { Aviso, Boton, Campo, Casilla, Esqueleto, Tarjeta } from '../../componentes/ui';
 import authService from '../../api/authService';
 import { cuenta as apiCuenta } from '../../api/cuenta';
@@ -295,7 +295,7 @@ function CorreoSinConfirmar({ correo }) {
 
 /**
  * /cuenta (RNFE01): el cliente ve y corrige sus datos, cambia su correo o su contraseña y decide sobre las
- * novedades. Sus pedidos y solicitudes llegan en una fase posterior.
+ * novedades. Desde aquí llega a sus solicitudes (fase 7); sus pedidos llegan en una fase posterior.
  */
 export default function MiCuenta() {
   const { usuario, salir } = useSesion();
@@ -356,6 +356,14 @@ export default function MiCuenta() {
       {datosCuenta && (
         <>
           {!datosCuenta.correoVerificado && <CorreoSinConfirmar correo={datosCuenta.correo} />}
+          <Tarjeta como="section" aria-labelledby="titulo-solicitudes" className={estilos.seccion}>
+            <h2 id="titulo-solicitudes" className={estilos.subtitulo}>Solicitudes</h2>
+            <p className={estilos.explicacion}>Revisa el estado y el comprobante de lo que nos pediste, o pide una cotización nueva.</p>
+            <div className={estilos.pieSeccion}>
+              <Boton como={Link} to="/cuenta/solicitudes" variante="secundario" iconoInicio={ClipboardList}>Mis solicitudes</Boton>
+              <Boton como={Link} to="/cuenta/solicitud" variante="secundario" iconoInicio={Send}>Solicitar una cotización</Boton>
+            </div>
+          </Tarjeta>
           <FormularioDatos datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
           <FormularioCorreo datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
           <FormularioPassword />

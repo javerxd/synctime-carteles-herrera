@@ -17,8 +17,15 @@ public static class CatalogoApi
         var clientes = app.MapGroup("/api/v1/clientes").WithTags("Clientes")
             .RequireAuthorization(Politicas.Empleado).RequireRateLimiting("ApiGeneral");
 
-        clientes.MapGet("/", async (LetrerosHerreradbContext db) =>
-            Results.Ok(await db.Clientes.AsNoTracking().ToListAsync()));
+        // Fase 7: listado paginado con busqueda por telefono, RUT o nombre (?q=&pagina=&tamano=).
+        clientes.MapGet("/", async (ServicioClientes servicio, CancellationToken ct, string? q, int? pagina, int? tamano) =>
+            Results.Ok(await servicio.ListarAsync(new ParametrosListado(pagina, tamano, buscar: q), ct)));
+
+        // Fase 7: para el registro presencial, buscar al cliente antes de crearlo. Responde una lista de 0 o 1.
+        clientes.MapGet("/buscar", async (ServicioClientes servicio, CancellationToken ct, string? telefono, string? rut) =>
+            string.IsNullOrWhiteSpace(telefono) && string.IsNullOrWhiteSpace(rut)
+                ? ErrorApi.Invalido("Indica un teléfono o un RUT para buscar.")
+                : Results.Ok(await servicio.BuscarAsync(telefono, rut, ct)));
 
         clientes.MapGet("/{id}", async (int id, LetrerosHerreradbContext db) =>
         {

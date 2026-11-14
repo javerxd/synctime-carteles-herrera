@@ -111,4 +111,36 @@ describe('cliente de la API', () => {
     await api.get('/categorias');
     expect(fetchSimulado).toHaveBeenCalledTimes(2);
   });
+
+  it('un 503 servicio_ocupado se reintenta una vez tras Retry-After', async () => {
+    fetchSimulado
+      .mockReturnValueOnce(respuesta(503, { error: 'Ocupado', codigo: 'servicio_ocupado' }, { 'Retry-After': '0' }))
+      .mockReturnValueOnce(respuesta(201, { idSolicitud: 1 }));
+    await expect(api.post('/mis/solicitudes', { a: 1 })).resolves.toEqual({ idSolicitud: 1 });
+    expect(fetchSimulado).toHaveBeenCalledTimes(2);
+  });
+
+  it('si sigue ocupado, explica que vuelva a intentarlo en unos segundos', async () => {
+    fetchSimulado.mockImplementation(() => respuesta(503, { error: 'Ocupado', codigo: 'servicio_ocupado' }, { 'Retry-After': '0' }));
+    const error = await api.post('/mis/solicitudes', {}).catch((e) => e);
+    expect(fetchSimulado).toHaveBeenCalledTimes(2);
+    expect(error).toMatchObject({ estado: 503, codigo: 'servicio_ocupado' });
+    expect(error.message).toBe('Estamos recibiendo muchas solicitudes; vuelve a intentarlo en unos segundos.');
+  });
+
+  it('PATCH con If-Match envía la versión y ningún cuerpo si no lo hay', async () => {
+    fetchSimulado.mockReturnValue(respuesta(204));
+    await api.patch('/solicitudes/1/eliminar-logico', undefined, { cabeceras: { 'If-Match': '"AAAB"' } });
+    const [, opciones] = fetchSimulado.mock.calls[0];
+    expect(opciones.method).toBe('PATCH');
+    expect(opciones.body).toBeUndefined();
+    expect(opciones.headers.get('If-Match')).toBe('"AAAB"');
+  });
+
+  it('los archivos privados se piden sin caché y llegan como Blob', async () => {
+    fetchSimulado.mockReturnValue(Promise.resolve(new Response('x', { status: 200, headers: { 'Content-Type': 'image/webp' } })));
+    const blob = await api.archivo('/adjuntos/1/miniatura');
+    expect(blob).toBeInstanceOf(Blob);
+    expect(fetchSimulado.mock.calls[0][1].cache).toBe('no-store');
+  });
 });

@@ -1,6 +1,6 @@
 import { CircleHelp, DoorClosed, DoorOpen } from 'lucide-react';
 import { unirClases } from './clases';
-import { ESTADOS_PAGO, ESTADOS_PEDIDO } from './estados';
+import { ESTADOS_PAGO, ESTADOS_PEDIDO, ESTADOS_SOLICITUD } from './estados';
 import estilos from './Insignia.module.css';
 
 /**
@@ -35,6 +35,10 @@ export function EstadoPedido({ estado, ...resto }) {
 
 export function EstadoPago({ estado, ...resto }) {
   return <InsigniaDeCatalogo catalogo={ESTADOS_PAGO} estado={estado} {...resto} />;
+}
+
+export function EstadoSolicitud({ estado, ...resto }) {
+  return <InsigniaDeCatalogo catalogo={ESTADOS_SOLICITUD} estado={estado} {...resto} />;
 }
 
 /** El cartel electrónico: verde «Abierto / Disponible» o rojo «Cerrado / Ausente», siempre con texto. */

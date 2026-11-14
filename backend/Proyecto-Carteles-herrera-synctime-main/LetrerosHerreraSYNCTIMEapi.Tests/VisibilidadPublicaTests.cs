@@ -87,19 +87,16 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
 
     private async Task<JsonElement[]> EnviarEnCadaFlujoAsync(int idProducto, HttpStatusCode esperado)
     {
-        var (_, _, tokenCliente) = await api.RegistrarClienteAsync();
+        // Fase 7: la solicitud en linea la envia un cliente con correo confirmado (la publica sin cuenta se elimino).
+        var (_, _, tokenCliente) = await api.CrearClienteConfirmadoAsync();
         var idCliente = await api.CrearClienteAsync();
         var detalles = new[] { new { idProducto, descripcion = "d", cantidad = 1 } };
+        const string descripcionGeneral = "Letrero para la vitrina del local";
 
         return
         [
-            await api.Cliente(await api.TokenAdminAsync()).PostAsJsonAsync("/api/v1/solicitudes/", new { idCliente, detalles }).EsperarAsync(esperado),
-            await api.Cliente(tokenCliente).PostAsJsonAsync("/api/v1/mis/solicitudes", new { detalles }).EsperarAsync(esperado),
-            await api.Cliente().PostAsJsonAsync("/api/v1/solicitudes/online", new
-            {
-                cliente = new { nombre = "Ana", apellido = "Web", telefono = api.Telefono() },
-                detalles
-            }).EsperarAsync(esperado)
+            await api.Cliente(await api.TokenAdminAsync()).PostAsJsonAsync("/api/v1/solicitudes/", new { idCliente, descripcionGeneral, detalles }).EsperarAsync(esperado),
+            await api.Cliente(tokenCliente).PostAsJsonAsync("/api/v1/mis/solicitudes", new { descripcionGeneral, detalles }).EsperarAsync(esperado)
         ];
     }
 

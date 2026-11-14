@@ -9,7 +9,7 @@ import { BannerCookies } from './BannerCookies';
 import ErrorBoundary from '../componentes/ErrorBoundary';
 import { useSesion } from '../sesion/sesion';
 import { Marca } from './Marca';
-import { BotonSolicitar, ProveedorSolicitud } from './Solicitud';
+import { BotonSolicitar } from './Solicitud';
 import estilos from './EstructuraPublica.module.css';
 
 const ANIO_ACTUAL = new Date().getFullYear();
@@ -56,7 +56,7 @@ export function EstructuraPublica() {
   }, [menuAbierto]);
 
   return (
-    <ProveedorSolicitud>
+    <>
       <a href="#contenido" className="enlace-salto">Saltar al contenido</a>
       {/* Al principio del documento: quien navega con teclado o lector lo encuentra antes que el resto. */}
       <BannerCookies />
@@ -146,6 +146,6 @@ export function EstructuraPublica() {
           <span className="solo-lectores">Escribir por WhatsApp (se abre en otra pestaña)</span>
         </a>
       )}
-    </ProveedorSolicitud>
+    </>
   );
 }

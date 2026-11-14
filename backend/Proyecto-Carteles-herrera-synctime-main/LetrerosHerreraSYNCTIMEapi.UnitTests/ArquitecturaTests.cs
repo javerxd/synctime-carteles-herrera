@@ -14,10 +14,9 @@ public class ArquitecturaTests
         "CatalogoApi.cs",      // fases 5 y 9
         "CotizacionApi.cs",    // fase 8
         "PedidoApi.cs",        // fase 8
-        "PortalClienteApi.cs", // fases 7 y 8
+        "PortalClienteApi.cs", // fase 8 (sus solicitudes ya pasaron a MisSolicitudesApi en la fase 7)
         "Reautenticacion.cs",  // fase 6
-        "RostroApi.cs",        // fase 10
-        "SolicitudApi.cs"      // fase 7
+        "RostroApi.cs"         // fase 10
     ];
 
     private static readonly string Proyecto = UbicarProyecto();
@@ -31,9 +30,13 @@ public class ArquitecturaTests
         return Path.Combine(carpeta!.FullName, "LetrerosHerreraSYNCTIMEapi");
     }
 
+    // Una carpeta de capa puede quedar vacia (git no guarda carpetas vacias): en la fase 7 el antiguo
+    // SolicitudRepository dio paso a ServicioSolicitudes y Repositories quedo sin archivos.
     private static IEnumerable<(string Nombre, string Texto)> Fuentes(string carpeta) =>
-        Directory.EnumerateFiles(Path.Combine(Proyecto, carpeta), "*.cs", SearchOption.AllDirectories)
-            .Select(ruta => (Path.GetFileName(ruta), File.ReadAllText(ruta)));
+        !Directory.Exists(Path.Combine(Proyecto, carpeta))
+            ? []
+            : Directory.EnumerateFiles(Path.Combine(Proyecto, carpeta), "*.cs", SearchOption.AllDirectories)
+                .Select(ruta => (Path.GetFileName(ruta), File.ReadAllText(ruta)));
 
     private static bool UsaLaBase(string texto) => texto.Contains("LetrerosHerreradbContext");
 

@@ -1,0 +1,590 @@
+/* Solicitudes y clientes (fase 7): formulario del cliente, comprobante, bandeja y ficha del personal. */
+
+/* ── Páginas del cliente: la misma columna centrada de Mi cuenta ── */
+.paginaCliente {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: var(--espacio-12) var(--margen-pagina);
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espacio-4);
+}
+
+.cabecera > div {
+  min-width: 0;
+}
+
+.titulo {
+  font-size: var(--tamano-2xl);
+  text-wrap: balance;
+}
+
+.titulo:focus {
+  outline: none;
+}
+
+.bajada {
+  margin-top: var(--espacio-1);
+  max-width: var(--medida-lectura);
+  color: var(--color-texto-secundario);
+}
+
+.volver {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  min-height: 1.5rem;
+  margin-bottom: var(--espacio-2);
+  font-size: var(--tamano-sm);
+}
+
+.formulario {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+}
+
+.seccion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--espacio-4);
+}
+
+.subtitulo {
+  font-size: var(--tamano-lg);
+}
+
+.explicacion,
+.nota {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.referencia {
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radio-md);
+  background: var(--color-fondo-alterno);
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Un contenedor que recibe el foco tras responder la API: sin anillo propio (el aviso ya se ve). */
+.foco {
+  display: grid;
+  gap: var(--espacio-3);
+  scroll-margin-block: calc(var(--altura-barra) + var(--espacio-4));
+}
+
+.foco:empty {
+  display: none;
+}
+
+.foco:focus {
+  outline: none;
+}
+
+.envio {
+  display: grid;
+  justify-items: start;
+  gap: var(--espacio-3);
+}
+
+/* ── Letreros repetibles ── */
+.items {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-4);
+  min-width: 0;
+  margin: 0;
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo-alterno);
+}
+
+.leyendaItem {
+  float: left; /* deja la leyenda dentro del recuadro, a la altura del botón «Quitar» */
+  width: 100%;
+  padding: 0;
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+  line-height: 2.25rem;
+}
+
+.quitarItem {
+  position: absolute;
+  top: var(--espacio-4);
+  right: var(--espacio-3);
+}
+
+.medidas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+  gap: var(--espacio-3);
+}
+
+.area {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.area strong {
+  color: var(--color-texto);
+  font-weight: var(--peso-seminegrita);
+}
+
+.pieItems {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+}
+
+.total {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.total strong {
+  color: var(--color-texto);
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+}
+
+/* ── Contacto directo ── */
+.contacto {
+  display: grid;
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-3);
+}
+
+.estadoLocal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.datosContacto {
+  display: grid;
+  gap: var(--espacio-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.datosContacto li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-2);
+}
+
+.datosContacto svg {
+  flex: none;
+  margin-top: 0.2em;
+}
+
+.accionesContacto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  margin-top: var(--espacio-2);
+}
+
+/* ── Comprobante ── */
+.comprobante {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+}
+
+.encabezadoComprobante {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  padding-bottom: var(--espacio-4);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.numero {
+  font-size: var(--tamano-xl);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+}
+
+.insignias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  margin-top: var(--espacio-2);
+}
+
+.encabezadoComprobante .insignias {
+  margin-top: 0;
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  gap: var(--espacio-4);
+  margin: 0;
+}
+
+.dato {
+  min-width: 0;
+}
+
+.dato dt {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-seminegrita);
+}
+
+.dato dd {
+  margin: var(--espacio-1) 0 0;
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+.bloque {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-3);
+}
+
+.subtituloBloque {
+  font-size: var(--tamano-md);
+}
+
+.subtituloBloque:focus {
+  outline: none;
+}
+
+.celdaLetrero {
+  display: grid;
+  gap: var(--espacio-0-5);
+  min-width: 0;
+}
+
+.detalleLetrero {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-normal);
+  overflow-wrap: anywhere;
+}
+
+.descripcionGeneral {
+  max-width: var(--medida-lectura);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.ninguno {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.motivoRechazo {
+  padding: var(--espacio-3) var(--espacio-4);
+  border: 1px solid var(--tono-peligro-borde);
+  border-radius: var(--radio-md);
+  background: var(--tono-peligro-fondo);
+  color: var(--tono-peligro-texto);
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+/* ── Pantalla de envío correcto ── */
+.exito {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+}
+
+.iconoExito {
+  flex: none;
+  margin-top: 0.2em;
+  color: var(--tono-exito-solido);
+}
+
+.tarjetaComprobante {
+  padding: var(--espacio-6);
+}
+
+.accionesPie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+}
+
+/* ── Listas en tarjetas (Mis solicitudes e inicio del panel) ── */
+.listaTarjetas,
+.listaPendientes {
+  display: grid;
+  gap: var(--espacio-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tarjetaSolicitud {
+  display: grid;
+  gap: var(--espacio-1);
+  padding: var(--espacio-4) var(--espacio-5);
+}
+
+.filaTarjeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-3);
+}
+
+/* El enlace cubre toda la tarjeta (como en el menú del panel). */
+.enlaceTarjeta {
+  color: var(--color-texto);
+  font-weight: var(--peso-seminegrita);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.enlaceTarjeta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.enlaceTarjeta:focus-visible {
+  outline: none;
+}
+
+.tarjetaSolicitud:has(.enlaceTarjeta:focus-visible) {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+.metaTarjeta {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.textoTarjeta {
+  font-size: var(--tamano-sm);
+}
+
+.clip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  white-space: nowrap;
+}
+
+.clip svg {
+  flex: none;
+}
+
+/* ── Panel: inicio, bandeja y ficha ── */
+.cabeceraSeccion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-4);
+  margin-bottom: var(--espacio-4);
+}
+
+.subtituloPanel {
+  font-size: var(--tamano-lg);
+}
+
+.cuenta {
+  color: var(--color-texto-secundario);
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+}
+
+.verTodas {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  min-height: 1.5rem;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.enlaceFila {
+  font-weight: var(--peso-seminegrita);
+}
+
+.correo {
+  overflow-wrap: anywhere;
+}
+
+.fichaRejilla {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .fichaRejilla {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+  }
+}
+
+.fichaPrincipal,
+.fichaLateral {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.fichaLateral .acciones {
+  display: grid;
+}
+
+.datosLaterales {
+  display: grid;
+  gap: var(--espacio-3);
+  margin: 0;
+  padding-top: var(--espacio-4);
+  border-top: 1px solid var(--color-borde);
+}
+
+.historial {
+  display: grid;
+  gap: var(--espacio-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Línea de tiempo sobria: un punto y un filo de 1 px que une los cambios. */
+.paso {
+  position: relative;
+  display: grid;
+  gap: var(--espacio-1);
+  padding-left: var(--espacio-5);
+}
+
+.paso::before {
+  content: '';
+  position: absolute;
+  top: 0.45em;
+  left: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radio-pildora);
+  background: var(--color-texto-secundario);
+}
+
+.paso:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 1.25em;
+  bottom: calc(var(--espacio-4) * -1 + 0.25em);
+  left: calc(0.25rem - 0.5px);
+  width: 1px;
+  background: var(--color-borde);
+}
+
+/* Un evento (el estado no cambió): punto hueco, para distinguirlo de un cambio de estado. */
+.evento::before {
+  border: 1px solid var(--color-texto-secundario);
+  background: var(--color-superficie);
+}
+
+.pasoEstado {
+  font-size: var(--tamano-sm);
+}
+
+.pasoEstado strong {
+  font-weight: var(--peso-seminegrita);
+}
+
+.pasoMeta {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+.pasoMotivo {
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+/* ── Registro presencial ── */
+.columnaFormulario {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+  max-width: 52rem;
+}
+
+.clienteElegido {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-3);
+  padding: var(--espacio-3) var(--espacio-4);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  background: var(--color-fondo-alterno);
+}
+
+.iconoCliente {
+  flex: none;
+  color: var(--color-texto-secundario);
+}
+
+.datosCliente {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.nombreCliente {
+  font-weight: var(--peso-seminegrita);
+}
+
+@media (max-width: 30rem) {
+  .tarjetaComprobante {
+    padding: var(--espacio-5) var(--espacio-4);
+  }
+
+  .envio > *,
+  .accionesPie > * {
+    width: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .paso::before {
+    background: CanvasText;
+  }
+}

@@ -18,6 +18,8 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetails) :
             return false;
 
         httpContext.Response.StatusCode = problema.Status!.Value;
+        if (exception is Services.OperacionOcupadaException)
+            httpContext.Response.Headers.RetryAfter = "5";
         return await problemDetails.TryWriteAsync(new ProblemDetailsContext { HttpContext = httpContext, ProblemDetails = problema });
     }
 
@@ -25,6 +27,8 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetails) :
     {
         // En Development, ASP.NET lanza esta excepcion ante un JSON mal formado en vez de responder 400.
         BadHttpRequestException error => Predeterminado(error.StatusCode),
+        // Fase 7: no se consiguio el turno (sp_getapplock) a tiempo. Se puede reintentar en unos segundos.
+        Services.OperacionOcupadaException ocupada => ErrorApi.Detalle(StatusCodes.Status503ServiceUnavailable, "servicio_ocupado", ocupada.Message),
         DbUpdateConcurrencyException => ErrorApi.Detalle(StatusCodes.Status409Conflict, Concurrencia.CodigoVersionObsoleta, Concurrencia.VersionObsoleta),
         DbUpdateException { InnerException: SqlException sql } => TraducirSql(sql),
         _ => null

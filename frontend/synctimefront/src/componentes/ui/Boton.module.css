@@ -100,8 +100,10 @@
   overflow-wrap: anywhere;
 }
 
-/* Deshabilitado: sin opacidad global, con colores propios para que siga legible */
-.boton:disabled {
+/* Deshabilitado: sin opacidad global, con colores propios para que siga legible. Inactivo pero enfocable
+   (aria-disabled sin cargar) se ve igual. */
+.boton:disabled,
+.boton[aria-disabled='true']:not([aria-busy='true']) {
   --_fondo: var(--color-fondo-hundido);
   --_texto: var(--color-texto-tenue);
   --_borde: var(--color-borde);

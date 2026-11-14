@@ -45,6 +45,9 @@
     {
       "name": "Mi cuenta",
       "description": "Datos, correo, contraseña y consentimientos del cliente (fase 6)"
+    },
+    {
+      "name": "Adjuntos"
     }
   ],
   "paths": {
@@ -299,7 +302,7 @@
         "tags": [
           "Clientes"
         ],
-        "summary": "Lista los clientes",
+        "summary": "Lista paginada de clientes; q busca por teléfono, RUT o nombre",
         "x-acceso": "personal"
       },
       "post": {
@@ -357,28 +360,19 @@
         ]
       }
     },
-    "/api/v1/solicitudes/online": {
-      "post": {
-        "tags": [
-          "Solicitudes"
-        ],
-        "summary": "Registra una solicitud enviada por un visitante",
-        "x-acceso": "publico"
-      }
-    },
     "/api/v1/solicitudes": {
       "get": {
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Lista las solicitudes",
+        "summary": "Bandeja de solicitudes paginada: filtros estado, origen, desde, hasta (fechas de Chile), q (número, nombre, teléfono o RUT), orden (fecha_desc por defecto o fecha_asc), pagina y tamano",
         "x-acceso": "personal"
       },
       "post": {
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Registra una solicitud presencial",
+        "summary": "Registra una solicitud presencial ({ idCliente, descripcionGeneral, detalles }) y responde 201 con la ficha; confirma al cliente por correo si tiene uno, sin aviso al taller",
         "x-acceso": "personal"
       }
     },
@@ -387,21 +381,21 @@
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Devuelve una solicitud",
+        "summary": "Ficha de una solicitud: comprobante, historial de estados y quién la registró (ETag con la versión)",
         "x-acceso": "personal"
       },
       "put": {
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Modifica una solicitud",
+        "summary": "Edita descripción e ítems con If-Match (solo en «solicitado» o «cotizado»; en «cotizado» rechaza la cotización pendiente y vuelve a «solicitado»); 409 version_obsoleta si otra persona la cambió",
         "x-acceso": "personal"
       },
       "delete": {
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Elimina una solicitud",
+        "summary": "Elimina una solicitud de forma lógica (solo gestión; solo «solicitado» o «rechazado» y sin pedido). Exige If-Match: sin ella 400 sin_version",
         "x-acceso": "gestion"
       }
     },
@@ -410,8 +404,8 @@
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Cambia el estado de una solicitud",
-        "x-acceso": "gestion"
+        "summary": "Cambia el estado (todo el personal, RFU11): { estado: \"rechazado\", motivo } (10 a 500 caracteres) o la vuelta de «cotizado» a «solicitado». Exige la versión (If-Match o rowVersion): sin ella 400 sin_version; 409 transicion_invalida o version_obsoleta",
+        "x-acceso": "personal"
       }
     },
     "/api/v1/solicitudes/{id}/eliminar-logico": {
@@ -419,8 +413,8 @@
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Marca una solicitud como eliminada, conservándola para las estadísticas",
-        "x-acceso": "gestion"
+        "summary": "Elimina una solicitud de forma lógica (todo el personal; solo «solicitado» o «rechazado» y sin pedido). Exige If-Match: sin ella 400 sin_version",
+        "x-acceso": "personal"
       }
     },
     "/api/v1/mis/solicitudes": {
@@ -428,14 +422,14 @@
         "tags": [
           "Portal del cliente"
         ],
-        "summary": "Lista las solicitudes del cliente en sesión",
+        "summary": "Lista paginada de las solicitudes del cliente en sesión, con su resumen",
         "x-acceso": "cliente"
       },
       "post": {
         "tags": [
           "Portal del cliente"
         ],
-        "summary": "Registra una solicitud del cliente en sesión",
+        "summary": "Envía una solicitud en línea ({ descripcionGeneral, detalles, adjuntos }): 201 con el comprobante, 403 correo_sin_confirmar, 409 contacto_directo (regla contra solicitudes falsas, sin escribir nada) o 400 por campo",
         "x-acceso": "cliente"
       }
     },
@@ -713,6 +707,85 @@
         ],
         "summary": "Acepta o retira el consentimiento de marketing",
         "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/solicitudes/{id}/adjuntos": {
+      "post": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Sube un adjunto (multipart, campo «archivo»: JPG, PNG, WebP o PDF de hasta 10 MB) y lo vincula a la solicitud; tope de 5",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/solicitudes/{id}/adjuntos/{idAdjunto}": {
+      "delete": {
+        "tags": [
+          "Solicitudes"
+        ],
+        "summary": "Quita un adjunto de la solicitud y borra su archivo",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/mis/solicitudes/{id}": {
+      "get": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "Comprobante de una solicitud del cliente en sesión (404 si no es suya)",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mis/adjuntos": {
+      "post": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "Sube un adjunto borrador (multipart, campo «archivo»: JPG, PNG, WebP o PDF de hasta 10 MB); exige correo confirmado (403 correo_sin_confirmar); 409 si ya hay 5 borradores; límite propio de subidas por minuto",
+        "x-acceso": "cliente"
+      },
+      "get": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "Lista los adjuntos borrador del cliente en sesión (sin solicitud y no purgados), por fecha de subida, con la misma forma que la respuesta de la subida",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mis/adjuntos/{id}": {
+      "delete": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "Quita un adjunto borrador propio (404 si no es un borrador suyo)",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/adjuntos/{id}/miniatura": {
+      "get": {
+        "tags": [
+          "Adjuntos"
+        ],
+        "summary": "Miniatura WebP de un adjunto de imagen; solo el cliente dueño o el personal (404 para los demás), sin caché",
+        "x-acceso": "sesion"
+      }
+    },
+    "/api/v1/adjuntos/{id}/archivo": {
+      "get": {
+        "tags": [
+          "Adjuntos"
+        ],
+        "summary": "Archivo de un adjunto (imagen WebP grande o PDF como descarga); solo el cliente dueño o el personal (404 para los demás), sin caché",
+        "x-acceso": "sesion"
+      }
+    },
+    "/api/v1/clientes/buscar": {
+      "get": {
+        "tags": [
+          "Clientes"
+        ],
+        "summary": "Busca un cliente por teléfono o RUT antes del registro presencial; responde una lista de 0 o 1 cliente",
+        "x-acceso": "personal"
       }
     }
   },

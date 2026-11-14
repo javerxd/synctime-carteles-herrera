@@ -20,17 +20,17 @@ public sealed class ConcurrenciaTests(ApiFixture api)
         var url = $"/api/v1/solicitudes/{await api.CrearSolicitudAsync()}";
         var abierta = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
-        var primera = await cliente.PutAsJsonAsync(url, new { descripcionGeneral = "Primera", rowVersion = Version(abierta) }).EsperarAsync(HttpStatusCode.OK);
-        var rechazo = await cliente.PutAsJsonAsync(url, new { descripcionGeneral = "Segunda", rowVersion = Version(abierta) }).EsperarAsync(HttpStatusCode.Conflict);
+        var primera = await cliente.PutAsJsonAsync(url, new { descripcionGeneral = "Primera edición", rowVersion = Version(abierta) }).EsperarAsync(HttpStatusCode.OK);
+        var rechazo = await cliente.PutAsJsonAsync(url, new { descripcionGeneral = "Segunda edición", rowVersion = Version(abierta) }).EsperarAsync(HttpStatusCode.Conflict);
 
         Assert.NotEqual(Version(abierta), Version(primera));
         Assert.False(string.IsNullOrEmpty(rechazo.GetProperty("error").GetString()));
         var actual = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal("Primera", actual.GetProperty("descripcionGeneral").GetString());
+        Assert.Equal("Primera edición", actual.GetProperty("descripcionGeneral").GetString());
 
         // Con la version nueva, que devuelve la propia respuesta, ya puede guardar.
-        var reintento = await cliente.PutAsJsonAsync(url, new { descripcionGeneral = "Segunda", rowVersion = Version(primera) }).EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal("Segunda", reintento.GetProperty("descripcionGeneral").GetString());
+        var reintento = await cliente.PutAsJsonAsync(url, new { descripcionGeneral = "Segunda edición", rowVersion = Version(primera) }).EsperarAsync(HttpStatusCode.OK);
+        Assert.Equal("Segunda edición", reintento.GetProperty("descripcionGeneral").GetString());
     }
 
     [Fact]
@@ -40,11 +40,13 @@ public sealed class ConcurrenciaTests(ApiFixture api)
         var url = $"/api/v1/solicitudes/{await api.CrearSolicitudAsync()}";
         var abierta = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
-        await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "aceptado", rowVersion = Version(abierta) }).EsperarAsync(HttpStatusCode.OK);
-        await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "rechazado", motivoRechazo = "x", rowVersion = Version(abierta) }).EsperarAsync(HttpStatusCode.Conflict);
+        // Fase 7: el PATCH de estado solo rechaza (con motivo) o devuelve una cotizada a «solicitado».
+        await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "rechazado", motivo = "Sin stock del material", rowVersion = Version(abierta) }).EsperarAsync(HttpStatusCode.OK);
+        await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "rechazado", motivo = "Otro motivo distinto", rowVersion = Version(abierta) }).EsperarAsync(HttpStatusCode.Conflict);
 
         var actual = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal("aceptado", actual.GetProperty("estado").GetString());
+        Assert.Equal("rechazado", actual.GetProperty("estado").GetString());
+        Assert.Equal("Sin stock del material", actual.GetProperty("motivoRechazo").GetString());
     }
 
     [Fact]
@@ -69,7 +71,12 @@ public sealed class ConcurrenciaTests(ApiFixture api)
         await cliente.PutAsJsonAsync(urlSolicitud, new { descripcionGeneral = "x" }).EsperarAsync(HttpStatusCode.BadRequest);
         await cliente.PutAsJsonAsync(urlSolicitud, new { descripcionGeneral = "x", rowVersion = "" }).EsperarAsync(HttpStatusCode.BadRequest);
         await cliente.PutAsJsonAsync(urlSolicitud, new { descripcionGeneral = "x", rowVersion = "no-es-base64!" }).EsperarAsync(HttpStatusCode.BadRequest);
-        await cliente.PatchAsJsonAsync($"{urlSolicitud}/estado", new { estado = "aceptado" }).EsperarAsync(HttpStatusCode.BadRequest);
+        // Fase 7: el PATCH de estado puede ir sin version (la transicion se valida igual), pero una If-Match ilegible no.
+        using (var peticion = new HttpRequestMessage(HttpMethod.Patch, $"{urlSolicitud}/estado") { Content = JsonContent.Create(new { estado = "solicitado" }) })
+        {
+            peticion.Headers.TryAddWithoutValidation("If-Match", "\"no-es-base64!\"");
+            await cliente.SendAsync(peticion).EsperarAsync(HttpStatusCode.BadRequest);
+        }
         await cliente.PutAsJsonAsync(urlPedido, new { estadoPedido = "en_proceso", fechaEntregaEstimada = DateTime.Now.AddDays(5), modalidadEntrega = "retiro_local" }).EsperarAsync(HttpStatusCode.BadRequest);
     }
 
@@ -84,7 +91,7 @@ public sealed class ConcurrenciaTests(ApiFixture api)
         var abierta = await api.Cliente(token).GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
         var rechazo = await api.ClienteConInterceptor(new OtraPersonaGuardaAntes(id), token)
-            .PutAsJsonAsync(url, new { descripcionGeneral = "Mia", rowVersion = Version(abierta) })
+            .PutAsJsonAsync(url, new { descripcionGeneral = "Mi edición de la solicitud", rowVersion = Version(abierta) })
             .EsperarAsync(HttpStatusCode.Conflict);
 
         Assert.False(string.IsNullOrEmpty(rechazo.GetProperty("error").GetString()));
@@ -101,7 +108,7 @@ public sealed class ConcurrenciaTests(ApiFixture api)
         var abierta = await api.Cliente(token).GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
         var respuestas = await Task.WhenAll(Enumerable.Range(0, 8).Select(i =>
-            api.Cliente(token).PutAsJsonAsync(url, new { descripcionGeneral = $"Edicion {i}", rowVersion = Version(abierta) })));
+            api.Cliente(token).PutAsJsonAsync(url, new { descripcionGeneral = $"Edición número {i}", rowVersion = Version(abierta) })));
 
         Assert.Equal(1, respuestas.Count(r => r.StatusCode == HttpStatusCode.OK));
         Assert.Equal(7, respuestas.Count(r => r.StatusCode == HttpStatusCode.Conflict));

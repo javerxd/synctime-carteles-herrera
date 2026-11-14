@@ -1,9 +1,11 @@
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Adjuntos;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Consentimientos;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Local;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Portada;
+using LetrerosHerreraSYNCTIMEapi.Negocio.Solicitudes;
 using Microsoft.EntityFrameworkCore;
 
 namespace LetrerosHerreraSYNCTIMEapi.Services;
@@ -254,14 +256,16 @@ public sealed class ServicioContacto(
 
 // ── Plazos de conservacion de la politica de privacidad ──
 
-public sealed record ResultadoPurga(int Consultas, int Consentimientos);
+public sealed record ResultadoPurga(int Consultas, int Consentimientos, int Adjuntos = 0);
 
 // Borra lo que la politica de privacidad dice que no se guarda mas:
 // - consultas del formulario de contacto, 12 meses despues de recibirlas;
 // - consentimientos de visitantes sin cuenta (cookies, contacto), 24 meses despues de darlos o retirarlos;
 // - consentimientos de clientes y del personal, 24 meses despues de retirarlos (los vigentes se conservan,
-//   porque acreditan que la persona acepto).
-public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, TimeProvider reloj)
+//   porque acreditan que la persona acepto);
+// - adjuntos borrador (fase 7) que nadie envio en 24 horas, con sus archivos, y los archivos de adjuntos
+//   que quedaron sin registro en la base (por ejemplo, de una solicitud borrada).
+public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, AlmacenAdjuntos almacenAdjuntos, TimeProvider reloj)
 {
     public const int MesesConsultas = 12;
     public const int MesesConsentimientos = 24;
@@ -284,7 +288,38 @@ public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, TimeProvid
         var limiteTecnico = ahora.AddDays(-1);
         await db.TokensRenovacion.Where(t => t.FechaExpiracion < limiteTecnico).ExecuteDeleteAsync(ct);
         await db.CodigosCuenta.Where(c => c.FechaExpiracion < limiteTecnico).ExecuteDeleteAsync(ct);
-        return new ResultadoPurga(consultas, consentimientos);
+        return new ResultadoPurga(consultas, consentimientos, await PurgarAdjuntosAsync(ahora, ct));
+    }
+
+    private async Task<int> PurgarAdjuntosAsync(DateTimeOffset ahora, CancellationToken ct)
+    {
+        var limite = ahora - ReglasAdjunto.VidaBorrador;
+        var vencidos = await db.AdjuntosSolicitud.AsNoTracking()
+            .Where(a => a.IdSolicitud == null && a.FechaSubida < limite)
+            .Select(a => new { a.IdAdjunto, a.Clave })
+            .ToListAsync(ct);
+        var borrados = 0;
+        if (vencidos.Count > 0)
+        {
+            var ids = vencidos.Select(v => v.IdAdjunto).ToList();
+            // Solo los que siguen siendo borradores: si justo se vincularon a una solicitud, se conservan.
+            borrados = await db.AdjuntosSolicitud.Where(a => ids.Contains(a.IdAdjunto) && a.IdSolicitud == null).ExecuteDeleteAsync(ct);
+            var siguen = await db.AdjuntosSolicitud.AsNoTracking().Where(a => ids.Contains(a.IdAdjunto)).Select(a => a.IdAdjunto).ToListAsync(ct);
+            foreach (var vencido in vencidos.Where(v => !siguen.Contains(v.IdAdjunto)))
+                almacenAdjuntos.Borrar(vencido.Clave);
+        }
+
+        // Archivos sin registro (de borradores recien borrados o de solicitudes que borro el procedimiento
+        // de depuracion). Solo los de mas de 24 horas: uno mas nuevo puede ser una subida en curso.
+        var enDisco = almacenAdjuntos.ClavesAnterioresA(limite);
+        if (enDisco.Count > 0)
+        {
+            var claves = enDisco.ToList();
+            var conRegistro = await db.AdjuntosSolicitud.AsNoTracking().Where(a => claves.Contains(a.Clave)).Select(a => a.Clave).ToListAsync(ct);
+            foreach (var clave in claves.Except(conRegistro))
+                almacenAdjuntos.Borrar(clave);
+        }
+        return borrados;
     }
 }
 
@@ -309,9 +344,9 @@ public sealed class ProcesoPurgaDatosPersonales(
                 {
                     await using var alcance = alcances.CreateAsyncScope();
                     var resultado = await alcance.ServiceProvider.GetRequiredService<PurgaDatosPersonales>().PurgarAsync(ct);
-                    if (resultado.Consultas + resultado.Consentimientos > 0)
-                        logger.LogInformation("Plazos de conservacion: se borraron {Consultas} consulta(s) y {Consentimientos} consentimiento(s) vencidos.",
-                            resultado.Consultas, resultado.Consentimientos);
+                    if (resultado.Consultas + resultado.Consentimientos + resultado.Adjuntos > 0)
+                        logger.LogInformation("Plazos de conservacion: se borraron {Consultas} consulta(s), {Consentimientos} consentimiento(s) y {Adjuntos} adjunto(s) vencidos.",
+                            resultado.Consultas, resultado.Consentimientos, resultado.Adjuntos);
                 }
                 catch (Exception error) when (error is not OperationCanceledException)
                 {

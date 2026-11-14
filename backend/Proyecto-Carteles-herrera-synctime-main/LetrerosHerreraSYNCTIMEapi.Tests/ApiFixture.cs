@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using LetrerosHerreraSYNCTIMEapi.Datos;
 using LetrerosHerreraSYNCTIMEapi.Models;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,11 @@ public sealed class ApiFixture : IAsyncLifetime
     private readonly string carpetaTemporal = Path.Combine(Path.GetTempPath(), $"synctime-pruebas-{Guid.NewGuid():N}");
     public string CarpetaBandeja => Path.Combine(carpetaTemporal, "bandeja");
     public string CarpetaImagenes => Path.Combine(carpetaTemporal, "imagenes");
+    public string CarpetaAdjuntos => Path.Combine(carpetaTemporal, "adjuntos");
+
+    // Fase 7: la regla contra solicitudes falsas mira la IP. El servidor de pruebas no tiene una, asi que
+    // una prueba puede elegirla con esta cabecera (solo existe en las pruebas, nunca en la API real).
+    public const string CabeceraIp = "X-Prueba-Ip";
     private WebApplicationFactory<Program> factory = null!;
     private string? tokenAdmin;
     private int secuencia;
@@ -71,6 +77,7 @@ public sealed class ApiFixture : IAsyncLifetime
             ["RateLimiting__CookiesPorHora"] = "100000",
             ["RateLimiting__PorCuenta"] = "100000",
             ["RateLimiting__Salud"] = "100000",
+            ["RateLimiting__Adjuntos"] = "100000",
             ["RostroFacial__ClaveCifrado"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
             ["RostroFacial__TiempoMinimoFalloMs"] = TiempoMinimoFalloMs.ToString(),
             // Los correos van a una bandeja temporal y la cola no corre sola: cada prueba procesa cuando lo
@@ -89,7 +96,8 @@ public sealed class ApiFixture : IAsyncLifetime
             ["Correo__Smtp__Password"] = "sin-uso",
             ["Correo__Remitente__Direccion"] = "synctime@test.local",
             ["Sitio__UrlPublica"] = "https://synctime.test",
-            ["Imagenes__Carpeta"] = CarpetaImagenes
+            ["Imagenes__Carpeta"] = CarpetaImagenes,
+            ["Adjuntos__Carpeta"] = CarpetaAdjuntos
         };
 
         // Program lee la configuracion antes de que WebApplicationFactory pueda cambiarla,
@@ -97,7 +105,8 @@ public sealed class ApiFixture : IAsyncLifetime
         foreach (var (clave, valor) in configuracion)
             Environment.SetEnvironmentVariable(clave, valor);
 
-        factory = new WebApplicationFactory<Program>();
+        factory = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
+            host.ConfigureServices(services => services.AddTransient<IStartupFilter, IpDePrueba>()));
         _ = factory.Server;
 
         var conexion = await ConsultarAsync(db => Task.FromResult(db.Database.GetConnectionString()));
@@ -274,6 +283,39 @@ public sealed class ApiFixture : IAsyncLifetime
         return (usuario.GetProperty("idCliente").GetInt32(), telefono, creado.GetProperty("token").GetString()!);
     }
 
+    // Fase 7: cliente con cuenta web y correo confirmado, creado directo en la base (asi no deja el correo
+    // de verificacion en la cola). Las solicitudes en linea lo exigen.
+    public async Task<(int Id, string Correo, string Token)> CrearClienteConfirmadoAsync(string? correo = null, string? rut = null)
+    {
+        var telefono = Telefono();
+        correo ??= CorreoDe(telefono);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
+        var auth = scope.ServiceProvider.GetRequiredService<Services.AuthService>();
+        var cliente = new Cliente
+        {
+            Rut = rut,
+            Nombre = "Cli",
+            Apellido = "Web",
+            Telefono = telefono,
+            Email = correo,
+            PasswordHash = auth.HashPassword(AdminPassword),
+            Registrado = true,
+            FechaVerificacionCorreo = DateTimeOffset.UtcNow
+        };
+        db.Clientes.Add(cliente);
+        await db.SaveChangesAsync();
+        return (cliente.IdCliente, correo, auth.CreateTokenCliente(cliente));
+    }
+
+    // Cuerpo valido de una solicitud (fase 7: descripcion de 10 caracteres o mas y al menos un item).
+    public static object CuerpoSolicitud(int idProducto = 1, IEnumerable<int>? adjuntos = null, string descripcion = "Letrero para la vitrina del local") => new
+    {
+        descripcionGeneral = descripcion,
+        detalles = new[] { new { idProducto, descripcion = "Letrero luminoso", anchoMm = 1000, altoMm = 2000, cantidad = 2 } },
+        adjuntos = adjuntos?.ToArray() ?? []
+    };
+
     public async Task<string> LoginClienteAsync(string correo, string password)
     {
         var respuesta = await Cliente().PostAsJsonAsync("/api/v1/auth/login-cliente", new { correo, password }).EsperarAsync(HttpStatusCode.OK);
@@ -295,6 +337,7 @@ public sealed class ApiFixture : IAsyncLifetime
             .PostAsJsonAsync("/api/v1/solicitudes/", new
             {
                 idCliente = idCliente ?? await CrearClienteAsync(),
+                descripcionGeneral = "Encargo registrado en el local",
                 detalles = new[] { new { idProducto, descripcion = "Letrero de prueba", anchoMm = 1000, altoMm = 2000, cantidad = 2 } }
             })
             .EsperarAsync(HttpStatusCode.Created);
@@ -322,14 +365,41 @@ public sealed class ApiFixture : IAsyncLifetime
             .EsperarAsync(HttpStatusCode.OK);
     }
 
-    public async Task AceptarSolicitudAsync(int idSolicitud)
+    // Fase 7: version vigente de una solicitud (el rowVersion de su ficha), para If-Match.
+    public async Task<string> VersionAsync(int idSolicitud) =>
+        (await Cliente(await TokenAdminAsync()).GetAsync($"/api/v1/solicitudes/{idSolicitud}").EsperarAsync(HttpStatusCode.OK))
+            .GetProperty("rowVersion").GetString()!;
+
+    // Peticion con la cabecera If-Match (y un cuerpo JSON si se pasa).
+    public static HttpRequestMessage ConVersion(HttpMethod metodo, string url, string version, object? cuerpo = null)
     {
-        var cliente = Cliente(await TokenAdminAsync());
-        var solicitud = await cliente.GetAsync($"/api/v1/solicitudes/{idSolicitud}").EsperarAsync(HttpStatusCode.OK);
-        await cliente
-            .PatchAsJsonAsync($"/api/v1/solicitudes/{idSolicitud}/estado", new { estado = "aceptado", rowVersion = solicitud.GetProperty("rowVersion").GetString() })
-            .EsperarAsync(HttpStatusCode.OK);
+        var peticion = new HttpRequestMessage(metodo, url);
+        if (cuerpo is not null)
+            peticion.Content = JsonContent.Create(cuerpo);
+        peticion.Headers.TryAddWithoutValidation("If-Match", $"\"{version}\"");
+        return peticion;
     }
+
+    // Fase 7: «aceptado» ya no se pide por PATCH /estado; llega al aprobar la cotizacion (fase 8). Las
+    // pruebas de pedidos y pagos solo necesitan una solicitud aceptada: se deja asi directo en la base.
+    public Task AceptarSolicitudAsync(int idSolicitud) =>
+        ConsultarAsync(db => db.Solicitudes.Where(s => s.IdSolicitud == idSolicitud)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Estado, "aceptado")));
+}
+
+// Middleware de prueba: si la peticion trae X-Prueba-Ip, esa es su IP; si no, no tiene ninguna.
+public sealed class IpDePrueba : IStartupFilter
+{
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+    {
+        app.Use((contexto, siguiente) =>
+        {
+            contexto.Connection.RemoteIpAddress = contexto.Request.Headers.TryGetValue(ApiFixture.CabeceraIp, out var ip)
+                && System.Net.IPAddress.TryParse(ip.ToString(), out var direccion) ? direccion : null;
+            return siguiente(contexto);
+        });
+        next(app);
+    };
 }
 
 public static class RespuestaExtensions

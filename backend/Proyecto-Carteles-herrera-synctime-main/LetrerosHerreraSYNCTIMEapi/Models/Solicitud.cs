@@ -16,6 +16,11 @@ public class Solicitud
     public DateTime? FechaEliminacionLogica { get; set; }
     public byte[] RowVersion { get; set; } = null!;
 
+    // Fase 7: HMAC-SHA256 de la IP desde la que se envio en linea (nunca la IP en claro). Solo sirve para
+    // la regla contra solicitudes falsas; null en las presenciales.
+    [JsonIgnore]
+    public string? HuellaIp { get; set; }
+
     public virtual Cliente? Cliente { get; set; }
     public virtual Empleado? EmpleadoRegistra { get; set; }
     public virtual ICollection<SolicitudDetalle> Detalles { get; set; } = new List<SolicitudDetalle>();
@@ -25,4 +30,10 @@ public class Solicitud
 
     [JsonIgnore]
     public virtual Pedido? Pedido { get; set; }
+
+    [JsonIgnore]
+    public virtual ICollection<AdjuntoSolicitud> Adjuntos { get; set; } = new List<AdjuntoSolicitud>();
+
+    [JsonIgnore]
+    public virtual ICollection<SolicitudHistorial> Historial { get; set; } = new List<SolicitudHistorial>();
 }

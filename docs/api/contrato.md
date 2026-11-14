@@ -1,6 +1,6 @@
 # Contrato de la API para el frontend
 
-Este documento reune lo necesario para adaptar el frontend (`frontend/synctimefront`) cuando esten definidos los requisitos finales. **Estado al 13-11-2026:** la API esta lista y probada hasta la fase 6 (cuentas y sesion). En el frontend, el ingreso, el registro, la recuperacion y Mi cuenta usan este contrato desde la fase 6. El login facial de empleados se describe en la seccion 7.
+Este documento reune lo necesario para adaptar el frontend (`frontend/synctimefront`) cuando esten definidos los requisitos finales. **Estado al 14-11-2026:** la API esta lista y probada hasta la fase 7 (solicitudes, adjuntos y clientes). En el frontend, el ingreso, el registro, la recuperacion y Mi cuenta usan este contrato desde la fase 6, y las solicitudes, los adjuntos y los clientes, desde la fase 7. El login facial de empleados se describe en la seccion 7.
 
 La referencia viva es Scalar (`/scalar`) y OpenAPI (`/openapi/v1.json`), disponibles en Development.
 
@@ -42,17 +42,17 @@ Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administra
 | `403` | El rol no tiene permiso |
 | `404` | No existe, o no es visible para quien lo pide |
 | `409` | Duplicado, tiene registros asociados, o lo modifico otra persona |
-| `413` | El cuerpo supera el tope de su ruta: 8 KB en el login de rostro, 64 KB al activar el rostro, y 16 KB en `POST /contacto` y `POST /consentimientos/cookies` |
-| `429` | Limite por IP por minuto: 10 logins con contraseña, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos o 100 peticiones generales. Cada uno tiene su contador. `POST /contacto` y `POST /consentimientos/cookies` tienen además 5 envíos por hora por IP cada uno (`RateLimiting:ContactoPorHora` y `CookiesPorHora`). Ademas, 10 fallos por cuenta por minuto en el ingreso, la recuperacion y los cambios de correo o contraseña (`RateLimiting:PorCuenta`) |
-| `503` | El login facial no esta disponible porque falta su clave de cifrado |
+| `413` | El cuerpo supera el tope de su ruta: 8 KB en el login de rostro, 64 KB al activar el rostro, y 16 KB en `POST /contacto` y `POST /consentimientos/cookies`. Una subida de adjunto que pasa de 10 MB responde `400` con `archivo_muy_grande`, no `413` |
+| `429` | Limite por IP por minuto: 10 logins con contraseña, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos o 100 peticiones generales. Cada uno tiene su contador. `POST /contacto` y `POST /consentimientos/cookies` tienen además 5 envíos por hora por IP cada uno (`RateLimiting:ContactoPorHora` y `CookiesPorHora`). Ademas, 10 fallos por cuenta por minuto en el ingreso, la recuperacion y los cambios de correo o contraseña (`RateLimiting:PorCuenta`). Las subidas de adjuntos tienen 10 por minuto por usuario (`RateLimiting:Adjuntos`) |
+| `503` | El login facial no esta disponible porque falta su clave de cifrado. Tambien `503` con `servicio_ocupado` y la cabecera `Retry-After: 5` si el servidor no consigue el turno de la regla contra solicitudes falsas o de una subida de adjunto en el plazo de `Solicitudes:EsperaBloqueoMs` (15 segundos por defecto) |
 
-**Edicion simultanea.** Solicitudes y pedidos traen `rowVersion` en sus respuestas. Las rutas que los editan lo exigen:
+**Edicion simultanea.** Solicitudes y pedidos traen `rowVersion` en sus respuestas y en la cabecera `ETag` (la version en base64, entre comillas). Las rutas que los editan o cambian su estado la exigen, en la cabecera `If-Match` (preferida) o en `rowVersion` del cuerpo:
 
-1. Guardar el `rowVersion` que entrega el GET, junto con los datos del formulario.
-2. Enviarlo sin cambios en el `PUT` o `PATCH`.
-3. Si responde `409`, avisar que otra persona cambio el registro y volver a cargarlo. Si responde `200`, usar el `rowVersion` de esa respuesta para la siguiente edicion.
+1. Guardar la version que entrega el GET, junto con los datos del formulario.
+2. Enviarla sin cambios en el `PUT`, el `PATCH` o el `DELETE`.
+3. Si responde `409` con `version_obsoleta`, avisar que otra persona cambio el registro y volver a cargarlo. Si responde `200`, usar la version de esa respuesta para la siguiente edicion.
 
-Si falta, responde `400`. Las eliminaciones no lo piden. Cotizaciones, clientes y productos no tienen version: ahi prevalece la ultima edicion.
+Si falta, responde `400` con `sin_version`. Eliminar tambien la pide. Subir o quitar un adjunto de una solicitud tambien cambia su version. Cotizaciones, clientes y productos no tienen version: ahi prevalece la ultima edicion.
 
 **Inactivos y ocultos.**
 
@@ -108,14 +108,16 @@ La sesion tiene dos piezas. El **token de acceso** (15 minutos) va en `Authoriza
 | `PUT /mi-cuenta/password` | Cliente | `{ passwordActual, passwordNueva }`. Responde `{ token }`: cierra todas las sesiones de la cuenta, incluida la actual, y abre una nueva en este equipo. `400` con `errores.passwordActual` o `errores.passwordNueva`. Limite: 10 fallos por minuto |
 | `PUT /mi-cuenta/marketing` | Cliente | `{ acepta, version? }`. `204`. Aceptar exige la version vigente del marketing (`409` si cambio). Retirarlo no pide version y no afecta a los terminos |
 
-**Correo y enlaces.** El correo es el usuario para ingresar y para recuperar la contraseña, así que una cuenta con contraseña siempre tiene correo. El cliente puede usar su cuenta sin confirmar el correo. Confirmarlo es necesario para las campañas (fase 11), y la fase 7 decidirá si las solicitudes en línea lo exigen (ver `docs/plan/desviaciones.md`). El enlace de confirmación dura 24 horas, sirve una sola vez y sale desde `Sitio:UrlPublica`.
+**Correo y enlaces.** El correo es el usuario para ingresar y para recuperar la contraseña, así que una cuenta con contraseña siempre tiene correo. El cliente puede usar su cuenta sin confirmar el correo. Confirmarlo es necesario para las campañas (fase 11) y, desde la fase 7, para enviar solicitudes en línea y adjuntar archivos. El enlace de confirmación dura 24 horas, sirve una sola vez y sale desde `Sitio:UrlPublica`.
 
 ### Clientes, personal y materiales
 
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
-| `GET /clientes`, `GET /clientes/{id}` | Personal | |
-| `POST /clientes`, `PUT /clientes/{id}` | `dueño`, `administrador`, `operario` | `{ rut?, nombre, apellido, telefono, email?, direccion?, activo? }`. El correo se guarda en minusculas y sin espacios. Un cliente con contraseña necesita correo (`400`). Si el correo cambia, queda sin confirmar y se envia un enlace nuevo. Desactivarlo o cambiarle el correo cierra sus sesiones |
+| `GET /clientes` | Personal | Paginado, ordenado por apellido y nombre: `?q=` busca por nombre, telefono o RUT; `?pagina=` (1) y `?tamano=` (20, maximo 100). Responde `{ elementos, total, pagina, tamano, totalPaginas }`. Cada fila trae `idCliente`, `rut`, `nombre`, `apellido`, `telefono`, `email`, `direccion`, `registrado`, `correoConfirmado`, `activo` y `fechaRegistro` |
+| `GET /clientes/buscar?telefono=&rut=` | Personal | Para el registro presencial: busca antes de crear, por telefono o por RUT. Responde una lista de 0 o 1 cliente. `400` si no se envia ninguno de los dos |
+| `GET /clientes/{id}` | Personal | |
+| `POST /clientes`, `PUT /clientes/{id}` | `dueño`, `administrador`, `operario` | `{ rut?, nombre, apellido, telefono, email?, direccion?, activo? }`. El correo se guarda en minusculas y sin espacios. Un cliente con contraseña necesita correo (`400`). Si el correo cambia, queda sin confirmar y se envia un enlace nuevo. Desactivarlo o cambiarle el correo cierra sus sesiones. Sin control de concurrencia: la tabla de clientes no tiene version, asi que prevalece la ultima edicion |
 | `PUT /clientes/{id}/credenciales` | `dueño`, `administrador`, `operario` | `{ password, passwordActual, correo? }`. Activa el acceso web de un cliente que ya existe. Sin correo no hay cuenta: si el cliente no tiene uno guardado, hay que enviarlo en `correo`. `400` si el correo no sirve; `409` si el cliente esta desactivado o el correo ya es de otra cuenta. Cierra sus sesiones anteriores y envia el enlace para confirmar el correo si aun no esta confirmado. `password` es la del cliente; `passwordActual`, la de quien la asigna |
 | `DELETE /clientes/{id}` | Gestion | `409` si tiene solicitudes |
 | `GET /empleados`, `GET /materiales` | Personal | |
@@ -143,7 +145,12 @@ La sesion tiene dos piezas. El **token de acceso** (15 minutos) va en `Authoriza
 | `POST /imagenes` | Gestion | `multipart/form-data` con el campo `archivo`: JPG, PNG o WebP de hasta 10 MB (el tipo se reconoce por el contenido, no por el nombre). Responde `201` con `{ clave, ancho, alto, urlGrande, urlMiniatura }`. Se guarda en WebP: 1600 px y 640 px por el lado mayor, sin agrandar, enderezada y sin metadatos. `400` si no es una imagen valida, `413` si supera 10 MB |
 | `GET /imagenes/{archivo}` | Publico | `{clave}-grande.webp` o `{clave}-miniatura.webp`. `Cache-Control: public, max-age=31536000, immutable` y `ETag`. `404` para cualquier otro nombre |
 
-Al crear una solicitud (`POST /solicitudes`, `POST /solicitudes/online` y `POST /mis/solicitudes`) la API deja en la cola de correo un aviso para el taller. La respuesta no cambia ni espera al servidor de correo: si el aviso no se puede encolar, la solicitud igual queda guardada y el problema se registra.
+Al crear una solicitud, la API escribe en la cola de correo, **en la misma transaccion** que la solicitud (fase 7):
+
+- En linea (`POST /mis/solicitudes`): el aviso al taller y la confirmacion al cliente, con su comprobante.
+- Presencial (`POST /solicitudes`): solo la confirmacion al cliente, si su correo esta confirmado. **No avisa al taller** (decision de la fase 4, confirmada el 14-11-2026).
+
+Si la cola no puede guardar alguno de esos correos, no se guarda la solicitud y la respuesta es un error, no `201`. Las solicitudes que frena la regla contra solicitudes falsas no generan correos. El envio real lo hace la cola en segundo plano, asi que un fallo del servidor de correo no impide guardar la solicitud. Tope: 20 avisos por hora entre solicitudes y consultas de contacto (`Correo:TopeAvisosPorHora`); superado el tope, la solicitud se guarda igual y su aviso se resume en uno solo.
 
 ### Portada publica (fase 5)
 
@@ -156,28 +163,81 @@ Todas son publicas (sin token). Los envios que guardan algo tienen sus propios l
 | `POST /contacto` | Publico | `{ nombre, correo, telefono?, asunto, mensaje, aceptaPrivacidad, versionPrivacidad, sitioWeb? }`. Nombre hasta 100 caracteres, asunto hasta 150 y mensaje entre 10 y 2000. `telefono` se guarda como `+56` y 9 digitos. `versionPrivacidad` debe ser la vigente. Responde `202` con `{ recibida, mensaje }`. `400` con el motivo y los errores por campo; `409` si la version de la privacidad ya no es la vigente; `413` si supera 16 KB; `429` si supera 5 por hora por IP. `sitioWeb` es un campo trampa: si llega con texto, responde igual `202`, pero no guarda ni avisa nada. La misma consulta (mismo correo y mismo mensaje) dentro de la ultima hora no se guarda ni avisa de nuevo. La consulta y el consentimiento de privacidad se guardan en una transaccion, y el aviso al taller queda en la cola de correo (`consulta_contacto`, con respuesta dirigida a quien escribio) |
 | `POST /consentimientos/cookies` | Publico | `{ visitante, version, acepta? }`. `visitante` es un GUID anonimo que genera el navegador. Sin `acepta`, o con `true`, registra la aceptacion de la version vigente de cookies (`204`). Con `acepta: false` registra el retiro (`204`), que no hace nada si nunca se acepto. `400` si falta `visitante`; `409` si la version no es la vigente; `429` si supera 5 por hora por IP |
 
-### Solicitudes
+### Solicitudes (fase 7)
 
-Un detalle tiene la forma `{ idProducto, descripcion, anchoMm?, altoMm?, cantidad? }`. Ancho y alto van juntos, la cantidad por defecto es 1 y se admiten hasta 50 detalles. Toda solicitud nueva necesita una `descripcionGeneral` o al menos un detalle.
+Una solicitud tiene una cabecera (`descripcionGeneral`, obligatoria, de 10 a 2000 caracteres) y de 1 a 10 ítems (`detalles`). Cada ítem es `{ idProducto, descripcion?, anchoMm?, altoMm?, cantidad }`: el ancho y el alto van juntos o no van (de 1 a 50 000 mm), la cantidad va de 1 a 999 y la descripción del ítem admite hasta 500 caracteres. El producto debe estar activo. El área de cada ítem (`areaM2` = ancho × alto / 1 000 000 × cantidad, redondeada a 2 decimales) y el total (`areaTotalM2`) los calcula el servidor. Una solicitud admite hasta 5 adjuntos (ver «Adjuntos (fase 7)»).
+
+La ruta pública `POST /solicitudes/online` **se eliminó** en la fase 7. Una solicitud en línea solo la envía un cliente con sesión y correo confirmado (`POST /mis/solicitudes`).
+
+Estados: `solicitado`, `cotizado`, `aceptado` y `rechazado`. Quién cambia cada uno y cómo:
+
+| Desde | Hacia | Quién |
+| --- | --- | --- |
+| `solicitado` | `cotizado` | El sistema, al emitir una cotización (fase 8) |
+| `cotizado` | `solicitado` | El cliente, al rechazar la cotización; el personal, al devolverla («Volver a solicitado»); el sistema, al editar la solicitud |
+| `cotizado` | `aceptado` | El sistema, al aprobar la cotización (fase 8) |
+| `solicitado` o `cotizado` | `rechazado` | El personal, con motivo de 10 a 500 caracteres |
+
+Cualquier otro cambio responde `409` con `transicion_invalida` y una explicación. Cada cambio queda en el historial de la solicitud, con quién lo hizo y cuándo.
+
+**Comprobante.** Es el mismo en la pantalla del cliente, en su correo de confirmación y en el registro presencial. Las fechas van en hora de Chile (`fechaChile`, sin zona):
+
+```
+{ idSolicitud, numero: "#123", fechaChile: "2026-11-14T10:32:00", origen: "online" | "presencial", estado,
+  motivoRechazo, cliente: { nombre, apellido, telefono, correo },
+  detalles: [{ idProducto, producto, descripcion, anchoMm, altoMm, cantidad, areaM2 }], areaTotalM2,
+  descripcionGeneral,
+  adjuntos: [{ idAdjunto, tipo, nombre, bytes, ancho, alto, urlMiniatura, urlArchivo }],
+  rowVersion }
+```
+
+La ficha del personal (`GET /solicitudes/{id}`) añade `idCliente`, `registradaPor` (quién la registró, o `null` si la envió el cliente) y `historial`: `[{ estadoAnterior, estadoNuevo, motivo, fechaChile, actor: "personal" | "cliente" | "sistema", por }]`.
+
+**Regla contra solicitudes falsas (RFS04, RNFP33).** Antes de guardar una solicitud en línea, la API la frena si se cumple cualquiera de estas condiciones:
+
+- la cuenta tiene otra solicitud en línea pendiente (`solicitado` o `cotizado`, no eliminada);
+- otra solicitud pendiente tiene el mismo RUT del cliente;
+- la IP tiene una solicitud en línea pendiente;
+- la IP ya envió 3 solicitudes en línea en la última hora (configurable).
+
+Cuando frena, **no se escribe nada** (ni la solicitud, ni los adjuntos vinculados, ni los correos) y responde `409` con `codigo: "contacto_directo"` y el mismo mensaje para todos los motivos: «Ya tenemos una solicitud tuya en revisión. Para agregar algo o pedir otra cosa, escríbenos por WhatsApp o llámanos.». Ese mensaje no revela de quién es la otra solicitud. La IP nunca se guarda en claro: se guarda su HMAC-SHA256 con una clave del servidor (`solicitudes.huella_ip`). En IPv6 se usa el prefijo /64. Las solicitudes presenciales no pasan por esta regla. Ver `docs/plan/desviaciones.md` sobre la ventana de 24 horas.
 
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
-| `GET /solicitudes`, `GET /solicitudes/{id}` | Personal | No incluye las eliminadas |
-| `POST /solicitudes` | Personal | `{ idCliente, descripcionGeneral?, detalles? }`. Queda con origen `presencial` |
-| `PUT /solicitudes/{id}` | Personal | `{ descripcionGeneral, rowVersion }`. No cambia el estado |
-| `PATCH /solicitudes/{id}/estado` | Gestion | `{ estado, motivoRechazo?, rowVersion }`. Estados: `solicitado`, `cotizado`, `aceptado`, `rechazado` |
-| `DELETE /solicitudes/{id}` | Gestion | Eliminacion logica, responde `204`. `409` si tiene pedido |
-| `PATCH /solicitudes/{id}/eliminar-logico` | Gestion | Igual, pero devuelve la solicitud |
-| `POST /solicitudes/online` | Publico | `{ cliente: { nombre, apellido, telefono, email?, direccion? }, descripcionGeneral?, detalles? }`. Solo devuelve `{ idSolicitud, origen, estado, fechaSolicitud }`. `409` si el telefono tiene cuenta: hay que iniciar sesion |
-| `GET /metricas/conversion-online` | Gestion | Por año y mes: `totalSolicitudesOnline`, `solicitudesConcretadasEnPedido`, `porcentajeConversion` |
+| `GET /solicitudes` | Personal | Paginada. Filtros: `?estado=` (`solicitado`, `cotizado`, `aceptado`, `rechazado`), `?origen=` (`online` o `presencial`), `?desde=` y `?hasta=` (fechas de Chile, incluidas), `?q=` (busca por número, nombre, teléfono o RUT), `?orden=` (`fecha_desc`, por defecto, o `fecha_asc`), `?pagina=` (1) y `?tamano=` (20, máximo 100). Responde `{ elementos, total, pagina, tamano, totalPaginas }`. Cada fila trae `numero`, `fechaChile`, `cliente` (`idCliente`, `nombre`, `apellido`, `telefono`), `origen`, `estado`, `cantidadItems`, `cantidadAdjuntos` y `registradaPor`. Un filtro con un valor desconocido responde `400`. No incluye las eliminadas |
+| `GET /solicitudes/{id}` | Personal | La ficha. Trae la cabecera `ETag` con la version. `404` si no existe o esta eliminada |
+| `POST /solicitudes` | Personal | Registro presencial: `{ idCliente, descripcionGeneral, detalles }`. El origen es `presencial` y lo registra quien tiene sesión (nunca viene en el cuerpo). Responde `201` con la ficha. `400` si el cliente no existe o esta desactivado. No pasa por la regla contra solicitudes falsas ni avisa al taller |
+| `PUT /solicitudes/{id}` | Personal | `{ descripcionGeneral, detalles? }`. Solo en `solicitado` o `cotizado`; `409` con `transicion_invalida` en otro caso. Con `detalles`, reemplaza los ítems. Editar una solicitud `cotizado` deja su cotización pendiente como `rechazada` y la solicitud vuelve a `solicitado`. La version va en `If-Match` (o en `rowVersion`). Si otra persona la cambio, `409` con `version_obsoleta`. Responde la ficha |
+| `PATCH /solicitudes/{id}/estado` | Todo el personal | `{ estado, motivo? }` con `If-Match`. `rechazado` exige `motivo` (10 a 500 caracteres). `solicitado` solo sirve para devolver una `cotizado`. `cotizado` y `aceptado` los pone el sistema (fase 8): otro intento responde `409`. Responde la ficha |
+| `PATCH /solicitudes/{id}/eliminar-logico` | Todo el personal | Sin cuerpo, con `If-Match`. Solo en `solicitado` o `rechazado`, y sin pedido. La solicitud no se borra de la base. Responde `200` con `{ idSolicitud, eliminadoLogico: true }` |
+| `DELETE /solicitudes/{id}` | Gestión | El mismo borrado lógico y las mismas reglas, con `If-Match`. Responde `204`. La API no tiene borrado físico: solo lo hace el procedimiento `sp_depurar_solicitudes_no_concretadas` (rechazadas o eliminadas, sin pedido, de más de 12 meses) |
+| `POST /solicitudes/{id}/adjuntos` | Personal | Multipart con el campo `archivo`. Sube y vincula de inmediato, con el mismo tope de 5. Responde `201` con el adjunto. `409` con `tope_adjuntos` si ya hay 5, o `409` si la solicitud no esta en `solicitado` o `cotizado`. Ver «Adjuntos (fase 7)» |
+| `DELETE /solicitudes/{id}/adjuntos/{idAdjunto}` | Personal | `204`. Solo en `solicitado` o `cotizado`. Queda anotado en el historial, con la version nueva. `404` si el adjunto no es de esa solicitud |
+| `GET /metricas/conversion-online` | Gestión | Por año y mes: `totalSolicitudesOnline`, `solicitudesConcretadasEnPedido`, `porcentajeConversion` |
 
-### Portal del cliente
+### Portal del cliente (fase 7)
+
+Todas las rutas `/mis` salen del token: el cliente nunca viene en la ruta ni en el cuerpo. Las de envió exigen **correo confirmado**.
 
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
-| `GET /mis/solicitudes` | `cliente` | Solo las suyas, con sus detalles |
-| `GET /mis/pedidos` | `cliente` | Solo los suyos |
-| `POST /mis/solicitudes` | `cliente` | `{ descripcionGeneral?, detalles? }` |
+| `POST /mis/solicitudes` | `cliente` con correo confirmado | `{ descripcionGeneral, detalles, adjuntos? }`, donde `adjuntos` son los ids de sus borradores. Responde `201` con el comprobante y la cabecera `Location`. `403` con `correo_sin_confirmar` si el correo no esta confirmado. `409` con `contacto_directo` si la regla contra solicitudes falsas la frena (no se escribe nada). `400` con errores por campo (`descripcionGeneral`, `detalles[0].anchoMm`, `adjuntos`...). `503` con `servicio_ocupado` si no consigue el turno de la regla. Guarda la solicitud, vincula los adjuntos y deja en la cola los dos correos, todo en una transacción |
+| `GET /mis/solicitudes` | `cliente` | Paginada (`?pagina=`, `?tamano=`). Solo las suyas, sin las eliminadas, de la más reciente a la más antigua. Cada fila trae `numero`, `fechaChile`, `origen`, `estado`, `motivoRechazo`, `resumen` (los primeros 160 caracteres de la descripción), `cantidadItems` y `cantidadAdjuntos` |
+| `GET /mis/solicitudes/{id}` | `cliente` | El comprobante. `404` si no es suya, si no existe o si esta eliminada |
+| `GET /mis/adjuntos` | `cliente` | Sus borradores, aún sin enviar, del más antiguo al más nuevo. Cada uno tiene la forma de la respuesta de la subida. Los usa el formulario para recuperar lo que el cliente subió antes y no envió |
+| `POST /mis/adjuntos` | `cliente` con correo confirmado | Multipart con el campo `archivo`. Responde `201` con `{ idAdjunto, tipo, nombre, bytes, ancho, alto, urlMiniatura }`. `400` con `sin_archivo`, `formato_no_aceptado`, `archivo_muy_grande`, `imagen_invalida`. `409` con `tope_adjuntos` si ya tiene 5 borradores. `403` con `correo_sin_confirmar`. `429` si supera 10 subidas por minuto |
+| `DELETE /mis/adjuntos/{id}` | `cliente` | `204`, solo para un borrador suyo. Si no, `404` |
+
+### Adjuntos (fase 7)
+
+Los diseños y logos que el cliente adjunta a su solicitud son **privados**: no forman parte de la vitrina ni tienen una ruta pública.
+
+- **Formatos:** se reconocen por su contenido, no por el nombre ni por el tipo que declara el navegador. JPG, PNG y WebP se vuelven a codificar en WebP (1600 px, y una miniatura de 640 px), sin metadatos: se borra, por ejemplo, la ubicación GPS. Un PDF (empieza con `%PDF-`) se guarda tal cual. Lo demas, incluidos SVG y AI, responde `400` con `formato_no_aceptado` y el mensaje «Formato no aceptado. Sube JPG, PNG, WebP o PDF; si tu diseño es SVG o AI, expórtalo a PDF o PNG.».
+- **Limites:** 10 MB por archivo y 5 por solicitud. Un borrador cuenta hasta que se envía la solicitud. Un borrador que pasa 24 horas sin enviarse se borra junto con su archivo (`PurgaDatosPersonales`, una vez al día).
+- **Subida:** `multipart/form-data` con el campo `archivo`. Un archivo de más de 10 MB responde `400` con `archivo_muy_grande`, no `413`.
+- **Ver un adjunto:** `GET /api/v1/adjuntos/{id}/miniatura` (la miniatura en WebP; para un PDF responde `404`) y `GET /api/v1/adjuntos/{id}/archivo` (la imagen grande en WebP, o el PDF tal cual). Requieren sesión. Los ve el cliente dueño (lo subió el, o es de una solicitud suya que no este eliminada) y cualquier empleado; a los demas se les responde `404`. Las respuestas traen `Cache-Control: private, no-store` y `X-Content-Type-Options: nosniff`. El PDF se descarga como adjunto (`Content-Disposition: attachment`) con un nombre seguro. El frontend las pide con el token y las muestra con una URL local (`URL.createObjectURL`).
+- **Nombres:** el nombre original se guarda saneado (sin rutas ni caracteres de control, de hasta 120 caracteres) y solo se muestra. En disco, cada archivo tiene un nombre aleatorio de 128 bits, que nunca se muestra. Se guardan en `Adjuntos:Carpeta` (`almacen/adjuntos`, fuera del repositorio).
+- **Correos:** los archivos no viajan en los correos. El aviso al taller dice cuantos hay, y se ven en el panel.
 
 ### Cotizaciones y pedidos
 
@@ -283,10 +343,11 @@ Estado al 06-11-2026, segun el [texto vigente de la Ley 19.628 con las modificac
 Son reglas que la API aplica hoy por decision tecnica, sin que las haya definido el cliente:
 
 - Un `administrador` puede crear empleados con rol `dueño`. Hoy ambos tienen los mismos permisos.
-- Solo `dueño` y `administrador` cambian el estado de una solicitud. Un `diseñador` no puede marcarla como `cotizado`.
+- Todo el personal rechaza, devuelve a «solicitado» y elimina de forma lógica una solicitud (RFU11). `cotizado` y `aceptado` solo los pone el sistema, al cotizar y aprobar (fase 8). Solo `dueño` y `administrador` borran con `DELETE`.
 - Un pedido exige una solicitud `aceptado`, y su cotizacion, si se indica, debe estar `aprobada`.
-- Una solicitud online con el telefono de una cuenta se rechaza con `409`.
-- Una solicitud admite hasta 50 detalles.
+- Una solicitud en línea pasa por la regla contra solicitudes falsas (`409` con `contacto_directo`, en la sección 4). Solo la envía un cliente con correo confirmado.
+- Una solicitud admite de 1 a 10 ítems, y hasta 5 adjuntos. Los adjuntos son privados y no se aceptan SVG ni AI (`docs/plan/desviaciones.md`).
+- La regla contra solicitudes falsas cuenta como máximo 3 envíos en línea por IP en una hora (RNFP33), configurable con `Solicitudes:MaxEnLineaPorIp` y `Solicitudes:VentanaIpMinutos`. El 409 `contacto_directo` usa el texto de S25.
 - Solo se pueden pedir productos activos.
 - El login facial admite un solo equipo autorizado por persona, y `diseñador` y `operario` no lo necesitan (seccion 7).
 - Una cuenta web de cliente exige correo: el correo es el usuario para ingresar y para recuperar la contraseña. El RUT tambien es opcional en la cuenta (decision de la fase 6, en `docs/plan/desviaciones.md`).

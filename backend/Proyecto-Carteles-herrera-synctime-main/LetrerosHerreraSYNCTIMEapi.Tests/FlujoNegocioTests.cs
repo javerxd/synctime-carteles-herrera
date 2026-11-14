@@ -152,11 +152,14 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         {
             idCliente = await api.CrearClienteAsync(),
             idEmpleadoRegistra = (int?)null,
-            descripcionGeneral = "Encargo en el local"
+            descripcionGeneral = "Encargo en el local",
+            detalles = new[] { new { idProducto = 1, cantidad = 1 } }
         }).EsperarAsync(HttpStatusCode.Created);
 
         Assert.Equal("presencial", creada.GetProperty("origen").GetString());
-        Assert.Equal(await api.IdAdminAsync(), creada.GetProperty("idEmpleadoRegistra").GetInt32());
+        Assert.Equal("Admin Pruebas", creada.GetProperty("registradaPor").GetString());
+        var id = creada.GetProperty("idSolicitud").GetInt32();
+        Assert.Equal(await api.IdAdminAsync(), await api.ConsultarAsync(db => db.Solicitudes.Where(s => s.IdSolicitud == id).Select(s => s.IdEmpleadoRegistra).SingleAsync()));
     }
 
     [Fact]
@@ -168,11 +171,12 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         [
             // Lo que todavia envia el formulario del frontend: antes daba 201 y perdia todos los datos.
             new { idCliente, idProducto = 1, cantidad = 3, telefonoContacto = "+56912345678", tamano = "2m x 1m", materialSolicitado = "Acrilico", notasWhatsapp = "nota" },
-            new { idCliente, detalles = new[] { new { idProducto = 1, descripcion = "d", cantidad = 0 } } },
-            new { idCliente, detalles = new[] { new { idProducto = 999999, descripcion = "d", cantidad = 1 } } },
-            new { idCliente, detalles = new[] { new { idProducto = 1, descripcion = "d", cantidad = 1, anchoMm = 100 } } },
-            new { idCliente, detalles = new[] { new { idProducto = 1, descripcion = " ", cantidad = 1 } } },
-            new { idCliente = 999999, descripcionGeneral = "x" }
+            new { idCliente, descripcionGeneral = Descripcion, detalles = new[] { new { idProducto = 1, descripcion = "d", cantidad = 0 } } },
+            new { idCliente, descripcionGeneral = Descripcion, detalles = new[] { new { idProducto = 999999, descripcion = "d", cantidad = 1 } } },
+            new { idCliente, descripcionGeneral = Descripcion, detalles = new[] { new { idProducto = 1, descripcion = "d", cantidad = 1, anchoMm = 100 } } },
+            new { idCliente, descripcionGeneral = Descripcion, detalles = new[] { new { idProducto = 1, descripcion = new string('d', 501), cantidad = 1 } } },
+            new { idCliente, descripcionGeneral = "corta", detalles = new[] { new { idProducto = 1, descripcion = "d", cantidad = 1 } } },
+            new { idCliente = 999999, descripcionGeneral = Descripcion, detalles = new[] { new { idProducto = 1, descripcion = "d", cantidad = 1 } } }
         ];
 
         foreach (var cuerpo in cuerpos)
@@ -185,6 +189,7 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var creada = await api.Cliente(await api.TokenAdminAsync()).PostAsJsonAsync("/api/v1/solicitudes/", new
         {
             idCliente = await api.CrearClienteAsync(),
+            descripcionGeneral = Descripcion,
             detalles = new[] { new { idProducto = 1, descripcion = "d" } }
         }).EsperarAsync(HttpStatusCode.Created);
 
@@ -211,64 +216,69 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var url = $"/api/v1/solicitudes/{await api.CrearSolicitudAsync()}";
         var abierta = await operario.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
-        var editada = await operario.PutAsJsonAsync(url, new { descripcionGeneral = "Editada", estado = "aceptado", motivoRechazo = "x", rowVersion = abierta.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.OK);
+        var editada = await operario.PutAsJsonAsync(url, new { descripcionGeneral = "Editada por el operario", estado = "aceptado", motivoRechazo = "x", rowVersion = abierta.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.OK);
 
-        Assert.Equal("Editada", editada.GetProperty("descripcionGeneral").GetString());
+        Assert.Equal("Editada por el operario", editada.GetProperty("descripcionGeneral").GetString());
         Assert.Equal("solicitado", editada.GetProperty("estado").GetString());
         Assert.Equal(JsonValueKind.Null, editada.GetProperty("motivoRechazo").ValueKind);
     }
 
+    // Fase 7: la descripcion general es obligatoria (10 a 2000 caracteres), tambien al editar.
     [Fact]
-    public async Task Solicitud_Put_RequiresADescriptionIfItHasNoDetails()
-    {
-        var cliente = api.Cliente(await api.TokenAdminAsync());
-        var creada = await cliente.PostAsJsonAsync("/api/v1/solicitudes/", new { idCliente = await api.CrearClienteAsync(), descripcionGeneral = "Solo texto" }).EsperarAsync(HttpStatusCode.Created);
-        var url = $"/api/v1/solicitudes/{creada.GetProperty("idSolicitud").GetInt32()}";
-
-        await cliente.PutAsJsonAsync(url, new { descripcionGeneral = " ", rowVersion = creada.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Solicitud_Estado_ClearsTheReasonWhenLeavingRejected()
+    public async Task Solicitud_Put_RequiresADescription()
     {
         var cliente = api.Cliente(await api.TokenAdminAsync());
         var url = $"/api/v1/solicitudes/{await api.CrearSolicitudAsync()}";
         var abierta = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
-        var rechazada = await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "rechazado", motivoRechazo = "Sin stock", rowVersion = abierta.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal("Sin stock", rechazada.GetProperty("motivoRechazo").GetString());
+        var rechazo = await cliente.PutAsJsonAsync(url, new { descripcionGeneral = " ", rowVersion = abierta.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.BadRequest);
+        Assert.True(rechazo.GetProperty("errores").TryGetProperty("descripcionGeneral", out _));
+    }
 
-        var aceptada = await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "aceptado", rowVersion = rechazada.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal(JsonValueKind.Null, aceptada.GetProperty("motivoRechazo").ValueKind);
+    // Fase 7: una solicitud rechazada ya no cambia de estado (409) y conserva su motivo.
+    [Fact]
+    public async Task Solicitud_Rechazada_YaNoCambiaDeEstado()
+    {
+        var cliente = api.Cliente(await api.TokenAdminAsync());
+        var url = $"/api/v1/solicitudes/{await api.CrearSolicitudAsync()}";
+        var abierta = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
+
+        var rechazada = await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "rechazado", motivo = "Sin stock del material", rowVersion = abierta.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.OK);
+        Assert.Equal("Sin stock del material", rechazada.GetProperty("motivoRechazo").GetString());
+
+        await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "solicitado", rowVersion = rechazada.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.Conflict);
+        var actual = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
+        Assert.Equal("rechazado", actual.GetProperty("estado").GetString());
+        Assert.Equal("Sin stock del material", actual.GetProperty("motivoRechazo").GetString());
     }
 
     [Fact]
     public async Task Solicitud_TooManyDetails_ReturnsBadRequest()
     {
-        var detalles = Enumerable.Range(0, 51).Select(_ => new { idProducto = 1, descripcion = "d", cantidad = 1 }).ToArray();
+        var detalles = Enumerable.Range(0, 11).Select(_ => new { idProducto = 1, descripcion = "d", cantidad = 1 }).ToArray();
+        var (_, _, token) = await api.CrearClienteConfirmadoAsync();
 
-        var rechazo = await api.Cliente().PostAsJsonAsync("/api/v1/solicitudes/online", new
-        {
-            cliente = new { nombre = "Ana", apellido = "Web", telefono = api.Telefono() },
-            detalles
-        }).EsperarAsync(HttpStatusCode.BadRequest);
+        var rechazo = await api.Cliente(token).PostAsJsonAsync("/api/v1/mis/solicitudes", new { descripcionGeneral = Descripcion, detalles })
+            .EsperarAsync(HttpStatusCode.BadRequest);
 
-        Assert.Contains("50", rechazo.GetProperty("error").GetString());
+        Assert.Contains("10", rechazo.GetProperty("error").GetString());
     }
 
     [Fact]
     public async Task Solicitud_Delete_IsLogicalAndKeepsTheMetric()
     {
         var token = await api.TokenAdminAsync();
-        var creada = await EnviarSolicitudOnlineAsync(api.Telefono());
+        var creada = await EnviarSolicitudOnlineAsync();
         var id = creada.GetProperty("idSolicitud").GetInt32();
         var totalAntes = (await MetricaDelMesAsync(token)).Total;
 
-        await api.Cliente(token).DeleteAsync($"/api/v1/solicitudes/{id}").EsperarAsync(HttpStatusCode.NoContent);
+        // Fase 7: sin la version vigente no se borra.
+        await api.Cliente(token).DeleteAsync($"/api/v1/solicitudes/{id}").EsperarAsync(HttpStatusCode.BadRequest);
+        await api.Cliente(token).SendAsync(ApiFixture.ConVersion(HttpMethod.Delete, $"/api/v1/solicitudes/{id}", await api.VersionAsync(id))).EsperarAsync(HttpStatusCode.NoContent);
 
         await api.Cliente(token).GetAsync($"/api/v1/solicitudes/{id}").EsperarAsync(HttpStatusCode.NotFound);
-        var lista = await api.Cliente(token).GetAsync("/api/v1/solicitudes/").EsperarAsync(HttpStatusCode.OK);
-        Assert.DoesNotContain(lista.EnumerateArray(), s => s.GetProperty("idSolicitud").GetInt32() == id);
+        var lista = await api.Cliente(token).GetAsync($"/api/v1/solicitudes/?q={id}").EsperarAsync(HttpStatusCode.OK);
+        Assert.DoesNotContain(lista.GetProperty("elementos").EnumerateArray(), s => s.GetProperty("idSolicitud").GetInt32() == id);
 
         var fila = await api.ConsultarAsync(db => db.Solicitudes.AsNoTracking().SingleAsync(s => s.IdSolicitud == id));
         Assert.True(fila.EliminadoLogico);
@@ -285,7 +295,7 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", new { idSolicitud = id, idEmpleadoResponsable = await api.IdAdminAsync(), fechaEntregaEstimada = FechaEntrega })
             .EsperarAsync(HttpStatusCode.Created);
 
-        await api.Cliente(token).DeleteAsync($"/api/v1/solicitudes/{id}").EsperarAsync(HttpStatusCode.Conflict);
+        await api.Cliente(token).SendAsync(ApiFixture.ConVersion(HttpMethod.Delete, $"/api/v1/solicitudes/{id}", await api.VersionAsync(id))).EsperarAsync(HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -293,68 +303,21 @@ public sealed class FlujoNegocioTests(ApiFixture api)
     {
         var token = await api.TokenAdminAsync();
         var id = await api.CrearSolicitudAsync();
-        await api.Cliente(token).PatchAsync($"/api/v1/solicitudes/{id}/eliminar-logico", null).EsperarAsync(HttpStatusCode.OK);
+        await api.Cliente(token).SendAsync(ApiFixture.ConVersion(HttpMethod.Patch, $"/api/v1/solicitudes/{id}/eliminar-logico", await api.VersionAsync(id))).EsperarAsync(HttpStatusCode.OK);
 
         await api.Cliente(token).PostAsJsonAsync("/api/v1/cotizaciones/", new { idSolicitud = id, costoManoObra = 1m, otrosCostos = 0m })
             .EsperarAsync(HttpStatusCode.BadRequest);
     }
 
     // ── Flujo online y metrica ──
-
-    [Fact]
-    public async Task OnlineRequest_ReturnsOnlyAReceipt()
-    {
-        var recibo = await EnviarSolicitudOnlineAsync(api.Telefono());
-
-        Assert.Equal("online", recibo.GetProperty("origen").GetString());
-        Assert.False(recibo.TryGetProperty("cliente", out _));
-        Assert.False(recibo.TryGetProperty("idCliente", out _));
-    }
-
-    [Fact]
-    public async Task OnlineRequest_WithExistingPhone_DoesNotOverwriteTheClient()
-    {
-        var telefono = api.Telefono();
-        await EnviarSolicitudOnlineAsync(telefono, "Original");
-
-        await EnviarSolicitudOnlineAsync(telefono, "Impostor");
-
-        var cliente = await api.ConsultarAsync(db => db.Clientes.AsNoTracking().SingleAsync(c => c.Telefono == telefono));
-        Assert.Equal("Original", cliente.Nombre);
-    }
-
-    // Registrar un telefono ajeno no debe servir para leer lo que su titular envie despues por el formulario.
-    [Fact]
-    public async Task OnlineRequest_WithThePhoneOfAnAccount_IsRejectedAndStaysOutOfIt()
-    {
-        var (_, telefono, tokenCuenta) = await api.RegistrarClienteAsync();
-
-        await EnviarAsync(telefono).EsperarAsync(HttpStatusCode.Conflict);
-
-        var deLaCuenta = await api.Cliente(tokenCuenta).GetAsync("/api/v1/mis/solicitudes").EsperarAsync(HttpStatusCode.OK);
-        Assert.Empty(deLaCuenta.EnumerateArray());
-
-        Task<HttpResponseMessage> EnviarAsync(string numero) =>
-            api.Cliente().PostAsJsonAsync("/api/v1/solicitudes/online", new
-            {
-                cliente = new { nombre = "Titular", apellido = "Real", telefono = numero },
-                descripcionGeneral = "Instalar en mi casa"
-            });
-    }
-
-    [Fact]
-    public async Task OnlineRequest_InvalidBody_ReturnsBadRequest()
-    {
-        await api.Cliente().PostAsJsonAsync("/api/v1/solicitudes/online", new { descripcionGeneral = "sin contacto" }).EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente().PostAsJsonAsync("/api/v1/solicitudes/online", new { cliente = new { nombre = "A", apellido = "B", telefono = api.Telefono() } }).EsperarAsync(HttpStatusCode.BadRequest);
-    }
+    // (La solicitud publica sin cuenta se elimino en la fase 7: el flujo en linea se prueba en SolicitudesFase7Tests.)
 
     [Fact]
     public async Task Metric_CountsOnlineRequestsConvertedIntoOrders()
     {
         var token = await api.TokenAdminAsync();
         var antes = await MetricaDelMesAsync(token);
-        var id = (await EnviarSolicitudOnlineAsync(api.Telefono())).GetProperty("idSolicitud").GetInt32();
+        var id = (await EnviarSolicitudOnlineAsync()).GetProperty("idSolicitud").GetInt32();
         await api.AceptarSolicitudAsync(id);
         await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", new { idSolicitud = id, idEmpleadoResponsable = await api.IdAdminAsync(), fechaEntregaEstimada = FechaEntrega })
             .EsperarAsync(HttpStatusCode.Created);
@@ -468,12 +431,14 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         Assert.False(publico.TryGetProperty("idEmpleadoModifica", out _));
     }
 
-    private Task<JsonElement> EnviarSolicitudOnlineAsync(string telefono, string nombre = "Visitante") =>
-        api.Cliente().PostAsJsonAsync("/api/v1/solicitudes/online", new
-        {
-            cliente = new { nombre, apellido = "Web", telefono },
-            detalles = new[] { new { idProducto = 1, descripcion = "Letrero para mi local", cantidad = 1 } }
-        }).EsperarAsync(HttpStatusCode.Created);
+    private const string Descripcion = "Letrero para la vitrina del local";
+
+    // Fase 7: la solicitud en linea la envia un cliente con sesion y correo confirmado.
+    private async Task<JsonElement> EnviarSolicitudOnlineAsync()
+    {
+        var (_, _, token) = await api.CrearClienteConfirmadoAsync();
+        return await api.Cliente(token).PostAsJsonAsync("/api/v1/mis/solicitudes", ApiFixture.CuerpoSolicitud()).EsperarAsync(HttpStatusCode.Created);
+    }
 
     private async Task<(int Total, int Concretadas)> MetricaDelMesAsync(string token)
     {

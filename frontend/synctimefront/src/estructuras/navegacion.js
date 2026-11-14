@@ -14,11 +14,11 @@ export const MENU_PANEL = [
     grupo: 'Taller',
     entradas: [
       { ruta: '/panel', etiqueta: 'Inicio', icono: House, roles: PERSONAL, exacta: true },
-      { ruta: '/panel/solicitudes', etiqueta: 'Solicitudes', icono: ClipboardList, roles: PERSONAL, fase: 7 },
+      { ruta: '/panel/solicitudes', etiqueta: 'Solicitudes', icono: ClipboardList, roles: PERSONAL },
       { ruta: '/panel/cotizaciones', etiqueta: 'Cotizaciones', icono: FileText, roles: PERSONAL, fase: 8 },
       { ruta: '/panel/pedidos', etiqueta: 'Pedidos', icono: Package, roles: PERSONAL },
       { ruta: '/panel/calendario', etiqueta: 'Calendario de entregas', icono: CalendarDays, roles: PERSONAL, fase: 8 },
-      { ruta: '/panel/clientes', etiqueta: 'Clientes', icono: Users, roles: PERSONAL, fase: 7 },
+      { ruta: '/panel/clientes', etiqueta: 'Clientes', icono: Users, roles: PERSONAL },
       { ruta: '/panel/local', etiqueta: 'Estado del local', icono: Store, roles: PERSONAL },
     ],
   },
@@ -41,4 +41,20 @@ export function menuPara(tieneRol) {
   return MENU_PANEL
     .map((grupo) => ({ ...grupo, entradas: grupo.entradas.filter((e) => tieneRol(e.roles)) }))
     .filter((grupo) => grupo.entradas.length > 0);
+}
+
+/**
+ * Adónde lleva «Solicitar cotización» (fase 7): al formulario del cliente, /cuenta/solicitud, que exige
+ * sesión con correo confirmado (sin sesión, la guarda pasa por /ingresar y vuelve). El personal registra
+ * la solicitud presencial desde el panel. Con un trabajo de la vitrina («Cotizar uno similar»), el tipo de
+ * letrero llega elegido y el trabajo queda como referencia.
+ */
+export function destinoSolicitud({ esPersonal = false, trabajo = null } = {}) {
+  if (esPersonal) return '/panel/solicitudes/nueva';
+  if (!trabajo) return '/cuenta/solicitud';
+  const parametros = new URLSearchParams();
+  if (trabajo.idProducto) parametros.set('producto', String(trabajo.idProducto));
+  if (trabajo.titulo) parametros.set('referencia', trabajo.titulo);
+  const texto = parametros.toString();
+  return `/cuenta/solicitud${texto ? `?${texto}` : ''}`;
 }

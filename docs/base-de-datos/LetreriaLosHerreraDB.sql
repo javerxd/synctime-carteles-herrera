@@ -263,13 +263,14 @@ CREATE TABLE [solicitudes] (
     [id_cliente] int NOT NULL,
     [id_empleado_registra] int NULL,
     [origen] AS CASE WHEN id_empleado_registra IS NULL THEN N'online' ELSE N'presencial' END PERSISTED,
-    [descripcion_general] nvarchar(500) NULL,
+    [descripcion_general] nvarchar(2000) NULL,
     [fecha_solicitud] datetime2(0) NOT NULL DEFAULT (SYSDATETIME()),
     [estado] nvarchar(15) NOT NULL DEFAULT N'solicitado',
-    [motivo_rechazo] nvarchar(250) NULL,
+    [motivo_rechazo] nvarchar(500) NULL,
     [eliminado_logico] bit NOT NULL DEFAULT CAST(0 AS bit),
     [fecha_eliminacion_logica] datetime2(0) NULL,
     [row_version] rowversion NOT NULL,
+    [huella_ip] char(64) NULL,
     CONSTRAINT [pk_solicitudes] PRIMARY KEY ([id_solicitud]),
     CONSTRAINT [ck_solicitudes_estado] CHECK (estado IN (N'solicitado', N'cotizado', N'aceptado', N'rechazado')),
     CONSTRAINT [fk_solicitudes_cliente] FOREIGN KEY ([id_cliente]) REFERENCES [clientes] ([id_cliente]) ON DELETE NO ACTION,
@@ -325,6 +326,32 @@ CREATE TABLE [catalogo] (
 GO
 
 
+CREATE TABLE [adjuntos_solicitud] (
+    [id_adjunto] int NOT NULL IDENTITY,
+    [id_solicitud] int NULL,
+    [id_cliente] int NULL,
+    [id_empleado] int NULL,
+    [clave] char(32) NOT NULL,
+    [tipo] varchar(10) NOT NULL,
+    [nombre_original] nvarchar(120) NOT NULL,
+    [bytes] int NOT NULL,
+    [ancho] int NULL,
+    [alto] int NULL,
+    [fecha_subida] datetimeoffset(0) NOT NULL,
+    [fecha_vinculo] datetimeoffset(0) NULL,
+    CONSTRAINT [pk_adjuntos_solicitud] PRIMARY KEY ([id_adjunto]),
+    CONSTRAINT [ck_adjuntos_solicitud_autor] CHECK ((CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1),
+    CONSTRAINT [ck_adjuntos_solicitud_bytes] CHECK (bytes > 0),
+    CONSTRAINT [ck_adjuntos_solicitud_medidas] CHECK ((tipo = 'imagen' AND ancho > 0 AND alto > 0) OR (tipo = 'pdf' AND ancho IS NULL AND alto IS NULL)),
+    CONSTRAINT [ck_adjuntos_solicitud_tipo] CHECK (tipo IN ('imagen', 'pdf')),
+    CONSTRAINT [ck_adjuntos_solicitud_vinculo] CHECK ((id_solicitud IS NULL AND fecha_vinculo IS NULL) OR (id_solicitud IS NOT NULL AND fecha_vinculo IS NOT NULL)),
+    CONSTRAINT [fk_adjuntos_solicitud_cliente] FOREIGN KEY ([id_cliente]) REFERENCES [clientes] ([id_cliente]),
+    CONSTRAINT [fk_adjuntos_solicitud_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado]),
+    CONSTRAINT [fk_adjuntos_solicitud_solicitud] FOREIGN KEY ([id_solicitud]) REFERENCES [solicitudes] ([id_solicitud]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [cotizaciones] (
     [id_cotizacion] int NOT NULL IDENTITY,
     [id_solicitud] int NOT NULL,
@@ -349,7 +376,7 @@ CREATE TABLE [solicitud_detalles] (
     [id_solicitud_detalle] int NOT NULL IDENTITY,
     [id_solicitud] int NOT NULL,
     [id_producto] int NOT NULL,
-    [descripcion] nvarchar(300) NOT NULL,
+    [descripcion] nvarchar(500) NOT NULL,
     [ancho_mm] int NULL,
     [alto_mm] int NULL,
     [cantidad] int NOT NULL DEFAULT 1,
@@ -359,6 +386,25 @@ CREATE TABLE [solicitud_detalles] (
     CONSTRAINT [ck_sol_detalles_medidas] CHECK ((ancho_mm IS NULL AND alto_mm IS NULL) OR (ancho_mm > 0 AND alto_mm > 0)),
     CONSTRAINT [fk_sol_detalles_producto] FOREIGN KEY ([id_producto]) REFERENCES [productos] ([id_producto]) ON DELETE NO ACTION,
     CONSTRAINT [fk_sol_detalles_solicitud] FOREIGN KEY ([id_solicitud]) REFERENCES [solicitudes] ([id_solicitud]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [solicitudes_historial] (
+    [id_historial] int NOT NULL IDENTITY,
+    [id_solicitud] int NOT NULL,
+    [estado_anterior] nvarchar(15) NULL,
+    [estado_nuevo] nvarchar(15) NOT NULL,
+    [motivo] nvarchar(500) NULL,
+    [id_empleado] int NULL,
+    [id_cliente] int NULL,
+    [fecha] datetimeoffset(0) NOT NULL,
+    CONSTRAINT [pk_solicitudes_historial] PRIMARY KEY ([id_historial]),
+    CONSTRAINT [ck_solicitudes_historial_actor] CHECK (id_cliente IS NULL OR id_empleado IS NULL),
+    CONSTRAINT [ck_solicitudes_historial_estados] CHECK (estado_nuevo IN (N'solicitado', N'cotizado', N'aceptado', N'rechazado') AND (estado_anterior IS NULL OR estado_anterior IN (N'solicitado', N'cotizado', N'aceptado', N'rechazado'))),
+    CONSTRAINT [fk_solicitudes_historial_cliente] FOREIGN KEY ([id_cliente]) REFERENCES [clientes] ([id_cliente]),
+    CONSTRAINT [fk_solicitudes_historial_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado]),
+    CONSTRAINT [fk_solicitudes_historial_solicitud] FOREIGN KEY ([id_solicitud]) REFERENCES [solicitudes] ([id_solicitud]) ON DELETE CASCADE
 );
 GO
 
@@ -491,6 +537,22 @@ VALUES (1, CAST(1 AS bit), N'Estructura metálica con gráfica impresa', 1, N'Ca
 (4, CAST(1 AS bit), N'Diseño y fabricación según medidas', 1, N'Trabajo personalizado', NULL);
 IF EXISTS (SELECT * FROM [sys].[identity_columns] WHERE [name] IN (N'id_producto', N'activo', N'descripcion', N'id_categoria', N'nombre', N'precio_base_ref') AND [object_id] = OBJECT_ID(N'[productos]'))
     SET IDENTITY_INSERT [productos] OFF;
+GO
+
+
+CREATE INDEX [ix_adjuntos_solicitud_borrador] ON [adjuntos_solicitud] ([id_cliente], [fecha_subida]) WHERE [id_solicitud] IS NULL;
+GO
+
+
+CREATE INDEX [IX_adjuntos_solicitud_id_empleado] ON [adjuntos_solicitud] ([id_empleado]);
+GO
+
+
+CREATE INDEX [ix_adjuntos_solicitud_solicitud] ON [adjuntos_solicitud] ([id_solicitud]) WHERE [id_solicitud] IS NOT NULL;
+GO
+
+
+CREATE UNIQUE INDEX [uq_adjuntos_solicitud_clave] ON [adjuntos_solicitud] ([clave]);
 GO
 
 
@@ -686,11 +748,27 @@ CREATE INDEX [ix_solicitudes_cliente] ON [solicitudes] ([id_cliente], [eliminado
 GO
 
 
+CREATE INDEX [ix_solicitudes_huella_ip] ON [solicitudes] ([huella_ip], [fecha_solicitud]) WHERE [huella_ip] IS NOT NULL;
+GO
+
+
 CREATE INDEX [IX_solicitudes_id_empleado_registra] ON [solicitudes] ([id_empleado_registra]);
 GO
 
 
 CREATE INDEX [ix_solicitudes_metricas] ON [solicitudes] ([fecha_solicitud], [origen], [estado], [eliminado_logico]);
+GO
+
+
+CREATE INDEX [IX_solicitudes_historial_id_cliente] ON [solicitudes_historial] ([id_cliente]);
+GO
+
+
+CREATE INDEX [IX_solicitudes_historial_id_empleado] ON [solicitudes_historial] ([id_empleado]);
+GO
+
+
+CREATE INDEX [ix_solicitudes_historial_solicitud] ON [solicitudes_historial] ([id_solicitud], [fecha]);
 GO
 
 
@@ -834,7 +912,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261113010201_HistorialDePagos', N'10.0.11'),
     (N'20261113111453_ServiciosComunes', N'10.0.11'),
     (N'20261113154234_PortadaPublica', N'10.0.11'),
-    (N'20261114002321_CuentasYSesion', N'10.0.11');
+    (N'20261114002321_CuentasYSesion', N'10.0.11'),
+    (N'20261114035839_SolicitudesYAdjuntos', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

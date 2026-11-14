@@ -1,5 +1,5 @@
 import {
-  Ban, CircleCheck, CircleDollarSign, ClipboardCheck, Coins, Hammer, PackageCheck, Truck,
+  Ban, BadgeCheck, CircleCheck, CircleDollarSign, CircleX, ClipboardCheck, Coins, FileText, Hammer, Inbox, PackageCheck, Truck,
 } from 'lucide-react';
 
 // Estado operativo del pedido. «Anulado» y no «cancelado»: en Chile «cancelado» se entiende como pagado.
@@ -19,8 +19,17 @@ export const ESTADOS_PAGO = {
   pagado_total: { texto: 'Pagado total', tono: 'exito', icono: CircleCheck },
 };
 
+// Estado de la solicitud (fase 7): solicitado → cotizado → aceptado, o rechazado con motivo.
+export const ESTADOS_SOLICITUD = {
+  solicitado: { texto: 'Solicitada', tono: 'info', icono: Inbox },
+  cotizado: { texto: 'Cotizada', tono: 'listo', icono: FileText },
+  aceptado: { texto: 'Aceptada', tono: 'exito', icono: BadgeCheck },
+  rechazado: { texto: 'Rechazada', tono: 'peligro', icono: CircleX },
+};
+
 const soloTextos = (catalogo) => Object.fromEntries(Object.entries(catalogo).map(([clave, { texto }]) => [clave, texto]));
 
 // Para listas desplegables de filtros: { aceptado: 'Aceptado', ... }
 export const TEXTOS_ESTADO_PEDIDO = soloTextos(ESTADOS_PEDIDO);
 export const TEXTOS_ESTADO_PAGO = soloTextos(ESTADOS_PAGO);
+export const TEXTOS_ESTADO_SOLICITUD = soloTextos(ESTADOS_SOLICITUD);

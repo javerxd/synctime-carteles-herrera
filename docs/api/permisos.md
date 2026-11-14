@@ -15,16 +15,19 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Ver el estado del local ahora y los documentos legales (`GET /local/estado`, `GET /documentos-legales`) | Sí | Sí | Sí | Sí | Sí |
 | Enviar una consulta de contacto (`POST /contacto`) | Sí | Sí | Sí | Sí | Sí |
 | Registrar la aceptación o el retiro de cookies (`POST /consentimientos/cookies`) | Sí | Sí | Sí | Sí | Sí |
-| Enviar una solicitud en línea | Sí | Sí | Sí | Sí | Sí |
+| Enviar una solicitud en línea (`POST /mis/solicitudes`). El cliente debe tener el correo confirmado (`403` si no) | No | Sí | No | No | No |
 | Registrarse como cliente, recuperar la contraseña y confirmar el correo (`/auth/registro-cliente`, `/auth/recuperar`, `/auth/restablecer`, `/auth/verificar-correo`) | Sí | — | — | — | — |
 | Ingresar, renovar la sesión y cerrarla (`/auth/login`, `/auth/login-cliente`, `/auth/renovar`, `/auth/salir`) | Sí | Sí | Sí | Sí | Sí |
 | Reenviar el enlace para confirmar el correo (`/auth/reenviar-verificacion`) | No | Sí | No | No | No |
 | Ver y corregir su cuenta, cambiar su correo, su contraseña y su marketing (`/mi-cuenta`) | No | Sí | No | No | No |
 | Ver sus propias solicitudes y pedidos (`/mis/…`) | No | Sí | No | No | No |
+| Subir y quitar sus borradores de adjuntos (`/mis/adjuntos`). Subir exige correo confirmado | No | Sí | No | No | No |
+| Ver un adjunto (`GET /adjuntos/{id}/miniatura` y `/archivo`). El cliente solo ve los suyos; el personal, todos | No | Sí (solo los suyos) | Sí | Sí | Sí |
 | Listar y ver clientes, solicitudes, cotizaciones, pedidos, materiales y empleados | No | No | Sí | Sí | Sí |
 | Registrar y modificar clientes; asignarles contraseña | No | No | Sí | No | Sí |
-| Registrar y modificar solicitudes | No | No | Sí | Sí | Sí |
-| Cambiar el estado de una solicitud (incluye rechazarla) o eliminarla | No | No | No | No | Sí |
+| Registrar en el local, editar y adjuntar archivos a una solicitud (`POST /solicitudes`, `PUT /solicitudes/{id}`, `POST /solicitudes/{id}/adjuntos`) | No | No | Sí | Sí | Sí |
+| Rechazar, devolver a «solicitado» y eliminar de forma lógica una solicitud (`PATCH /solicitudes/{id}/estado` y `/eliminar-logico`) | No | No | Sí | Sí | Sí |
+| Borrar una solicitud con `DELETE /solicitudes/{id}` (borrado lógico, con la versión vista) | No | No | No | No | Sí |
 | Crear y modificar cotizaciones | No | No | No | Sí | Sí |
 | Crear y modificar pedidos | No | No | Sí | No | Sí |
 | Eliminar clientes, cotizaciones y pedidos | No | No | No | No | Sí |
@@ -44,7 +47,7 @@ Lo que hoy permite la API y lo que piden los requisitos no coincide en estos pun
 | # | Requisito | Hoy | Debe quedar | Fase |
 |---|---|---|---|---|
 | 1 | RNFO03, RFU16: solo el personal cambia el estado del local | Solo gestión | Todo el personal | 9 |
-| 2 | RFU11: el trabajador consulta, modifica, **rechaza y elimina** solicitudes | Rechazar y eliminar es solo de gestión | Todo el personal | 7 |
+| 2 | RFU11: el trabajador consulta, modifica, **rechaza y elimina** solicitudes | Resuelto en la fase 7: todo el personal rechaza, devuelve y elimina de forma lógica (`PATCH`). `DELETE /solicitudes/{id}` sigue siendo solo de gestión | Todo el personal (el `DELETE`, solo gestión) | 7 |
 | 3 | RFU12: el trabajador cotiza | El operario no puede | Todo el personal | 8 |
 | 4 | RFU13, RFU14: el trabajador confirma el pago, crea el pedido y registra su avance | El diseñador no puede | Todo el personal | 8 |
 | 5 | Decisión del 12-11-2026: el rostro es solo para dueño y administrador | Lo puede activar todo el personal | Solo gestión | 10 |

@@ -1,7 +1,7 @@
 using System.Net.Sockets;
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Correo;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
-using LetrerosHerreraSYNCTIMEapi.Repositories;
+using LetrerosHerreraSYNCTIMEapi.Negocio.Solicitudes;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -165,25 +165,33 @@ public class CorreoTests
 
     // ── Aviso de solicitud nueva ──
 
-    private static SolicitudParaAviso Solicitud(string origen = "online", string? email = "juan.perez@correo.cl", string? registradaPor = null) => new(
+    // Fase 7: el aviso se arma con el mismo comprobante que ve el cliente.
+    private static ComprobanteSolicitud Solicitud(string origen = "online", string? email = "juan.perez@correo.cl", int adjuntos = 0) => new(
         IdSolicitud: 123,
-        FechaSolicitud: new DateTime(2026, 11, 13, 15, 42, 0),
+        Numero: "#123",
+        FechaChile: new DateTime(2026, 11, 13, 15, 42, 0),
         Origen: origen,
-        RegistradaPor: registradaPor,
-        ClienteNombre: "Juan Pérez",
-        ClienteTelefono: "912345678",
-        ClienteEmail: email,
-        Descripcion: "Letrero para la vitrina <urgente>",
-        Detalles: [new DetalleParaAviso("Letrero luminoso", "Con logo", 1000, 2000, 2), new DetalleParaAviso("Adhesivo", "Sin medidas", null, null, 1)]);
+        Estado: "solicitado",
+        MotivoRechazo: null,
+        Cliente: new ClienteComprobante("Juan", "Pérez", "912345678", email),
+        Detalles:
+        [
+            new DetalleComprobante(1, "Letrero luminoso", "Con logo", 1000, 2000, 2, MedidasSolicitud.AreaM2(1000, 2000, 2)),
+            new DetalleComprobante(2, "Adhesivo", "Sin medidas", null, null, 1, null)
+        ],
+        AreaTotalM2: 4m,
+        DescripcionGeneral: "Letrero para la vitrina <urgente>",
+        Adjuntos: Enumerable.Range(1, adjuntos).Select(i => new AdjuntoComprobante(i, "imagen", $"logo{i}.png", 1000, 10, 10, null, $"/api/v1/adjuntos/{i}/archivo")).ToList(),
+        RowVersion: [1, 2, 3]);
 
     [Fact]
     public void ElAviso_TieneLoQueElDuenoNecesitaParaResponder()
     {
-        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(), ["dueno@gmail.com"], "https://localhost:3000");
+        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(adjuntos: 2), null, ["dueno@gmail.com"], "https://localhost:3000");
 
         Assert.Equal(TiposCorreo.AvisoSolicitudNueva, mensaje.Tipo);
         Assert.Equal(["dueno@gmail.com"], mensaje.Para);
-        Assert.Equal("Nueva solicitud N.º 123 · Juan Pérez", mensaje.Asunto);
+        Assert.Equal("Nueva solicitud #123 - Juan Pérez", mensaje.Asunto);
         Assert.Equal("juan.perez@correo.cl", mensaje.ResponderA);
         foreach (var parte in new[] { mensaje.Html, mensaje.Texto })
         {
@@ -195,11 +203,15 @@ public class CorreoTests
             Assert.Contains("2 × Letrero luminoso", parte);
             Assert.Contains("100 × 200 cm", parte);
             Assert.Contains("1 × Adhesivo", parte);
+            // Fase 7: el area de cada item y cuantos archivos adjunto (los archivos no viajan en el correo).
+            Assert.Contains("4 m²", parte);
+            Assert.Contains("2 archivos adjuntos (se ven en el panel)", parte);
+            Assert.Contains("Ver solicitud", parte);
         }
         Assert.Contains("Letrero para la vitrina &lt;urgente&gt;", mensaje.Html);
         Assert.Contains("tel:+56912345678", mensaje.Html);
         Assert.Contains("https://wa.me/56912345678", mensaje.Html);
-        Assert.Contains("https://localhost:3000/panel", mensaje.Html);
+        Assert.Contains("https://localhost:3000/panel/solicitudes/123", mensaje.Html);
     }
 
     [Theory]
@@ -208,9 +220,9 @@ public class CorreoTests
     [InlineData("no es una url")]
     public void UnaUrlDelSitioMalEscrita_NoImpideElAviso(string url)
     {
-        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(), ["dueno@gmail.com"], url);
+        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(), null, ["dueno@gmail.com"], url);
 
-        Assert.DoesNotContain("Abrir el panel", mensaje.Html);
+        Assert.DoesNotContain("Ver solicitud", mensaje.Html);
         Assert.Contains("Juan Pérez", mensaje.Html);
     }
 
@@ -219,11 +231,11 @@ public class CorreoTests
     {
         var solicitud = Solicitud() with
         {
-            ClienteNombre = "Juan\r\nTeléfono: +56 9 0000 0000\u202E",
-            Descripcion = "Hola\nSolicitud: N.º 999"
+            Cliente = new ClienteComprobante("Juan\r\nTeléfono: +56 9 0000 0000\u202E", "Pérez", "912345678", "juan.perez@correo.cl"),
+            DescripcionGeneral = "Hola\nSolicitud: N.º 999"
         };
 
-        var mensaje = AvisoSolicitudNueva.Componer(solicitud, ["dueno@gmail.com"], null);
+        var mensaje = AvisoSolicitudNueva.Componer(solicitud, null, ["dueno@gmail.com"], null);
 
         Assert.DoesNotContain("\nTeléfono: +56 9 0000 0000", mensaje.Texto);
         Assert.DoesNotContain("\nSolicitud: N.º 999", mensaje.Texto);
@@ -237,7 +249,7 @@ public class CorreoTests
     [Fact]
     public void ElEnlaceParaEscribirle_NoAceptaParametrosEscondidosEnLaDireccion()
     {
-        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(email: "x?bcc=espia@otro.cl&subject=Urgente@dominio.cl"), ["dueno@gmail.com"], null);
+        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(email: "x?bcc=espia@otro.cl&subject=Urgente@dominio.cl"), null, ["dueno@gmail.com"], null);
 
         Assert.DoesNotContain("mailto:x?bcc", mensaje.Html);
     }
@@ -255,7 +267,7 @@ public class CorreoTests
     [Fact]
     public void ElAviso_DeUnaSolicitudPresencial_DiceQuienLaRegistro()
     {
-        var mensaje = AvisoSolicitudNueva.Componer(Solicitud("presencial", registradaPor: "María González"), ["dueno@gmail.com"], null);
+        var mensaje = AvisoSolicitudNueva.Componer(Solicitud("presencial"), "María González", ["dueno@gmail.com"], null);
 
         Assert.Contains("presencial", mensaje.Html);
         Assert.Contains("María González", mensaje.Texto);
@@ -266,7 +278,7 @@ public class CorreoTests
     [Fact]
     public void ElAviso_SinCorreoDelCliente_NoTieneResponderA()
     {
-        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(email: null), ["dueno@gmail.com"], null);
+        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(email: null), null, ["dueno@gmail.com"], null);
 
         Assert.Null(mensaje.ResponderA);
         Assert.Contains("Sin correo", mensaje.Texto);
@@ -275,7 +287,7 @@ public class CorreoTests
     [Fact]
     public void ElAviso_ConUnCorreoDelClienteInvalido_NoLoUsaComoResponderA()
     {
-        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(email: "juan\r\nBcc: espia@x.cl"), ["dueno@gmail.com"], null);
+        var mensaje = AvisoSolicitudNueva.Componer(Solicitud(email: "juan\r\nBcc: espia@x.cl"), null, ["dueno@gmail.com"], null);
 
         Assert.Null(mensaje.ResponderA);
     }

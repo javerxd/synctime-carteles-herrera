@@ -6,15 +6,16 @@ import { menuPara, GESTION } from '../../estructuras/navegacion';
 import { useSesion } from '../../sesion/sesion';
 import { formatearPesos } from '../../utilidades/formato';
 import { useConsulta } from '../../utilidades/useConsulta';
+import { SolicitudesPorAtender } from '../solicitudes/panel/SolicitudesPorAtender';
 import { esPorCobrar } from './reglasPedidos';
 import estilos from './Panel.module.css';
 
 const DESCRIPCIONES = {
-  '/panel/solicitudes': 'Bandeja de solicitudes por cotizar.',
+  '/panel/solicitudes': 'Bandeja de solicitudes, con filtros y comprobante.',
   '/panel/cotizaciones': 'Cotizaciones enviadas y por aprobar.',
   '/panel/pedidos': 'Estados, cobranza y fichas de los pedidos.',
   '/panel/calendario': 'Entregas por día, pendientes y entregadas.',
-  '/panel/clientes': 'Búsqueda por RUT o teléfono.',
+  '/panel/clientes': 'Listado y ficha, con búsqueda por RUT o teléfono.',
   '/panel/local': 'Cartel abierto o cerrado, horario y código QR.',
   '/panel/indicadores': 'Pedidos, ingresos, cobranza y conversión.',
   '/panel/reportes': 'Reportes operativo, gerencial y parametrizable.',
@@ -34,7 +35,7 @@ function indicadoresDelTaller(pedidos) {
   };
 }
 
-/** Inicio del panel: resumen del día y el menú general filtrado por rol. */
+/** Inicio del panel: las solicitudes por atender, el resumen del día y el menú general filtrado por rol. */
 export default function InicioPanel() {
   const { usuario, tieneRol } = useSesion();
   const pedidos = useConsulta('pedidos', panel.pedidos);
@@ -55,6 +56,8 @@ export default function InicioPanel() {
         <h1 className={estilos.titulo}>Hola, {usuario?.nombre}</h1>
         <p className={estilos.bajada}>Resumen del taller con los datos de la base de demostración.</p>
       </div>
+
+      <SolicitudesPorAtender />
 
       <section aria-labelledby="titulo-resumen">
         <h2 id="titulo-resumen" className={estilos.subtitulo}>Hoy en el taller</h2>

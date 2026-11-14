@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026 (fase 6 aprobada; fase 7 en curso).
+Última actualización: 14-11-2026 (fase 6 aprobada; fase 7 en revisión).
 
 ## Hecho
 
@@ -17,11 +17,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 7 — Solicitudes y clientes** · rama `fase-07-solicitudes-y-clientes` (nace de `fase-06-cuentas-y-sesion`) · incluye, por pedido del usuario (14-11-2026), los diseños adjuntos a la solicitud y los avisos por correo de cada solicitud nueva · plan: `fase-07-plan.md`, especificación: `fase-07-especificacion.md` · informe: `informes/fase-07.md` · pendiente del usuario: decidir la ventana de 24 horas de la regla contra solicitudes falsas y el texto del aviso de contacto directo (ver `desviaciones.md`)
 
 ## En curso
 
-- **Fase 7 — Solicitudes y clientes** · rama `fase-07-solicitudes-y-clientes` (nace de `fase-06-cuentas-y-sesion`) · incluye, por pedido del usuario (14-11-2026), los diseños adjuntos a la solicitud y los avisos por correo de cada solicitud nueva · plan: `fase-07-plan.md`
+_(ninguna)_
 
 ## Por hacer
 

@@ -35,6 +35,28 @@ public sealed class ServicioCorreoEnCola(IServiceScopeFactory ambitos, SenalCola
 {
     public async Task EncolarAsync(MensajeCorreo mensaje, CancellationToken ct)
     {
+        var fila = FilaDeCola.Crear(mensaje, reloj.GetUtcNow());
+        await using var ambito = ambitos.CreateAsyncScope();
+        var db = ambito.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
+        db.CorreosSalientes.Add(fila);
+        await db.SaveChangesAsync(ct);
+        senal.Avisar();
+    }
+
+    public async Task<int> ContarAsync(string tipo, DateTimeOffset desde, CancellationToken ct)
+    {
+        await using var ambito = ambitos.CreateAsyncScope();
+        var db = ambito.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
+        return await db.CorreosSalientes.CountAsync(c => c.Tipo == tipo && c.FechaCreacion >= desde, ct);
+    }
+}
+
+// La fila de correos_salientes que corresponde a un mensaje: valida los destinatarios y deja el correo
+// listo para el trabajador de la cola. La comparten la cola normal y la cola dentro de una transaccion.
+public static class FilaDeCola
+{
+    public static CorreoSaliente Crear(MensajeCorreo mensaje, DateTimeOffset ahora)
+    {
         if (mensaje.Para.Count == 0)
             throw new ArgumentException("El correo no tiene destinatarios.", nameof(mensaje));
         if (mensaje.Para.Any(d => !Reglas.EsCorreo(d)))
@@ -44,13 +66,10 @@ public sealed class ServicioCorreoEnCola(IServiceScopeFactory ambitos, SenalCola
         if (destinatarios.Length > 1000)
             throw new ArgumentException("Demasiados destinatarios para un solo correo.", nameof(mensaje));
 
-        var ahora = reloj.GetUtcNow();
         // La columna guarda segundos y SQL Server redondea: sin truncar, un correo encolado a las :00,6
         // quedaria para las :01 y el trabajador no lo veria hasta el segundo siguiente.
         var disponibleDesde = new DateTimeOffset(ahora.Ticks - ahora.Ticks % TimeSpan.TicksPerSecond, ahora.Offset);
-        await using var ambito = ambitos.CreateAsyncScope();
-        var db = ambito.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
-        db.CorreosSalientes.Add(new CorreoSaliente
+        return new CorreoSaliente
         {
             Tipo = mensaje.Tipo,
             Referencia = mensaje.Referencia,
@@ -62,15 +81,28 @@ public sealed class ServicioCorreoEnCola(IServiceScopeFactory ambitos, SenalCola
             Estado = EstadosCorreo.Pendiente,
             ProximoIntento = disponibleDesde,
             FechaCreacion = ahora
-        });
-        await db.SaveChangesAsync(ct);
-        senal.Avisar();
+        };
+    }
+}
+
+// Fase 7, patron outbox: la cola dentro de la transaccion de quien llama. EncolarAsync solo agrega la
+// fila al contexto de la peticion; se guarda con el mismo SaveChanges y el mismo COMMIT que la
+// solicitud. Si la solicitud no se guarda, no queda ningun correo; si se guarda, su aviso tampoco se
+// puede perder. Si algo falla al encolar, se revierte todo (tambien la solicitud). Quien la usa llama a
+// AvisarAlTrabajador despues del COMMIT, para que el aviso salga en segundos.
+public sealed class ColaEnTransaccion(LetrerosHerreradbContext db, SenalColaCorreo senal, TimeProvider reloj) : IServicioCorreo
+{
+    public Task EncolarAsync(MensajeCorreo mensaje, CancellationToken ct)
+    {
+        db.CorreosSalientes.Add(FilaDeCola.Crear(mensaje, reloj.GetUtcNow()));
+        return Task.CompletedTask;
     }
 
-    public async Task<int> ContarAsync(string tipo, DateTimeOffset desde, CancellationToken ct)
-    {
-        await using var ambito = ambitos.CreateAsyncScope();
-        var db = ambito.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
-        return await db.CorreosSalientes.CountAsync(c => c.Tipo == tipo && c.FechaCreacion >= desde, ct);
-    }
+    // Cuenta lo ya guardado y lo agregado en esta misma transaccion, para que el tope por hora valga
+    // tambien dentro de ella.
+    public async Task<int> ContarAsync(string tipo, DateTimeOffset desde, CancellationToken ct) =>
+        await db.CorreosSalientes.CountAsync(c => c.Tipo == tipo && c.FechaCreacion >= desde, ct)
+        + db.ChangeTracker.Entries<CorreoSaliente>().Count(e => e.State == EntityState.Added && e.Entity.Tipo == tipo && e.Entity.FechaCreacion >= desde);
+
+    public void AvisarAlTrabajador() => senal.Avisar();
 }

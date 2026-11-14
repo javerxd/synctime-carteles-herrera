@@ -1,5 +1,5 @@
 using System.Globalization;
-using LetrerosHerreraSYNCTIMEapi.Repositories;
+using LetrerosHerreraSYNCTIMEapi.Negocio.Solicitudes;
 
 namespace LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
 
@@ -10,17 +10,19 @@ namespace LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
 // fabricar lineas falsas en el correo (por ejemplo, otro "Teléfono:") ni invertir el texto.
 public static class AvisoSolicitudNueva
 {
-    public static MensajeCorreo Componer(SolicitudParaAviso solicitud, IReadOnlyList<string> para, string? urlPublica)
+    // Fase 7: el aviso se arma con el mismo comprobante que ve el cliente. registradaPor solo en las
+    // presenciales (hoy no avisan al taller, pero el aviso sabe decirlo si se vuelve a activar).
+    public static MensajeCorreo Componer(ComprobanteSolicitud solicitud, string? registradaPorNombre, IReadOnlyList<string> para, string? urlPublica)
     {
         var enLinea = solicitud.Origen != "presencial";
         var origen = enLinea ? "en línea" : "presencial";
-        var fecha = FormatoChile.Fecha(solicitud.FechaSolicitud);
-        var hora = FormatoChile.Hora(solicitud.FechaSolicitud);
-        var nombre = Linea(solicitud.ClienteNombre);
-        var telefonoEscrito = Linea(solicitud.ClienteTelefono);
+        var fecha = FormatoChile.Fecha(solicitud.FechaChile);
+        var hora = FormatoChile.Hora(solicitud.FechaChile);
+        var nombre = Linea($"{solicitud.Cliente.Nombre} {solicitud.Cliente.Apellido}");
+        var telefonoEscrito = Linea(solicitud.Cliente.Telefono);
         var telefono = TelefonoChile.Interpretar(telefonoEscrito);
-        var correoCliente = Reglas.EsCorreo(solicitud.ClienteEmail) ? solicitud.ClienteEmail : null;
-        var registradaPor = solicitud.RegistradaPor is null ? null : Linea(solicitud.RegistradaPor);
+        var correoCliente = Reglas.EsCorreo(solicitud.Cliente.Correo) ? solicitud.Cliente.Correo : null;
+        var registradaPor = registradaPorNombre is null ? null : Linea(registradaPorNombre);
 
         var entrada = enLinea
             ? $"{nombre} envió una solicitud en línea el {fecha} a las {hora}."
@@ -30,7 +32,7 @@ public static class AvisoSolicitudNueva
 
         var datos = new List<DatoCorreo>
         {
-            new("Solicitud", $"N.º {solicitud.IdSolicitud}, {origen}"),
+            new("Solicitud", $"{solicitud.Numero}, {origen}"),
             new("Cliente", nombre),
             telefono is null
                 ? new("Teléfono", telefonoEscrito)
@@ -55,14 +57,17 @@ public static class AvisoSolicitudNueva
         if (contacto.Count > 0)
             cuerpo.Enlaces([.. contacto]);
 
-        if (!string.IsNullOrWhiteSpace(solicitud.Descripcion))
-            cuerpo.Cita("Descripción", Linea(solicitud.Descripcion));
+        if (!string.IsNullOrWhiteSpace(solicitud.DescripcionGeneral))
+            cuerpo.Cita("Descripción", Linea(solicitud.DescripcionGeneral));
 
         if (solicitud.Detalles.Count > 0)
             cuerpo.Lista("Lo que pidió", solicitud.Detalles.Select(Detalle));
 
-        if (UrlPanel(urlPublica) is { } panel)
-            cuerpo.Boton("Abrir el panel", panel);
+        // Los archivos no viajan en el correo: se ven en el panel, con sesion.
+        cuerpo.Parrafo(Adjuntos(solicitud.Adjuntos.Count));
+
+        if (UrlSolicitud(urlPublica, solicitud.IdSolicitud) is { } ficha)
+            cuerpo.Boton("Ver solicitud", ficha);
 
         if (enLinea)
             cuerpo.Nota("Los datos de contacto los escribió quien envió la solicitud: confírmalos antes de compartir información.");
@@ -76,22 +81,34 @@ public static class AvisoSolicitudNueva
         return new MensajeCorreo(
             TiposCorreo.AvisoSolicitudNueva,
             para,
-            PlantillaCorreo.AsuntoSeguro($"Nueva solicitud N.º {solicitud.IdSolicitud} · {nombre}"),
+            PlantillaCorreo.AsuntoSeguro($"Nueva solicitud {solicitud.Numero} - {nombre}"),
             html,
             texto,
             ResponderA: correoCliente,
             Referencia: $"solicitud:{solicitud.IdSolicitud}");
     }
 
+    internal static string Adjuntos(int cantidad) => cantidad switch
+    {
+        0 => "Sin archivos adjuntos.",
+        1 => "1 archivo adjunto (se ve en el panel).",
+        _ => $"{cantidad} archivos adjuntos (se ven en el panel)."
+    };
+
     // El enlace al panel solo si la direccion del sitio es una web valida; si esta mal escrita, el aviso
     // sale igual, sin el boton (es preferible a no avisar).
-    internal static string? UrlPanel(string? urlPublica)
+    internal static string? UrlPanel(string? urlPublica) => UrlDelSitio(urlPublica, "/panel");
+
+    // La ficha de la solicitud en el panel: si no hay sesion, el panel pide ingresar y despues vuelve a ella.
+    internal static string? UrlSolicitud(string? urlPublica, int idSolicitud) => UrlDelSitio(urlPublica, $"/panel/solicitudes/{idSolicitud}");
+
+    private static string? UrlDelSitio(string? urlPublica, string ruta)
     {
         if (string.IsNullOrWhiteSpace(urlPublica))
             return null;
-        return Uri.TryCreate($"{urlPublica.Trim().TrimEnd('/')}/panel", UriKind.Absolute, out var panel)
-               && (panel.Scheme == Uri.UriSchemeHttps || panel.Scheme == Uri.UriSchemeHttp)
-            ? panel.ToString()
+        return Uri.TryCreate($"{urlPublica.Trim().TrimEnd('/')}{ruta}", UriKind.Absolute, out var url)
+               && (url.Scheme == Uri.UriSchemeHttps || url.Scheme == Uri.UriSchemeHttp)
+            ? url.ToString()
             : null;
     }
 
@@ -111,14 +128,74 @@ public static class AvisoSolicitudNueva
         return string.Join(' ', limpio.Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
-    private static string Detalle(DetalleParaAviso detalle)
+    // «2 × Letrero luminoso, con logo, 100 × 200 cm, 4 m²»
+    internal static string Detalle(DetalleComprobante detalle)
     {
         var partes = new List<string> { $"{detalle.Cantidad} × {Linea(detalle.Producto)}" };
         if (!string.IsNullOrWhiteSpace(detalle.Descripcion))
             partes.Add(Linea(detalle.Descripcion));
         if (detalle.AnchoMm is int ancho && detalle.AltoMm is int alto)
             partes.Add($"{FormatoChile.Centimetros(ancho)} × {FormatoChile.Centimetros(alto)} cm");
+        if (detalle.AreaM2 is decimal area)
+            partes.Add(MedidasSolicitud.Area(area));
         return string.Join(", ", partes);
+    }
+}
+
+// Fase 7: confirmacion al cliente con su comprobante. Sale desde la casilla automatica, con el pie de
+// «no respondas»; «Responder» va al correo de contacto del taller.
+public static class ConfirmacionSolicitud
+{
+    public static MensajeCorreo Componer(ComprobanteSolicitud solicitud, string para, string correoContacto, string? urlPublica)
+    {
+        var nombre = AvisoSolicitudNueva.Linea(solicitud.Cliente.Nombre);
+        var cuerpo = new CuerpoCorreo()
+            .Parrafo($"Hola, {nombre}. Recibimos tu solicitud {solicitud.Numero} el {FormatoChile.Fecha(solicitud.FechaChile)} a las {FormatoChile.Hora(solicitud.FechaChile)}. La revisaremos y te contactaremos con la cotización.")
+            .Datos(
+                new DatoCorreo("Solicitud", solicitud.Numero),
+                new DatoCorreo("Estado", Estado(solicitud.Estado)),
+                new DatoCorreo("Cliente", AvisoSolicitudNueva.Linea($"{solicitud.Cliente.Nombre} {solicitud.Cliente.Apellido}")),
+                new DatoCorreo("Teléfono", TelefonoChile.Interpretar(solicitud.Cliente.Telefono)?.Legible ?? AvisoSolicitudNueva.Linea(solicitud.Cliente.Telefono)));
+
+        if (solicitud.Detalles.Count > 0)
+            cuerpo.Lista("Lo que pediste", solicitud.Detalles.Select(AvisoSolicitudNueva.Detalle));
+        if (solicitud.AreaTotalM2 is decimal total)
+            cuerpo.Parrafo($"Área total: {MedidasSolicitud.Area(total)}.");
+        if (!string.IsNullOrWhiteSpace(solicitud.DescripcionGeneral))
+            cuerpo.Cita("Descripción", AvisoSolicitudNueva.Linea(solicitud.DescripcionGeneral));
+        if (solicitud.Adjuntos.Count > 0)
+            cuerpo.Lista("Archivos adjuntos", solicitud.Adjuntos.Select(a => AvisoSolicitudNueva.Linea(a.Nombre)));
+        if (UrlMisSolicitudes(urlPublica) is { } url)
+            cuerpo.Boton("Ver mis solicitudes", url);
+
+        return CorreoParaCliente.Componer(
+            TiposCorreo.ConfirmacionSolicitud,
+            para,
+            $"Recibimos tu solicitud {solicitud.Numero}",
+            "Recibimos tu solicitud",
+            $"Solicitud {solicitud.Numero}: la revisaremos y te contactaremos.",
+            cuerpo,
+            correoContacto,
+            referencia: $"confirmacion:{solicitud.IdSolicitud}");
+    }
+
+    private static string Estado(string estado) => estado switch
+    {
+        "solicitado" => "En revisión",
+        "cotizado" => "Cotizada",
+        "aceptado" => "Aceptada",
+        "rechazado" => "Rechazada",
+        _ => estado
+    };
+
+    private static string? UrlMisSolicitudes(string? urlPublica)
+    {
+        if (string.IsNullOrWhiteSpace(urlPublica))
+            return null;
+        return Uri.TryCreate($"{urlPublica.Trim().TrimEnd('/')}/cuenta/solicitudes", UriKind.Absolute, out var url)
+               && (url.Scheme == Uri.UriSchemeHttps || url.Scheme == Uri.UriSchemeHttp)
+            ? url.ToString()
+            : null;
     }
 }
 

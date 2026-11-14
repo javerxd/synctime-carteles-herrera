@@ -67,14 +67,33 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task CuentasYSesion_SoloAgrega()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_CuentasYSesion", ultima);
         var script = await api.ConsultarAsync(db => Task.FromResult(
-            db.GetService<IMigrator>().GenerateScript("20261113154234_PortadaPublica", ultima)));
+            db.GetService<IMigrator>().GenerateScript("20261113154234_PortadaPublica", "20261114002321_CuentasYSesion")));
 
         Assert.Contains("CREATE TABLE [tokens_renovacion]", script);
         Assert.Contains("CREATE TABLE [codigos_cuenta]", script);
         Assert.Contains("ck_clientes_cuenta_con_correo", script);
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
+            Assert.DoesNotContain(prohibido, script);
+    }
+
+    // Fase 7: crea adjuntos_solicitud y solicitudes_historial, agrega solicitudes.huella_ip y amplia tres
+    // textos (descripcion general 500 -> 2000, motivo 250 -> 500, descripcion del item 300 -> 500). Ampliar
+    // no pierde datos; en la base demo se consulto antes (14-11-2026) que nada choca con la migracion.
+    [Fact]
+    public async Task SolicitudesYAdjuntos_SoloAgrega()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_SolicitudesYAdjuntos", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(
+            db.GetService<IMigrator>().GenerateScript("20261114002321_CuentasYSesion", ultima)));
+
+        Assert.Contains("CREATE TABLE [adjuntos_solicitud]", script);
+        Assert.Contains("CREATE TABLE [solicitudes_historial]", script);
+        Assert.Contains("ADD [huella_ip] char(64) NULL", script);
+        Assert.Contains("ALTER COLUMN [descripcion_general] nvarchar(2000) NULL", script);
+        Assert.Contains("ALTER COLUMN [motivo_rechazo] nvarchar(500) NULL", script);
+        Assert.Contains("ALTER COLUMN [descripcion] nvarchar(500) NOT NULL", script);
         foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
             Assert.DoesNotContain(prohibido, script);
     }
@@ -95,7 +114,11 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(38, restricciones.Count);
+        Assert.Equal(45, restricciones.Count);
+        // Fase 7: un adjunto tiene un solo autor, solo esta vinculado con fecha, y es imagen (con medidas) o PDF.
+        foreach (var nombre in new[] { "ck_adjuntos_solicitud_autor", "ck_adjuntos_solicitud_vinculo", "ck_adjuntos_solicitud_tipo",
+                     "ck_adjuntos_solicitud_bytes", "ck_adjuntos_solicitud_medidas", "ck_solicitudes_historial_estados", "ck_solicitudes_historial_actor" })
+            Assert.Contains(nombre, restricciones);
         // Fase 6: no hay cuenta web de cliente sin correo.
         Assert.Contains("ck_clientes_cuenta_con_correo", restricciones);
         // Fase 5: un logo de cliente no se muestra sin autorizacion, y la autorizacion dice quien y cuando.
@@ -134,9 +157,10 @@ public sealed class MigracionTests(ApiFixture api)
         var enCascada = await Valores("SELECT name AS Value FROM sys.foreign_keys WHERE delete_referential_action_desc <> 'NO_ACTION'");
 
         // Fase 6: las sesiones y los codigos de una cuenta desaparecen con ella.
+        // Fase 7: los adjuntos y el historial de una solicitud se van con ella (sp_depurar_solicitudes_no_concretadas).
         Assert.Equal(
-            ["fk_codigos_cuenta_cliente", "fk_codigos_cuenta_empleado", "fk_cot_mat_cotizacion", "fk_cotizaciones_solicitud", "fk_sol_detalles_solicitud",
-             "fk_tokens_renovacion_cliente", "fk_tokens_renovacion_empleado"],
+            ["fk_adjuntos_solicitud_solicitud", "fk_codigos_cuenta_cliente", "fk_codigos_cuenta_empleado", "fk_cot_mat_cotizacion", "fk_cotizaciones_solicitud",
+             "fk_sol_detalles_solicitud", "fk_solicitudes_historial_solicitud", "fk_tokens_renovacion_cliente", "fk_tokens_renovacion_empleado"],
             enCascada.Order());
     }
 

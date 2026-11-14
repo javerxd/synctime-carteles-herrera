@@ -31,6 +31,8 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<ConsultaContacto> ConsultasContacto { get; set; } = null!;
     public DbSet<TokenRenovacion> TokensRenovacion { get; set; } = null!;
     public DbSet<CodigoCuenta> CodigosCuenta { get; set; } = null!;
+    public DbSet<AdjuntoSolicitud> AdjuntosSolicitud { get; set; } = null!;
+    public DbSet<SolicitudHistorial> SolicitudesHistorial { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -208,15 +210,21 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdEmpleadoRegistra).HasColumnName("id_empleado_registra");
             entity.Property(e => e.Origen).HasColumnName("origen").HasMaxLength(15)
                 .HasComputedColumnSql("CASE WHEN id_empleado_registra IS NULL THEN N'online' ELSE N'presencial' END", stored: true);
-            entity.Property(e => e.DescripcionGeneral).HasColumnName("descripcion_general").HasMaxLength(500);
+            // Fase 7: hasta 2000 caracteres (antes 500); ampliar una columna no pierde datos.
+            entity.Property(e => e.DescripcionGeneral).HasColumnName("descripcion_general").HasMaxLength(2000);
             entity.Property(e => e.FechaSolicitud).HasColumnName("fecha_solicitud").HasColumnType("datetime2(0)")
                 .HasDefaultValueSql("SYSDATETIME()");
             entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(15).HasDefaultValue("solicitado");
-            entity.Property(e => e.MotivoRechazo).HasColumnName("motivo_rechazo").HasMaxLength(250);
+            // Fase 7: el motivo admite hasta 500 caracteres, igual que en el historial.
+            entity.Property(e => e.MotivoRechazo).HasColumnName("motivo_rechazo").HasMaxLength(500);
             entity.Property(e => e.EliminadoLogico).HasColumnName("eliminado_logico").HasDefaultValue(false);
             entity.Property(e => e.FechaEliminacionLogica).HasColumnName("fecha_eliminacion_logica").HasColumnType("datetime2(0)");
             entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
+            entity.Property(e => e.HuellaIp).HasColumnName("huella_ip").HasMaxLength(64).IsUnicode(false).IsFixedLength();
 
+            // La regla contra solicitudes falsas busca por huella las de la ultima hora (configurable).
+            entity.HasIndex(e => new { e.HuellaIp, e.FechaSolicitud }).HasFilter("[huella_ip] IS NOT NULL")
+                .HasDatabaseName("ix_solicitudes_huella_ip");
             entity.HasIndex(e => new { e.FechaSolicitud, e.Origen, e.Estado, e.EliminadoLogico })
                 .HasDatabaseName("ix_solicitudes_metricas");
             entity.HasIndex(e => new { e.IdCliente, e.EliminadoLogico })
@@ -246,7 +254,8 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdSolicitudDetalle).HasColumnName("id_solicitud_detalle");
             entity.Property(e => e.IdSolicitud).HasColumnName("id_solicitud");
             entity.Property(e => e.IdProducto).HasColumnName("id_producto");
-            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(300);
+            // Fase 7: hasta 500 caracteres (antes 300). Sigue siendo NOT NULL: sin descripcion se guarda "".
+            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(500);
             entity.Property(e => e.AnchoMm).HasColumnName("ancho_mm");
             entity.Property(e => e.AltoMm).HasColumnName("alto_mm");
             entity.Property(e => e.Cantidad).HasColumnName("cantidad").HasDefaultValue(1).HasSentinel(1);
@@ -718,6 +727,79 @@ public class LetrerosHerreradbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_codigos_cuenta_cliente");
             entity.HasOne(e => e.Empleado).WithMany().HasForeignKey(e => e.IdEmpleado)
                 .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_codigos_cuenta_empleado");
+        });
+
+        // ── adjuntos_solicitud (fase 7) ──
+        modelBuilder.Entity<AdjuntoSolicitud>(entity =>
+        {
+            entity.ToTable("adjuntos_solicitud", t =>
+            {
+                t.HasCheckConstraint("ck_adjuntos_solicitud_autor",
+                    "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
+                t.HasCheckConstraint("ck_adjuntos_solicitud_vinculo",
+                    "(id_solicitud IS NULL AND fecha_vinculo IS NULL) OR (id_solicitud IS NOT NULL AND fecha_vinculo IS NOT NULL)");
+                t.HasCheckConstraint("ck_adjuntos_solicitud_tipo", "tipo IN ('imagen', 'pdf')");
+                t.HasCheckConstraint("ck_adjuntos_solicitud_bytes", "bytes > 0");
+                t.HasCheckConstraint("ck_adjuntos_solicitud_medidas",
+                    "(tipo = 'imagen' AND ancho > 0 AND alto > 0) OR (tipo = 'pdf' AND ancho IS NULL AND alto IS NULL)");
+            });
+            entity.HasKey(e => e.IdAdjunto).HasName("pk_adjuntos_solicitud");
+            entity.Property(e => e.IdAdjunto).HasColumnName("id_adjunto");
+            entity.Property(e => e.IdSolicitud).HasColumnName("id_solicitud");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.Clave).HasColumnName("clave").HasMaxLength(32).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.Tipo).HasColumnName("tipo").HasMaxLength(10).IsUnicode(false);
+            entity.Property(e => e.NombreOriginal).HasColumnName("nombre_original").HasMaxLength(120);
+            entity.Property(e => e.Bytes).HasColumnName("bytes");
+            entity.Property(e => e.Ancho).HasColumnName("ancho");
+            entity.Property(e => e.Alto).HasColumnName("alto");
+            entity.Property(e => e.FechaSubida).HasColumnName("fecha_subida").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaVinculo).HasColumnName("fecha_vinculo").HasColumnType("datetimeoffset(0)");
+
+            // La ficha lista los de una solicitud; el formulario y la purga, los borradores de cada cliente.
+            entity.HasIndex(e => e.Clave).IsUnique().HasDatabaseName("uq_adjuntos_solicitud_clave");
+            entity.HasIndex(e => e.IdSolicitud).HasFilter("[id_solicitud] IS NOT NULL").HasDatabaseName("ix_adjuntos_solicitud_solicitud");
+            entity.HasIndex(e => new { e.IdCliente, e.FechaSubida }).HasFilter("[id_solicitud] IS NULL").HasDatabaseName("ix_adjuntos_solicitud_borrador");
+
+            // Si sp_depurar_solicitudes_no_concretadas borra una solicitud, sus adjuntos se van con ella (la
+            // purga diaria borra despues los archivos que quedan sin registro).
+            entity.HasOne(e => e.Solicitud).WithMany(s => s.Adjuntos).HasForeignKey(e => e.IdSolicitud)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_adjuntos_solicitud_solicitud");
+            entity.HasOne(e => e.Cliente).WithMany().HasForeignKey(e => e.IdCliente)
+                .OnDelete(DeleteBehavior.NoAction).HasConstraintName("fk_adjuntos_solicitud_cliente");
+            entity.HasOne(e => e.Empleado).WithMany().HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction).HasConstraintName("fk_adjuntos_solicitud_empleado");
+        });
+
+        // ── solicitudes_historial (fase 7) ──
+        modelBuilder.Entity<SolicitudHistorial>(entity =>
+        {
+            entity.ToTable("solicitudes_historial", t =>
+            {
+                t.HasCheckConstraint("ck_solicitudes_historial_estados",
+                    "estado_nuevo IN (N'solicitado', N'cotizado', N'aceptado', N'rechazado') AND (estado_anterior IS NULL OR estado_anterior IN (N'solicitado', N'cotizado', N'aceptado', N'rechazado'))");
+                t.HasCheckConstraint("ck_solicitudes_historial_actor", "id_cliente IS NULL OR id_empleado IS NULL");
+            });
+            entity.HasKey(e => e.IdHistorial).HasName("pk_solicitudes_historial");
+            entity.Property(e => e.IdHistorial).HasColumnName("id_historial");
+            entity.Property(e => e.IdSolicitud).HasColumnName("id_solicitud");
+            entity.Property(e => e.EstadoAnterior).HasColumnName("estado_anterior").HasMaxLength(15);
+            entity.Property(e => e.EstadoNuevo).HasColumnName("estado_nuevo").HasMaxLength(15);
+            entity.Property(e => e.Motivo).HasColumnName("motivo").HasMaxLength(500);
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.Fecha).HasColumnName("fecha").HasColumnType("datetimeoffset(0)");
+
+            entity.HasIndex(e => new { e.IdSolicitud, e.Fecha }).HasDatabaseName("ix_solicitudes_historial_solicitud");
+
+            // El historial vive y muere con su solicitud (igual que sus detalles y cotizaciones).
+            entity.HasOne(e => e.Solicitud).WithMany(s => s.Historial).HasForeignKey(e => e.IdSolicitud)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_solicitudes_historial_solicitud");
+            entity.HasOne(e => e.Empleado).WithMany().HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction).HasConstraintName("fk_solicitudes_historial_empleado");
+            entity.HasOne(e => e.Cliente).WithMany().HasForeignKey(e => e.IdCliente)
+                .OnDelete(DeleteBehavior.NoAction).HasConstraintName("fk_solicitudes_historial_cliente");
         });
 
         // ── imagenes (fase 4) ──

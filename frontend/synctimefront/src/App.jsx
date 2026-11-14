@@ -19,6 +19,14 @@ const Registro = lazy(() => import('./paginas/cuenta/Registro'));
 const Recuperar = lazy(() => import('./paginas/cuenta/Recuperar'));
 const Verificar = lazy(() => import('./paginas/cuenta/Verificar'));
 const MiCuenta = lazy(() => import('./paginas/cuenta/MiCuenta'));
+const NuevaSolicitud = lazy(() => import('./paginas/solicitudes/NuevaSolicitud'));
+const MisSolicitudes = lazy(() => import('./paginas/solicitudes/MisSolicitudes'));
+const MiSolicitud = lazy(() => import('./paginas/solicitudes/MisSolicitudes').then((m) => ({ default: m.MiSolicitud })));
+const BandejaSolicitudes = lazy(() => import('./paginas/solicitudes/panel/BandejaSolicitudes'));
+const FichaSolicitud = lazy(() => import('./paginas/solicitudes/panel/FichaSolicitud'));
+const RegistroPresencial = lazy(() => import('./paginas/solicitudes/panel/RegistroPresencial'));
+const Clientes = lazy(() => import('./paginas/solicitudes/panel/Clientes'));
+const FichaCliente = lazy(() => import('./paginas/solicitudes/panel/Clientes').then((m) => ({ default: m.FichaCliente })));
 const InicioPanel = lazy(() => import('./paginas/panel/InicioPanel'));
 const Pedidos = lazy(() => import('./paginas/panel/Pedidos'));
 const EstadoLocal = lazy(() => import('./paginas/panel/EstadoLocal'));
@@ -47,6 +55,9 @@ export default function App() {
               <Route index element={enCarga(<Portada />)} />
               <Route path="ingresar" element={enCarga(<IngresoCliente />)} />
               <Route path="cuenta" element={<RequiereCliente>{enCarga(<MiCuenta />)}</RequiereCliente>} />
+              <Route path="cuenta/solicitud" element={<RequiereCliente>{enCarga(<NuevaSolicitud />)}</RequiereCliente>} />
+              <Route path="cuenta/solicitudes" element={<RequiereCliente>{enCarga(<MisSolicitudes />)}</RequiereCliente>} />
+              <Route path="cuenta/solicitudes/:id" element={<RequiereCliente>{enCarga(<MiSolicitud />)}</RequiereCliente>} />
               <Route path="cuenta/registro" element={enCarga(<Registro />)} />
               <Route path="cuenta/recuperar" element={enCarga(<Recuperar />)} />
               <Route path="cuenta/verificar" element={enCarga(<Verificar />)} />
@@ -64,10 +75,13 @@ export default function App() {
               <Route path="pedidos" element={enCarga(<Pedidos />)} />
               <Route path="local" element={enCarga(<EstadoLocal />)} />
               <Route path="perfil" element={enCarga(<Perfil />)} />
-              <Route path="solicitudes" element={<SeccionPendiente titulo="Solicitudes" fase={7} descripcion="La bandeja de solicitudes en línea y presenciales, con filtros, búsqueda y su comprobante." />} />
+              <Route path="solicitudes" element={enCarga(<BandejaSolicitudes />)} />
+              <Route path="solicitudes/nueva" element={enCarga(<RegistroPresencial />)} />
+              <Route path="solicitudes/:id" element={enCarga(<FichaSolicitud />)} />
               <Route path="cotizaciones" element={<SeccionPendiente titulo="Cotizaciones" fase={8} descripcion="El editor de cotizaciones y su aprobación por el cliente o por el personal." />} />
               <Route path="calendario" element={<SeccionPendiente titulo="Calendario de entregas" fase={8} descripcion="Las entregas por día, pendientes y entregadas, con alertas de atraso." />} />
-              <Route path="clientes" element={<SeccionPendiente titulo="Clientes" fase={7} descripcion="El listado y la ficha de clientes, con búsqueda por RUT o teléfono." />} />
+              <Route path="clientes" element={enCarga(<Clientes />)} />
+              <Route path="clientes/:id" element={enCarga(<FichaCliente />)} />
               <Route element={<RequierePersonal roles={GESTION} />}>
                 <Route path="indicadores" element={enCarga(<Indicadores />)} />
                 <Route path="reportes" element={enCarga(<Reportes />)} />

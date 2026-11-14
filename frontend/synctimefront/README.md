@@ -171,6 +171,19 @@ synctimefront/
 - **Cabecera CSRF:** `POST /auth/renovar` y `POST /auth/salir` envían `X-CSRF-Token` con el valor de la cookie `synctime_csrf`, que la página sí puede leer. La cookie de renovación no la puede leer.
 - **Pruebas:** `src/test/cuenta.test.jsx` y `src/test/sesion.test.jsx`, y en `e2e/pantallas.spec.js` el registro, la recuperación, la verificación del correo y que el token no quede en el almacenamiento del navegador.
 
+## Solicitudes, adjuntos y clientes (fase 7)
+
+- **Pantallas del cliente:** `/cuenta/solicitud` (ítems, descripción general y la zona de adjuntos; termina en el comprobante), `/cuenta/solicitudes` (Mis solicitudes) y `/cuenta/solicitudes/:id` (el comprobante de una). «Solicitar cotización» de la portada lleva a `/cuenta/solicitud`; con «Cotizar uno similar» llega con `?producto=` y `?referencia=`. Sin sesión pasa por `/ingresar` y vuelve a la página pedida.
+- **Pantallas del personal:** `/panel` (solicitudes por atender), `/panel/solicitudes` (bandeja con filtros en la dirección, búsqueda y paginación), `/panel/solicitudes/nueva` (registro presencial: busca al cliente por teléfono o RUT antes de crearlo), `/panel/solicitudes/:id` (ficha con adjuntos, historial y acciones de estado), `/panel/clientes` y `/panel/clientes/:id`.
+- **Código:** las pantallas y sus reglas están en `src/paginas/solicitudes/` (`reglasSolicitud.js`, `useSolicitudEditable.js`, `ContactoDirecto.jsx` y `panel/`). La zona de adjuntos, en `src/componentes/ui/Adjuntos.jsx`, con sus reglas en `reglasAdjuntos.js`. Las llamadas a la API, en `src/api/solicitudes.js`.
+- **Adjuntos:** la zona acepta JPG, PNG, WebP y PDF de hasta 10 MB, hasta 5 por solicitud. El atributo `accept` limita el selector, pero el servidor vuelve a comprobar todo. Cada archivo se sube al elegirlo y muestra su avance. Las miniaturas, de 96 px, y los archivos se piden con el token y se muestran con `URL.createObjectURL`, que se libera al quitarlos. Los borradores que el cliente subió antes y no envió vuelven al formulario (`GET /mis/adjuntos`).
+- **Edición y versión:** la ficha del personal envía la versión que vio en `If-Match`. Un `409` con `version_obsoleta` avisa y recarga la ficha; al editar, lo escrito se conserva.
+- **Contacto directo:** cuando la regla contra solicitudes falsas frena un envío (`409` con `contacto_directo`), se muestra el horario, el estado del local (`GET /local/estado`), el teléfono y WhatsApp. Lo escrito se conserva. Los datos de contacto salen de `src/configuracion/taller.js`.
+- **Lo escrito en la pestaña:** el texto del formulario (sin adjuntos) se guarda en `sessionStorage`, con una clave por usuario, y se borra al enviar la solicitud.
+- **Pruebas:** `src/test/solicitudes.test.jsx` y `src/test/adjuntos.test.jsx`. En `e2e/pantallas.spec.js`, el flujo en línea con un adjunto hasta el comprobante, el contacto directo, el enlace «Ver solicitud» del correo y el inicio del panel con las solicitudes por atender.
+
+---
+
 ## 🧪 Ejecución de Pruebas Automatizadas
 
 Para ejecutar las 14 pruebas automatizadas:

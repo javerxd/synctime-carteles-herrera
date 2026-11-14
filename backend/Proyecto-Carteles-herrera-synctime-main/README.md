@@ -36,6 +36,7 @@ dotnet ef database update --project .\LetrerosHerreraSYNCTIMEapi
 - `SepararEstadoPedidoYPago` (generada y completada a mano): el pedido pasa a tener estado operativo (`estado_pedido`, con `anulado` en vez de `cancelado`) y estado de pago calculado (`estado_pago`), con `monto_abonado`, `saldo_pendiente`, `numero_factura` y `origen`. Convierte los pedidos `cancelado` y recrea la vista de conversion. Revision de la profesora guia, 12-11-2026.
 - `HistorialDePagos` (generada y completada a mano): tabla `pagos` con cada abono (monto, fecha, medio de pago, quien lo registro) y el trigger `trg_pagos_recalcular_monto_abonado`, que mantiene `pedidos.monto_abonado` igual a la suma de los pagos. Aprobada por el usuario el 12-11-2026.
 - `CuentasYSesion` (generada por EF): tablas `tokens_renovacion` (sesiones con renovacion) y `codigos_cuenta` (enlaces de verificacion y codigos de recuperacion), la columna `clientes.fecha_verificacion_correo` y la restriccion `ck_clientes_cuenta_con_correo`. Solo agrega. Aplicada en la base demo; la base real espera la autorizacion del usuario.
+- `SolicitudesYAdjuntos` (generada por EF y completada a mano): tablas `adjuntos_solicitud` (logos y diseños de cada solicitud, privados) y `solicitudes_historial` (cada cambio de estado); la columna `solicitudes.huella_ip` con su índice; y las columnas ampliadas `solicitudes.descripcion_general` (2000), `solicitudes.motivo_rechazo` (500) y `solicitud_detalles.descripcion` (500). Solo agrega y amplía: no borra nada. Aplicada en la base demo; la base real espera la autorización del usuario.
 
 El script SQL completo de la base, el diagrama entidad-relacion y el diccionario de datos estan en `docs/base-de-datos/` de la raiz del repositorio.
 
@@ -187,6 +188,25 @@ Configuracion nueva:
 - `RateLimiting:PorCuenta` (10 fallos por minuto).
 - `Correo:ContactoTaller`: la direccion a la que responden los correos de la cuenta (desde la fase 5).
 
+## Solicitudes, adjuntos y clientes (fase 7)
+
+Los endpoints del personal están en `Endpoints/SolicitudApi.cs`, los del cliente y los adjuntos privados, en `Endpoints/MisSolicitudesApi.cs`, la lectura del formulario de archivos, en `Endpoints/ArchivoSubido.cs`, y los de clientes, en `Endpoints/CatalogoApi.cs`. La lógica está en `Services/ServiciosSolicitudes.cs` (`ServicioSolicitudes`, `ServicioAdjuntos` y `ServicioClientes`). Las reglas, sin HTTP ni base de datos, están en `Negocio/Solicitudes/` (`ReglasSolicitud.cs`, `ReglasAdjunto.cs`, `Comprobante.cs`). Los archivos los guarda `Infraestructura/Adjuntos/AlmacenAdjuntos.cs`. Lo que devuelve cada ruta está en `docs/api/contrato.md`, en las secciones «Solicitudes (fase 7)», «Portal del cliente (fase 7)» y «Adjuntos (fase 7)».
+
+- **Regla contra solicitudes falsas:** antes de guardar una solicitud en línea revisa la cuenta, el RUT y la IP. Si frena, no escribe nada y responde `409` con `contacto_directo`. Las solicitudes en línea se revisan y guardan de a una: un bloqueo de aplicación (`sp_getapplock`, recurso `synctime_solicitudes_en_linea`) pone en fila los envíos. Si no consigue el turno en `Solicitudes:EsperaBloqueoMs`, responde `503` con `servicio_ocupado` y `Retry-After: 5`.
+- **Huella de la IP:** la tabla guarda el HMAC-SHA256 de la IP (`solicitudes.huella_ip`), nunca la IP. En IPv6 se usa el prefijo /64. La clave sale de `Solicitudes:ClaveHuella` o, si no existe, de `Jwt:Key` con HKDF.
+- **Correos:** el aviso al taller y la confirmación al cliente se escriben en `correos_salientes` dentro de la misma transacción que la solicitud (`ColaEnTransaccion`, `IAvisosDelTaller.SolicitudNuevaAsync`). El envío lo hace la cola en segundo plano (fase 4). Las presenciales no avisan al taller.
+- **Adjuntos:** el formato se decide por el contenido. JPG, PNG y WebP pasan por `ProcesadorImagenes` (WebP grande y miniatura, sin metadatos). Un PDF (`%PDF-`) se guarda tal cual. Lo demás se rechaza. `PurgaDatosPersonales`, una vez al día, borra los borradores de más de 24 horas y los archivos que ya no tienen registro.
+- **Historial:** cada cambio de estado de una solicitud queda en `solicitudes_historial`, con quién lo hizo.
+
+Configuración nueva:
+
+- `Adjuntos:Carpeta` (`almacen/adjuntos`): carpeta privada, fuera del repositorio (`.gitignore`: `**/almacen/`). Ninguna ruta pública la sirve. En producción debe ser un volumen persistente que no se publique (fase 16).
+- `RateLimiting:Adjuntos` (10): subidas de adjuntos por minuto y por usuario.
+- `Solicitudes:ClaveHuella` (opcional, de al menos 16 bytes): clave del HMAC de la IP. Si no existe, se deriva de `Jwt:Key`. Cambiarla hace que las huellas guardadas ya no coincidan con las nuevas: la regla por IP solo mira las últimas 24 horas.
+- `Solicitudes:EsperaBloqueoMs` (15000, entre 100 y 60000): cuánto espera una solicitud o una subida el turno antes de responder `503`.
+
+Pruebas: `LetrerosHerreraSYNCTIMEapi.Tests/SolicitudesFase7Tests.cs` (integración, con base temporal) y `LetrerosHerreraSYNCTIMEapi.UnitTests/SolicitudesTests.cs` (reglas puras).
+
 ## Validacion
 
 ```powershell
@@ -203,14 +223,14 @@ Los secretos se configuran mediante User Secrets o variables de entorno. No se d
 
 Una revision de seguridad dejo estos puntos, que no afectan al desarrollo pero deben resolverse antes de publicar la API:
 
-- **Proxy:** los limites por IP usan `RemoteIpAddress`. Detras de un proxy todos los usuarios comparten su IP, y un atacante podria bloquear el login de todos. Hay que configurar `ForwardedHeaders` con la lista de proxies de confianza.
+- **Proxy:** los limites por IP usan `RemoteIpAddress`. Detras de un proxy todos los usuarios comparten su IP, y un atacante podria bloquear el login de todos. Hay que configurar `ForwardedHeaders` con la lista de proxies de confianza. Desde la fase 7 esto también afecta a la regla contra solicitudes falsas: sin ello, las solicitudes de todos los clientes llegan con la IP del proxy y la regla frena a todos a la vez.
 - **Telefonos sin verificar:** alguien puede registrar un numero ajeno, y su titular ya no podria hacerlo. Hay que verificar el telefono por SMS antes de crear la cuenta.
 - **Enumeracion de usuarios:** el registro revela que un correo ya tiene cuenta. Desde la fase 6, un telefono o un RUT ya registrados dan el mismo mensaje, y el login gasta el mismo tiempo exista o no la cuenta. Para no revelar tampoco el correo habria que confirmarlo antes de crear la cuenta: queda como decision pendiente.
 - **Bloqueo de una cuenta ajena:** el limite por cuenta permite que quien conoce el correo de otra persona agote sus intentos y le impida entrar con contraseña mientras insista. Es propio de todo limite por cuenta; el acceso con rostro no se ve afectado. Desde la fase 6 tambien bloquea la recuperacion de esa cuenta.
 - **Limites en memoria:** el limite por cuenta vive en la memoria del proceso. Con mas de una instancia de la API se multiplica, y se pierde al reiniciar.
 - **Sesiones:** el token de acceso sigue valido hasta 15 minutos despues de desactivar al usuario, cambiar su contraseña o cerrar su sesion. La renovacion se corta de inmediato (fase 6).
 - **HTTPS y sondas:** HSTS y la redireccion a HTTPS ya estan activos fuera de desarrollo. Una sonda de salud por HTTP recibira una redireccion: hay que sondear por HTTPS o desde la red interna.
-- **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`, ni quien cambio el correo de un cliente con `PUT /api/v1/clientes/{id}`.
+- **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`, ni quien cambio el correo de un cliente con `PUT /api/v1/clientes/{id}`. Desde la fase 7, solo las solicitudes tienen historial de cambios (`solicitudes_historial`).
 - **Portada:** `frame-ancestors` (contra clickjacking) no funciona en la etiqueta `meta` de `index.html`: la cabecera la debe enviar el servidor. Las consultas de contacto y los consentimientos de cookies no tienen plazo de borrado todavia.
 - **Migraciones:** la API solo las aplica sola en Development. En produccion hay que ejecutarlas como un paso del despliegue.
 - **Sesion y sitio:** la cookie de renovacion es `SameSite=Strict`, así que la web y la API deben servirse en el mismo sitio, y `Sitio:UrlPublica` debe ser la direccion publica de la web. Ver `docs/plan/desviaciones.md`.

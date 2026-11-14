@@ -107,11 +107,16 @@ public sealed class AutorizacionTests(ApiFixture api)
     [Fact]
     public async Task Client_OnlySeesTheirOwnRequestsAndOrders()
     {
-        var yo = await api.RegistrarClienteAsync();
-        var otro = await api.RegistrarClienteAsync();
-        var mia = (await api.Cliente(yo.Token).PostAsJsonAsync("/api/v1/mis/solicitudes", new { descripcionGeneral = "Mia", idCliente = otro.Id })
+        var yo = await api.CrearClienteConfirmadoAsync();
+        var otro = await api.CrearClienteConfirmadoAsync();
+        var mia = (await api.Cliente(yo.Token).PostAsJsonAsync("/api/v1/mis/solicitudes", new
+            {
+                descripcionGeneral = "La solicitud es mía",
+                idCliente = otro.Id,
+                detalles = new[] { new { idProducto = 1, cantidad = 1 } }
+            })
             .EsperarAsync(HttpStatusCode.Created)).GetProperty("idSolicitud").GetInt32();
-        var ajena = (await api.Cliente(otro.Token).PostAsJsonAsync("/api/v1/mis/solicitudes", new { descripcionGeneral = "Ajena" })
+        var ajena = (await api.Cliente(otro.Token).PostAsJsonAsync("/api/v1/mis/solicitudes", ApiFixture.CuerpoSolicitud())
             .EsperarAsync(HttpStatusCode.Created)).GetProperty("idSolicitud").GetInt32();
 
         await api.AceptarSolicitudAsync(mia);
@@ -127,19 +132,16 @@ public sealed class AutorizacionTests(ApiFixture api)
         var solicitudes = await api.Cliente(yo.Token).GetAsync("/api/v1/mis/solicitudes").EsperarAsync(HttpStatusCode.OK);
         var pedidos = await api.Cliente(yo.Token).GetAsync("/api/v1/mis/pedidos").EsperarAsync(HttpStatusCode.OK);
 
-        Assert.Equal(mia, Assert.Single(solicitudes.EnumerateArray()).GetProperty("idSolicitud").GetInt32());
+        Assert.Equal(mia, Assert.Single(solicitudes.GetProperty("elementos").EnumerateArray()).GetProperty("idSolicitud").GetInt32());
         Assert.Equal(mia, Assert.Single(pedidos.EnumerateArray()).GetProperty("idSolicitud").GetInt32());
     }
 
     [Fact]
     public async Task ClientRequest_IsOnline()
     {
-        var (id, _, token) = await api.RegistrarClienteAsync();
+        var (id, _, token) = await api.CrearClienteConfirmadoAsync();
 
-        var creada = await api.Cliente(token).PostAsJsonAsync("/api/v1/mis/solicitudes", new
-        {
-            detalles = new[] { new { idProducto = 1, descripcion = "Letrero", cantidad = 1 } }
-        }).EsperarAsync(HttpStatusCode.Created);
+        var creada = await api.Cliente(token).PostAsJsonAsync("/api/v1/mis/solicitudes", ApiFixture.CuerpoSolicitud()).EsperarAsync(HttpStatusCode.Created);
 
         Assert.Equal("online", creada.GetProperty("origen").GetString());
         var idSolicitud = creada.GetProperty("idSolicitud").GetInt32();

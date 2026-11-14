@@ -5,13 +5,13 @@ using LetrerosHerreraSYNCTIMEapi.Api;
 using LetrerosHerreraSYNCTIMEapi.Datos;
 using LetrerosHerreraSYNCTIMEapi.Datos.Correo;
 using LetrerosHerreraSYNCTIMEapi.Endpoints;
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Adjuntos;
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Correo;
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Imagenes;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
 using LetrerosHerreraSYNCTIMEapi.Middleware;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.OpenApi;
-using LetrerosHerreraSYNCTIMEapi.Repositories;
 using LetrerosHerreraSYNCTIMEapi.Security;
 using LetrerosHerreraSYNCTIMEapi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -62,7 +62,6 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Politicas.Cliente, p => p.RequireRole(Roles.Cliente));
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddSingleton<RostroFacialService>();
-builder.Services.AddScoped<ISolicitudRepository, SolicitudRepository>();
 builder.Services.AddScoped<IUnidadDeTrabajo, UnidadDeTrabajo>();
 builder.Services.AddSingleton(TimeProvider.System);
 
@@ -102,6 +101,14 @@ builder.Services.AddScoped<PurgaDatosPersonales>();
 builder.Services.AddScoped<ServicioSesiones>();
 builder.Services.AddScoped<ServicioCodigosCuenta>();
 builder.Services.AddScoped<ServicioMiCuenta>();
+// Fase 7: solicitudes, adjuntos privados y clientes. La cola de correo dentro de la transaccion (outbox)
+// usa el contexto de la peticion: los avisos se guardan con el mismo COMMIT que la solicitud.
+builder.Services.AddOptions<OpcionesAdjuntos>().Bind(builder.Configuration.GetSection(OpcionesAdjuntos.Seccion));
+builder.Services.AddSingleton<AlmacenAdjuntos>();
+builder.Services.AddScoped<ColaEnTransaccion>();
+builder.Services.AddScoped<ServicioSolicitudes>();
+builder.Services.AddScoped<ServicioAdjuntos>();
+builder.Services.AddScoped<ServicioClientes>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
@@ -177,6 +184,8 @@ var limiteContacto = builder.Configuration.GetValue("RateLimiting:ContactoPorHor
 var limiteCookies = builder.Configuration.GetValue("RateLimiting:CookiesPorHora", 5);
 // Una pagina de la vitrina pide varias imagenes a la vez; el navegador las guarda despues por un año.
 var limiteImagenes = builder.Configuration.GetValue("RateLimiting:Imagenes", 600);
+// Fase 7: subidas de adjuntos (procesar una foto cuesta), por usuario y por minuto.
+var limiteAdjuntos = builder.Configuration.GetValue("RateLimiting:Adjuntos", 10);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -192,6 +201,7 @@ builder.Services.AddRateLimiter(options =>
     // Holgado para que un orquestador pueda sondear cada pocos segundos, pero no ilimitado.
     options.AddPolicy(Salud.PoliticaDeLimite, context => Ventana(Ip(context), limiteSalud));
     options.AddPolicy("Imagenes", context => Ventana(Ip(context), limiteImagenes));
+    options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.ArchivoSubido.PoliticaDeLimite, context => Ventana(UsuarioOIp(context), limiteAdjuntos));
 });
 // El limite por IP no basta contra quien reparte sus intentos entre muchas IP: este cuenta por cuenta.
 builder.Services.AddSingleton(new LimitadorPorCuenta(builder.Configuration.GetValue("RateLimiting:PorCuenta", limiteLogin)));
@@ -294,6 +304,8 @@ app.MapRostroApi();
 app.MapCatalogoApi();
 app.MapSolicitudApi();
 app.MapPortalClienteApi();
+app.MapMisSolicitudesApi();
+app.MapAdjuntoApi();
 app.MapCotizacionApi();
 app.MapPedidoApi();
 app.MapImagenApi();

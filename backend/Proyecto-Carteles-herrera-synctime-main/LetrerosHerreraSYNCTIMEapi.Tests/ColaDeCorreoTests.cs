@@ -22,24 +22,33 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
     private const string UsuarioCentinela = "usuario-centinela-7f3a@test.local";
     private const string ClaveCentinela = "clave-centinela-9b1c";
 
-    // El correo del cliente es unico en la base: cada solicitud usa uno nuevo, o el aviso no tendria "Responder a".
-    private object SolicitudOnline(string? email = null) => new
-    {
-        cliente = new { nombre = "Juana", apellido = "Pruebas", telefono = api.Telefono(), email = email ?? CorreoCliente() },
-        descripcionGeneral = "Letrero para la vitrina",
-        detalles = new[] { new { idProducto = 1, descripcion = "Letrero luminoso", anchoMm = 1000, altoMm = 2000, cantidad = 2 } }
-    };
+    // Fase 7: la solicitud en linea la envia un cliente con sesion y correo confirmado. Cada solicitud usa
+    // un cliente nuevo (la regla contra solicitudes falsas admite una pendiente por cuenta) y su correo es
+    // el "Responder a" del aviso.
+    private sealed record SolicitudOnlineDe(string Correo);
+
+    private SolicitudOnlineDe SolicitudOnline(string? email = null) => new(email ?? CorreoCliente());
 
     private string CorreoCliente() => $"cliente.web{api.Siguiente()}@test.local";
 
-    private static async Task<int> CrearSolicitudOnlineAsync(HttpClient cliente, object cuerpo)
+    private async Task<int> CrearSolicitudOnlineAsync(HttpClient cliente, SolicitudOnlineDe solicitud)
     {
-        var creada = await cliente.PostAsJsonAsync("/api/v1/solicitudes/online", cuerpo).EsperarAsync(HttpStatusCode.Created);
+        var (_, _, token) = await api.CrearClienteConfirmadoAsync(solicitud.Correo);
+        cliente.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        var creada = await cliente.PostAsJsonAsync("/api/v1/mis/solicitudes", new
+        {
+            descripcionGeneral = "Letrero para la vitrina",
+            detalles = new[] { new { idProducto = 1, descripcion = "Letrero luminoso", anchoMm = 1000, altoMm = 2000, cantidad = 2 } }
+        }).EsperarAsync(HttpStatusCode.Created);
         return creada.GetProperty("idSolicitud").GetInt32();
     }
 
     private Task<CorreoSaliente?> AvisoDeAsync(int idSolicitud) =>
         api.ConsultarAsync(db => db.CorreosSalientes.AsNoTracking().SingleOrDefaultAsync(c => c.Referencia == $"solicitud:{idSolicitud}"));
+
+    // Fase 7: cada solicitud en linea deja ademas la confirmacion al cliente (correo aparte).
+    private Task<CorreoSaliente?> ConfirmacionDeAsync(int idSolicitud) =>
+        api.ConsultarAsync(db => db.CorreosSalientes.AsNoTracking().SingleOrDefaultAsync(c => c.Referencia == $"confirmacion:{idSolicitud}"));
 
     private Task AdelantarReintentosAsync() =>
         api.ConsultarAsync(db => db.CorreosSalientes.Where(c => c.Estado == "pendiente")
@@ -78,16 +87,19 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
         Assert.Equal(ApiFixture.AvisosTaller, aviso.Destinatarios);
         Assert.Equal("pendiente", aviso.Estado);
         Assert.Equal(0, aviso.Intentos);
-        Assert.Contains($"N.º {id}", aviso.Asunto);
+        Assert.Contains($"#{id}", aviso.Asunto);
         Assert.Equal(correo, aviso.ResponderA);
+        var confirmacion = await ConfirmacionDeAsync(id);
+        Assert.NotNull(confirmacion);
+        Assert.Equal(correo, confirmacion.Destinatarios);
     }
 
     [Fact]
     public async Task LaSolicitudDelCliente_Avisa_YLaPresencial_No()
     {
-        var cliente = await api.RegistrarClienteAsync();
+        var cliente = await api.CrearClienteConfirmadoAsync();
         var propia = await api.Cliente(cliente.Token)
-            .PostAsJsonAsync("/api/v1/mis/solicitudes", new { descripcionGeneral = "Toldo para el almacén" })
+            .PostAsJsonAsync("/api/v1/mis/solicitudes", ApiFixture.CuerpoSolicitud(descripcion: "Toldo para el almacén"))
             .EsperarAsync(HttpStatusCode.Created);
         var presencial = await api.CrearSolicitudAsync();
 
@@ -120,7 +132,8 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
 
         var resultado = await ProcesarAsync(api.Services);
 
-        Assert.Equal(1, resultado.Enviados);
+        // El aviso al taller y la confirmacion al cliente (fase 7).
+        Assert.Equal(2, resultado.Enviados);
         var aviso = await AvisoDeAsync(id);
         Assert.Equal("enviado", aviso!.Estado);
         Assert.NotNull(aviso.FechaEnvio);
@@ -132,10 +145,10 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
         Assert.Equal("synctime@test.local", Assert.Single(mensaje.From.Mailboxes).Address);
         Assert.Equal("Letreros Herrera", Assert.Single(mensaje.From.Mailboxes).Name);
         Assert.Equal(correo, Assert.Single(mensaje.ReplyTo.Mailboxes).Address);
-        Assert.Equal($"Nueva solicitud N.º {id} · Juana Pruebas", mensaje.Subject);
+        Assert.Equal($"Nueva solicitud #{id} - Cli Web", mensaje.Subject);
         Assert.Equal("auto-generated", mensaje.Headers["Auto-Submitted"]);
         Assert.Contains("cid:logo-lh", mensaje.HtmlBody);
-        Assert.Contains("https://synctime.test/panel", mensaje.HtmlBody);
+        Assert.Contains($"https://synctime.test/panel/solicitudes/{id}", mensaje.HtmlBody);
         Assert.Contains("2 × ", mensaje.TextBody);
         Assert.Contains("Letrero luminoso, 100 × 200 cm", mensaje.TextBody);
         var logo = Assert.Single(mensaje.BodyParts.OfType<MimePart>(), p => p.ContentId == "logo-lh");
@@ -153,7 +166,7 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
         using var indice = await api.Cliente().GetAsync("/dev/bandeja");
         var html = await indice.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, indice.StatusCode);
-        Assert.Contains($"N.º {id}", html);
+        Assert.Contains($"#{id}", html);
         Assert.Contains(archivo, html);
 
         using var vista = await api.Cliente().GetAsync($"/dev/bandeja/{archivo}");
@@ -227,9 +240,11 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
         Assert.StartsWith("servidor", aviso.UltimoError);
         Assert.InRange(aviso.ProximoIntento - DateTimeOffset.UtcNow, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(1.1));
 
-        // Antes de su hora no se vuelve a intentar.
+        // Antes de su hora el aviso no se vuelve a intentar. Sale solo la confirmacion al cliente (fase 7),
+        // que el servidor caido dejo sin intentar: el lote se detiene al primer fallo del servidor.
         smtp.ModoActual = ServidorSmtpDePrueba.Modo.Acepta;
-        Assert.Equal(0, (await ProcesarAsync(porSmtp.Services)).Enviados);
+        Assert.Equal(1, (await ProcesarAsync(porSmtp.Services)).Enviados);
+        Assert.Equal(1, (await AvisoDeAsync(id))!.Intentos);
 
         await AdelantarReintentosAsync();
         var segundo = await ProcesarAsync(porSmtp.Services);
@@ -239,8 +254,8 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
         Assert.Equal("enviado", aviso!.Estado);
         Assert.Equal(2, aviso.Intentos);
         Assert.Null(aviso.UltimoError);
-        var recibido = Assert.Single(smtp.Recibidos);
-        Assert.Contains("To: avisos.taller@test.local", recibido);
+        Assert.Equal(2, smtp.Recibidos.Count);
+        var recibido = Assert.Single(smtp.Recibidos, m => m.Contains("To: avisos.taller@test.local"));
         Assert.Contains("multipart/alternative", recibido);
     }
 
@@ -266,7 +281,7 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
 
         smtp.ModoActual = ServidorSmtpDePrueba.Modo.Acepta;
         await AdelantarReintentosAsync();
-        Assert.Equal(1, (await ProcesarAsync(porSmtp.Services)).Enviados);
+        Assert.Equal(2, (await ProcesarAsync(porSmtp.Services)).Enviados);
         Assert.Equal("enviado", (await AvisoDeAsync(id))!.Estado);
     }
 
@@ -284,7 +299,8 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
 
         var resultado = await ProcesarAsync(api.Services);
 
-        Assert.Equal(0, resultado.Enviados);
+        // Solo sale la confirmacion al cliente (fase 7); el aviso interrumpido no.
+        Assert.Equal(1, resultado.Enviados);
         var aviso = await AvisoDeAsync(id);
         Assert.Equal("fallido", aviso!.Estado);
         Assert.StartsWith("interrumpido", aviso.UltimoError);
@@ -301,7 +317,8 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
                 .SetProperty(c => c.Intentos, 1)
                 .SetProperty(c => c.BloqueadoHasta, DateTimeOffset.UtcNow.AddMinutes(-1))));
 
-        Assert.Equal(1, (await ProcesarAsync(api.Services)).Enviados);
+        // El aviso retomado y la confirmacion al cliente (fase 7).
+        Assert.Equal(2, (await ProcesarAsync(api.Services)).Enviados);
         Assert.Equal("enviado", (await AvisoDeAsync(id))!.Estado);
     }
 
@@ -444,7 +461,8 @@ public sealed class ColaDeCorreoTests(ApiFixture api)
         var logs = new LogsEnMemoria();
         await using var porSmtp = api.ConVariables(PorSmtp(smtp, usuario: UsuarioCentinela, clave: ClaveCentinela), logs);
 
-        using var respuesta = await porSmtp.Cliente().PostAsJsonAsync("/api/v1/solicitudes/online", SolicitudOnline());
+        var (_, _, token) = await api.CrearClienteConfirmadoAsync();
+        using var respuesta = await porSmtp.Cliente(token).PostAsJsonAsync("/api/v1/mis/solicitudes", ApiFixture.CuerpoSolicitud());
         var cuerpo = await respuesta.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
         var id = System.Text.Json.JsonDocument.Parse(cuerpo).RootElement.GetProperty("idSolicitud").GetInt32();
