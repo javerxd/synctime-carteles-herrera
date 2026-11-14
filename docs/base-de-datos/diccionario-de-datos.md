@@ -124,7 +124,7 @@ Cabecera de cada pedido de trabajo de un cliente, en línea o en el local (RFS04
 | `row_version` | rowversion | No | automática | Control de concurrencia: la API lo recibe en `If-Match` y lo compara al editar o cambiar el estado |
 | `huella_ip` | char(64) | Sí | | **Nueva (fase 7).** HMAC-SHA256 de la IP de envío con una clave del servidor (`Solicitudes:ClaveHuella` o una derivada de `Jwt:Key`). En IPv6 se usa el prefijo /64. Nunca se guarda la IP en claro. Solo la usa la regla contra solicitudes falsas; es nula en las presenciales |
 
-Restricciones: `pk_solicitudes`, `fk_solicitudes_cliente`, `fk_solicitudes_empleado`, `ck_solicitudes_estado`. Índices: `ix_solicitudes_metricas` (`fecha_solicitud`, `origen`, `estado`, `eliminado_logico`) para indicadores y bandeja; `ix_solicitudes_cliente` (`id_cliente`, `eliminado_logico`) para el historial de un cliente; `ix_solicitudes_huella_ip` (`huella_ip`, `fecha_solicitud`, filtrado a las no nulas), que busca las solicitudes de las últimas 24 horas de una misma IP para la regla contra solicitudes falsas.
+Restricciones: `pk_solicitudes`, `fk_solicitudes_cliente`, `fk_solicitudes_empleado`, `ck_solicitudes_estado`. Índices: `ix_solicitudes_metricas` (`fecha_solicitud`, `origen`, `estado`, `eliminado_logico`) para indicadores y bandeja; `ix_solicitudes_cliente` (`id_cliente`, `eliminado_logico`) para el historial de un cliente; `ix_solicitudes_huella_ip` (`huella_ip`, `fecha_solicitud`, filtrado a las no nulas), que busca las solicitudes de la última hora (configurable) de una misma IP para la regla contra solicitudes falsas.
 
 ## solicitud_detalles
 

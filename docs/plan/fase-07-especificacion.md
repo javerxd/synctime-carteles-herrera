@@ -70,9 +70,9 @@ Acompaña a `fase-07-plan.md` (aprobado el 14-11-2026). Si algo no está aquí, 
     - la cuenta tiene una solicitud en línea pendiente («solicitado» o «cotizado», no eliminada);
     - otra solicitud pendiente tiene el mismo RUT del cliente;
     - la huella de la IP tiene una solicitud en línea pendiente;
-    - la IP ya envió 3 solicitudes en línea en las últimas 24 horas.
+    - la IP ya envió 3 solicitudes en línea en la última hora (RNFP33, configurable).
   - **Cómo se rechaza:** **no se escribe nada** (ni solicitud, ni adjuntos vinculados, ni correos) y se responde **409** con `codigo: "contacto_directo"`.
-  - **Mensaje:** el mismo para todos los motivos, y no revela de quién es la otra solicitud: «Ya tenemos una solicitud tuya en revisión. Para agregar algo o pedir otra cosa, escríbenos por WhatsApp o llámanos.».
+  - **Mensaje:** el mismo para todos los motivos, y no revela de quién es la otra solicitud: el texto de S25, «Para esta solicitud es preferible contactarse directamente con el local», con el horario, el teléfono y WhatsApp.
   - **Contacto:** el frontend lo arma con el horario, el estado del cartel (`GET /api/v1/local/estado`), el teléfono y el WhatsApp de `src/configuracion/taller.js`.
 - **Ítems:**
   - **Datos:** de 1 a 10 ítems; cada uno con `idProducto` (activo), `descripcion` opcional (máximo 500), `anchoMm` y `altoMm` (ambos o ninguno; de 1 a 50 000) y `cantidad` (de 1 a 999).
