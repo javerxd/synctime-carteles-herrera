@@ -1,6 +1,6 @@
 # Plan de la fase 8 — Cotizaciones, pedidos, pagos y abonos
 
-Fecha: 14-11-2026 · Rama: `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · Estado: **propuesta, esperando tu aprobación**
+Fecha: 14-11-2026 · Rama: `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · Estado: **aprobado el 14-11-2026** · especificación: `fase-08-especificacion.md`
 
 Requisitos del plan general: RFS05, RFS06, RFS04 (seguimiento del cliente), RNFO02, RNFP32, RNFP10, RFU07, RFU08, RFU12–RFU15, RFU35, RFU36, E06–E09, E25–E27, S04, S06–S08, S24.
 
@@ -102,7 +102,7 @@ stateDiagram-v2
 
 - **En «Mis solicitudes»:** cada solicitud muestra su número, fecha, estado y motivo si fue rechazada. Si tiene cotización, también su total y estado, con «Aprobar» y «Rechazar» mientras está pendiente.
 - **Si hay pedido:** se ven el estado del pedido, el estado de pago, el saldo, la fecha estimada y la modalidad.
-- **Lo que no ve:** solo ve lo suyo, sin datos internos como costos por material, quién la elaboró por dentro u observaciones del personal.
+- **Lo que ve de la cotización:** todo lo que pide S06 (detalle de materiales, mano de obra, otros costos, total y el nombre de quien la elaboró). Solo ve lo suyo, y no ve el historial interno del pedido ni quién registró cada abono.
 
 ## 7. Migración `CotizacionesYPedidos` (solo agrega; demo, no la real)
 
@@ -126,7 +126,7 @@ stateDiagram-v2
 - **Entregar sin pagar:** un pedido se entrega sin pagar y se cierra al completar el pago.
 - **Tope de abonos:** ningún abono supera el monto final, ni siquiera con dos abonos simultáneos.
 - **Cobranza:** el filtro de cobranza y el total por cobrar coinciden con un cálculo hecho a mano sobre datos sembrados.
-- **Errores:** una transición inválida responde 409 con explicación, y una versión vieja responde 412.
+- **Errores:** una transición inválida responde 409 con explicación, y una versión vieja responde 409 `version_obsoleta`, como en la fase 7.
 - **Privacidad:** el cliente no ve cotizaciones ni pedidos ajenos.
 - **Pruebas no vacías:** quitar el tope de abonos, la regla de una pendiente o el bloqueo del pedido hace fallar su prueba.
 - **Diseño:**

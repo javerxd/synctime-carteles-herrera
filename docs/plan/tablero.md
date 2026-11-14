@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026 (fase 7 aprobada; plan de la fase 8 propuesto).
+Última actualización: 14-11-2026 (fase 7 aprobada; fase 8 en curso).
 
 ## Hecho
 
@@ -22,7 +22,7 @@ _(ninguna)_
 
 ## En curso
 
-- **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · plan: `fase-08-plan.md`, cuatro decisiones del usuario tomadas el 14-11-2026; esperando la aprobación del plan
+- **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · plan aprobado el 14-11-2026: `fase-08-plan.md`, especificación: `fase-08-especificacion.md`
 
 ## Por hacer
 
