@@ -200,7 +200,7 @@ La ficha del personal (`GET /solicitudes/{id}`) añade `idCliente`, `registradaP
 - la IP tiene una solicitud en línea pendiente;
 - la IP ya envió 3 solicitudes en línea en la última hora (configurable).
 
-Cuando frena, **no se escribe nada** (ni la solicitud, ni los adjuntos vinculados, ni los correos) y responde `409` con `codigo: "contacto_directo"` y el mismo mensaje para todos los motivos: «Ya tenemos una solicitud tuya en revisión. Para agregar algo o pedir otra cosa, escríbenos por WhatsApp o llámanos.». Ese mensaje no revela de quién es la otra solicitud. La IP nunca se guarda en claro: se guarda su HMAC-SHA256 con una clave del servidor (`solicitudes.huella_ip`). En IPv6 se usa el prefijo /64. Las solicitudes presenciales no pasan por esta regla. Ver `docs/plan/desviaciones.md` sobre la ventana de 24 horas.
+Cuando frena, **no se escribe nada** (ni la solicitud, ni los adjuntos vinculados, ni los correos) y responde `409` con `codigo: "contacto_directo"` y el mismo mensaje para todos los motivos, el texto de S25: «Para esta solicitud es preferible contactarse directamente con el local». Ese mensaje no revela de quién es la otra solicitud. La IP nunca se guarda en claro: se guarda su HMAC-SHA256 con una clave del servidor (`solicitudes.huella_ip`). En IPv6 se usa el prefijo /64. Las solicitudes presenciales no pasan por esta regla.
 
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
