@@ -29,6 +29,8 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<Consentimiento> Consentimientos { get; set; } = null!;
     public DbSet<Imagen> Imagenes { get; set; } = null!;
     public DbSet<ConsultaContacto> ConsultasContacto { get; set; } = null!;
+    public DbSet<TokenRenovacion> TokensRenovacion { get; set; } = null!;
+    public DbSet<CodigoCuenta> CodigosCuenta { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,7 +43,11 @@ public class LetrerosHerreradbContext : DbContext
         modelBuilder.Entity<Cliente>(entity =>
         {
             entity.ToTable("clientes", t =>
-                t.HasCheckConstraint("ck_clientes_email", "email IS NULL OR (email LIKE N'%_@_%._%' AND email NOT LIKE N'% %')"));
+            {
+                t.HasCheckConstraint("ck_clientes_email", "email IS NULL OR (email LIKE N'%_@_%._%' AND email NOT LIKE N'% %')");
+                // Fase 6 (RFS03): no hay cuenta web sin correo; el correo es el usuario y el canal de recuperacion.
+                t.HasCheckConstraint("ck_clientes_cuenta_con_correo", "password_hash IS NULL OR email IS NOT NULL");
+            });
             entity.HasKey(e => e.IdCliente).HasName("pk_clientes");
             entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
             entity.Property(e => e.Rut).HasColumnName("rut").HasMaxLength(12).IsUnicode(false);
@@ -56,6 +62,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro").HasColumnType("datetime2(0)")
                 .HasDefaultValueSql("SYSDATETIME()");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
+            entity.Property(e => e.FechaVerificacionCorreo).HasColumnName("fecha_verificacion_correo").HasColumnType("datetimeoffset(0)");
 
             entity.HasIndex(e => e.Telefono).IsUnique().HasDatabaseName("uq_clientes_telefono");
             entity.HasIndex(e => e.Rut).IsUnique().HasFilter("[rut] IS NOT NULL").HasDatabaseName("uq_clientes_rut");
@@ -646,6 +653,71 @@ public class LetrerosHerreradbContext : DbContext
                 .HasForeignKey(e => e.IdEmpleado)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("fk_consentimientos_empleado");
+        });
+
+        // ── tokens_renovacion (fase 6) ──
+        modelBuilder.Entity<TokenRenovacion>(entity =>
+        {
+            entity.ToTable("tokens_renovacion", t =>
+                t.HasCheckConstraint("ck_tokens_renovacion_titular",
+                    "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1"));
+            entity.HasKey(e => e.IdToken).HasName("pk_tokens_renovacion");
+            entity.Property(e => e.IdToken).HasColumnName("id_token");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.Hash).HasColumnName("hash_token").HasMaxLength(64).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.Familia).HasColumnName("familia");
+            entity.Property(e => e.FechaCreacion).HasColumnName("fecha_creacion").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaExpiracion).HasColumnName("fecha_expiracion").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaUso).HasColumnName("fecha_uso").HasColumnType("datetimeoffset(3)");
+            entity.Property(e => e.FechaRevocacion).HasColumnName("fecha_revocacion").HasColumnType("datetimeoffset(0)");
+
+            // Cada renovacion busca por hash; revocar una sesion, por familia; cerrar todas, por titular.
+            entity.HasIndex(e => e.Hash).IsUnique().HasDatabaseName("uq_tokens_renovacion_hash");
+            entity.HasIndex(e => e.Familia).HasDatabaseName("ix_tokens_renovacion_familia");
+            entity.HasIndex(e => e.IdCliente).HasFilter("[id_cliente] IS NOT NULL").HasDatabaseName("ix_tokens_renovacion_cliente");
+            entity.HasIndex(e => e.IdEmpleado).HasFilter("[id_empleado] IS NOT NULL").HasDatabaseName("ix_tokens_renovacion_empleado");
+            entity.HasIndex(e => e.FechaExpiracion).HasDatabaseName("ix_tokens_renovacion_expiracion");
+
+            // Si se borra la cuenta, sus sesiones dejan de existir con ella.
+            entity.HasOne(e => e.Cliente).WithMany().HasForeignKey(e => e.IdCliente)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_tokens_renovacion_cliente");
+            entity.HasOne(e => e.Empleado).WithMany().HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_tokens_renovacion_empleado");
+        });
+
+        // ── codigos_cuenta (fase 6) ──
+        modelBuilder.Entity<CodigoCuenta>(entity =>
+        {
+            entity.ToTable("codigos_cuenta", t =>
+            {
+                t.HasCheckConstraint("ck_codigos_cuenta_titular",
+                    "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
+                t.HasCheckConstraint("ck_codigos_cuenta_proposito", "proposito IN ('verificacion_correo', 'recuperacion')");
+                t.HasCheckConstraint("ck_codigos_cuenta_intentos", "intentos >= 0");
+            });
+            entity.HasKey(e => e.IdCodigo).HasName("pk_codigos_cuenta");
+            entity.Property(e => e.IdCodigo).HasColumnName("id_codigo");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.Proposito).HasColumnName("proposito").HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.Hash).HasColumnName("hash_codigo").HasMaxLength(64).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.Correo).HasColumnName("correo").HasMaxLength(254);
+            entity.Property(e => e.FechaCreacion).HasColumnName("fecha_creacion").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaExpiracion).HasColumnName("fecha_expiracion").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaUso).HasColumnName("fecha_uso").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.Intentos).HasColumnName("intentos").HasDefaultValue(0);
+
+            // El enlace de verificacion se busca por su hash; la recuperacion, por titular y proposito.
+            entity.HasIndex(e => e.Hash).HasDatabaseName("ix_codigos_cuenta_hash");
+            entity.HasIndex(e => new { e.IdCliente, e.Proposito }).HasFilter("[id_cliente] IS NOT NULL").HasDatabaseName("ix_codigos_cuenta_cliente");
+            entity.HasIndex(e => new { e.IdEmpleado, e.Proposito }).HasFilter("[id_empleado] IS NOT NULL").HasDatabaseName("ix_codigos_cuenta_empleado");
+            entity.HasIndex(e => e.FechaExpiracion).HasDatabaseName("ix_codigos_cuenta_expiracion");
+
+            entity.HasOne(e => e.Cliente).WithMany().HasForeignKey(e => e.IdCliente)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_codigos_cuenta_cliente");
+            entity.HasOne(e => e.Empleado).WithMany().HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_codigos_cuenta_empleado");
         });
 
         // ── imagenes (fase 4) ──

@@ -317,7 +317,7 @@ public sealed class RostroFacialTests(ApiFixture api)
     {
         var email = $"cliente{api.Siguiente()}@test.local";
         await api.Cliente()
-            .PostAsJsonAsync("/api/v1/auth/registro-cliente", new { rut = api.Rut(), nombre = "Cli", apellido = "Web", telefono = api.Telefono(), email, password = ApiFixture.AdminPassword })
+            .PostAsJsonAsync("/api/v1/auth/registro-cliente", api.Registro(api.Telefono(), correo: email))
             .EsperarAsync(HttpStatusCode.Created);
 
         await LoginFacial(email, Rostro(24)).EsperarAsync(HttpStatusCode.Unauthorized);
@@ -609,7 +609,7 @@ public sealed class RostroFacialTests(ApiFixture api)
         Assert.False(await api.ConsultarAsync(db => db.Empleados.AnyAsync(e => e.Email == nuevoEmail)));
 
         // Lo mismo con la contraseña correcta funciona: el rechazo se debe a ella.
-        await conRostro.PutAsJsonAsync($"/api/v1/clientes/{idCliente}/credenciales", new { password = ApiFixture.AdminPassword, passwordActual = ApiFixture.AdminPassword })
+        await conRostro.PutAsJsonAsync($"/api/v1/clientes/{idCliente}/credenciales", new { password = ApiFixture.AdminPassword, passwordActual = ApiFixture.AdminPassword, correo = $"rostro{api.Siguiente()}@correo.test" })
             .EsperarAsync(HttpStatusCode.NoContent);
     }
 

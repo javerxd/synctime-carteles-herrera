@@ -65,7 +65,7 @@ public class CimientosTests(ApiFixture api)
             .EsperarAsync(HttpStatusCode.BadRequest);
 
         EsErrorEstandar(cuerpo, 400, "datos_invalidos");
-        Assert.Contains("requeridos", cuerpo.GetProperty("error").GetString());
+        Assert.Contains("Escribe tu correo y tu contraseña", cuerpo.GetProperty("error").GetString());
     }
 
     [Fact]
@@ -138,10 +138,10 @@ public class CimientosTests(ApiFixture api)
     {
         await using var otra = api.ConVariable("RateLimiting__PorCuenta", "1");
         var cliente = otra.Cliente();
-        var telefono = api.Telefono();
+        var correo = $"nadie{api.Siguiente()}@correo.test";
 
-        await cliente.PostAsJsonAsync("/api/v1/auth/login-cliente", new { telefono, password = "clave-equivocada" }).EsperarAsync(HttpStatusCode.Unauthorized);
-        await cliente.PostAsJsonAsync("/api/v1/auth/login-cliente", new { telefono, password = "clave-equivocada" }).EsperarAsync(HttpStatusCode.TooManyRequests);
+        await cliente.PostAsJsonAsync("/api/v1/auth/login-cliente", new { correo, password = "clave-equivocada" }).EsperarAsync(HttpStatusCode.Unauthorized);
+        await cliente.PostAsJsonAsync("/api/v1/auth/login-cliente", new { correo, password = "clave-equivocada" }).EsperarAsync(HttpStatusCode.TooManyRequests);
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class CimientosTests(ApiFixture api)
 
         var porCorreo = await api.Cliente().PostAsJsonAsync("/api/v1/auth/login", new { email = $"{enorme}@test.local", password = "x" }).EsperarAsync(HttpStatusCode.BadRequest);
         var porPassword = await api.Cliente().PostAsJsonAsync("/api/v1/auth/login", new { email = "a@test.local", password = enorme }).EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente().PostAsJsonAsync("/api/v1/auth/login-cliente", new { telefono = enorme, password = "x" }).EsperarAsync(HttpStatusCode.BadRequest);
+        await api.Cliente().PostAsJsonAsync("/api/v1/auth/login-cliente", new { correo = enorme, password = "x" }).EsperarAsync(HttpStatusCode.BadRequest);
 
         EsErrorEstandar(porCorreo, 400, "datos_invalidos");
         EsErrorEstandar(porPassword, 400, "datos_invalidos");

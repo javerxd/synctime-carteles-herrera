@@ -35,6 +35,7 @@ dotnet ef database update --project .\LetrerosHerreraSYNCTIMEapi
 - `AgregarRostrosEmpleado` (generada): solo crea la tabla `rostros_empleado`, para el login facial.
 - `SepararEstadoPedidoYPago` (generada y completada a mano): el pedido pasa a tener estado operativo (`estado_pedido`, con `anulado` en vez de `cancelado`) y estado de pago calculado (`estado_pago`), con `monto_abonado`, `saldo_pendiente`, `numero_factura` y `origen`. Convierte los pedidos `cancelado` y recrea la vista de conversion. Revision de la profesora guia, 12-11-2026.
 - `HistorialDePagos` (generada y completada a mano): tabla `pagos` con cada abono (monto, fecha, medio de pago, quien lo registro) y el trigger `trg_pagos_recalcular_monto_abonado`, que mantiene `pedidos.monto_abonado` igual a la suma de los pagos. Aprobada por el usuario el 12-11-2026.
+- `CuentasYSesion` (generada por EF): tablas `tokens_renovacion` (sesiones con renovacion) y `codigos_cuenta` (enlaces de verificacion y codigos de recuperacion), la columna `clientes.fecha_verificacion_correo` y la restriccion `ck_clientes_cuenta_con_correo`. Solo agrega. Aplicada en la base demo; la base real espera la autorizacion del usuario.
 
 El script SQL completo de la base, el diagrama entidad-relacion y el diccionario de datos estan en `docs/base-de-datos/` de la raiz del repositorio.
 
@@ -167,6 +168,25 @@ Los endpoints publicos de la portada estan en `Endpoints/PortadaApi.cs`, y la vi
 - **Logotipos de clientes:** una publicacion con logo solo se muestra con la autorizacion registrada (`PUT /api/v1/catalogo/{id}/autorizacion-logo`, dueño o administrador).
 - **Base:** la tabla `consultas_contacto` y las columnas nuevas de `catalogo` estan en la migracion `PortadaPublica`. Esta aplicada en la base demo; la base real espera a que terminen todas las fases.
 
+## Cuentas y sesion (fase 6)
+
+Los endpoints estan en `Endpoints/AuthApi.cs` (ingreso, registro, renovacion y recuperacion), `Endpoints/CuentaApi.cs` (`/api/v1/mi-cuenta`) y `Endpoints/CookiesSesion.cs` (las cookies). La logica esta en `Services/ServiciosCuenta.cs`: `ServicioSesiones`, `ServicioCodigosCuenta` y `ServicioMiCuenta`. Lo que devuelve cada ruta esta en `docs/api/contrato.md`, seccion «Cuenta y sesion (fase 6)».
+
+- **Sesion:** el token de acceso dura 15 minutos (`Jwt:ExpirationMinutes`). La sesion la mantiene la cookie `synctime_renovacion`, `httpOnly` y solo para `/api/v1/auth`, que rota en cada renovacion. Dura 12 horas para el personal (`Sesion:HorasPersonal`) y 7 dias para el cliente (`Sesion:DiasCliente`), desde el ingreso. Si vuelve a aparecer un token ya usado, se cierra esa sesion.
+- **Correo:** el cliente ingresa con su correo, no con su telefono. Si la cuenta tiene contraseña, tiene correo. El enlace para confirmarlo sale desde `Sitio:UrlPublica`: si esa clave esta vacia, la cuenta funciona, pero el enlace no se envia y queda un error en el registro. El cliente puede pedirlo de nuevo desde Mi cuenta.
+- **Recuperacion:** codigo de 6 digitos por correo, que vence en 15 minutos y admite 5 intentos. Como maximo un codigo por minuto y cinco por hora por cuenta. La respuesta es la misma exista o no la cuenta. Los codigos se guardan con HMAC y `Jwt:Key`: cambiar esa clave invalida los pendientes.
+- **Limites:** ademas de los de `RateLimiting` por IP, `LimitadorPorCuenta` cuenta 10 fallos por minuto para el ingreso, la recuperacion y los cambios de correo y contraseña (`RateLimiting:PorCuenta`).
+- **Cookies y CORS:** las cookies son `Secure` y `SameSite=Strict`. CORS acepta credenciales solo de los origenes de `Cors:AllowedOrigins`, nunca `*`. La web y la API deben servirse en el mismo sitio: si no, el navegador no envia la cookie de renovacion.
+- **Purga:** una vez al dia, `PurgaDatosPersonales` borra las sesiones y los codigos vencidos hace mas de un dia.
+
+Configuracion nueva:
+
+- `Jwt:ExpirationMinutes`: 15 por defecto. Si falta o no es mayor que cero, se usa 15.
+- `Sesion:HorasPersonal` (12) y `Sesion:DiasCliente` (7).
+- `Sitio:UrlPublica`: la direccion de la web desde la que se confirma el correo. En Development es `http://localhost:3000`. Sin ella no se envian los enlaces. En produccion debe ser la direccion publica (fase 16).
+- `RateLimiting:PorCuenta` (10 fallos por minuto).
+- `Correo:ContactoTaller`: la direccion a la que responden los correos de la cuenta (desde la fase 5).
+
 ## Validacion
 
 ```powershell
@@ -175,7 +195,7 @@ dotnet test .\LetrerosHerreraSYNCTIMEapi.slnx -c Release
 
 Las pruebas de integracion crean una base temporal con las migraciones y la eliminan al terminar: nunca usan la base real ni la de demostracion. Usan `localhost\SQLEXPRESS`; con la variable de entorno `TEST_SQL_SERVER` se puede indicar otro servidor. El codigo de pruebas solo elimina bases cuyo nombre empiece por `SyncTime_Pruebas_`.
 
-Limites de intentos, configurables en `RateLimiting`. Son por minuto, salvo `ContactoPorHora` y `CookiesPorHora` (5 por hora cada uno, para el formulario de contacto y el aviso de cookies): `Login`, `LoginFacial`, `Reautenticacion` y `Publico` (10 por IP), `PorCuenta` (10 fallos por cuenta en los ingresos con contraseña), `ApiGeneral` (100 por usuario, o por IP sin sesion), `Salud` (60 por IP) e `Imagenes` (600 por IP, para servir las imagenes de la vitrina).
+Limites de intentos, configurables en `RateLimiting`. Son por minuto, salvo `ContactoPorHora` y `CookiesPorHora` (5 por hora cada uno, para el formulario de contacto y el aviso de cookies): `Login`, `LoginFacial`, `Reautenticacion` y `Publico` (10 por IP), `PorCuenta` (10 fallos por cuenta por minuto en los ingresos, la recuperacion y los cambios de correo o contraseña), `ApiGeneral` (100 por usuario, o por IP sin sesion), `Salud` (60 por IP) e `Imagenes` (600 por IP, para servir las imagenes de la vitrina).
 
 Los secretos se configuran mediante User Secrets o variables de entorno. No se deben publicar claves JWT, passwords ni cadenas de conexion en GitHub.
 
@@ -185,14 +205,15 @@ Una revision de seguridad dejo estos puntos, que no afectan al desarrollo pero d
 
 - **Proxy:** los limites por IP usan `RemoteIpAddress`. Detras de un proxy todos los usuarios comparten su IP, y un atacante podria bloquear el login de todos. Hay que configurar `ForwardedHeaders` con la lista de proxies de confianza.
 - **Telefonos sin verificar:** alguien puede registrar un numero ajeno, y su titular ya no podria hacerlo. Hay que verificar el telefono por SMS antes de crear la cuenta.
-- **Enumeracion de usuarios:** el registro revela que telefonos, RUT y correos ya existen, y el login tarda menos si el usuario no existe porque no ejecuta BCrypt. Se corrige en la fase 6 del plan.
-- **Bloqueo de una cuenta ajena:** el limite por cuenta permite que quien conoce el correo de otra persona agote sus intentos y le impida entrar con contraseña mientras insista. Es propio de todo limite por cuenta; el acceso con rostro no se ve afectado.
+- **Enumeracion de usuarios:** el registro revela que un correo ya tiene cuenta. Desde la fase 6, un telefono o un RUT ya registrados dan el mismo mensaje, y el login gasta el mismo tiempo exista o no la cuenta. Para no revelar tampoco el correo habria que confirmarlo antes de crear la cuenta: queda como decision pendiente.
+- **Bloqueo de una cuenta ajena:** el limite por cuenta permite que quien conoce el correo de otra persona agote sus intentos y le impida entrar con contraseña mientras insista. Es propio de todo limite por cuenta; el acceso con rostro no se ve afectado. Desde la fase 6 tambien bloquea la recuperacion de esa cuenta.
 - **Limites en memoria:** el limite por cuenta vive en la memoria del proceso. Con mas de una instancia de la API se multiplica, y se pierde al reiniciar.
-- **Sesiones:** un token sigue valido despues de desactivar al usuario, hasta que expira (8 horas por defecto).
+- **Sesiones:** el token de acceso sigue valido hasta 15 minutos despues de desactivar al usuario, cambiar su contraseña o cerrar su sesion. La renovacion se corta de inmediato (fase 6).
 - **HTTPS y sondas:** HSTS y la redireccion a HTTPS ya estan activos fuera de desarrollo. Una sonda de salud por HTTP recibira una redireccion: hay que sondear por HTTPS o desde la red interna.
-- **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`.
+- **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`, ni quien cambio el correo de un cliente con `PUT /api/v1/clientes/{id}`.
 - **Portada:** `frame-ancestors` (contra clickjacking) no funciona en la etiqueta `meta` de `index.html`: la cabecera la debe enviar el servidor. Las consultas de contacto y los consentimientos de cookies no tienen plazo de borrado todavia.
 - **Migraciones:** la API solo las aplica sola en Development. En produccion hay que ejecutarlas como un paso del despliegue.
+- **Sesion y sitio:** la cookie de renovacion es `SameSite=Strict`, así que la web y la API deben servirse en el mismo sitio, y `Sitio:UrlPublica` debe ser la direccion publica de la web. Ver `docs/plan/desviaciones.md`.
 - **Login facial:**
   - Calibrar el umbral con pruebas consentidas de empleados reales. Hoy es un valor provisional, sin medicion.
   - Revisar con un asesor legal el consentimiento y las preguntas de la seccion 7 de `docs/api/contrato.md`.

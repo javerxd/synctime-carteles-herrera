@@ -40,7 +40,8 @@ public static class RostroApi
     }
 
     private static async Task<IResult> IniciarSesionAsync(
-        LoginFacialRequest req, LetrerosHerreradbContext db, AuthService auth, RostroFacialService rostros)
+        LoginFacialRequest req, HttpContext contexto, LetrerosHerreradbContext db, AuthService auth, RostroFacialService rostros,
+        ServicioSesiones sesiones, CancellationToken ct)
     {
         if (!rostros.Configurado)
             return NoDisponible();
@@ -72,7 +73,8 @@ public static class RostroApi
             if (permitido && coincide)
             {
                 await LimpiarIntentosAsync(db, rostro.IdRostro);
-                return AuthApi.RespuestaEmpleado(rostro.Empleado, auth);
+                // Mismo tipo de sesion que con la contraseña: token corto y renovacion en cookie (fase 6).
+                return await AuthApi.SesionEmpleadoAsync(contexto, rostro.Empleado, auth, sesiones, ct);
             }
         }
 

@@ -1,6 +1,6 @@
 # Contrato de la API para el frontend
 
-Este documento reune lo necesario para adaptar el frontend (`frontend/synctimefront`) cuando esten definidos los requisitos finales. **Estado al 06-11-2026:** la API esta lista y probada. En el frontend solo esta hecho el login facial de empleados (seccion 7); el resto sigue usando el contrato anterior.
+Este documento reune lo necesario para adaptar el frontend (`frontend/synctimefront`) cuando esten definidos los requisitos finales. **Estado al 13-11-2026:** la API esta lista y probada hasta la fase 6 (cuentas y sesion). En el frontend, el ingreso, el registro, la recuperacion y Mi cuenta usan este contrato desde la fase 6. El login facial de empleados se describe en la seccion 7.
 
 La referencia viva es Scalar (`/scalar`) y OpenAPI (`/openapi/v1.json`), disponibles en Development.
 
@@ -17,12 +17,12 @@ La referencia viva es Scalar (`/scalar`) y OpenAPI (`/openapi/v1.json`), disponi
 
 ## 2. Sesion y roles
 
-El token va en la cabecera `Authorization: Bearer <token>` y dura 480 minutos, salvo que se configure `Jwt:ExpirationMinutes`.
+El token de acceso va en la cabecera `Authorization: Bearer <token>` y dura 15 minutos (`Jwt:ExpirationMinutes`). La sesion continua con una cookie de renovacion que la API deja al ingresar: ver «Cuenta y sesion (fase 6)» en la seccion 4.
 
 | Login | Cuerpo | Respuesta |
 | --- | --- | --- |
-| `POST /auth/login` (personal) | `{ email, password }` | `{ token, usuario: { idEmpleado, nombre, apellido, email, rol } }` |
-| `POST /auth/login-cliente` | `{ telefono, password }` | `{ token, cliente: { idCliente, nombre, apellido, telefono, email } }` |
+| `POST /auth/login` (personal) | `{ email, password }` | `{ token, tipo: "empleado", usuario: { idEmpleado, nombre, apellido, email, rol } }` |
+| `POST /auth/login-cliente` | `{ correo, password }` | `{ token, tipo: "cliente", usuario: { idCliente, nombre, apellido, telefono, email, correoVerificado } }`. El cliente entra con su correo, no con su telefono |
 | `POST /auth/login-facial` (personal) | `{ email, descriptor, tokenEquipo? }` | Lo mismo que `/auth/login`. Ver seccion 7 |
 
 Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administrador`, `diseñador`, `operario` y `cliente`. En la tabla de rutas:
@@ -43,7 +43,7 @@ Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administra
 | `404` | No existe, o no es visible para quien lo pide |
 | `409` | Duplicado, tiene registros asociados, o lo modifico otra persona |
 | `413` | El cuerpo supera el tope de su ruta: 8 KB en el login de rostro, 64 KB al activar el rostro, y 16 KB en `POST /contacto` y `POST /consentimientos/cookies` |
-| `429` | Limite por IP por minuto: 10 logins con contraseña, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos o 100 peticiones generales. Cada uno tiene su contador. `POST /contacto` y `POST /consentimientos/cookies` tienen además 5 envíos por hora por IP cada uno (`RateLimiting:ContactoPorHora` y `CookiesPorHora`) |
+| `429` | Limite por IP por minuto: 10 logins con contraseña, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos o 100 peticiones generales. Cada uno tiene su contador. `POST /contacto` y `POST /consentimientos/cookies` tienen además 5 envíos por hora por IP cada uno (`RateLimiting:ContactoPorHora` y `CookiesPorHora`). Ademas, 10 fallos por cuenta por minuto en el ingreso, la recuperacion y los cambios de correo o contraseña (`RateLimiting:PorCuenta`) |
 | `503` | El login facial no esta disponible porque falta su clave de cifrado |
 
 **Edicion simultanea.** Solicitudes y pedidos traen `rowVersion` en sus respuestas. Las rutas que los editan lo exigen:
@@ -76,7 +76,7 @@ Todas llevan el prefijo `/api/v1`. Un `?` indica un campo opcional.
 
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
-| `POST /auth/registro-cliente` | Publico | `{ rut, nombre, apellido, telefono, email?, direccion?, password }`. Password de 8 a 72 caracteres. `409` si el telefono existe |
+| `POST /auth/registro-cliente` | Publico | `{ rut?, nombre, apellido, telefono, correo, direccion?, password, aceptaTerminosYPrivacidad, aceptaMarketing, versionTerminos, versionPrivacidad, versionMarketing? }`. `201` con la sesion iniciada (`{ token, tipo, usuario }`), la cookie de renovacion y el envio del enlace para confirmar el correo. Terminos y privacidad son obligatorios; el marketing es otra casilla, sin marcar por defecto. Password de 8 a 72 caracteres. `400` con los errores por campo; `409` si el correo ya tiene cuenta, si el telefono o el RUT ya estan en el taller, o si cambiaron las versiones de los textos; `413` si supera 16 KB |
 | `POST /auth/empleados` | Gestion | `{ rut, nombre, apellido, telefono, email, password, rol, passwordActual }`. `password` es la del empleado nuevo; `passwordActual`, la de quien lo crea |
 | `GET /auth/me` | Con sesion | Lista de claims del token |
 | `POST /auth/login-facial` | Publico | `{ email, descriptor, tokenEquipo? }`. Todo fallo responde el mismo `401` vacio |
@@ -85,13 +85,38 @@ Todas llevan el prefijo `/api/v1`. Un `?` indica un campo opcional.
 | `POST /auth/rostro/equipo` | `dueño`, `administrador` | `{ password }`. Autoriza este equipo y anula el anterior. Devuelve `{ tokenEquipo, equipoVence }` |
 | `DELETE /auth/rostro` | Personal | Borra los datos biometricos sin pedir contraseña. Responde `204`, tambien si no estaba activo |
 
+### Cuenta y sesion (fase 6)
+
+La sesion tiene dos piezas. El **token de acceso** (15 minutos) va en `Authorization`, y la pagina lo guarda solo en memoria. El **token de renovacion** va en la cookie `synctime_renovacion`: `httpOnly`, `Secure`, `SameSite=Strict` y solo para `/api/v1/auth`, asi que no viaja en las demas peticiones. La cookie `synctime_csrf` sí la puede leer la pagina, y debe repetirse en la cabecera `X-CSRF-Token` al renovar y al salir: un sitio ajeno no puede leerla, asi que no puede imitar esas peticiones.
+
+- **Duracion:** 12 horas para el personal (`Sesion:HorasPersonal`) y 7 dias para el cliente (`Sesion:DiasCliente`), contados desde el ingreso. Renovar el token no alarga la sesion.
+- **Rotacion:** cada renovacion cambia la cookie. Si vuelve a aparecer un token ya usado, se cierra toda su sesion. Dos pestañas que renuevan a la vez tienen 10 segundos de gracia: la segunda recibe `409` y reintenta con la cookie nueva.
+- **Cierre:** `POST /auth/salir` cierra la sesion de ese equipo. Cambiar o restablecer la contraseña y desactivar la cuenta cierran todas las sesiones de la cuenta. Cambiar el correo desde Mi cuenta no las cierra (exige la contraseña y avisa al correo anterior); cuando lo cambia el personal con `PUT /clientes/{id}`, sí se cierran. El token de acceso ya emitido sigue valido hasta 15 minutos.
+- **Cuenta inactiva:** si la cuenta ya no esta activa, la renovacion la rechaza y cierra la sesion.
+
+| Ruta | Quien | Cuerpo y notas |
+| --- | --- | --- |
+| `POST /auth/renovar` | Publico, con cookie | Sin cuerpo. Exige `X-CSRF-Token` igual a la cookie `synctime_csrf`; si falta o no coincide, `400`. Responde `200` con `{ token, tipo, usuario }` y rota la cookie. `401` si la sesion no sirve (borra las cookies); `409` si otra pestaña acaba de renovarla: reintentar |
+| `POST /auth/salir` | Publico, con cookie | Sin cuerpo. Exige `X-CSRF-Token`. Revoca la sesion de este equipo y borra las cookies. `204` |
+| `POST /auth/verificar-correo` | Publico | `{ token }`, el del enlace del correo. `200` con `{ verificado: true }`. `400` si el enlace ya se uso, vencio (24 horas) o el correo cambio despues de enviarlo |
+| `POST /auth/reenviar-verificacion` | Cliente | Sin cuerpo. `202`. Envia un enlace nuevo solo si el correo aun no esta confirmado; el anterior deja de servir. `404` si la cuenta ya no esta activa |
+| `POST /auth/recuperar` | Publico | `{ tipo, correo }`, con `tipo` `cliente` o `personal`. `202` con el mismo mensaje exista o no la cuenta, y tarda lo mismo. Envia un codigo de 6 digitos que vence en 15 minutos. Como maximo 1 codigo por minuto y 5 por hora por cuenta: si se supera, no se envia nada y la respuesta sigue igual. `400` si el tipo no es valido |
+| `POST /auth/restablecer` | Publico | `{ tipo, correo, codigo, password }`. `204`: cambia la contraseña, consume el codigo y cierra todas las sesiones de la cuenta. Solo sirve el codigo enviado al correo actual de la cuenta, de un solo uso y con 5 intentos. `400` con `errores.codigo` (incorrecto, vencido o agotado) o `errores.password` |
+| `GET /mi-cuenta` | Cliente | `{ idCliente, nombre, apellido, rut, telefono, correo, direccion, correoVerificado, marketing }`. Solo los datos del propio cliente: el id sale del token |
+| `PUT /mi-cuenta` | Cliente | `{ rut?, nombre, apellido, telefono, direccion? }`. Responde la cuenta. `400` por campo. `409` si el telefono o el RUT ya son de otra persona. El RUT es opcional y puede quitarse |
+| `PUT /mi-cuenta/correo` | Cliente | `{ correo, passwordActual }`. Responde la cuenta con `correoVerificado: false`, avisa al correo anterior y envia el enlace al nuevo. `400` si la contraseña no es correcta (`errores.passwordActual`) o el correo no sirve; `409` si ya esta en otra cuenta. Limite: 10 fallos por minuto |
+| `PUT /mi-cuenta/password` | Cliente | `{ passwordActual, passwordNueva }`. Responde `{ token }`: cierra todas las sesiones de la cuenta, incluida la actual, y abre una nueva en este equipo. `400` con `errores.passwordActual` o `errores.passwordNueva`. Limite: 10 fallos por minuto |
+| `PUT /mi-cuenta/marketing` | Cliente | `{ acepta, version? }`. `204`. Aceptar exige la version vigente del marketing (`409` si cambio). Retirarlo no pide version y no afecta a los terminos |
+
+**Correo y enlaces.** El correo es el usuario para ingresar y para recuperar la contraseña, así que una cuenta con contraseña siempre tiene correo. El cliente puede usar su cuenta sin confirmar el correo. Confirmarlo es necesario para las campañas (fase 11), y la fase 7 decidirá si las solicitudes en línea lo exigen (ver `docs/plan/desviaciones.md`). El enlace de confirmación dura 24 horas, sirve una sola vez y sale desde `Sitio:UrlPublica`.
+
 ### Clientes, personal y materiales
 
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
 | `GET /clientes`, `GET /clientes/{id}` | Personal | |
-| `POST /clientes`, `PUT /clientes/{id}` | `dueño`, `administrador`, `operario` | `{ rut?, nombre, apellido, telefono, email?, direccion?, activo? }` |
-| `PUT /clientes/{id}/credenciales` | `dueño`, `administrador`, `operario` | `{ password, passwordActual }`. Activa el acceso web de un cliente que ya existe. `password` es la del cliente; `passwordActual`, la de quien la asigna |
+| `POST /clientes`, `PUT /clientes/{id}` | `dueño`, `administrador`, `operario` | `{ rut?, nombre, apellido, telefono, email?, direccion?, activo? }`. El correo se guarda en minusculas y sin espacios. Un cliente con contraseña necesita correo (`400`). Si el correo cambia, queda sin confirmar y se envia un enlace nuevo. Desactivarlo o cambiarle el correo cierra sus sesiones |
+| `PUT /clientes/{id}/credenciales` | `dueño`, `administrador`, `operario` | `{ password, passwordActual, correo? }`. Activa el acceso web de un cliente que ya existe. Sin correo no hay cuenta: si el cliente no tiene uno guardado, hay que enviarlo en `correo`. `400` si el correo no sirve; `409` si el cliente esta desactivado o el correo ya es de otra cuenta. Cierra sus sesiones anteriores y envia el enlace para confirmar el correo si aun no esta confirmado. `password` es la del cliente; `passwordActual`, la de quien la asigna |
 | `DELETE /clientes/{id}` | Gestion | `409` si tiene solicitudes |
 | `GET /empleados`, `GET /materiales` | Personal | |
 
@@ -205,12 +230,12 @@ Implementado solo para empleados. Complementa a email y contraseña, que siguen 
 
 | Rol | Que necesita para entrar con rostro | Riesgo |
 | --- | --- | --- |
-| `dueño`, `administrador` | Rostro y un **equipo autorizado** | Frena una foto o un descriptor copiado usados desde otro equipo. No frena a alguien con una foto en el equipo autorizado, ni a un programa malicioso o un script inyectado que robe el token de `localStorage` |
+| `dueño`, `administrador` | Rostro y un **equipo autorizado** | Frena una foto o un descriptor copiado usados desde otro equipo. No frena a alguien con una foto en el equipo autorizado, ni a un programa malicioso o a un script inyectado en la pagina, que puede pedir un token nuevo con la cookie de renovacion (desde la fase 6, el token ya no esta en `localStorage`) |
 | `diseñador`, `operario` | Solo el rostro | **Riesgo aceptado por decision del responsable del proyecto:** quien tenga su email y una foto, o un descriptor copiado, puede entrar desde cualquier lugar, y esa cuenta ve datos de clientes y de empleados |
 
 Conviene autorizar solo equipos no compartidos. Cada persona tiene un solo equipo autorizado, que vence a los 30 dias (`RostroFacial:DiasEquipo`).
 
-Una sesion iniciada con rostro es igual a una normal: dura 8 horas y sigue valida tras desactivar al empleado. Lo unico que sigue exigiendo la contraseña es crear empleados, asignar credenciales, activar el rostro y autorizar un equipo.
+Una sesion iniciada con rostro es igual a una normal: dura lo que cualquier sesion del personal (12 horas, con renovacion, `Sesion:HorasPersonal`). Su token de acceso sigue valido hasta 15 minutos despues de desactivar al empleado, y la renovacion lo rechaza de inmediato. Lo unico que sigue exigiendo la contraseña es crear empleados, asignar credenciales, activar el rostro y autorizar un equipo.
 
 ### Flujos
 
@@ -264,3 +289,5 @@ Son reglas que la API aplica hoy por decision tecnica, sin que las haya definido
 - Una solicitud admite hasta 50 detalles.
 - Solo se pueden pedir productos activos.
 - El login facial admite un solo equipo autorizado por persona, y `diseñador` y `operario` no lo necesitan (seccion 7).
+- Una cuenta web de cliente exige correo: el correo es el usuario para ingresar y para recuperar la contraseña. El RUT tambien es opcional en la cuenta (decision de la fase 6, en `docs/plan/desviaciones.md`).
+- Registrarse con un telefono o un RUT que ya estan en el taller da el mismo mensaje, sin decir cual de los dos coincide. El correo si se revela («Ya existe una cuenta con ese correo»).

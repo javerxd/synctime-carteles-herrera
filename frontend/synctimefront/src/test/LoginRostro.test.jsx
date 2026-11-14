@@ -71,7 +71,8 @@ describe('Acceso del personal: entrar con rostro', () => {
 
     await waitFor(() => expect(authService.loginFacial).toHaveBeenCalledWith('empleado@letrerosherrera.cl', [0.1, 0.2]));
     expect(screen.queryByText(/la contraseña es obligatoria/i)).not.toBeInTheDocument();
-    await waitFor(() => expect(JSON.parse(sessionStorage.getItem('synctime_sesion'))?.token).toBe('t'));
+    await waitFor(() => expect(almacenSesion.obtenerToken()).toBe('t'));
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain('"t"');
     expect(pista.stop).toHaveBeenCalled();
   });
 
@@ -89,7 +90,8 @@ describe('Acceso del personal: entrar con rostro', () => {
     fireEvent.change(screen.getByLabelText(/^contraseña/i), { target: { value: 'una-password' } });
     fireEvent.click(screen.getByRole('button', { name: /iniciar sesión/i }));
 
-    await waitFor(() => expect(JSON.parse(sessionStorage.getItem('synctime_sesion'))?.token).toBe('con-password'));
+    await waitFor(() => expect(almacenSesion.obtenerToken()).toBe('con-password'));
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain('con-password');
   });
 
   it.each([

@@ -292,6 +292,10 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("fecha_registro")
                         .HasDefaultValueSql("SYSDATETIME()");
 
+                    b.Property<DateTimeOffset?>("FechaVerificacionCorreo")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_verificacion_correo");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -342,7 +346,92 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.ToTable("clientes", null, t =>
                         {
+                            t.HasCheckConstraint("ck_clientes_cuenta_con_correo", "password_hash IS NULL OR email IS NOT NULL");
+
                             t.HasCheckConstraint("ck_clientes_email", "email IS NULL OR (email LIKE N'%_@_%._%' AND email NOT LIKE N'% %')");
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.CodigoCuenta", b =>
+                {
+                    b.Property<long>("IdCodigo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id_codigo");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdCodigo"));
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)")
+                        .HasColumnName("correo");
+
+                    b.Property<DateTimeOffset>("FechaCreacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_creacion");
+
+                    b.Property<DateTimeOffset>("FechaExpiracion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_expiracion");
+
+                    b.Property<DateTimeOffset?>("FechaUso")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_uso");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("hash_codigo")
+                        .IsFixedLength();
+
+                    b.Property<int?>("IdCliente")
+                        .HasColumnType("int")
+                        .HasColumnName("id_cliente");
+
+                    b.Property<int?>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.Property<int>("Intentos")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("intentos");
+
+                    b.Property<string>("Proposito")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("proposito");
+
+                    b.HasKey("IdCodigo")
+                        .HasName("pk_codigos_cuenta");
+
+                    b.HasIndex("FechaExpiracion")
+                        .HasDatabaseName("ix_codigos_cuenta_expiracion");
+
+                    b.HasIndex("Hash")
+                        .HasDatabaseName("ix_codigos_cuenta_hash");
+
+                    b.HasIndex("IdCliente", "Proposito")
+                        .HasDatabaseName("ix_codigos_cuenta_cliente")
+                        .HasFilter("[id_cliente] IS NOT NULL");
+
+                    b.HasIndex("IdEmpleado", "Proposito")
+                        .HasDatabaseName("ix_codigos_cuenta_empleado")
+                        .HasFilter("[id_empleado] IS NOT NULL");
+
+                    b.ToTable("codigos_cuenta", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_codigos_cuenta_intentos", "intentos >= 0");
+
+                            t.HasCheckConstraint("ck_codigos_cuenta_proposito", "proposito IN ('verificacion_correo', 'recuperacion')");
+
+                            t.HasCheckConstraint("ck_codigos_cuenta_titular", "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
                         });
                 });
 
@@ -1611,6 +1700,78 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.TokenRenovacion", b =>
+                {
+                    b.Property<long>("IdToken")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id_token");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdToken"));
+
+                    b.Property<Guid>("Familia")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("familia");
+
+                    b.Property<DateTimeOffset>("FechaCreacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_creacion");
+
+                    b.Property<DateTimeOffset>("FechaExpiracion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_expiracion");
+
+                    b.Property<DateTimeOffset?>("FechaRevocacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_revocacion");
+
+                    b.Property<DateTimeOffset?>("FechaUso")
+                        .HasColumnType("datetimeoffset(3)")
+                        .HasColumnName("fecha_uso");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("hash_token")
+                        .IsFixedLength();
+
+                    b.Property<int?>("IdCliente")
+                        .HasColumnType("int")
+                        .HasColumnName("id_cliente");
+
+                    b.Property<int?>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.HasKey("IdToken")
+                        .HasName("pk_tokens_renovacion");
+
+                    b.HasIndex("Familia")
+                        .HasDatabaseName("ix_tokens_renovacion_familia");
+
+                    b.HasIndex("FechaExpiracion")
+                        .HasDatabaseName("ix_tokens_renovacion_expiracion");
+
+                    b.HasIndex("Hash")
+                        .IsUnique()
+                        .HasDatabaseName("uq_tokens_renovacion_hash");
+
+                    b.HasIndex("IdCliente")
+                        .HasDatabaseName("ix_tokens_renovacion_cliente")
+                        .HasFilter("[id_cliente] IS NOT NULL");
+
+                    b.HasIndex("IdEmpleado")
+                        .HasDatabaseName("ix_tokens_renovacion_empleado")
+                        .HasFilter("[id_empleado] IS NOT NULL");
+
+                    b.ToTable("tokens_renovacion", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_tokens_renovacion_titular", "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
+                        });
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.CartelDigital", b =>
                 {
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoModifica")
@@ -1654,6 +1815,25 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("Imagen");
 
                     b.Navigation("Producto");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.CodigoCuenta", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("IdCliente")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_codigos_cuenta_cliente");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_codigos_cuenta_empleado");
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Empleado");
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Consentimiento", b =>
@@ -1840,6 +2020,25 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("Producto");
 
                     b.Navigation("Solicitud");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.TokenRenovacion", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("IdCliente")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_tokens_renovacion_cliente");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_tokens_renovacion_empleado");
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Empleado");
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Categoria", b =>

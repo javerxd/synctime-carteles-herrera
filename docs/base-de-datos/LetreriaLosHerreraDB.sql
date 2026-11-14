@@ -1,5 +1,5 @@
 ﻿-- =====================================================================================
--- SyncTime - Letreros Herrera
+-- SyncTime - Letrería Los Herrera
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
 -- triggers, vista y procedimiento almacenado. Estado: migración ServiciosComunes.
 -- Generado el 13-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
@@ -67,7 +67,9 @@ CREATE TABLE [clientes] (
     [registrado] AS CONVERT(BIT, CASE WHEN password_hash IS NOT NULL THEN 1 ELSE 0 END) PERSISTED,
     [fecha_registro] datetime2(0) NOT NULL DEFAULT (SYSDATETIME()),
     [activo] bit NOT NULL DEFAULT CAST(1 AS bit),
+    [fecha_verificacion_correo] datetimeoffset(0) NULL,
     CONSTRAINT [pk_clientes] PRIMARY KEY ([id_cliente]),
+    CONSTRAINT [ck_clientes_cuenta_con_correo] CHECK (password_hash IS NULL OR email IS NOT NULL),
     CONSTRAINT [ck_clientes_email] CHECK (email IS NULL OR (email LIKE N'%_@_%._%' AND email NOT LIKE N'% %'))
 );
 GO
@@ -182,6 +184,27 @@ CREATE TABLE [cartel_digital] (
 GO
 
 
+CREATE TABLE [codigos_cuenta] (
+    [id_codigo] bigint NOT NULL IDENTITY,
+    [id_cliente] int NULL,
+    [id_empleado] int NULL,
+    [proposito] varchar(20) NOT NULL,
+    [hash_codigo] char(64) NOT NULL,
+    [correo] nvarchar(254) NOT NULL,
+    [fecha_creacion] datetimeoffset(0) NOT NULL,
+    [fecha_expiracion] datetimeoffset(0) NOT NULL,
+    [fecha_uso] datetimeoffset(0) NULL,
+    [intentos] int NOT NULL DEFAULT 0,
+    CONSTRAINT [pk_codigos_cuenta] PRIMARY KEY ([id_codigo]),
+    CONSTRAINT [ck_codigos_cuenta_intentos] CHECK (intentos >= 0),
+    CONSTRAINT [ck_codigos_cuenta_proposito] CHECK (proposito IN ('verificacion_correo', 'recuperacion')),
+    CONSTRAINT [ck_codigos_cuenta_titular] CHECK ((CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1),
+    CONSTRAINT [fk_codigos_cuenta_cliente] FOREIGN KEY ([id_cliente]) REFERENCES [clientes] ([id_cliente]) ON DELETE CASCADE,
+    CONSTRAINT [fk_codigos_cuenta_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado]) ON DELETE CASCADE
+);
+GO
+
+
 CREATE TABLE [consentimientos] (
     [id_consentimiento] int NOT NULL IDENTITY,
     [id_cliente] int NULL,
@@ -251,6 +274,24 @@ CREATE TABLE [solicitudes] (
     CONSTRAINT [ck_solicitudes_estado] CHECK (estado IN (N'solicitado', N'cotizado', N'aceptado', N'rechazado')),
     CONSTRAINT [fk_solicitudes_cliente] FOREIGN KEY ([id_cliente]) REFERENCES [clientes] ([id_cliente]) ON DELETE NO ACTION,
     CONSTRAINT [fk_solicitudes_empleado] FOREIGN KEY ([id_empleado_registra]) REFERENCES [empleados] ([id_empleado])
+);
+GO
+
+
+CREATE TABLE [tokens_renovacion] (
+    [id_token] bigint NOT NULL IDENTITY,
+    [id_cliente] int NULL,
+    [id_empleado] int NULL,
+    [hash_token] char(64) NOT NULL,
+    [familia] uniqueidentifier NOT NULL,
+    [fecha_creacion] datetimeoffset(0) NOT NULL,
+    [fecha_expiracion] datetimeoffset(0) NOT NULL,
+    [fecha_uso] datetimeoffset(3) NULL,
+    [fecha_revocacion] datetimeoffset(0) NULL,
+    CONSTRAINT [pk_tokens_renovacion] PRIMARY KEY ([id_token]),
+    CONSTRAINT [ck_tokens_renovacion_titular] CHECK ((CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1),
+    CONSTRAINT [fk_tokens_renovacion_cliente] FOREIGN KEY ([id_cliente]) REFERENCES [clientes] ([id_cliente]) ON DELETE CASCADE,
+    CONSTRAINT [fk_tokens_renovacion_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado]) ON DELETE CASCADE
 );
 GO
 
@@ -493,6 +534,22 @@ CREATE UNIQUE INDEX [uq_clientes_telefono] ON [clientes] ([telefono]);
 GO
 
 
+CREATE INDEX [ix_codigos_cuenta_cliente] ON [codigos_cuenta] ([id_cliente], [proposito]) WHERE [id_cliente] IS NOT NULL;
+GO
+
+
+CREATE INDEX [ix_codigos_cuenta_empleado] ON [codigos_cuenta] ([id_empleado], [proposito]) WHERE [id_empleado] IS NOT NULL;
+GO
+
+
+CREATE INDEX [ix_codigos_cuenta_expiracion] ON [codigos_cuenta] ([fecha_expiracion]);
+GO
+
+
+CREATE INDEX [ix_codigos_cuenta_hash] ON [codigos_cuenta] ([hash_codigo]);
+GO
+
+
 CREATE INDEX [ix_consentimientos_cliente] ON [consentimientos] ([id_cliente], [tipo]) WHERE [id_cliente] IS NOT NULL;
 GO
 
@@ -636,6 +693,26 @@ GO
 CREATE INDEX [ix_solicitudes_metricas] ON [solicitudes] ([fecha_solicitud], [origen], [estado], [eliminado_logico]);
 GO
 
+
+CREATE INDEX [ix_tokens_renovacion_cliente] ON [tokens_renovacion] ([id_cliente]) WHERE [id_cliente] IS NOT NULL;
+GO
+
+
+CREATE INDEX [ix_tokens_renovacion_empleado] ON [tokens_renovacion] ([id_empleado]) WHERE [id_empleado] IS NOT NULL;
+GO
+
+
+CREATE INDEX [ix_tokens_renovacion_expiracion] ON [tokens_renovacion] ([fecha_expiracion]);
+GO
+
+
+CREATE INDEX [ix_tokens_renovacion_familia] ON [tokens_renovacion] ([familia]);
+GO
+
+
+CREATE UNIQUE INDEX [uq_tokens_renovacion_hash] ON [tokens_renovacion] ([hash_token]);
+GO
+
 -- -------------------------------------------------------------------------------------
 -- 2. Objetos que el modelo no expresa (migraciones ObjetosProgramablesV6, SepararEstadoPedidoYPago y HistorialDePagos)
 -- -------------------------------------------------------------------------------------
@@ -756,7 +833,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261112224624_SepararEstadoPedidoYPago', N'10.0.11'),
     (N'20261113010201_HistorialDePagos', N'10.0.11'),
     (N'20261113111453_ServiciosComunes', N'10.0.11'),
-    (N'20261113154234_PortadaPublica', N'10.0.11');
+    (N'20261113154234_PortadaPublica', N'10.0.11'),
+    (N'20261114002321_CuentasYSesion', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

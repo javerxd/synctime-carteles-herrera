@@ -1,6 +1,6 @@
 # Diccionario de datos — LetreriaLosHerreraDB
 
-Estado del esquema: migración `PortadaPublica` (13-11-2026), 19 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
+Estado del esquema: migración `CuentasYSesion` (13-11-2026), 21 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
 
 **Convenciones**
 - Motor SQL Server 2025 Express, intercalación `Modern_Spanish_CI_AS` (ordena y compara en español, sin distinguir mayúsculas).
@@ -8,10 +8,10 @@ Estado del esquema: migración `PortadaPublica` (13-11-2026), 19 tablas. Diagram
 - **PK** clave primaria (entera, autoincremental salvo que se diga otra cosa). **FK** clave foránea. **UQ** valor único.
 - **Calculada**: columna que calcula SQL Server y guarda (`PERSISTED`); no se escribe a mano.
 - **Montos en pesos chilenos sin decimales** (RNFO05). Las columnas nuevas usan `int`. Las anteriores son `decimal(12,2)` y siempre guardan valores enteros: la API y la interfaz validan que no tengan decimales.
-- Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`) y las de la fase 5 (`consultas_contacto` y la autorización del logo en `catalogo`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local.
+- Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`) y las de la fase 5 (`consultas_contacto` y la autorización del logo en `catalogo`) y la fase 6 (`tokens_renovacion`, `codigos_cuenta` y `clientes.fecha_verificacion_correo`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local.
 - `row_version` es un `rowversion`: cambia en cada modificación y permite rechazar el cambio de un registro que otra persona modificó después de abrirlo (RNFP10).
 
-Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026).
+Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026).
 
 ---
 
@@ -26,14 +26,15 @@ Personas que piden trabajos. Un cliente puede existir sin cuenta: lo registra el
 | `nombre` | nvarchar(80) | No | | Nombre |
 | `apellido` | nvarchar(80) | No | | Apellido |
 | `telefono` | varchar(20) | No | | Teléfono. UQ: sirve para buscar al cliente antes de crearlo |
-| `email` | nvarchar(100) | Sí | | Correo. UQ si existe. CHECK de formato |
+| `email` | nvarchar(100) | Sí | | Correo. UQ si existe. CHECK de formato. **CAMBIA (fase 6):** es obligatorio si hay contraseña, y es el usuario para ingresar y para recuperarla |
 | `direccion` | nvarchar(255) | Sí | | Dirección |
-| `password_hash` | varchar(100) | Sí | | Hash BCrypt de la contraseña. Nulo si no tiene cuenta |
+| `password_hash` | varchar(100) | Sí | | Hash BCrypt de la contraseña. Nulo si no tiene cuenta. Solo puede haberlo con correo (`ck_clientes_cuenta_con_correo`, fase 6) |
 | `registrado` | bit | — | Calculada: 1 si tiene `password_hash` | Indica si tiene cuenta |
 | `fecha_registro` | datetime2(0) | No | `SYSDATETIME()` | Fecha de alta |
 | `activo` | bit | No | 1 | **0 = cuenta inhabilitada** (borrado lógico). Cuando un cliente da de baja su cuenta no se borran sus pedidos: se conserva la integridad histórica y contable |
+| `fecha_verificacion_correo` | datetimeoffset(0) | Sí | | **NUEVA (fase 6).** Cuándo confirmó el correo, con el enlace o con el código de recuperación. Nulo = sin confirmar. Cambiar el correo la vuelve a dejar nula |
 
-Restricciones: `pk_clientes`, `uq_clientes_telefono`, `uq_clientes_rut` (filtrado: RUT no nulo), `uq_clientes_email` (filtrado: correo no nulo), `ck_clientes_email`.
+Restricciones: `pk_clientes`, `uq_clientes_telefono`, `uq_clientes_rut` (filtrado: RUT no nulo), `uq_clientes_email` (filtrado: correo no nulo), `ck_clientes_email`, `ck_clientes_cuenta_con_correo` (fase 6).
 
 ## empleados
 
@@ -306,7 +307,7 @@ Restricciones: `pk_rostros_empleado`, `fk_rostros_empleado_empleado`. Índice ú
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
 | `id_correo` | bigint | No | autoincremental | PK |
-| `tipo` | varchar(40) | No | | `aviso_solicitud_nueva`, `prueba`, … |
+| `tipo` | varchar(40) | No | | `aviso_solicitud_nueva`, `prueba`, … Desde la fase 6, también `verificacion_correo`, `recuperacion_cuenta` y `aviso_cambio_correo` (correos de la cuenta) |
 | `referencia` | varchar(64) | Sí | | A qué se refiere, sin abrir el cuerpo: por ejemplo `solicitud:123` |
 | `destinatarios` | nvarchar(1000) | No | | Direcciones separadas por punto y coma, validadas al encolar |
 | `responder_a` | nvarchar(254) | Sí | | A quién va la respuesta (en el aviso de solicitud, el correo del cliente) |
@@ -395,6 +396,57 @@ La misma consulta (mismo correo y mismo mensaje) enviada otra vez dentro de la h
 
 ---
 
+## tokens_renovacion
+
+**Tabla nueva (13-11-2026, fase 6).** Sesiones de la API (RNFP08, RFS03). Cada ingreso abre una **familia** (un `uniqueidentifier`). Cada renovación marca como usado el token que recibió y emite otro de la misma familia con la misma `fecha_expiracion`, así que renovar no alarga la sesión. Solo se guarda el hash SHA-256 del token: el valor viaja en la cookie `synctime_renovacion` y nunca se escribe en la base.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_token` | bigint | No | autoincremental | PK |
+| `id_cliente` | int | Sí | | FK a `clientes`, si el titular es un cliente |
+| `id_empleado` | int | Sí | | FK a `empleados`, si el titular es del personal |
+| `hash_token` | char(64) | No | | SHA-256 del token en hexadecimal. UQ: cada renovación busca por este valor |
+| `familia` | uniqueidentifier | No | | Un inicio de sesión. Cerrar una sesión revoca toda su familia |
+| `fecha_creacion` | datetimeoffset(0) | No | | Cuándo se emitió |
+| `fecha_expiracion` | datetimeoffset(0) | No | | Hasta cuándo dura la sesión, contada desde el ingreso: 12 horas para el personal (`Sesion:HorasPersonal`) y 7 días para el cliente (`Sesion:DiasCliente`) |
+| `fecha_uso` | datetimeoffset(3) | Sí | | Cuándo se usó para renovar. Un token ya usado no sirve: si vuelve a presentarse, se revoca su familia |
+| `fecha_revocacion` | datetimeoffset(0) | Sí | | Cuándo se cerró la sesión: al salir, al cambiar o restablecer la contraseña, al desactivar la cuenta o por reutilización |
+
+Restricciones: `pk_tokens_renovacion`, `fk_tokens_renovacion_cliente` y `fk_tokens_renovacion_empleado` (con `ON DELETE CASCADE`), y `ck_tokens_renovacion_titular` (exactamente uno de `id_cliente` o `id_empleado`).
+
+Índices: `uq_tokens_renovacion_hash` (único), `ix_tokens_renovacion_familia`, `ix_tokens_renovacion_expiracion`, y `ix_tokens_renovacion_cliente` e `ix_tokens_renovacion_empleado`, filtrados a los no nulos.
+
+**Retención:** las filas vencidas hace más de un día se borran con `PurgaDatosPersonales`, una vez al día.
+
+---
+
+## codigos_cuenta
+
+**Tabla nueva (13-11-2026, fase 6).** Códigos de un solo uso de las cuentas (RNFP13, E02). Hay dos propósitos: `verificacion_correo`, un enlace que confirma el correo del cliente (24 horas), y `recuperacion`, un código de 6 dígitos para cambiar la contraseña (15 minutos). Solo se guarda el hash. El del enlace es SHA-256, porque el enlace ya tiene 256 bits al azar. El del código es HMAC-SHA256 con una clave del servidor (`Jwt:Key`): con solo 6 dígitos, un hash sin clave se revierte probando todas las combinaciones.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_codigo` | bigint | No | autoincremental | PK |
+| `id_cliente` | int | Sí | | FK a `clientes`, si el titular es un cliente |
+| `id_empleado` | int | Sí | | FK a `empleados`, si es la recuperación del personal |
+| `proposito` | varchar(20) | No | | `verificacion_correo` o `recuperacion`. CHECK |
+| `hash_codigo` | char(64) | No | | Hash del enlace o del código (ver arriba). Índice no único |
+| `correo` | nvarchar(254) | No | | Correo al que se envió. Solo vale mientras sea el correo actual de la cuenta |
+| `fecha_creacion` | datetimeoffset(0) | No | | Cuándo se envió |
+| `fecha_expiracion` | datetimeoffset(0) | No | | 24 horas para la verificación; 15 minutos para la recuperación |
+| `fecha_uso` | datetimeoffset(0) | Sí | | Cuándo se usó o se anuló. Un código nuevo anula el anterior, y cambiar el correo anula los pendientes |
+| `intentos` | int | No | 0 | Intentos de código hechos. Al llegar a 5 el código deja de servir, aunque después se escriba bien |
+
+Restricciones: `pk_codigos_cuenta`, `fk_codigos_cuenta_cliente` y `fk_codigos_cuenta_empleado` (con `ON DELETE CASCADE`), `ck_codigos_cuenta_proposito`, `ck_codigos_cuenta_titular` (exactamente uno de `id_cliente` o `id_empleado`) e `ck_codigos_cuenta_intentos` (`intentos >= 0`).
+
+Índices: `ix_codigos_cuenta_hash` (el enlace se busca por su hash), `ix_codigos_cuenta_expiracion`, y `ix_codigos_cuenta_cliente` e `ix_codigos_cuenta_empleado` (por titular y propósito, filtrados a los no nulos).
+
+Límites de envío, en la API y no en la base: como máximo 1 código por minuto y 5 por hora por cuenta. Si se supera, no se envía nada y la respuesta es la misma.
+
+**Retención:** las filas vencidas hace más de un día se borran con `PurgaDatosPersonales`, una vez al día.
+
+---
+
 ## Vista, triggers y procedimiento
 
 | Objeto | Tipo | Qué hace |
@@ -415,3 +467,4 @@ La misma consulta (mismo correo y mismo mensaje) enviada otra vez dentro de la h
 | `HistorialDePagos` | 12-11-2026 | Tabla `pagos` (historial de abonos con fecha, medio y quién lo registró) y su trigger; restricción `ck_pedidos_montos_enteros`. Si algún pedido ya tenía un monto abonado, se conserva como un pago inicial. Si alguno tuviera centavos, la migración se detiene sin cambiar nada |
 | `ServiciosComunes` | 13-11-2026 | Tablas nuevas `correos_salientes` (cola de correo), `consentimientos` e `imagenes`. Solo crea tablas: no toca datos ni tablas existentes |
 | `PortadaPublica` | 13-11-2026 | Tabla nueva `consultas_contacto`. En `catalogo`, `imagen_url` deja de ser obligatoria y se agregan `id_imagen`, `incluye_logo_cliente`, `id_empleado_autoriza_logo` y `fecha_autorizacion_logo`, con sus claves foráneas, las restricciones `ck_catalogo_logo` y `ck_catalogo_autorizacion_logo` e índices. En `imagenes`, `es_ejemplo`. No borra tablas, columnas ni filas (prueba `PortadaPublica_SoloAgrega`) |
+| `CuentasYSesion` | 13-11-2026 | Tablas nuevas `tokens_renovacion` (sesiones; solo se guarda el hash del token) y `codigos_cuenta` (enlaces de verificación y códigos de recuperación; solo el hash). En `clientes`, la columna `fecha_verificacion_correo` y la restricción `ck_clientes_cuenta_con_correo`, que impide una contraseña sin correo: si algún cliente tuviera contraseña sin correo, la migración se detiene. En la base real no hay clientes (consultado el 13-11-2026). Solo agrega (prueba `CuentasYSesion_SoloAgrega`). Aplicada en la base demo; no en la real |

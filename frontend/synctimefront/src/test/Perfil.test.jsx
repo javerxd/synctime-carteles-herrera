@@ -28,7 +28,7 @@ const inactivo = { disponible: true, activo: false, requiereEquipo: true, equipo
 const activo = { ...inactivo, activo: true, fechaConsentimiento: '2026-11-06T12:00:00+00:00', equipoVence: '2026-12-06T12:00:00+00:00', equipoVigente: true };
 
 function renderPerfil() {
-  almacenSesion.guardar({ token: 't', usuario: { tipo: 'empleado', nombre: 'Ana', apellido: 'Díaz', email: EMAIL, rol: 'dueño' } });
+  almacenSesion.aplicar({ token: 't', tipo: 'empleado', usuario: { idEmpleado: 1, nombre: 'Ana', apellido: 'Díaz', email: EMAIL, rol: 'dueño' } });
   return render(
     <ProveedorAvisos>
       <Perfil />
@@ -130,7 +130,8 @@ describe('Mi perfil: acceso con rostro', () => {
     fireEvent.click(screen.getByRole('button', { name: /activar con mi rostro/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('La contraseña actual no es correcta.');
-    expect(JSON.parse(sessionStorage.getItem('synctime_sesion'))?.token).toBe('t');
+    expect(almacenSesion.obtenerToken()).toBe('t');
+    expect(almacenSesion.obtener().usuario).not.toBeNull();
   });
 
   it('avisa si este equipo no está autorizado y permite autorizarlo con la contraseña', async () => {

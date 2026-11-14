@@ -279,6 +279,11 @@ public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, TimeProvid
             .Where(c => (c.ReferenciaEnvio != null && (c.FechaRevocacion ?? c.FechaAceptacion) < limiteConsentimientos)
                 || (c.FechaRevocacion != null && c.FechaRevocacion < limiteConsentimientos))
             .ExecuteDeleteAsync(ct);
+
+        // Sesiones y codigos de cuenta vencidos hace mas de un dia: ya no sirven para nada.
+        var limiteTecnico = ahora.AddDays(-1);
+        await db.TokensRenovacion.Where(t => t.FechaExpiracion < limiteTecnico).ExecuteDeleteAsync(ct);
+        await db.CodigosCuenta.Where(c => c.FechaExpiracion < limiteTecnico).ExecuteDeleteAsync(ct);
         return new ResultadoPurga(consultas, consentimientos);
     }
 }

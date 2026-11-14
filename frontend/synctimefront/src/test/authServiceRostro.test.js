@@ -5,6 +5,7 @@ import { guardarTokenEquipo } from '../rostro/tokenEquipo';
 
 vi.mock('../api/cliente', () => ({
   api: { post: vi.fn().mockResolvedValue({}) },
+  leerCookie: vi.fn(() => null),
 }));
 
 describe('authService.loginFacial', () => {
@@ -23,7 +24,7 @@ describe('authService.loginFacial', () => {
       email: 'dueno@letreros.cl',
       descriptor: [0.1],
       tokenEquipo: 'token-del-dueno',
-    });
+    }, { sinRenovar: true });
   });
 
   it('funciona sin token: el navegador no conoce el rol', async () => {

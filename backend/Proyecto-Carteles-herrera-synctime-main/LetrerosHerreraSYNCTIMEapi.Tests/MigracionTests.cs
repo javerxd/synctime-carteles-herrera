@@ -54,12 +54,27 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task PortadaPublica_SoloAgrega()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_PortadaPublica", ultima);
         var script = await api.ConsultarAsync(db => Task.FromResult(
-            db.GetService<IMigrator>().GenerateScript("20261113111453_ServiciosComunes", ultima)));
+            db.GetService<IMigrator>().GenerateScript("20261113111453_ServiciosComunes", "20261113154234_PortadaPublica")));
 
         Assert.Contains("CREATE TABLE [consultas_contacto]", script);
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
+            Assert.DoesNotContain(prohibido, script);
+    }
+
+    // Fase 6: solo crea las tablas de sesiones y codigos, agrega una columna y una regla. En la base real
+    // no hay cuentas de cliente sin correo (consultado el 13-11-2026), asi que la regla no choca con datos.
+    [Fact]
+    public async Task CuentasYSesion_SoloAgrega()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_CuentasYSesion", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(
+            db.GetService<IMigrator>().GenerateScript("20261113154234_PortadaPublica", ultima)));
+
+        Assert.Contains("CREATE TABLE [tokens_renovacion]", script);
+        Assert.Contains("CREATE TABLE [codigos_cuenta]", script);
+        Assert.Contains("ck_clientes_cuenta_con_correo", script);
         foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
             Assert.DoesNotContain(prohibido, script);
     }
@@ -80,7 +95,9 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(33, restricciones.Count);
+        Assert.Equal(38, restricciones.Count);
+        // Fase 6: no hay cuenta web de cliente sin correo.
+        Assert.Contains("ck_clientes_cuenta_con_correo", restricciones);
         // Fase 5: un logo de cliente no se muestra sin autorizacion, y la autorizacion dice quien y cuando.
         Assert.Contains("ck_catalogo_logo", restricciones);
         Assert.Contains("ck_catalogo_autorizacion_logo", restricciones);
@@ -116,8 +133,10 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var enCascada = await Valores("SELECT name AS Value FROM sys.foreign_keys WHERE delete_referential_action_desc <> 'NO_ACTION'");
 
+        // Fase 6: las sesiones y los codigos de una cuenta desaparecen con ella.
         Assert.Equal(
-            ["fk_cot_mat_cotizacion", "fk_cotizaciones_solicitud", "fk_sol_detalles_solicitud"],
+            ["fk_codigos_cuenta_cliente", "fk_codigos_cuenta_empleado", "fk_cot_mat_cotizacion", "fk_cotizaciones_solicitud", "fk_sol_detalles_solicitud",
+             "fk_tokens_renovacion_cliente", "fk_tokens_renovacion_empleado"],
             enCascada.Order());
     }
 

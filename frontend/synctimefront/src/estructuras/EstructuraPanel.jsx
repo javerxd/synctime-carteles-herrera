@@ -45,7 +45,12 @@ function PieLateral() {
         <Insignia tono="neutro">{NOMBRE_ROL[usuario?.rol] ?? usuario?.rol}</Insignia>
       </div>
       <Boton variante="secundario" tamano="compacto" anchoCompleto iconoInicio={LogOut}
-        onClick={() => { salir(); navegar('/personal/ingresar', { replace: true, state: { motivo: 'salida' } }); }}>
+        onClick={() => {
+          const destino = '/personal/ingresar';
+          navegar(destino, { replace: true, state: { motivo: 'salida' } });
+          // Si la API no cerró la sesión, el acceso del personal lo explica.
+          salir().catch((error) => navegar(destino, { replace: true, state: { motivo: 'salida', errorSalida: error.message } }));
+        }}>
         Salir
       </Boton>
       <ul className={estilos.legales}>

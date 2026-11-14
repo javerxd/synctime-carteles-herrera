@@ -96,6 +96,40 @@ Pendientes para la fase de despliegue y operación (fase 16):
 | RNFE04 | `frame-ancestors` (protección contra clickjacking) | La etiqueta `meta` de la CSP de `index.html` no admite `frame-ancestors`: la cabecera la debe enviar el servidor | Fase 16 |
 | RNFE09 | Condiciones de uso de las teselas de OpenStreetMap | Comprobar la licencia de las teselas y la política de uso de la OSMF (ver `docs/licencias.md`) | Antes de la entrega |
 
+## Cambios y pendientes de la fase 6 (13-11-2026)
+
+No son desviaciones de un requisito: son decisiones que se tomaron al construir la cuenta y la sesión, y partes que quedan para fases posteriores.
+
+| Requisito | Qué pide | Qué se hace | Quién lo decidió | Fecha |
+|---|---|---|---|---|
+| RNFP08 | Tokens de sesión que caduquen a los 15 minutos (configurable) | El token de acceso dura 15 minutos, pero la sesión continúa con una cookie de renovación que rota en cada uso: 12 horas para el personal (`Sesion:HorasPersonal`) y 7 días para el cliente (`Sesion:DiasCliente`), contados desde el ingreso. Renovar no la alarga | Claude, fase 6 (pendiente de confirmación del usuario) | 13-11-2026 |
+| RFS03, RFU05, E02 | Ingreso del cliente también con Google | En la fase 6 solo hay correo y contraseña. Google se agrega en la fase 14, que exige el ID de cliente OAuth | Plan de construcción (fase 14) | 13-11-2026 |
+
+Decisiones de Claude en la fase 6 (objetables):
+- **RUT opcional en la cuenta.** Como en la solicitud rápida (E01). Si se escribe, se valida y debe ser único; el cliente puede quitarlo.
+- **Teléfono o RUT ya existentes dan un solo mensaje.** Al registrarse, un teléfono o un RUT que ya están en el taller dan el mismo mensaje y no dicen cuál de los dos coincide, para no revelar datos ajenos. El correo sí se revela («Ya existe una cuenta con ese correo»). Es un punto abierto: ocultarlo exigiría confirmar el correo antes de crear la cuenta.
+- **El token de acceso sigue válido hasta vencer tras revocar.** Al cerrar la sesión, cambiar la contraseña o desactivar la cuenta, el token ya emitido sirve hasta 15 minutos más. La renovación se corta de inmediato.
+- **Marketing antes de confirmar el correo.** Un cliente puede aceptar el marketing en el registro sin haber confirmado su correo. Por eso, desde la fase 11, las campañas solo irán a correos confirmados (`fecha_verificacion_correo`).
+- **Cambio de correo desde Mi cuenta.** No cierra las otras sesiones, pero exige la contraseña y avisa al correo anterior. Cuando el personal cambia el correo, sí se cierran las sesiones. Es un punto para revisar con el usuario.
+- **Cookies `SameSite=Strict`.** La web y la API deben servirse en el mismo sitio (el mismo dominio registrable); si no, el navegador no envía la cookie de renovación. Se resuelve en la fase 16, con el despliegue.
+
+Pendientes que quedan para las fases siguientes:
+
+| Requisito | Qué falta | Por qué queda para después | Responsable |
+|---|---|---|---|
+| RFU05, E02, RFS03 | Ingreso con Google | Requiere el ID de cliente OAuth de Google, que el usuario debe entregar | Fase 14 y el usuario |
+| Solicitudes en línea | Exigir correo confirmado para enviarlas | Son parte de las solicitudes de la fase 7; la decisión es del usuario | Fase 7 |
+| Campañas de marketing | Enviar solo a correos confirmados y con marketing vigente | Las campañas se construyen en la fase 11 | Fase 11 |
+| RNFE01, RFS12 | Descarga de datos (portabilidad), eliminación de la cuenta y auditoría de quién cambia credenciales o correos | Son la baja, la descarga y la auditoría de la fase 11 | Fase 11 |
+| RNFP29 | Orígenes de producción, web y API en el mismo sitio, y `Sitio:UrlPublica` con la dirección pública | Dependen del dominio y del despliegue | Fase 16 |
+| RNFP07 | Los límites por cuenta viven en memoria: con varias instancias de la API se multiplican | Requiere un almacén compartido si se escala | Fase 16 |
+
+Pendiente antes de cerrar la fase 6 (encontrado al documentarla):
+
+| Requisito | Hallazgo | Qué hace falta | Responsable |
+|---|---|---|---|
+| RNFP08, RFS03 | `frontend/synctimefront/.env.example` trae `VITE_API_URL=https://localhost:7112`, que es otro origen que la página (`localhost:3000`). `src/api/cliente.js` usa `credentials: 'same-origin'`, así que el navegador no envía la cookie de renovación: con esa configuración la sesión dura solo el token de 15 minutos. Con `VITE_API_URL` vacía, la API se llama por el proxy de Vite (`/api`) en el mismo origen | Corregir la configuración de desarrollo (o el modo de `fetch`) y comprobarlo en el navegador antes de cerrar la fase | Claude, en la siguiente tarea de código; el usuario lo revisa |
+
 ## Restricciones del equipo de desarrollo
 
 | Tema | Situación | Consecuencia |

@@ -38,6 +38,8 @@ Contenido de `.env`:
 # URL base del backend RESTful (sin barra final)
 VITE_API_URL=https://localhost:7112
 ```
+> **Importante para desarrollo (fase 6):** deja `VITE_API_URL` vacía. Así la API se llama por el proxy de Vite (`/api`), en el mismo origen, y el navegador envía la cookie de renovación. Con una URL de otro origen, como la de `.env.example`, la cookie no viaja (`credentials: 'same-origin'` en `src/api/cliente.js`) y la sesión dura solo el token de 15 minutos. Es un pendiente de la fase 6 (ver `docs/plan/desviaciones.md`).
+>
 > **Nota de Seguridad:** Ningún secreto, credencial de base de datos ni clave de firma JWT se almacena en variables `VITE_*`. Estas variables solo contienen la URL pública del backend.
 
 ---
@@ -114,11 +116,11 @@ synctimefront/
 
 ## 🔒 Seguridad Implementada (OWASP)
 
-1. **Almacenamiento seguro del JWT:** Se utiliza `sessionStorage` para aislar el token por pestaña de navegación. Al cerrar la pestaña o el navegador, la sesión se destruye automáticamente, reduciendo el riesgo de persistencia indebida.
+1. **Token de acceso solo en memoria:** el JWT de 15 minutos vive en la memoria de `src/sesion/sesion.js`, nunca en `localStorage` ni en `sessionStorage`. La sesión larga la guarda la API en una cookie `httpOnly`, y la página pide un token nuevo con `/auth/renovar`. En `sessionStorage` solo queda una marca sin datos, para saber si hay que renovar al recargar. Un script inyectado en la página sí puede pedir un token nuevo: `httpOnly` no lo impide, así que la protección contra XSS sigue siendo el punto 2.
 2. **Mitigación de XSS:** Se prohíbe el uso de `dangerouslySetInnerHTML`. Todo dato ingresado por el usuario o devuelto por la API se escapa nativamente como texto en React. Se incluye cabecera `Content-Security-Policy` en `index.html`.
 3. **Control de Acceso Basado en Roles (RBAC):** La interfaz protege rutas mediante `<ProtectedRoute>` y acciones mediante `<RoleGuard>`. Si un usuario intenta acceder a una operación restringida (ej. eliminación solo permitida al rol `dueno`), la interfaz bloquea el botón y el backend responde `403 Forbidden`, redirigiendo a `ForbiddenPage`.
 4. **Manejo de Respuestas de Error y Rate Limit:**
-   - `401 Unauthorized`: Destruye el token del almacenamiento y redirige limpiamente al login.
+   - `401 Unauthorized`: la sesión intenta renovarse una vez y repite la petición. Si no se puede, cierra la sesión y lleva al ingreso que corresponde (personal o cliente).
    - `403 Forbidden`: Muestra aviso de privilegios insuficientes.
    - `429 Too Many Requests`: Maneja límites de tasa informando al usuario sin bloquear la aplicación.
    - `400 / 422 ProblemDetails`: Mapea y asocia los errores de validación a cada campo del formulario.
@@ -161,6 +163,13 @@ synctimefront/
 - **Producción:** el build reduce `connect-src` de la CSP a `'self'` y, si `VITE_API_URL` apunta a otro origen, a ese origen.
 
 ---
+
+## Cuenta y sesión (fase 6)
+
+- **Pantallas:** `/ingresar` (cliente, con correo y contraseña), `/cuenta/registro`, `/cuenta/recuperar` (en dos pasos: pide el código y cambia la contraseña; con `?tipo=personal`, la del personal), `/cuenta/verificar` (confirma el correo con el enlace) y `/cuenta` (Mi cuenta: datos, correo, contraseña y marketing). El personal entra por `/personal/ingresar`. Las pantallas están en `src/paginas/cuenta/`, y su cliente HTTP en `src/api/cuenta.js`.
+- **Sesión** (`src/sesion/sesion.js`): el token vive solo en memoria. Se renueva un minuto antes de que venza y después de un `401`. Con `navigator.locks` una sola pestaña renueva a la vez, y `BroadcastChannel` avisa a las demás cuando alguien ingresa o sale. Al cargar la página, si hay marca en `sessionStorage`, pide un token nuevo con la cookie. `Guardas.jsx` lleva a cada usuario al ingreso que le corresponde (`RequierePersonal` y `RequiereCliente`).
+- **Cabecera CSRF:** `POST /auth/renovar` y `POST /auth/salir` envían `X-CSRF-Token` con el valor de la cookie `synctime_csrf`, que la página sí puede leer. La cookie de renovación no la puede leer.
+- **Pruebas:** `src/test/cuenta.test.jsx` y `src/test/sesion.test.jsx`, y en `e2e/pantallas.spec.js` el registro, la recuperación, la verificación del correo y que el token no quede en el almacenamiento del navegador.
 
 ## 🧪 Ejecución de Pruebas Automatizadas
 

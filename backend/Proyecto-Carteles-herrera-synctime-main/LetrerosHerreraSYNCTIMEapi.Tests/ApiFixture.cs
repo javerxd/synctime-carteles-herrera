@@ -255,18 +255,28 @@ public sealed class ApiFixture : IAsyncLifetime
     }
 
     // Registra un cliente por la web y devuelve su id y su token.
+    // Correo de prueba de un cliente registrado con RegistrarClienteAsync (fase 6: se ingresa con el correo).
+    public static string CorreoDe(string telefono) => $"cli{telefono}@correo.test";
+
+    // Cuerpo de un registro valido (fase 6): con correo y los consentimientos obligatorios.
+    public object Registro(string telefono, string? correo = null, string? rut = null, bool marketing = false) => new
+    {
+        rut, nombre = "Cli", apellido = "Web", telefono, correo = correo ?? CorreoDe(telefono), password = AdminPassword,
+        aceptaTerminosYPrivacidad = true, aceptaMarketing = marketing,
+        versionTerminos = "1.0", versionPrivacidad = "1.0", versionMarketing = marketing ? "1.0" : null
+    };
+
     public async Task<(int Id, string Telefono, string Token)> RegistrarClienteAsync()
     {
         var telefono = Telefono();
-        var creado = await Cliente()
-            .PostAsJsonAsync("/api/v1/auth/registro-cliente", new { rut = Rut(), nombre = "Cli", apellido = "Web", telefono, password = AdminPassword })
-            .EsperarAsync(HttpStatusCode.Created);
-        return (creado.GetProperty("idCliente").GetInt32(), telefono, await LoginClienteAsync(telefono, AdminPassword));
+        var creado = await Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", Registro(telefono)).EsperarAsync(HttpStatusCode.Created);
+        var usuario = creado.GetProperty("usuario");
+        return (usuario.GetProperty("idCliente").GetInt32(), telefono, creado.GetProperty("token").GetString()!);
     }
 
-    public async Task<string> LoginClienteAsync(string telefono, string password)
+    public async Task<string> LoginClienteAsync(string correo, string password)
     {
-        var respuesta = await Cliente().PostAsJsonAsync("/api/v1/auth/login-cliente", new { telefono, password }).EsperarAsync(HttpStatusCode.OK);
+        var respuesta = await Cliente().PostAsJsonAsync("/api/v1/auth/login-cliente", new { correo, password }).EsperarAsync(HttpStatusCode.OK);
         return respuesta.GetProperty("token").GetString()!;
     }
 

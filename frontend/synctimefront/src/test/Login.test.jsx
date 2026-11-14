@@ -66,8 +66,12 @@ describe('Acceso del personal con contraseña', () => {
 
     await waitFor(() => {
       expect(authService.login).toHaveBeenCalledWith('admin@letrerosherrera.cl', 'Password123!');
-      expect(JSON.parse(sessionStorage.getItem('synctime_sesion'))?.token).toBe('fake-jwt-token-123');
+      expect(almacenSesion.obtenerToken()).toBe('fake-jwt-token-123');
+      expect(almacenSesion.obtener().usuario).toMatchObject({ tipo: 'empleado', email: 'admin@letrerosherrera.cl' });
     });
+    // El token vive solo en memoria: ni sessionStorage ni localStorage lo guardan.
+    expect(JSON.stringify({ ...sessionStorage })).not.toContain('fake-jwt-token-123');
+    expect(JSON.stringify({ ...localStorage })).not.toContain('fake-jwt-token-123');
   });
 
   it('displays error alert on 401 unauthorized credentials', async () => {

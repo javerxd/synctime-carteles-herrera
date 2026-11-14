@@ -19,6 +19,9 @@ public class Cliente
     public DateTime FechaRegistro { get; set; }
     public bool Activo { get; set; } = true;
 
+    // Fase 6: cuando confirmo que el correo es suyo (enlace o codigo de recuperacion). Null = sin verificar.
+    public DateTimeOffset? FechaVerificacionCorreo { get; set; }
+
     [JsonIgnore]
     public virtual ICollection<Solicitud> Solicitudes { get; set; } = new List<Solicitud>();
 }

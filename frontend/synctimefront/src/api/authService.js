@@ -1,14 +1,22 @@
-import { api } from './cliente';
+import { api, leerCookie } from './cliente';
 import { leerTokenEquipo } from '../rostro/tokenEquipo';
 
+// Cookie legible que la API deja junto a la de renovación (httpOnly). Se repite en la cabecera
+// X-CSRF-Token al renovar y al salir: un sitio ajeno no puede leerla, así que no puede imitar esas peticiones.
+export const COOKIE_CSRF = 'synctime_csrf';
+const conCsrf = (senal) => ({ cabeceras: { 'X-CSRF-Token': leerCookie(COOKIE_CSRF) }, sinRenovar: true, senal });
+
+// Las rutas de ingreso responden 401 cuando la clave no es correcta: eso no es una sesión vencida.
+const SIN_RENOVAR = { sinRenovar: true };
+
 /**
- * Autenticación del personal y de clientes, y acceso con rostro (contrato en docs/api/contrato.md).
- * Mismas funciones que antes; ahora sobre el cliente fetch (api/cliente.js).
+ * Autenticación del personal y de clientes, sesión y acceso con rostro (contrato en docs/api/contrato.md).
+ * Ingreso, registro y renovación responden lo mismo: { token, tipo: 'empleado' | 'cliente', usuario }.
  */
 const authService = {
-  /** POST /auth/login: personal con correo y contraseña. Devuelve { token, usuario }. */
+  /** POST /auth/login: personal con correo y contraseña. */
   login(email, password) {
-    return api.post('/auth/login', { email, password });
+    return api.post('/auth/login', { email, password }, SIN_RENOVAR);
   },
 
   /**
@@ -16,12 +24,51 @@ const authService = {
    * Se envía el token de equipo si existe: el navegador no conoce el rol antes de iniciar sesión.
    */
   loginFacial(email, descriptor) {
-    return api.post('/auth/login-facial', { email, descriptor, tokenEquipo: leerTokenEquipo(email) });
+    return api.post('/auth/login-facial', { email, descriptor, tokenEquipo: leerTokenEquipo(email) }, SIN_RENOVAR);
   },
 
-  /** POST /auth/login-cliente: cliente con teléfono y contraseña (la fase 6 lo pasa a correo). */
-  loginCliente(telefono, password) {
-    return api.post('/auth/login-cliente', { telefono, password });
+  /** POST /auth/login-cliente: el cliente ingresa con su correo y su contraseña. */
+  loginCliente(correo, password) {
+    return api.post('/auth/login-cliente', { correo, password }, SIN_RENOVAR);
+  },
+
+  /**
+   * POST /auth/registro-cliente (201): crea la cuenta y deja la sesión iniciada.
+   * datos: { nombre, apellido, telefono, correo, rut?, direccion?, password, aceptaTerminosYPrivacidad,
+   * aceptaMarketing, versionTerminos, versionPrivacidad, versionMarketing }.
+   */
+  registrarCliente(datos) {
+    return api.post('/auth/registro-cliente', datos, SIN_RENOVAR);
+  },
+
+  /** POST /auth/renovar (`senal`: tiempo máximo): con la cookie httpOnly y la cabecera CSRF. 200 | 401 | 409 (otra pestaña renovaba). */
+  renovar(senal) {
+    return api.post('/auth/renovar', undefined, conCsrf(senal));
+  },
+
+  /** POST /auth/salir (204): revoca la sesión de esta cookie. */
+  async salir(senal) {
+    await api.post('/auth/salir', undefined, conCsrf(senal));
+  },
+
+  /** POST /auth/verificar-correo: { verificado: true } o 400 si el enlace no sirve. */
+  verificarCorreo(token) {
+    return api.post('/auth/verificar-correo', { token }, SIN_RENOVAR);
+  },
+
+  /** POST /auth/reenviar-verificacion (cliente con sesión): 202 { mensaje }. */
+  reenviarVerificacion() {
+    return api.post('/auth/reenviar-verificacion');
+  },
+
+  /** POST /auth/recuperar: 202 { mensaje }, la misma respuesta exista o no la cuenta. tipo: 'cliente' | 'personal'. */
+  recuperar(tipo, correo) {
+    return api.post('/auth/recuperar', { tipo, correo }, SIN_RENOVAR);
+  },
+
+  /** POST /auth/restablecer: 204, o 400 con errores.codigo o errores.password. */
+  async restablecer({ tipo, correo, codigo, password }) {
+    await api.post('/auth/restablecer', { tipo, correo, codigo, password }, SIN_RENOVAR);
   },
 
   /** GET /auth/rostro: estado del acceso con rostro y texto del consentimiento. */

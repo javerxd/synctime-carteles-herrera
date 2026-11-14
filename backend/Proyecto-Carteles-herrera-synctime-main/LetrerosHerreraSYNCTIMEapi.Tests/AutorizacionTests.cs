@@ -168,7 +168,7 @@ public sealed class AutorizacionTests(ApiFixture api)
         var telefono = api.Telefono();
         await api.Cliente(await api.TokenAdminAsync()).PostAsJsonAsync("/api/v1/clientes/", new { nombre = "Real", apellido = "Cliente", telefono }).EsperarAsync(HttpStatusCode.Created);
 
-        await api.Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", new { rut = api.Rut(), nombre = "Impostor", apellido = "X", telefono, password = ApiFixture.AdminPassword })
+        await api.Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", api.Registro(telefono, correo: $"impostor{api.Siguiente()}@correo.test"))
             .EsperarAsync(HttpStatusCode.Conflict);
     }
 
@@ -189,9 +189,12 @@ public sealed class AutorizacionTests(ApiFixture api)
         await api.Cliente(admin).PutAsJsonAsync($"/api/v1/clientes/{id}/credenciales", new { password = ApiFixture.AdminPassword, passwordActual = "no-es-mi-password" }).EsperarAsync(HttpStatusCode.BadRequest);
         Assert.False(await api.ConsultarAsync(db => db.Clientes.Where(c => c.IdCliente == id).Select(c => c.Registrado).SingleAsync()));
 
-        await api.Cliente(admin).PutAsJsonAsync($"/api/v1/clientes/{id}/credenciales", new { password = ApiFixture.AdminPassword, passwordActual = ApiFixture.AdminPassword }).EsperarAsync(HttpStatusCode.NoContent);
+        // Sin correo no hay cuenta web (fase 6).
+        await api.Cliente(admin).PutAsJsonAsync($"/api/v1/clientes/{id}/credenciales", new { password = ApiFixture.AdminPassword, passwordActual = ApiFixture.AdminPassword }).EsperarAsync(HttpStatusCode.BadRequest);
+        var correo = ApiFixture.CorreoDe(telefono);
+        await api.Cliente(admin).PutAsJsonAsync($"/api/v1/clientes/{id}/credenciales", new { password = ApiFixture.AdminPassword, passwordActual = ApiFixture.AdminPassword, correo }).EsperarAsync(HttpStatusCode.NoContent);
 
-        var token = await api.LoginClienteAsync(telefono, ApiFixture.AdminPassword);
+        var token = await api.LoginClienteAsync(correo, ApiFixture.AdminPassword);
         await api.Cliente(token).GetAsync("/api/v1/mis/solicitudes").EsperarAsync(HttpStatusCode.OK);
         var leido = await api.Cliente(admin).GetAsync($"/api/v1/clientes/{id}").EsperarAsync(HttpStatusCode.OK);
         Assert.True(leido.GetProperty("registrado").GetBoolean());
@@ -201,9 +204,10 @@ public sealed class AutorizacionTests(ApiFixture api)
     [Fact]
     public async Task Registration_RejectsMissingDataAndWeakPassword()
     {
-        await api.Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", new { nombre = "A", apellido = "B", telefono = api.Telefono(), password = ApiFixture.AdminPassword })
+        // Sin correo, con contraseña corta o sin aceptar los términos y la privacidad: 400 sin crear nada.
+        await api.Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", new { nombre = "A", apellido = "B", telefono = api.Telefono(), password = ApiFixture.AdminPassword, aceptaTerminosYPrivacidad = true, versionTerminos = "1.0", versionPrivacidad = "1.0" })
             .EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", new { rut = api.Rut(), nombre = "A", apellido = "B", telefono = api.Telefono(), password = "corta" })
+        await api.Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", new { nombre = "A", apellido = "B", telefono = api.Telefono(), correo = $"a{api.Siguiente()}@correo.test", password = "corta", aceptaTerminosYPrivacidad = true, versionTerminos = "1.0", versionPrivacidad = "1.0" })
             .EsperarAsync(HttpStatusCode.BadRequest);
     }
 

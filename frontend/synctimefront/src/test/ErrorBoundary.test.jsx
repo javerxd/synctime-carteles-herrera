@@ -53,7 +53,7 @@ describe('ErrorBoundary', () => {
 describe('El panel con una pantalla que falla', () => {
   beforeEach(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    almacenSesion.guardar({ token: 't', usuario: { tipo: 'empleado', nombre: 'Ana', apellido: 'Díaz', email: 'a@b.cl', rol: 'dueño' } });
+    almacenSesion.aplicar({ token: 't', tipo: 'empleado', usuario: { idEmpleado: 1, nombre: 'Ana', apellido: 'Díaz', email: 'a@b.cl', rol: 'dueño' } });
   });
   afterEach(() => {
     vi.restoreAllMocks();

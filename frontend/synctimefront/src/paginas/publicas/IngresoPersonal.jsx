@@ -5,6 +5,7 @@ import { Aviso, Boton, Campo, Enlace, Tarjeta } from '../../componentes/ui';
 import CapturaFacial from '../../componentes/CapturaFacial';
 import { mensajeDeError } from '../../rostro/motorFacial';
 import { useDevolverFoco } from '../../rostro/useDevolverFoco';
+import { rutaInterna } from '../../sesion/rutas';
 import { useSesion } from '../../sesion/sesion';
 import estilos from './IngresoPersonal.module.css';
 
@@ -29,8 +30,9 @@ export default function IngresoPersonal() {
   const botonRostro = useDevolverFoco(capturando || verificando);
 
   // Tras salir no se vuelve a la pantalla del usuario anterior: quien entre después parte en el inicio.
-  const destino = (ubicacion.state?.motivo !== 'salida' && ubicacion.state?.desde?.pathname) || '/panel';
+  const destino = rutaInterna(ubicacion.state?.motivo !== 'salida' ? ubicacion.state?.desde?.pathname : null, '/panel');
   const sesionVencida = ubicacion.state?.motivo === 'vencida';
+  const avisoRecibido = ubicacion.state?.aviso;
 
   const validarCorreo = useCallback(() => {
     const valor = email.trim();
@@ -110,7 +112,9 @@ export default function IngresoPersonal() {
         <h1 id="titulo-ingreso" className={estilos.titulo}>Acceso del personal</h1>
         <p className={estilos.bajada}>Panel de SyncTime para el equipo de Letreros Herrera.</p>
 
-        {sesionVencida && !errores.formulario && (
+        {ubicacion.state?.errorSalida && <Aviso tono="peligro" titulo={ubicacion.state.errorSalida} />}
+        {avisoRecibido && !errores.formulario && <Aviso tono="exito" titulo={avisoRecibido} />}
+        {sesionVencida && !avisoRecibido && !errores.formulario && (
           <Aviso tono="info" titulo="Tu sesión venció">Vuelve a ingresar para seguir donde estabas.</Aviso>
         )}
         {errores.formulario && <Aviso tono="peligro" titulo={errores.formulario} />}
@@ -137,6 +141,9 @@ export default function IngresoPersonal() {
             disabled={bloqueado}
             error={errores.password}
           />
+          <p className={estilos.olvido}>
+            <Enlace como={Link} to="/cuenta/recuperar?tipo=personal">¿Olvidaste tu contraseña?</Enlace>
+          </p>
           <Boton type="submit" anchoCompleto cargando={cargando && !verificando} textoCargando="Iniciando sesión…" disabled={capturando}>
             Iniciar sesión
           </Boton>

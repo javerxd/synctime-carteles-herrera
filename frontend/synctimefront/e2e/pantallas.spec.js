@@ -51,20 +51,45 @@ function tokenDePrueba() {
   return `cabecera.${carga}.firma`;
 }
 
-async function entrarComo(page, rol) {
+const destinoDe = (ruta) => new URL(ruta.request().url()).pathname.replace(/\/$/, '');
+
+const CLIENTE = { idCliente: 9, nombre: 'Rosa', apellido: 'Pino', telefono: '912345678', email: 'rosa@correo.test', correoVerificado: false };
+const MI_CUENTA = {
+  idCliente: 9, nombre: 'Rosa', apellido: 'Pino', rut: null, telefono: '912345678', correo: 'rosa@correo.test',
+  direccion: null, correoVerificado: false, marketing: false,
+};
+
+/**
+ * Sesión simulada (fase 6): el token vive solo en memoria, así que la página la recupera al cargar con
+ * POST /auth/renovar. La marca de sessionStorage le dice que hay sesión; la API simulada entrega el token.
+ */
+async function conSesion(page, sesion, extras = {}) {
   await page.route('**/api/v1/**', (ruta) => {
-    const url = new URL(ruta.request().url());
-    const cuerpo = RESPUESTAS[url.pathname.replace(/\/$/, '')];
+    const destino = destinoDe(ruta);
+    if (destino === '/api/v1/auth/renovar') return ruta.fulfill({ json: { token: tokenDePrueba(), ...sesion } });
+    if (destino === '/api/v1/auth/salir') return ruta.fulfill({ status: 204 });
+    const cuerpo = extras[destino] ?? RESPUESTAS[destino];
     return cuerpo ? ruta.fulfill({ json: cuerpo }) : ruta.fulfill({ status: 404, json: { error: 'No encontrado' } });
   });
-  await page.addInitScript(([token, usuario]) => {
-    sessionStorage.setItem('synctime_sesion', JSON.stringify({ token, usuario }));
-  }, [tokenDePrueba(), { tipo: 'empleado', idEmpleado: 1, nombre: 'Marta', apellido: 'Fuentes', email: 'dueno@letreria.test', rol }]);
+  await page.addInitScript(() => sessionStorage.setItem('synctime_hay_sesion', '1'));
+}
+
+function entrarComo(page, rol) {
+  return conSesion(page, {
+    tipo: 'empleado', usuario: { idEmpleado: 1, nombre: 'Marta', apellido: 'Fuentes', email: 'dueno@letreria.test', rol },
+  });
+}
+
+function entrarComoCliente(page) {
+  return conSesion(page, { tipo: 'cliente', usuario: CLIENTE }, { '/api/v1/mi-cuenta': MI_CUENTA });
 }
 
 const PANTALLAS = [
   ['/', 'Letreros que se ven de lejos.'],
-  ['/ingresar', 'Ingresar'],
+  ['/ingresar', 'Ingresar a tu cuenta'],
+  ['/cuenta/registro', 'Crear cuenta'],
+  ['/cuenta/recuperar', 'Recuperar tu contraseña'],
+  ['/cuenta', 'Mi cuenta'],
   ['/personal/ingresar', 'Acceso del personal'],
   ['/privacidad', 'Política de privacidad'],
   ['/terminos', 'Términos y condiciones'],
@@ -82,6 +107,7 @@ for (const ancho of [360, 768, 1440]) {
       page.on('console', (m) => m.type() === 'error' && errores.push(m.text()));
       await page.setViewportSize({ width: ancho, height: 900 });
       if (ruta.startsWith('/panel')) await entrarComo(page, 'dueño');
+      else if (ruta === '/cuenta') await entrarComoCliente(page);
       else await page.route('**/api/v1/**', (r) => r.fulfill({ json: RESPUESTAS[new URL(r.request().url()).pathname.replace(/\/$/, '')] ?? [] }));
       await page.goto(ruta);
       await expect(page.getByRole('heading', { level: 1, name: titulo })).toBeVisible();
@@ -272,4 +298,143 @@ test('los documentos legales muestran su versión y llevan al apartado pedido', 
   await page.goto('/privacidad#cookies');
   await expect(page.getByText(/Versión 1\.0/)).toBeVisible();
   await expect(page.locator('#cookies')).toBeInViewport();
+});
+
+// ── Fase 6: cuentas y sesión ──
+
+test('el token no queda en el almacenamiento del navegador y la sesión se recupera al recargar', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel');
+  await expect(page.getByRole('heading', { level: 1, name: 'Hola, Marta' })).toBeVisible();
+  const almacenado = await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }));
+  expect(almacenado).not.toContain('cabecera.');
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Hola, Marta' })).toBeVisible();
+});
+
+test('salir del panel avisa a la API y vuelve al acceso del personal', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/panel');
+  const salida = page.waitForRequest((r) => r.url().endsWith('/api/v1/auth/salir') && r.method() === 'POST');
+  await page.getByRole('button', { name: 'Salir' }).click();
+  await salida;
+  await expect(page.getByRole('heading', { name: 'Acceso del personal' })).toBeVisible();
+});
+
+test('sin sesión, Mi cuenta lleva al ingreso de clientes; el acceso del personal enlaza a su recuperación', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.goto('/cuenta');
+  await expect(page.getByRole('heading', { level: 1, name: 'Ingresar a tu cuenta' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /rostro/i })).toHaveCount(0);
+  await page.goto('/personal/ingresar');
+  await expect(page.getByRole('link', { name: '¿Olvidaste tu contraseña?' })).toHaveAttribute('href', '/cuenta/recuperar?tipo=personal');
+});
+
+test('registro: casillas desmarcadas, la obligatoria bloquea el envío y al crear la cuenta se llega a Mi cuenta', async ({ page }) => {
+  let registro = null;
+  await page.route('**/api/v1/**', (ruta) => {
+    const destino = destinoDe(ruta);
+    if (destino === '/api/v1/auth/registro-cliente') {
+      registro = ruta.request().postDataJSON();
+      return ruta.fulfill({ status: 201, json: { token: tokenDePrueba(), tipo: 'cliente', usuario: CLIENTE } });
+    }
+    if (destino === '/api/v1/mi-cuenta') return ruta.fulfill({ json: MI_CUENTA });
+    return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
+  });
+  await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
+  await page.goto('/ingresar');
+  await page.getByRole('link', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Crear cuenta' })).toBeVisible();
+
+  const terminos = page.getByRole('checkbox', { name: 'Leí y acepto los términos y condiciones y la política de privacidad' });
+  const marketing = page.getByRole('checkbox', { name: 'Quiero recibir novedades y promociones' });
+  await expect(terminos).not.toBeChecked();
+  await expect(marketing).not.toBeChecked();
+
+  await page.getByRole('textbox', { name: /^Nombre/ }).fill('Rosa');
+  await page.getByRole('textbox', { name: /^Apellido/ }).fill('Pino');
+  await page.getByRole('textbox', { name: /^Teléfono/ }).fill('+56 9 1234 5678');
+  await page.getByRole('textbox', { name: /^Correo electrónico/ }).fill('rosa@correo.test');
+  await page.getByLabel(/^Contraseña/).fill('una-clave-larga');
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(terminos).toHaveAttribute('aria-invalid', 'true');
+  await expect(terminos).toBeFocused();
+  expect(registro).toBeNull();
+
+  await terminos.check();
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Mi cuenta' })).toBeVisible();
+  await expect(page.getByText('Tu cuenta está lista')).toBeVisible();
+  await expect(page.getByText('Confirma tu correo')).toBeVisible();
+  expect(registro).toMatchObject({
+    correo: 'rosa@correo.test', aceptaTerminosYPrivacidad: true, aceptaMarketing: false, versionTerminos: '1.0', versionPrivacidad: '1.0',
+  });
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Mi cuenta' })).toHaveCount(1);
+});
+
+test('recuperación en dos pasos: pide el código, cambia la contraseña y vuelve al ingreso con un aviso', async ({ page }) => {
+  const pedidos = [];
+  await page.route('**/api/v1/**', (ruta) => {
+    const destino = destinoDe(ruta);
+    if (destino === '/api/v1/auth/recuperar') {
+      pedidos.push(ruta.request().postDataJSON());
+      return ruta.fulfill({ status: 202, json: { mensaje: 'Si el correo tiene una cuenta, te enviamos un código. Vence en 15 minutos.' } });
+    }
+    if (destino === '/api/v1/auth/restablecer') {
+      const cuerpo = ruta.request().postDataJSON();
+      pedidos.push(cuerpo);
+      const mensaje = 'El código no es válido o ya venció. Pide uno nuevo.';
+      return cuerpo.codigo === '123456'
+        ? ruta.fulfill({ status: 204 })
+        : ruta.fulfill({ status: 400, json: { error: mensaje, codigo: 'datos_invalidos', nivel: 'api', errores: { codigo: [mensaje] } } });
+    }
+    return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
+  });
+  await page.goto('/ingresar');
+  await page.getByRole('link', { name: '¿Olvidaste tu contraseña?' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Recuperar tu contraseña' })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Correo electrónico' }).fill('rosa@correo.test');
+  await page.getByRole('button', { name: 'Enviar código' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Escribe el código' })).toBeFocused();
+  await expect(page.getByText('Si el correo tiene una cuenta, te enviamos un código. Vence en 15 minutos.')).toBeVisible();
+  const codigo = page.getByRole('textbox', { name: /Código de 6 dígitos/ });
+  await codigo.fill('000000');
+  await page.getByLabel(/^Contraseña nueva/).fill('nueva-clave-1');
+  await page.getByLabel(/^Repite la contraseña nueva/).fill('nueva-clave-1');
+  await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
+  await expect(codigo).toHaveAttribute('aria-invalid', 'true');
+  await expect(codigo).toBeFocused();
+
+  await codigo.fill('123456');
+  await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Ingresar a tu cuenta' })).toBeVisible();
+  await expect(page.getByText('Tu contraseña se cambió. Ingresa con la nueva.')).toBeVisible();
+  expect(pedidos[0]).toEqual({ tipo: 'cliente', correo: 'rosa@correo.test' });
+  expect(pedidos[2]).toEqual({ tipo: 'cliente', correo: 'rosa@correo.test', codigo: '123456', password: 'nueva-clave-1' });
+});
+
+test('verificar el correo: llama una sola vez a la API y lo confirma', async ({ page }) => {
+  let llamadas = 0;
+  await page.route('**/api/v1/**', (ruta) => {
+    const destino = destinoDe(ruta);
+    if (destino === '/api/v1/auth/verificar-correo') {
+      llamadas += 1;
+      return ruta.fulfill({ json: { verificado: true } });
+    }
+    return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
+  });
+  await page.goto('/cuenta/verificar?token=enlace-de-prueba');
+  await expect(page.getByRole('heading', { level: 1, name: 'Tu correo está confirmado' })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  expect(llamadas).toBe(1);
+  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.filter((v) => ['critical', 'serious'].includes(v.impact)).map((v) => v.id)).toEqual([]);
+  if (process.env.CAPTURAS) {
+    for (const ancho of [360, 1440]) {
+      await page.setViewportSize({ width: ancho, height: 900 });
+      await page.screenshot({ path: `${process.env.CAPTURAS}/_cuenta_verificar-${ancho}.png`, fullPage: true });
+    }
+  }
 });

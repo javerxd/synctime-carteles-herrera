@@ -119,7 +119,7 @@ export const PRIVACIDAD = {
       titulo: 'Cómo cuidamos tus datos',
       parrafos: [
         'Solo el personal del taller que lo necesita para su trabajo puede ver tus datos.',
-        'El descriptor del acceso facial se guarda cifrado. Tu sesión se guarda solo en la pestaña del navegador y se borra al cerrarla.',
+        'El descriptor del acceso facial se guarda cifrado. Las contraseñas y los códigos de recuperación se guardan solo como hash. Tu sesión usa un permiso de acceso que dura 15 minutos y se renueva solo mientras usas el sitio, con una cookie protegida que el código de la página no puede leer.',
         'Ningún sistema es infalible. Si ocurre un problema de seguridad que afecte tus datos, te avisaremos según lo que exige la ley.',
       ],
     },
@@ -131,7 +131,8 @@ export const PRIVACIDAD = {
         'El aviso de cookies te deja aceptar o rechazar una analítica que podríamos usar en el futuro. Viene desmarcada y solo se activaría si la aceptas. Puedes cambiar tu elección cuando quieras desde el mismo aviso.',
       ],
       lista: [
-        'Tu sesión, en sessionStorage. Se borra al cerrar la pestaña.',
+        'Tu sesión: una cookie protegida (synctime_renovacion) que la página no puede leer y que solo viaja al ingresar o renovar la sesión, y otra (synctime_csrf) que impide que otro sitio actúe en tu nombre. Duran hasta 7 días para clientes y 12 horas para el personal, y se borran al cerrar sesión. Son técnicas: sin ellas no se puede ingresar.',
+        'Una marca en sessionStorage que indica que hay una sesión abierta, sin datos tuyos. Se borra al cerrar la pestaña.',
         'Tu elección sobre cookies, en localStorage, para no preguntarte cada vez. Vence a los 12 meses y entonces te preguntamos de nuevo.',
         'Un identificador aleatorio de tu navegador, en localStorage, solo si aceptas la analítica (o la retiras después). Sirve para registrar tu elección sin saber quién eres.',
       ],

@@ -1,0 +1,184 @@
+/* Pantallas de la cuenta del cliente: la misma tarjeta centrada del acceso del personal. */
+.pagina {
+  display: grid;
+  place-items: start center;
+  padding: var(--espacio-12) var(--margen-pagina);
+}
+
+.tarjeta {
+  display: grid;
+  gap: var(--espacio-4);
+  width: min(26rem, 100%);
+  padding: var(--espacio-8);
+}
+
+.tarjetaAncha {
+  width: min(34rem, 100%);
+}
+
+.logo {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.titulo {
+  font-size: var(--tamano-2xl);
+}
+
+.titulo:focus,
+.subtituloPaso:focus {
+  outline: none;
+}
+
+.bajada,
+.nota {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.formulario {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+/* «¿Olvidaste tu contraseña?» bajo el campo, alineado a la derecha y con su objetivo de 24 px o más. */
+.olvido {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: calc(var(--espacio-2) * -1);
+  font-size: var(--tamano-sm);
+}
+
+.olvido a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
+.separador {
+  display: grid;
+  gap: var(--espacio-3);
+  padding-top: var(--espacio-4);
+  border-top: 1px solid var(--color-borde);
+}
+
+.separador p {
+  font-size: var(--tamano-sm);
+}
+
+.consentimientos {
+  display: grid;
+  gap: var(--espacio-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.consentimientos legend {
+  margin-bottom: var(--espacio-2);
+  padding: 0;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.subtituloPaso {
+  font-size: var(--tamano-lg);
+}
+
+.correoElegido {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-3);
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radio-md);
+  background: var(--color-fondo-alterno);
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+.correoElegido strong {
+  font-weight: var(--peso-seminegrita);
+}
+
+.acciones {
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+/* Contenedor de un resultado que recibe el foco: sin anillo propio (el aviso ya se ve). */
+.resultado {
+  display: grid;
+  gap: var(--espacio-3);
+  scroll-margin-block: calc(var(--altura-barra) + var(--espacio-4));
+}
+
+.resultado:empty {
+  display: none;
+}
+
+.resultado:focus {
+  outline: none;
+}
+
+/* ── Mi cuenta ── */
+.cuenta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--espacio-12) var(--margen-pagina);
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espacio-4);
+}
+
+.cabecera > div {
+  min-width: 0;
+}
+
+.bajadaCuenta {
+  margin-top: var(--espacio-1);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+.seccion {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.subtitulo {
+  font-size: var(--tamano-lg);
+}
+
+.explicacion {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.pieSeccion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-3);
+}
+
+@media (max-width: 30rem) {
+  .tarjeta {
+    padding: var(--espacio-6) var(--espacio-5);
+  }
+
+  .pieSeccion > * {
+    flex: 1 1 100%;
+  }
+}

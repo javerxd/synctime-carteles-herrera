@@ -16,7 +16,10 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Enviar una consulta de contacto (`POST /contacto`) | Sí | Sí | Sí | Sí | Sí |
 | Registrar la aceptación o el retiro de cookies (`POST /consentimientos/cookies`) | Sí | Sí | Sí | Sí | Sí |
 | Enviar una solicitud en línea | Sí | Sí | Sí | Sí | Sí |
-| Registrarse e iniciar sesión | Sí | — | — | — | — |
+| Registrarse como cliente, recuperar la contraseña y confirmar el correo (`/auth/registro-cliente`, `/auth/recuperar`, `/auth/restablecer`, `/auth/verificar-correo`) | Sí | — | — | — | — |
+| Ingresar, renovar la sesión y cerrarla (`/auth/login`, `/auth/login-cliente`, `/auth/renovar`, `/auth/salir`) | Sí | Sí | Sí | Sí | Sí |
+| Reenviar el enlace para confirmar el correo (`/auth/reenviar-verificacion`) | No | Sí | No | No | No |
+| Ver y corregir su cuenta, cambiar su correo, su contraseña y su marketing (`/mi-cuenta`) | No | Sí | No | No | No |
 | Ver sus propias solicitudes y pedidos (`/mis/…`) | No | Sí | No | No | No |
 | Listar y ver clientes, solicitudes, cotizaciones, pedidos, materiales y empleados | No | No | Sí | Sí | Sí |
 | Registrar y modificar clientes; asignarles contraseña | No | No | Sí | No | Sí |

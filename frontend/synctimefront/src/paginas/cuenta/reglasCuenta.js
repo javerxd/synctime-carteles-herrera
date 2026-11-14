@@ -1,0 +1,85 @@
+import { validarRut } from '../../utilidades/rut';
+
+// Reglas de la cuenta del cliente: las mismas que valida la API (Negocio/Cuentas/ValidacionCuenta.cs y
+// AuthService.EsPasswordValida), para que la persona vea el mismo mensaje antes y después de enviar.
+export const LIMITES = { nombre: 80, correo: 100, direccion: 255, passwordMinima: 8, passwordMaxima: 72 };
+
+const CORREO = /^[^\s@;,"]+@[^\s@;,"]+\.[^\s@;,"]+$/;
+
+const MENSAJES = {
+  correo: 'Escribe un correo válido, por ejemplo nombre@correo.cl. Con él ingresas y recuperas tu contraseña.',
+  telefono: 'Escribe un teléfono de 9 dígitos, por ejemplo 9 1234 5678.',
+  rut: 'El RUT no es válido. Revisa el número y el dígito verificador, por ejemplo 12.345.678-5.',
+  password: `La contraseña debe tener entre ${LIMITES.passwordMinima} y ${LIMITES.passwordMaxima} caracteres.`,
+};
+
+export function esTelefono(valor) {
+  let limpio = String(valor ?? '').replace(/\s/g, '');
+  if (limpio.startsWith('+56')) limpio = limpio.slice(3);
+  return /^\d{9}$/.test(limpio);
+}
+
+export function errorCorreo(correo = '') {
+  const c = correo.trim();
+  if (!c) return 'Escribe tu correo.';
+  if (!CORREO.test(c) || c.length > LIMITES.correo) return MENSAJES.correo;
+  return null;
+}
+
+export function errorPassword(password = '', { vacia = 'Escribe una contraseña.' } = {}) {
+  if (!password) return vacia;
+  if (password.length < LIMITES.passwordMinima || password.length > LIMITES.passwordMaxima) return MENSAJES.password;
+  return null;
+}
+
+function nombrePropio(valor, { vacio, etiqueta }) {
+  const v = valor.trim();
+  if (!v) return vacio;
+  if (v.length > LIMITES.nombre) return `${etiqueta} puede tener hasta ${LIMITES.nombre} caracteres.`;
+  return null;
+}
+
+/** Datos personales (registro y Mi cuenta). Un objeto vacío significa que se puede enviar. */
+export function validarDatos({ nombre = '', apellido = '', telefono = '', rut = '', direccion = '' }) {
+  const errores = {
+    nombre: nombrePropio(nombre, { vacio: 'Escribe tu nombre.', etiqueta: 'El nombre' }),
+    apellido: nombrePropio(apellido, { vacio: 'Escribe tu apellido.', etiqueta: 'El apellido' }),
+    telefono: esTelefono(telefono) ? null : MENSAJES.telefono,
+    rut: rut.trim() && !validarRut(rut) ? MENSAJES.rut : null,
+    direccion: direccion.trim().length > LIMITES.direccion ? `La dirección puede tener hasta ${LIMITES.direccion} caracteres.` : null,
+  };
+  return Object.fromEntries(Object.entries(errores).filter(([, mensaje]) => mensaje));
+}
+
+export const ORDEN_REGISTRO = ['nombre', 'apellido', 'telefono', 'correo', 'rut', 'direccion', 'password', 'aceptaTerminosYPrivacidad'];
+
+export function validarRegistro(datos) {
+  const errores = { ...validarDatos(datos) };
+  const correo = errorCorreo(datos.correo);
+  if (correo) errores.correo = correo;
+  const password = errorPassword(datos.password);
+  if (password) errores.password = password;
+  if (!datos.aceptaTerminosYPrivacidad) {
+    errores.aceptaTerminosYPrivacidad = 'Para crear la cuenta debes aceptar los términos y condiciones y la política de privacidad.';
+  }
+  return errores;
+}
+
+/** Nueva contraseña con su repetición (recuperación y cambio de contraseña). */
+export function validarNuevaPassword(password, repetida, campo = 'password') {
+  const errores = {};
+  const error = errorPassword(password, { vacia: 'Escribe la nueva contraseña.' });
+  if (error) errores[campo] = error;
+  else if (password !== repetida) errores.repetida = 'Las contraseñas no coinciden. Escríbela igual en los dos campos.';
+  return errores;
+}
+
+export function validarCodigo(codigo = '') {
+  return /^\d{6}$/.test(codigo.trim()) ? null : 'El código tiene 6 dígitos. Lo encuentras en el correo que te enviamos.';
+}
+
+/** Teléfono como lo guarda la API (9 dígitos), para mostrarlo legible: 9 1234 5678. */
+export function telefonoLegible(telefono = '') {
+  const t = String(telefono).replace(/\s/g, '');
+  return /^\d{9}$/.test(t) ? `${t[0]} ${t.slice(1, 5)} ${t.slice(5)}` : telefono;
+}

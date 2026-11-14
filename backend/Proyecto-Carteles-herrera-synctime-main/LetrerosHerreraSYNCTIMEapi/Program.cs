@@ -98,6 +98,10 @@ builder.Services.AddScoped<ServicioVitrina>();
 builder.Services.AddScoped<ServicioEstadoLocal>();
 builder.Services.AddScoped<ServicioContacto>();
 builder.Services.AddScoped<PurgaDatosPersonales>();
+// Fase 6: sesiones con renovacion, codigos de cuenta y datos del cliente.
+builder.Services.AddScoped<ServicioSesiones>();
+builder.Services.AddScoped<ServicioCodigosCuenta>();
+builder.Services.AddScoped<ServicioMiCuenta>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
@@ -129,10 +133,13 @@ builder.Services.AddCors(options =>
 {
     var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
         ?? new[] { "https://localhost:3000" };
+    // Con credenciales (la cookie de renovacion): solo orígenes explicitos, nunca "*" (RNFP29).
     options.AddPolicy("FrontendPermitido", policy =>
         policy.WithOrigins(allowedOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+            .WithHeaders("Authorization", "Content-Type", "Accept", "If-Match", LetrerosHerreraSYNCTIMEapi.Endpoints.CookiesSesion.CabeceraCsrf)
+            .WithExposedHeaders("ETag")
+            .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+            .AllowCredentials());
 });
 
 // Limites por minuto (RNFP07). Con una ventana global, un solo abusador bloquearia a todos los usuarios.
@@ -291,6 +298,7 @@ app.MapCotizacionApi();
 app.MapPedidoApi();
 app.MapImagenApi();
 app.MapPortadaApi();
+app.MapCuentaApi();
 
 app.Run();
 

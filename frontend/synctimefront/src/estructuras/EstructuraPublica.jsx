@@ -1,17 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Mail, Menu, MessageCircle, Phone, X } from 'lucide-react';
+import { LayoutDashboard, Mail, Menu, MessageCircle, Phone, UserRound, X } from 'lucide-react';
 import { Boton, Enlace } from '../componentes/ui';
 import { unirClases } from '../componentes/ui/clases';
 import { enlaceTelefono, enlaceWhatsapp, TALLER } from '../configuracion/taller';
 import { abrirPreferenciasCookies } from '../utilidades/cookies';
 import { BannerCookies } from './BannerCookies';
 import ErrorBoundary from '../componentes/ErrorBoundary';
+import { useSesion } from '../sesion/sesion';
 import { Marca } from './Marca';
 import { BotonSolicitar, ProveedorSolicitud } from './Solicitud';
 import estilos from './EstructuraPublica.module.css';
 
 const ANIO_ACTUAL = new Date().getFullYear();
+
+/** «Ingresar», o el acceso a la cuenta (cliente) o al panel (personal) cuando ya hay sesión. */
+function AccesoCuenta() {
+  const { esCliente, esPersonal } = useSesion();
+  if (esCliente) return <Boton como={Link} to="/cuenta" variante="fantasma" tamano="compacto" iconoInicio={UserRound}>Mi cuenta</Boton>;
+  if (esPersonal) return <Boton como={Link} to="/panel" variante="fantasma" tamano="compacto" iconoInicio={LayoutDashboard}>Ir al panel</Boton>;
+  return <Boton como={Link} to="/ingresar" variante="fantasma" tamano="compacto">Ingresar</Boton>;
+}
 
 const SECCIONES = [
   ['/#vitrina', 'Trabajos'],
@@ -74,7 +83,7 @@ export function EstructuraPublica() {
               ))}
             </ul>
             <div className={estilos.acciones}>
-              <Boton como={Link} to="/ingresar" variante="fantasma" tamano="compacto">Ingresar</Boton>
+              <AccesoCuenta />
               <BotonSolicitar tamano="compacto" variante="secundario" />
             </div>
           </nav>

@@ -48,26 +48,52 @@ public static class CatalogoApi
         })
         .RequireAuthorization(p => p.RequireRole("dueño", "administrador", "operario"));
 
-        clientes.MapPut("/{id}", async (int id, ActualizarClienteRequest req, LetrerosHerreradbContext db) =>
+        clientes.MapPut("/{id}", async (int id, ActualizarClienteRequest req, LetrerosHerreradbContext db, ServicioSesiones sesiones,
+            ServicioCodigosCuenta codigos, CancellationToken ct) =>
         {
-            var existing = await db.Clientes.FindAsync(id);
+            var existing = await db.Clientes.FindAsync([id], ct);
             if (existing is null) return Results.NotFound();
+
+            // Fase 6: el correo de una cuenta se normaliza y, si cambia, queda sin verificar hasta confirmarlo.
+            var correo = string.IsNullOrWhiteSpace(req.Email) ? null : ServicioCodigosCuenta.NormalizarCorreo(req.Email);
+            if (correo is null && existing.PasswordHash is not null)
+                return ErrorApi.Invalido("Un cliente con cuenta web necesita un correo.");
+            if (correo is not null)
+            {
+                var errores = new Dictionary<string, string[]>();
+                ValidacionCuenta.ValidarCorreo(correo, errores);
+                if (errores.Count > 0)
+                    return ErrorApi.Invalido("Revisa el correo del cliente.", errores);
+            }
+            var cambioCorreo = !string.Equals(existing.Email, correo, StringComparison.OrdinalIgnoreCase);
+            var seDesactiva = existing.Activo && !req.Activo;
 
             existing.Rut = req.Rut;
             existing.Nombre = req.Nombre;
             existing.Apellido = req.Apellido;
             existing.Telefono = req.Telefono;
-            existing.Email = req.Email;
+            existing.Email = correo;
             existing.Direccion = req.Direccion;
             existing.Activo = req.Activo;
+            if (cambioCorreo)
+                existing.FechaVerificacionCorreo = null;
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
+            // Desactivar la cuenta, o cambiarle el correo, cierra sus sesiones (RFS03).
+            if (seDesactiva || (cambioCorreo && existing.PasswordHash is not null))
+                await sesiones.RevocarTodasAsync(TitularSesion.DeCliente(id), ct);
+            if (cambioCorreo && existing.PasswordHash is not null && existing.Activo)
+            {
+                await codigos.AnularPendientesAsync(TitularSesion.DeCliente(id), ct);
+                await codigos.EnviarVerificacionAsync(existing, ct);
+            }
             return Results.Ok(existing);
         })
         .RequireAuthorization(p => p.RequireRole("dueño", "administrador", "operario"));
 
         // Activa el acceso web de un cliente que ya existe, una vez que el personal comprobo su identidad.
-        clientes.MapPut("/{id}/credenciales", async (int id, AsignarCredencialesRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db, AuthService auth) =>
+        clientes.MapPut("/{id}/credenciales", async (int id, AsignarCredencialesRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db, AuthService auth,
+            ServicioCodigosCuenta codigos, ServicioSesiones sesiones, CancellationToken ct) =>
         {
             if (await Reautenticacion.ConfirmarAsync(user, req.PasswordActual, db, auth) is null)
                 return Reautenticacion.Rechazo();
@@ -75,11 +101,34 @@ public static class CatalogoApi
             if (!AuthService.EsPasswordValida(req.Password))
                 return ErrorApi.Invalido(AuthService.MensajePasswordInvalida);
 
-            var cliente = await db.Clientes.FindAsync(id);
+            var cliente = await db.Clientes.FindAsync([id], ct);
             if (cliente is null) return Results.NotFound();
+            if (!cliente.Activo)
+                return ErrorApi.Conflicto("El cliente está desactivado: actívalo antes de darle acceso web.");
 
+            // Sin correo no hay cuenta (fase 6): es el usuario y el canal para recuperar la contraseña.
+            var correo = string.IsNullOrWhiteSpace(req.Correo) ? cliente.Email : ServicioCodigosCuenta.NormalizarCorreo(req.Correo);
+            var errores = new Dictionary<string, string[]>();
+            ValidacionCuenta.ValidarCorreo(correo ?? "", errores);
+            if (errores.Count > 0)
+                return ErrorApi.Invalido("El cliente necesita un correo válido para tener cuenta web.", errores);
+            if (await db.Clientes.AnyAsync(c => c.Email == correo && c.IdCliente != id, ct))
+                return ErrorApi.Conflicto("Ese correo ya está en uso en otra cuenta.");
+
+            var cambioCorreo = !string.Equals(cliente.Email, correo, StringComparison.OrdinalIgnoreCase);
+            cliente.Email = correo;
+            if (cambioCorreo)
+                cliente.FechaVerificacionCorreo = null;
             cliente.PasswordHash = auth.HashPassword(req.Password);
-            await db.SaveChangesAsync();
+            // La nueva contraseña y el cierre de las sesiones anteriores van juntos.
+            await using (var transaccion = await db.Database.BeginTransactionAsync(ct))
+            {
+                await db.SaveChangesAsync(ct);
+                await sesiones.RevocarTodasAsync(TitularSesion.DeCliente(id), ct);
+                await transaccion.CommitAsync(ct);
+            }
+            if (cliente.FechaVerificacionCorreo is null)
+                await codigos.EnviarVerificacionAsync(cliente, ct);
             return Results.NoContent();
         })
         .RequireAuthorization(p => p.RequireRole("dueño", "administrador", "operario"))
@@ -366,7 +415,7 @@ public static class CatalogoApi
 
 public record CrearClienteRequest(string? Rut, string Nombre, string Apellido, string Telefono, string? Email, string? Direccion, bool Activo = true);
 public record ActualizarClienteRequest(string? Rut, string Nombre, string Apellido, string Telefono, string? Email, string? Direccion, bool Activo = true);
-public record AsignarCredencialesRequest(string Password, string? PasswordActual);
+public record AsignarCredencialesRequest(string Password, string? PasswordActual, string? Correo = null);
 
 public record CrearProductoRequest(int IdCategoria, string Nombre, string? Descripcion, decimal? PrecioBaseRef, bool Activo = true);
 public record ActualizarProductoRequest(int IdCategoria, string Nombre, string? Descripcion, decimal? PrecioBaseRef, bool Activo = true);

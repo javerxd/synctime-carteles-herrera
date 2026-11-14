@@ -31,6 +31,19 @@
   gap: var(--espacio-4);
 }
 
+.olvido {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: calc(var(--espacio-2) * -1);
+  font-size: var(--tamano-sm);
+}
+
+.olvido a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
 @media (max-width: 30rem) {
   .tarjeta {
     padding: var(--espacio-6) var(--espacio-5);

@@ -41,6 +41,10 @@
     },
     {
       "name": "Portada"
+    },
+    {
+      "name": "Mi cuenta",
+      "description": "Datos, correo, contraseña y consentimientos del cliente (fase 6)"
     }
   ],
   "paths": {
@@ -58,7 +62,7 @@
         "tags": [
           "Autenticación"
         ],
-        "summary": "Inicia la sesión de un cliente",
+        "summary": "Ingreso del cliente con su correo y contraseña; deja la cookie de renovación",
         "x-acceso": "publico"
       }
     },
@@ -76,7 +80,7 @@
         "tags": [
           "Autenticación"
         ],
-        "summary": "Crea una cuenta de cliente",
+        "summary": "Crea la cuenta del cliente con sus consentimientos (términos y privacidad obligatorios, marketing aparte), envía el enlace para confirmar el correo e inicia la sesión",
         "x-acceso": "publico"
       }
     },
@@ -612,6 +616,103 @@
         ],
         "summary": "Registra quién autorizó y cuándo el uso del logotipo del cliente en una publicación",
         "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/auth/renovar": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Renueva la sesión con la cookie de renovación (rota el token; exige la cabecera X-CSRF-Token igual a la cookie synctime_csrf)",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/salir": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Cierra la sesión de este equipo: revoca su token de renovación y borra las cookies (exige X-CSRF-Token)",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/verificar-correo": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Confirma el correo del cliente con el enlace de un solo uso que recibió (24 horas)",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/reenviar-verificacion": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Envía de nuevo el enlace para confirmar el correo del cliente",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/auth/recuperar": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Envía al correo un código de 6 dígitos para restablecer la contraseña (15 minutos; misma respuesta exista o no la cuenta)",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/restablecer": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Restablece la contraseña con el código recibido (un solo uso, 5 intentos) y cierra todas las sesiones de la cuenta",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/mi-cuenta": {
+      "get": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Devuelve los datos del cliente, si su correo está confirmado y si aceptó el marketing",
+        "x-acceso": "cliente"
+      },
+      "put": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Corrige nombre, apellido, RUT, teléfono y dirección del cliente",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mi-cuenta/correo": {
+      "put": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Cambia el correo (exige la contraseña) y envía el enlace para confirmarlo",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mi-cuenta/password": {
+      "put": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Cambia la contraseña con la actual, cierra las demás sesiones y abre una nueva",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mi-cuenta/marketing": {
+      "put": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Acepta o retira el consentimiento de marketing",
+        "x-acceso": "cliente"
       }
     }
   },

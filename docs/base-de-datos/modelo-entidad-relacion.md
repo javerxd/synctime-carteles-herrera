@@ -1,8 +1,8 @@
 # Modelo entidad-relación — LetreriaLosHerreraDB
 
-Estado del esquema: migración `PortadaPublica` (13-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
+Estado del esquema: migración `CuentasYSesion` (13-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
 
-19 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
+21 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
 
 ## Diagrama
 
@@ -38,6 +38,11 @@ erDiagram
     empleados ||--o{ imagenes : "sube"
     imagenes |o--o{ catalogo : "ilustra"
     empleados |o--o{ catalogo : "autoriza el logo"
+
+    clientes |o--o{ tokens_renovacion : "tiene sesiones"
+    empleados |o--o{ tokens_renovacion : "tiene sesiones"
+    clientes |o--o{ codigos_cuenta : "recibe enlace o código"
+    empleados |o--o{ codigos_cuenta : "recibe código de recuperación"
 
     categorias {
         int id_categoria PK
@@ -82,6 +87,7 @@ erDiagram
         bit registrado "calculada"
         datetime2 fecha_registro
         bit activo "0 = cuenta inhabilitada"
+        datetimeoffset fecha_verificacion_correo "nulo = sin confirmar"
     }
     empleados {
         int id_empleado PK
@@ -237,6 +243,28 @@ erDiagram
         bit revisada
         datetimeoffset fecha_revision
     }
+    tokens_renovacion {
+        bigint id_token PK
+        int id_cliente FK "o"
+        int id_empleado FK "o"
+        char hash_token UK "SHA-256 del token"
+        uniqueidentifier familia "un inicio de sesión"
+        datetimeoffset fecha_creacion
+        datetimeoffset fecha_expiracion
+        datetimeoffset fecha_uso
+        datetimeoffset fecha_revocacion
+    }
+    codigos_cuenta {
+        bigint id_codigo PK
+        int id_cliente FK "o"
+        int id_empleado FK "o"
+        varchar proposito "verificacion_correo, recuperacion"
+        char hash_codigo "HMAC o SHA-256"
+        nvarchar correo
+        datetimeoffset fecha_expiracion
+        datetimeoffset fecha_uso
+        int intentos
+    }
     correos_salientes {
         bigint id_correo PK
         varchar tipo
@@ -251,6 +279,8 @@ erDiagram
 ```
 
 `horarios_atencion` no se relaciona con otras tablas: guarda el horario semanal publicado. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
+
+`tokens_renovacion` y `codigos_cuenta` son de la cuenta: cada fila pertenece a un cliente o a un empleado, nunca a los dos, y se borran con su titular. `clientes.fecha_verificacion_correo` dice si el correo del cliente está confirmado.
 
 ## Flujo de negocio que expresa el modelo
 

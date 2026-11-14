@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 13-11-2026 (fase 5 aprobada; fase 6 en curso).
+Última actualización: 13-11-2026 (fase 6 en revisión).
 
 ## Hecho
 
@@ -16,17 +16,23 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 6 — Cuentas y sesión** · rama `fase-06-cuentas-y-sesion` (nace de `fase-05-portada-publica`) · informe: pendiente de escribir (`informes/fase-06.md`)
+
+Lo que falta del usuario para cerrarla:
+- Autorizar la migración `CuentasYSesion` en la base real. Hoy la base real no tiene clientes, así que la restricción nueva (`ck_clientes_cuenta_con_correo`) no choca con datos (consultado el 13-11-2026).
+- Revisar las decisiones de `docs/plan/desviaciones.md` marcadas como objetables: RUT opcional, mensaje único para teléfono y RUT, sesiones de 12 horas y 7 días, y marketing antes de confirmar el correo.
+
+Pendiente técnico antes de cerrarla: la configuración de `VITE_API_URL` en desarrollo (ver `desviaciones.md`).
 
 ## En curso
 
-- **Fase 6 — Cuentas y sesión** · rama `fase-06-cuentas-y-sesion` (nace de `fase-05-portada-publica`)
+_(ninguna)_
 
 ## Por hacer
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 7 | Solicitudes y clientes | 6 | Confirmar los diagramas de estados |
+| 7 | Solicitudes y clientes | 6 | Confirmar los diagramas de estados; decidir si las solicitudes en línea exigen correo confirmado |
 | 8 | Cotizaciones, pedidos, pagos y abonos | 7 | Autorizar las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos` en la base real |
 | 9 | Mantenedores y estado del local | 4, 6 | Decidir si diseñador y operario dan vuelta el cartel |
 | 10 | Rostro según requisitos | 6, 9 | — |
