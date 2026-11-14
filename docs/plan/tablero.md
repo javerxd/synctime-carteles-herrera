@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026 (fase 6 aprobada; fase 7 en revisión).
+Última actualización: 14-11-2026 (fase 7 aprobada; sigue la fase 8).
 
 ## Hecho
 
@@ -14,10 +14,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 4 — Servicios comunes: correo, consentimientos e imágenes** · rama `fase-04-servicios-comunes` · informe: `informes/fase-04.md` · aprobada el 13-11-2026
 - **Fase 5 — Portada pública** · rama `fase-05-portada-publica` · informe: `informes/fase-05.md` · aprobada el 13-11-2026 · pendiente del usuario, sin bloquear: WhatsApp y teléfono definitivos, razón social, RUT y condiciones del abono
 - **Fase 6 — Cuentas y sesión** · rama `fase-06-cuentas-y-sesion` · informe: `informes/fase-06.md` · aprobada el 14-11-2026
+- **Fase 7 — Solicitudes y clientes** · rama `fase-07-solicitudes-y-clientes` · informe: `informes/fase-07.md` · aprobada el 14-11-2026 · incluye los diseños adjuntos y los avisos por correo de cada solicitud nueva
 
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 7 — Solicitudes y clientes** · rama `fase-07-solicitudes-y-clientes` (nace de `fase-06-cuentas-y-sesion`) · incluye, por pedido del usuario (14-11-2026), los diseños adjuntos a la solicitud y los avisos por correo de cada solicitud nueva · plan: `fase-07-plan.md`, especificación: `fase-07-especificacion.md` · informe: `informes/fase-07.md` · en revisión, esperando la aprobación del usuario
+_(ninguna)_
 
 ## En curso
 
@@ -27,7 +28,7 @@ _(ninguna)_
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 8 | Cotizaciones, pedidos, pagos y abonos | 7 | Autorizar las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos` en la base real |
+| 8 | Cotizaciones, pedidos, pagos y abonos | 7 | — (las migraciones a la base real esperan al final de las fases, por decisión del usuario) |
 | 9 | Mantenedores y estado del local | 4, 6 | Decidir si diseñador y operario dan vuelta el cartel |
 | 10 | Rostro según requisitos | 6, 9 | — |
 | 11 | Notificaciones, auditoría y privacidad | 4, 8, 9 | — (la cuenta SMTP se pidió en la fase 4) |

@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 7: solicitudes y clientes
 
-Fecha: 14-11-2026 · Rama: `fase-07-solicitudes-y-clientes` (nace de `fase-06-cuentas-y-sesion`) · Estado: **en revisión**, esperando tu aprobación
+Fecha: 14-11-2026 · Rama: `fase-07-solicitudes-y-clientes` (nace de `fase-06-cuentas-y-sesion`) · Estado: **aprobada el 14-11-2026**
 
 Plan aprobado: `fase-07-plan.md`, con su especificación en `fase-07-especificacion.md`. Además de lo previsto, incluye dos pedidos tuyos del 14-11-2026: **diseños adjuntos** en la solicitud y **avisos por correo** de cada solicitud nueva.
 
