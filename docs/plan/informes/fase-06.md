@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 6: cuentas y sesión
 
-Fecha: 13-11-2026 · Rama: `fase-06-cuentas-y-sesion` (nace de `fase-05-portada-publica`) · Estado: **en revisión**, esperando tu aprobación
+Fecha: 13-11-2026 · Rama: `fase-06-cuentas-y-sesion` (nace de `fase-05-portada-publica`) · Estado: **aprobada el 14-11-2026**
 
 Los clientes ya pueden crear su cuenta, ingresar con su correo, confirmar el correo, recuperar la contraseña y corregir sus datos. La sesión de todos (clientes y personal) pasó a un token corto que se renueva solo, sin guardarse en el navegador.
 

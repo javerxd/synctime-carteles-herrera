@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 13-11-2026 (fase 6 en revisión).
+Última actualización: 14-11-2026 (fase 6 aprobada; fase 7 en curso).
 
 ## Hecho
 
@@ -13,26 +13,20 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 3 — Estructura de la aplicación web y pantallas de la revisión** · rama `fase-03-estructura-y-pantallas` · informe: `informes/fase-03.md` · aprobada el 13-11-2026
 - **Fase 4 — Servicios comunes: correo, consentimientos e imágenes** · rama `fase-04-servicios-comunes` · informe: `informes/fase-04.md` · aprobada el 13-11-2026
 - **Fase 5 — Portada pública** · rama `fase-05-portada-publica` · informe: `informes/fase-05.md` · aprobada el 13-11-2026 · pendiente del usuario, sin bloquear: WhatsApp y teléfono definitivos, razón social, RUT y condiciones del abono
+- **Fase 6 — Cuentas y sesión** · rama `fase-06-cuentas-y-sesion` · informe: `informes/fase-06.md` · aprobada el 14-11-2026
 
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 6 — Cuentas y sesión** · rama `fase-06-cuentas-y-sesion` (nace de `fase-05-portada-publica`) · informe: pendiente de escribir (`informes/fase-06.md`)
-
-Lo que falta del usuario para cerrarla:
-- Autorizar la migración `CuentasYSesion` en la base real. Hoy la base real no tiene clientes, así que la restricción nueva (`ck_clientes_cuenta_con_correo`) no choca con datos (consultado el 13-11-2026).
-- Revisar las decisiones de `docs/plan/desviaciones.md` marcadas como objetables: RUT opcional, mensaje único para teléfono y RUT, sesiones de 12 horas y 7 días, y marketing antes de confirmar el correo.
-
-Pendiente técnico antes de cerrarla: la configuración de `VITE_API_URL` en desarrollo (ver `desviaciones.md`).
+_(ninguna)_
 
 ## En curso
 
-_(ninguna)_
+- **Fase 7 — Solicitudes y clientes** · rama `fase-07-solicitudes-y-clientes` (nace de `fase-06-cuentas-y-sesion`) · incluye, por pedido del usuario (14-11-2026), los diseños adjuntos a la solicitud y los avisos por correo de cada solicitud nueva · plan: `fase-07-plan.md`
 
 ## Por hacer
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 7 | Solicitudes y clientes | 6 | Confirmar los diagramas de estados; decidir si las solicitudes en línea exigen correo confirmado |
 | 8 | Cotizaciones, pedidos, pagos y abonos | 7 | Autorizar las migraciones `SepararEstadoPedidoYPago` y `HistorialDePagos` en la base real |
 | 9 | Mantenedores y estado del local | 4, 6 | Decidir si diseñador y operario dan vuelta el cartel |
 | 10 | Rostro según requisitos | 6, 9 | — |
