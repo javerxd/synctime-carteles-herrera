@@ -33,7 +33,7 @@ Requisitos del plan general: RFS07, RFS02 (edición del horario y del cartel), R
 - **Al confirmar:** la nueva pasa a «activo» y, si reemplazaba a otra, esa pasa a «retirado».
 - **Aviso del cambio:** se envía a la dirección anterior: «El destino de los avisos de Letreros Herrera cambió». El correo no muestra la dirección nueva completa, solo enmascarada, por ejemplo «c•••@gmail.com».
 - **Otras acciones:** se puede reenviar el enlace o cancelar un cambio pendiente.
-- **Quitar un destino activo:** solo si queda al menos otro activo (ver la pregunta 3). La dirección quitada recibe el aviso del cambio.
+- **Quitar un destino activo:** solo si queda al menos otro activo (decisión 3). La dirección quitada recibe el aviso del cambio.
 
 **«Enviar correo de prueba»:**
 - **Qué hace:** encola un aviso de ejemplo («Nueva solicitud #0 - Prueba del taller», marcado como prueba) a las direcciones activas, o al respaldo si no hay ninguna.
@@ -55,7 +55,7 @@ Requisitos del plan general: RFS07, RFS02 (edición del horario y del cartel), R
 
 ## 2. Estado del local y horario (RFS02, RNFO03, RFU16, E10, E11)
 
-- **Cartel** (abierto o ausente, mensaje y regreso estimado): **todo el personal** lo da vuelta, como piden RFU16 («Trabajador») y RNFO03 («solo el personal»). Era la decisión pendiente del tablero (pregunta 1).
+- **Cartel** (abierto o ausente, mensaje y regreso estimado): **todo el personal** lo da vuelta, como piden RFU16 («Trabajador») y RNFO03 («solo el personal»). Era la decisión pendiente del tablero (decisión 1).
 - **Horario** (por día: si abre, apertura y cierre): solo el dueño y el administrador (E10). Valida que el cierre sea posterior a la apertura.
 - **Registro:** los dos guardan quién hizo el último cambio y cuándo, y la portada sigue mostrando el estado sin datos del empleado.
 
@@ -106,9 +106,9 @@ Requisitos del plan general: RFS07, RFS02 (edición del horario y del cartel), R
 - **Revisiones de ECC:** seguridad y C#, React y accesibilidad, y base de datos.
 - **Al cerrar:** contrato y permisos (`docs/api`), diccionario, modelo ER, trazabilidad, tablero e informe al día.
 
-## Preguntas antes de programar
+## Decisiones del usuario (14-11-2026)
 
-1. **Cartel:** propongo que **todo el personal** lo dé vuelta, como dicen RFU16 y RNFO03. La otra opción es mantenerlo solo para el dueño y el administrador, anotándolo como desviación.
-2. **Disponibilidad:** propongo **franjas semanales** que se repiten cada semana. La otra opción es sumar excepciones por fecha (por ejemplo, «el 20 de diciembre no atiendo»), lo que agrega una pantalla más.
-3. **Quitar el último destino de avisos:** propongo **no permitirlo**, para que siempre haya al menos un destino activo y nadie quede sin avisos por error; el respaldo de la configuración solo se usaría si nunca se configuró ninguno. La otra opción es permitirlo y volver a `Correo:AvisosTaller`.
-4. **Agregar un destino adicional**, sin reemplazar ninguno: propongo avisar también a los destinos activos («Se agregó un destino a los avisos del taller»), para que un cambio no pase inadvertido. La otra opción es avisar solo cuando se reemplaza o se quita una dirección.
+1. **Cartel:** lo da vuelta todo el personal (dueño, administrador, diseñador y operario), como piden RFU16 y RNFO03.
+2. **Disponibilidad:** franjas semanales que se repiten cada semana, sin excepciones por fecha.
+3. **Último destino de avisos:** no se puede quitar; siempre queda al menos uno activo. Para cambiarlo se reemplaza. `Correo:AvisosTaller` solo se usa si nunca se configuró ninguno en la base.
+4. **Agregar un destino adicional:** los destinos activos reciben «Se agregó un destino a los avisos del taller».

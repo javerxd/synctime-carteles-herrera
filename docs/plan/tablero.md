@@ -23,7 +23,7 @@ _(ninguna)_
 
 ## En curso
 
-- **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · incluye, por pedido del usuario (14-11-2026), cambiar desde el perfil el correo que recibe los avisos de solicitudes nuevas · plan: `fase-09-plan.md`, esperando la aprobación del usuario y sus respuestas a cuatro preguntas
+- **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · incluye, por pedido del usuario (14-11-2026), cambiar desde el perfil el correo que recibe los avisos de solicitudes nuevas · plan: `fase-09-plan.md`, cuatro decisiones del usuario tomadas el 14-11-2026; esperando la aprobación del plan
 
 ## Por hacer
 
