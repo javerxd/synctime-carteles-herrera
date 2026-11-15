@@ -25,13 +25,12 @@ _(ninguna)_
 
 ## En curso
 
-_(ninguna)_
+- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` (nace de `fase-10-rostro-segun-requisitos`) · incluye, por pedido del usuario (15-11-2026), los avisos del taller como correos operativos (preferencia por destino, «Correos no enviados» con reenviar, auditoría de los avisos) y la revisión de concurrencia e idempotencia · plan propuesto: `fase-11-plan.md`, esperando aprobación
 
 ## Por hacer
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 11 | Notificaciones, auditoría y privacidad | 4, 8, 9 | — (la cuenta SMTP se pidió en la fase 4) |
 | 12 | Indicadores y dashboard | 8 | — |
 | 13 | Reportes y exportaciones | 11, 12 | — |
 | 14 | Google y asistente de IA | 6, 7, 9 | ID de cliente OAuth de Google; clave de IA |
