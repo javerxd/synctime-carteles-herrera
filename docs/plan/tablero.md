@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026 (fase 8 aprobada; sigue la fase 9).
+Última actualización: 14-11-2026 (fase 8 aprobada; plan de la fase 9 propuesto).
 
 ## Hecho
 
@@ -23,13 +23,12 @@ _(ninguna)_
 
 ## En curso
 
-_(ninguna)_
+- **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · incluye, por pedido del usuario (14-11-2026), cambiar desde el perfil el correo que recibe los avisos de solicitudes nuevas · plan: `fase-09-plan.md`, esperando la aprobación del usuario y sus respuestas a cuatro preguntas
 
 ## Por hacer
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 9 | Mantenedores y estado del local | 4, 6 | Decidir si diseñador y operario dan vuelta el cartel |
 | 10 | Rostro según requisitos | 6, 9 | — |
 | 11 | Notificaciones, auditoría y privacidad | 4, 8, 9 | — (la cuenta SMTP se pidió en la fase 4) |
 | 12 | Indicadores y dashboard | 8 | — |
