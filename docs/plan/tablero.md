@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026 (fase 8 aprobada; fase 9 en revisión).
+Última actualización: 14-11-2026 (fase 9 aprobada; sigue la fase 10).
 
 ## Hecho
 
@@ -17,9 +17,10 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 7 — Solicitudes y clientes** · rama `fase-07-solicitudes-y-clientes` · informe: `informes/fase-07.md` · aprobada el 14-11-2026 · incluye los diseños adjuntos y los avisos por correo de cada solicitud nueva
 - **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` · informe: `informes/fase-08.md` · aprobada el 14-11-2026 · pendiente del usuario, sin bloquear: decidir si la API lleva clave de idempotencia (`desviaciones.md`)
 
+- **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` · informe: `informes/fase-09.md` · aprobada el 15-11-2026 · incluye los avisos del taller · pendiente del usuario, sin bloquear: decidir si solo un dueño puede dar o quitar el rol de dueño
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · incluye los avisos del taller pedidos por el usuario · plan: `fase-09-plan.md`, especificación: `fase-09-especificacion.md` · informe: `informes/fase-09.md` · pendiente del usuario: su visto bueno y decidir si solo un dueño puede dar o quitar el rol de dueño
+_(ninguna)_
 
 ## En curso
 

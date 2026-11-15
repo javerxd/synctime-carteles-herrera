@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 9: mantenedores y estado del local
 
-Fecha: 15-11-2026 · Rama: `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · Estado: **en revisión**, esperando tu aprobación
+Fecha: 15-11-2026 · Rama: `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · Estado: **aprobada el 15-11-2026**
 
 Plan aprobado: `fase-09-plan.md`, con tus cuatro decisiones del 14-11-2026, y su especificación en `fase-09-especificacion.md`. Incluye tu pedido: **cambiar desde el perfil el correo que recibe los avisos de solicitudes nuevas**.
 
