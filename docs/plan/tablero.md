@@ -24,7 +24,7 @@ _(ninguna)_
 
 ## En curso
 
-- **Fase 10 — Rostro según requisitos** · rama `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · incluye, por pedido del usuario (15-11-2026), la prueba de vida con giros de cabeza y la calibración del umbral · plan: `fase-10-plan.md`, esperando la aprobación del usuario y sus respuestas a tres preguntas
+- **Fase 10 — Rostro según requisitos** · rama `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · incluye, por pedido del usuario (15-11-2026), la prueba de vida con giros de cabeza y la calibración del umbral · plan: `fase-10-plan.md`, tres decisiones del usuario tomadas el 15-11-2026; esperando la aprobación del plan
 
 ## Por hacer
 

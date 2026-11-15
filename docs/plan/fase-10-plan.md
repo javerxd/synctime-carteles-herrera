@@ -60,7 +60,7 @@ Por cada captura se envían el descriptor (128 números) y los 68 puntos de refe
 - el 401 genérico con tiempo mínimo;
 - el cifrado de los descriptores;
 - no se guardan fotos ni se registran descriptores ni puntos en los logs;
-- el token de equipo autorizado (pregunta 2).
+- el token de equipo autorizado (decisión 2).
 
 **Registro:** guarda **tres muestras cifradas**, una de frente y una por cada lado con giro moderado, en lugar del promedio único. Esto cumple E17, «tres capturas». Usa la misma clave y los mismos datos asociados por empleado.
 
@@ -141,8 +141,8 @@ Por cada captura se envían el descriptor (128 números) y los 68 puntos de refe
 
 **Lo que no se puede probar sin una cámara real** irá dicho con claridad en el informe: la precisión del giro calculado, el umbral real, la luz y el desempeño en tu equipo. Lo cubre tu calibración.
 
-## Preguntas antes de programar
+## Decisiones del usuario (15-11-2026)
 
-1. **RNFP12 pide «resolver el ingreso facial en 3 s o menos».** Con la prueba de vida, el flujo guiado dura de 6 a 9 segundos. Propongo medir RNFP12 como **la respuesta del servidor después de las capturas** (3 s o menos, medido) y anotar en `desviaciones.md` que el flujo completo es más largo por la prueba de vida que pediste. La otra opción es mantener los 3 segundos para el flujo completo, lo que obligaría a acortar los giros.
-2. **Equipo autorizado:** hoy el dueño y el administrador solo pueden entrar con rostro desde un equipo que autorizaron antes con su contraseña (dura 30 días). Propongo **mantenerlo**, porque es una barrera más contra un cliente modificado. La otra opción es quitarlo, para entrar con rostro desde cualquier equipo.
-3. **Calibración:** propongo la pantalla «Calibrar el rostro» descrita arriba, apagada por configuración y encendida solo mientras calibras, con las mediciones guardadas en la base de datos sin datos biométricos. La otra opción es un comando de consola que escribe las distancias en un archivo local, sin pantalla.
+1. **RNFP12:** los 3 segundos se miden como la respuesta del servidor después de las capturas. El flujo guiado completo, de 6 a 9 segundos por la prueba de vida, se anota en `desviaciones.md`.
+2. **Equipo autorizado:** se mantiene para dueño y administrador.
+3. **Calibración:** con la pantalla «Calibrar el rostro» en el panel, apagada por configuración, que guarda solo distancias en la base y sugiere un umbral.
