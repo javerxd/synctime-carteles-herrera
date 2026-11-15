@@ -25,7 +25,7 @@ _(ninguna)_
 
 ## En curso
 
-- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` (nace de `fase-10-rostro-segun-requisitos`) · incluye, por pedido del usuario (15-11-2026), los avisos del taller como correos operativos (preferencia por destino, «Correos no enviados» con reenviar, auditoría de los avisos) y la revisión de concurrencia e idempotencia · plan propuesto: `fase-11-plan.md`, esperando aprobación
+- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` (nace de `fase-10-rostro-segun-requisitos`) · incluye, por pedido del usuario (15-11-2026), los avisos del taller como correos operativos (preferencia por destino, «Correos no enviados» con reenviar, auditoría de los avisos) y la revisión de concurrencia e idempotencia · plan aprobado el 15-11-2026: `fase-11-plan.md` · construcción sin iniciar, a la espera de que el usuario la pida
 
 ## Por hacer
 
