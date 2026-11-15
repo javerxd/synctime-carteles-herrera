@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 8: cotizaciones, pedidos, pagos y abonos
 
-Fecha: 14-11-2026 · Rama: `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · Estado: **en revisión**, esperando tu aprobación
+Fecha: 14-11-2026 · Rama: `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · Estado: **aprobada el 14-11-2026**
 
 Plan aprobado: `fase-08-plan.md`, con tus cuatro decisiones del 14-11-2026, y su especificación en `fase-08-especificacion.md`.
 
