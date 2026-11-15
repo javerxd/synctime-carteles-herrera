@@ -213,7 +213,7 @@ Resueltas en esta fase: la fila «RFS02 (cartel)» de la tabla de desviaciones d
 Decisiones de Claude en la fase 9 (objetables):
 - **Reautenticación.** Piden la contraseña de quien lo hace: el alta de personal, el cambio de correo o de rol de otra persona, y agregar o quitar un destino de avisos. Reenviar o cancelar un cambio pendiente no la piden (`AgregarOQuitarUnDestino_PideLaContrasenaDeQuienLoHace`, `CambiarElCorreoOElRolDeOtraPersona_PideLaContrasena_YAvisaAlCorreoAnterior`).
 - **Avisos a las direcciones anteriores.** Al cambiar el correo de una persona, la anterior recibe un aviso con la nueva enmascarada. Al reemplazar, quitar o agregar un destino, las direcciones afectadas también reciben aviso.
-- **Dueño y administrador siguen siendo lo mismo.** Un administrador puede dar y quitar el rol de dueño. Solo lo frenan la reautenticación, el aviso a la persona afectada y la regla del último dueño. **Pregunta para el usuario:** ¿deben distinguirse sus permisos?
+- **Dueño y administrador siguen siendo lo mismo** (confirmado por el usuario el 15-11-2026: se mantiene). Un administrador puede dar y quitar el rol de dueño. Solo lo frenan la reautenticación, el aviso a la persona afectada y la regla del último dueño. **Pregunta para el usuario:** ¿deben distinguirse sus permisos?
 - **Nombres de tipos de letrero únicos en todo el taller**, no por categoría, porque la base tiene `uq_productos_nombre` sobre el nombre. El plan y la especificación decían «único por categoría».
 - **Respaldo mientras la base real no tenga la tabla.** Si falta `destinatarios_avisos` (error 208), `IDestinatariosAvisos` usa `Correo:AvisosTaller` y registra el aviso una vez cada 5 minutos (`TablaDestinosAusente`). Se quita al aplicar la migración.
 - **Vencimiento sin proceso automático.** Un pendiente vencido pasa a `cancelado` solo cuando se vuelve a pedir ese correo o un reemplazo de ese destino. Mientras tanto su enlace ya no sirve y no cuenta para el tope de pendientes.
@@ -229,7 +229,6 @@ Pendientes que quedan para después de la fase 9:
 |---|---|---|---|
 | RNFO06 | Validar el RUT en la API de clientes: `POST /clientes` y `PUT /clientes/{id}` lo guardan sin validar (la pantalla sí valida) | No estaba en la especificación de la fase 9, que valida el RUT del personal | Claude, en la siguiente tarea de código, si el usuario lo confirma |
 | RFS08, E22 | Bandeja para revisar las consultas del formulario de contacto (`consultas_contacto.revisada`) | El plan de la fase 9 no la incluye; el diccionario decía que llegaba aquí. Hoy nadie marca una consulta como revisada | Usuario: decidir en qué fase va |
-| Administrador y dueño | Si el administrador puede dar o quitar el rol de dueño | Hoy son iguales (ver decisiones de esta fase) | Usuario |
 | Horario y cartel | Versión (`row_version`) para que no gane la última escritura | La especificación no lo pedía | Usuario: decidir si se agrega |
 | Base real | Aplicar las migraciones pendientes, incluida `MantenedoresYAvisos`, con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario, plan de la fase 8) | Usuario |
 
