@@ -11,7 +11,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Tests;
 [Collection(ApiCollection.Name)]
 public sealed class FlujoNegocioTests(ApiFixture api)
 {
-    private static object FechaEntrega => DateTime.Now.AddDays(5);
+    private static object FechaEntrega => ApiFixture.HoyChile().AddDays(5);
 
     // ── Cotizaciones y trigger ──
 
@@ -21,57 +21,70 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var cotizacion = await api.CrearCotizacionAsync(await api.CrearSolicitudAsync());
 
         Assert.Equal(1000m, cotizacion.GetProperty("costoMaterialesTotal").GetDecimal());
-        Assert.Equal(2000m, cotizacion.GetProperty("totalCotizacion").GetDecimal());
-        Assert.Equal(await api.IdAdminAsync(), cotizacion.GetProperty("idEmpleado").GetInt32());
+        Assert.Equal(2000m, cotizacion.GetProperty("total").GetDecimal());
+        Assert.Equal(2000, cotizacion.GetProperty("totalRedondeado").GetInt32());
+        Assert.Equal(await api.IdAdminAsync(), cotizacion.GetProperty("elaboradaPor").GetProperty("idEmpleado").GetInt32());
     }
 
+    // Fase 8: editar reemplaza las lineas (una lista vacia o ausente las quita) y exige la version vista.
     [Fact]
-    public async Task Cotizacion_Put_ReplacesKeepsOrClearsMaterials()
+    public async Task Cotizacion_Put_ReplacesOrClearsMaterialsWithTheSeenVersion()
     {
-        var token = await api.TokenAdminAsync();
+        var cliente = api.Cliente(await api.TokenAdminAsync());
         var cotizacion = await api.CrearCotizacionAsync(await api.CrearSolicitudAsync());
         var url = $"/api/v1/cotizaciones/{cotizacion.GetProperty("idCotizacion").GetInt32()}";
 
-        var reemplazada = await api.Cliente(token).PutAsJsonAsync(url, new
+        var reemplazada = await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, url, cotizacion.GetProperty("rowVersion").GetString()!, new
         {
-            costoManoObra = 1000m, otrosCostos = 0m, estado = "pendiente",
+            costoManoObra = 1000m, otrosCostos = 0m,
             materiales = new[] { new { idMaterial = 2, cantidad = 3m, costoUnitario = 100m } }
-        }).EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal(1300m, reemplazada.GetProperty("totalCotizacion").GetDecimal());
+        })).EsperarAsync(HttpStatusCode.OK);
+        Assert.Equal(1300m, reemplazada.GetProperty("total").GetDecimal());
+        Assert.Equal("pendiente", reemplazada.GetProperty("estado").GetString());
 
-        var sinLista = await api.Cliente(token).PutAsJsonAsync(url, new { costoManoObra = 2000m, otrosCostos = 0m, estado = "pendiente" })
-            .EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal(2300m, sinLista.GetProperty("totalCotizacion").GetDecimal());
+        var vacia = await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, url, reemplazada.GetProperty("rowVersion").GetString()!,
+            new { costoManoObra = 2000m, otrosCostos = 0m, materiales = Array.Empty<object>() })).EsperarAsync(HttpStatusCode.OK);
+        Assert.Equal(2000m, vacia.GetProperty("total").GetDecimal());
+        Assert.Empty(vacia.GetProperty("materiales").EnumerateArray());
 
-        var vacia = await api.Cliente(token).PutAsJsonAsync(url, new { costoManoObra = 2000m, otrosCostos = 0m, estado = "pendiente", materiales = Array.Empty<object>() })
-            .EsperarAsync(HttpStatusCode.OK);
-        Assert.Equal(2000m, vacia.GetProperty("totalCotizacion").GetDecimal());
+        // Con la version de antes: otra persona ya la cambio.
+        await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, url, reemplazada.GetProperty("rowVersion").GetString()!,
+            new { costoManoObra = 3000m, otrosCostos = 0m })).EsperarAsync(HttpStatusCode.Conflict);
     }
 
+    // Fase 8: el borrado es logico; la cotizacion y sus lineas quedan en la base.
     [Fact]
-    public async Task Cotizacion_Delete_RemovesItsMaterials()
+    public async Task Cotizacion_Delete_IsLogical()
     {
         var token = await api.TokenAdminAsync();
-        var id = (await api.CrearCotizacionAsync(await api.CrearSolicitudAsync())).GetProperty("idCotizacion").GetInt32();
+        var creada = await api.CrearCotizacionAsync(await api.CrearSolicitudAsync());
+        var id = creada.GetProperty("idCotizacion").GetInt32();
 
-        await api.Cliente(token).DeleteAsync($"/api/v1/cotizaciones/{id}").EsperarAsync(HttpStatusCode.NoContent);
+        await api.Cliente(token).DeleteAsync($"/api/v1/cotizaciones/{id}").EsperarAsync(HttpStatusCode.BadRequest);
+        await api.Cliente(token).SendAsync(ApiFixture.ConVersion(HttpMethod.Delete, $"/api/v1/cotizaciones/{id}", creada.GetProperty("rowVersion").GetString()!))
+            .EsperarAsync(HttpStatusCode.NoContent);
 
-        Assert.False(await api.ConsultarAsync(db => db.CotizacionMateriales.AnyAsync(m => m.IdCotizacion == id)));
+        await api.Cliente(token).GetAsync($"/api/v1/cotizaciones/{id}").EsperarAsync(HttpStatusCode.NotFound);
+        Assert.True(await api.ConsultarAsync(db => db.Cotizaciones.Where(c => c.IdCotizacion == id).Select(c => c.EliminadoLogico).SingleAsync()));
+        Assert.True(await api.ConsultarAsync(db => db.CotizacionMateriales.AnyAsync(m => m.IdCotizacion == id)));
     }
 
     [Fact]
     public async Task Cotizacion_InvalidData_ReturnsBadRequest()
     {
-        var token = await api.TokenAdminAsync();
+        var cliente = api.Cliente(await api.TokenAdminAsync());
         var idSolicitud = await api.CrearSolicitudAsync();
-        var id = (await api.CrearCotizacionAsync(idSolicitud)).GetProperty("idCotizacion").GetInt32();
+        var url = $"/api/v1/solicitudes/{idSolicitud}/cotizaciones";
 
-        await api.Cliente(token).PutAsJsonAsync($"/api/v1/cotizaciones/{id}", new { costoManoObra = 1m, otrosCostos = 0m, estado = "inventado" })
+        await cliente.PostAsJsonAsync(url, new { costoManoObra = -1m, otrosCostos = 0m }).EsperarAsync(HttpStatusCode.BadRequest);
+        await cliente.PostAsJsonAsync(url, new { costoManoObra = 1m, otrosCostos = 0m, materiales = new[] { new { idMaterial = 999999, cantidad = 1m, costoUnitario = 1m } } })
             .EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/cotizaciones/", new { idSolicitud, costoManoObra = -1m, otrosCostos = 0m })
-            .EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/cotizaciones/", new { idSolicitud, costoManoObra = 1m, otrosCostos = 0m, materiales = new[] { new { idMaterial = 999999, cantidad = 1m, costoUnitario = 1m } } })
-            .EsperarAsync(HttpStatusCode.BadRequest);
+        var decimales = await cliente.PostAsJsonAsync(url, new { costoManoObra = 1000.5m, otrosCostos = 0m }).EsperarAsync(HttpStatusCode.BadRequest);
+        Assert.True(decimales.GetProperty("errores").TryGetProperty("costoManoObra", out _));
+
+        var creada = await api.CrearCotizacionAsync(idSolicitud);
+        await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, $"/api/v1/cotizaciones/{creada.GetProperty("idCotizacion").GetInt32()}",
+            creada.GetProperty("rowVersion").GetString()!, new { costoManoObra = 0m, otrosCostos = 0m })).EsperarAsync(HttpStatusCode.BadRequest);
     }
 
     // ── Pedidos ──
@@ -83,11 +96,9 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var idSolicitud = await api.CrearSolicitudAsync();
         var idCotizacion = (await api.CrearCotizacionAsync(idSolicitud)).GetProperty("idCotizacion").GetInt32();
         await api.AprobarCotizacionAsync(idCotizacion);
-        await api.AceptarSolicitudAsync(idSolicitud);
 
-        var pedido = await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", new
+        var pedido = await api.Cliente(token).PostAsJsonAsync($"/api/v1/cotizaciones/{idCotizacion}/pedido", new
         {
-            idSolicitud, idCotizacion,
             idEmpleadoResponsable = await api.IdAdminAsync(),
             fechaEntregaEstimada = FechaEntrega,
             modalidadEntrega = "instalacion_terreno",
@@ -96,51 +107,56 @@ public sealed class FlujoNegocioTests(ApiFixture api)
             costoInstalacionAdicional = 500m
         }).EsperarAsync(HttpStatusCode.Created);
 
-        Assert.Equal(2000m, pedido.GetProperty("montoBaseTrabajo").GetDecimal());
-        Assert.Equal(2500m, pedido.GetProperty("montoTotalFinal").GetDecimal());
+        Assert.Equal(2000, pedido.GetProperty("montoBaseTrabajo").GetInt32());
+        Assert.Equal(2500, pedido.GetProperty("montoTotalFinal").GetInt32());
         Assert.True(pedido.GetProperty("requiereInstalacion").GetBoolean());
+        Assert.Equal(idSolicitud, pedido.GetProperty("solicitud").GetProperty("idSolicitud").GetInt32());
+        Assert.Equal(idCotizacion, pedido.GetProperty("cotizacion").GetProperty("idCotizacion").GetInt32());
 
         var leido = await api.Cliente(token).GetAsync($"/api/v1/pedidos/{pedido.GetProperty("idPedido").GetInt32()}").EsperarAsync(HttpStatusCode.OK);
         Assert.True(leido.GetProperty("requiereInstalacion").GetBoolean());
+        Assert.Equal("Calle 1", leido.GetProperty("direccionInstalacion").GetString());
     }
 
     [Fact]
     public async Task Pedido_EnforcesWorkflowRules()
     {
-        var token = await api.TokenAdminAsync();
-        var idAdmin = await api.IdAdminAsync();
-        object Cuerpo(int idSolicitud, int? idCotizacion) => new { idSolicitud, idCotizacion, idEmpleadoResponsable = idAdmin, fechaEntregaEstimada = FechaEntrega };
+        var cliente = api.Cliente(await api.TokenAdminAsync());
+        var datos = ApiFixture.DatosPedido(await api.IdAdminAsync());
 
-        var sinAceptar = await api.CrearSolicitudAsync();
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", Cuerpo(sinAceptar, null)).EsperarAsync(HttpStatusCode.BadRequest);
+        // Solo una cotizacion aprobada da un pedido, y uno solo.
+        var pendiente = (await api.CrearCotizacionAsync(await api.CrearSolicitudAsync())).GetProperty("idCotizacion").GetInt32();
+        var rechazo = await cliente.PostAsJsonAsync($"/api/v1/cotizaciones/{pendiente}/pedido", datos).EsperarAsync(HttpStatusCode.Conflict);
+        Assert.Equal("transicion_invalida", rechazo.GetProperty("codigo").GetString());
 
-        var aceptada = await api.CrearSolicitudAsync();
-        await api.AceptarSolicitudAsync(aceptada);
+        await api.AprobarCotizacionAsync(pendiente);
+        await cliente.PostAsJsonAsync($"/api/v1/cotizaciones/{pendiente}/pedido", datos).EsperarAsync(HttpStatusCode.Created);
+        var repetido = await cliente.PostAsJsonAsync($"/api/v1/cotizaciones/{pendiente}/pedido", datos).EsperarAsync(HttpStatusCode.Conflict);
+        Assert.Equal("cotizacion_con_pedido", repetido.GetProperty("codigo").GetString());
 
-        var pendiente = (await api.CrearCotizacionAsync(aceptada)).GetProperty("idCotizacion").GetInt32();
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", Cuerpo(aceptada, pendiente)).EsperarAsync(HttpStatusCode.BadRequest);
-
-        var ajena = (await api.CrearCotizacionAsync(sinAceptar)).GetProperty("idCotizacion").GetInt32();
-        await api.AprobarCotizacionAsync(ajena);
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", Cuerpo(aceptada, ajena)).EsperarAsync(HttpStatusCode.BadRequest);
-
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", Cuerpo(aceptada, null)).EsperarAsync(HttpStatusCode.Created);
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", Cuerpo(aceptada, null)).EsperarAsync(HttpStatusCode.Conflict);
+        await cliente.PostAsJsonAsync("/api/v1/cotizaciones/999999/pedido", datos).EsperarAsync(HttpStatusCode.NotFound);
     }
 
     [Fact]
     public async Task Pedido_Put_RejectsInvalidValues()
     {
-        var token = await api.TokenAdminAsync();
-        var idSolicitud = await api.CrearSolicitudAsync();
-        await api.AceptarSolicitudAsync(idSolicitud);
-        var pedido = await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", new { idSolicitud, idEmpleadoResponsable = await api.IdAdminAsync(), fechaEntregaEstimada = FechaEntrega })
-            .EsperarAsync(HttpStatusCode.Created);
+        var cliente = api.Cliente(await api.TokenAdminAsync());
+        var pedido = await api.CrearPedidoAsync();
         var url = $"/api/v1/pedidos/{pedido.GetProperty("idPedido").GetInt32()}";
+        var version = pedido.GetProperty("rowVersion").GetString()!;
+        object Cuerpo(string modalidad) => new
+        {
+            idEmpleadoResponsable = pedido.GetProperty("responsable").GetProperty("idEmpleado").GetInt32(),
+            fechaEntregaEstimada = FechaEntrega,
+            modalidadEntrega = modalidad,
+            requiereInstalacion = false,
+            costoInstalacionAdicional = 0,
+            montoBaseTrabajo = 100_000
+        };
 
-        await api.Cliente(token).PutAsJsonAsync(url, new { estadoPedido = "inventado", fechaEntregaEstimada = FechaEntrega, modalidadEntrega = "retiro_local" }).EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente(token).PutAsJsonAsync(url, new { estadoPedido = "en_proceso", fechaEntregaEstimada = FechaEntrega, modalidadEntrega = "inventada" }).EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente(token).PutAsJsonAsync(url, new { estadoPedido = "en_proceso", fechaEntregaEstimada = FechaEntrega, modalidadEntrega = "retiro_local", rowVersion = pedido.GetProperty("rowVersion").GetString() }).EsperarAsync(HttpStatusCode.OK);
+        await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, url, version, Cuerpo("inventada"))).EsperarAsync(HttpStatusCode.BadRequest);
+        await cliente.PutAsJsonAsync(url, Cuerpo("retiro_local")).EsperarAsync(HttpStatusCode.BadRequest);
+        await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, url, version, Cuerpo("retiro_local"))).EsperarAsync(HttpStatusCode.OK);
     }
 
     // ── Solicitudes y eliminacion logica ──
@@ -291,9 +307,7 @@ public sealed class FlujoNegocioTests(ApiFixture api)
     {
         var token = await api.TokenAdminAsync();
         var id = await api.CrearSolicitudAsync();
-        await api.AceptarSolicitudAsync(id);
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", new { idSolicitud = id, idEmpleadoResponsable = await api.IdAdminAsync(), fechaEntregaEstimada = FechaEntrega })
-            .EsperarAsync(HttpStatusCode.Created);
+        await api.CrearPedidoAsync(idSolicitud: id);
 
         await api.Cliente(token).SendAsync(ApiFixture.ConVersion(HttpMethod.Delete, $"/api/v1/solicitudes/{id}", await api.VersionAsync(id))).EsperarAsync(HttpStatusCode.Conflict);
     }
@@ -305,8 +319,9 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var id = await api.CrearSolicitudAsync();
         await api.Cliente(token).SendAsync(ApiFixture.ConVersion(HttpMethod.Patch, $"/api/v1/solicitudes/{id}/eliminar-logico", await api.VersionAsync(id))).EsperarAsync(HttpStatusCode.OK);
 
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/cotizaciones/", new { idSolicitud = id, costoManoObra = 1m, otrosCostos = 0m })
-            .EsperarAsync(HttpStatusCode.BadRequest);
+        // Fase 8: una solicitud eliminada ya no existe para cotizar.
+        await api.Cliente(token).PostAsJsonAsync($"/api/v1/solicitudes/{id}/cotizaciones", ApiFixture.CuerpoCotizacion())
+            .EsperarAsync(HttpStatusCode.NotFound);
     }
 
     // ── Flujo online y metrica ──
@@ -318,9 +333,7 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var token = await api.TokenAdminAsync();
         var antes = await MetricaDelMesAsync(token);
         var id = (await EnviarSolicitudOnlineAsync()).GetProperty("idSolicitud").GetInt32();
-        await api.AceptarSolicitudAsync(id);
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", new { idSolicitud = id, idEmpleadoResponsable = await api.IdAdminAsync(), fechaEntregaEstimada = FechaEntrega })
-            .EsperarAsync(HttpStatusCode.Created);
+        await api.CrearPedidoAsync(idSolicitud: id);
 
         var despues = await MetricaDelMesAsync(token);
 
@@ -352,14 +365,13 @@ public sealed class FlujoNegocioTests(ApiFixture api)
     public async Task Delete_QuoteUsedByOrder_ReturnsConflict()
     {
         var token = await api.TokenAdminAsync();
-        var idSolicitud = await api.CrearSolicitudAsync();
-        var idCotizacion = (await api.CrearCotizacionAsync(idSolicitud)).GetProperty("idCotizacion").GetInt32();
-        await api.AprobarCotizacionAsync(idCotizacion);
-        await api.AceptarSolicitudAsync(idSolicitud);
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/pedidos/", new { idSolicitud, idCotizacion, idEmpleadoResponsable = await api.IdAdminAsync(), fechaEntregaEstimada = FechaEntrega })
-            .EsperarAsync(HttpStatusCode.Created);
+        var pedido = await api.CrearPedidoAsync();
+        var idCotizacion = pedido.GetProperty("cotizacion").GetProperty("idCotizacion").GetInt32();
+        var version = (await api.Cliente(token).GetAsync($"/api/v1/cotizaciones/{idCotizacion}").EsperarAsync(HttpStatusCode.OK))
+            .GetProperty("rowVersion").GetString()!;
 
-        await api.Cliente(token).DeleteAsync($"/api/v1/cotizaciones/{idCotizacion}").EsperarAsync(HttpStatusCode.Conflict);
+        await api.Cliente(token).SendAsync(ApiFixture.ConVersion(HttpMethod.Delete, $"/api/v1/cotizaciones/{idCotizacion}", version))
+            .EsperarAsync(HttpStatusCode.Conflict);
     }
 
     [Fact]

@@ -1,0 +1,148 @@
+/* Opciones excluyentes: filas de 44 px con el radio nativo en ámbar. La elegida toma el velo ámbar y su
+   borde, además del punto del radio, para que el estado no dependa de un solo detalle. */
+.grupo {
+  display: grid;
+  gap: var(--espacio-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--espacio-2);
+  margin-bottom: var(--espacio-1);
+  padding: 0;
+  color: var(--campo-etiqueta);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.obligatorio {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-medio);
+}
+
+.ayuda {
+  color: var(--campo-ayuda);
+  font-size: var(--tamano-sm);
+}
+
+.lista {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.enLinea {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  min-height: var(--tamano-control);
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--campo-borde);
+  border-radius: var(--radio-md);
+  background: var(--campo-fondo);
+  cursor: pointer;
+  transition:
+    background-color var(--duracion-estado) var(--curva-estandar),
+    border-color var(--duracion-estado) var(--curva-estandar);
+}
+
+.opcion:has(.control:focus-visible) {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+.elegida {
+  border-color: var(--chip-borde-activo);
+  background: var(--chip-fondo-activo);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .opcion:not(.elegida):hover {
+    background: var(--color-hover-neutro);
+  }
+}
+
+.grupo[data-deshabilitado='true'] .opcion {
+  background: var(--campo-fondo-deshabilitado);
+  cursor: not-allowed;
+}
+
+.control {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  accent-color: var(--color-acento);
+  cursor: inherit;
+}
+
+.control:focus-visible {
+  outline: none;
+}
+
+.icono {
+  flex: none;
+  color: var(--color-texto-secundario);
+}
+
+.elegida .icono {
+  color: var(--chip-texto-activo);
+}
+
+.textos {
+  display: grid;
+  min-width: 0;
+}
+
+.etiqueta {
+  font-size: var(--tamano-base);
+  line-height: var(--interlineado-compacto);
+}
+
+.elegida .etiqueta {
+  font-weight: var(--peso-seminegrita);
+}
+
+.descripcion {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  line-height: var(--interlineado-compacto);
+}
+
+.error {
+  display: flex;
+  gap: var(--espacio-1-5);
+  color: var(--campo-error);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+}
+
+.error:empty {
+  display: none;
+}
+
+.iconoError {
+  flex: none;
+  margin-top: 0.15em;
+}
+
+.grupo[data-error='true'] .opcion {
+  border-color: var(--campo-borde-error);
+}
+
+@media (forced-colors: active) {
+  .elegida {
+    border-width: 2px;
+    border-color: Highlight;
+  }
+}

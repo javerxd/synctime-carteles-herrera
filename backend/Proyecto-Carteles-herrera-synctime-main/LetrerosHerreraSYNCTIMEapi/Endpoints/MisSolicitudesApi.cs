@@ -16,12 +16,13 @@ public static class MisSolicitudesApi
         var mis = app.MapGroup("/api/v1/mis").WithTags("Portal cliente")
             .RequireAuthorization(Politicas.Cliente).RequireRateLimiting("ApiGeneral");
 
+        // Fase 8 (S04): cada solicitud trae su cotizacion vigente y su pedido, si los tiene.
         mis.MapGet("/solicitudes", async (ClaimsPrincipal user, ServicioSolicitudes servicio, CancellationToken ct, int? pagina, int? tamano) =>
             Results.Ok(await servicio.ListarDelClienteAsync(user.IdUsuario(), new ParametrosListado(pagina, tamano), ct)));
 
-        // Lo ajeno responde 404, igual que lo que no existe.
+        // El comprobante con el seguimiento. Lo ajeno responde 404, igual que lo que no existe.
         mis.MapGet("/solicitudes/{id}", async (int id, ClaimsPrincipal user, ServicioSolicitudes servicio, CancellationToken ct) =>
-            await servicio.ComprobanteAsync(id, user.IdUsuario(), ct) is { } comprobante ? Results.Ok(comprobante) : Results.NotFound());
+            await servicio.MiSolicitudAsync(id, user.IdUsuario(), ct) is { } solicitud ? Results.Ok(solicitud) : Results.NotFound());
 
         // Exige correo confirmado (403 correo_sin_confirmar) y pasa la regla contra solicitudes falsas
         // (409 contacto_directo, sin escribir nada). La huella de la IP se calcula con la clave del servidor.

@@ -572,6 +572,152 @@
   font-weight: var(--peso-seminegrita);
 }
 
+/* ── Seguimiento del cliente (S04, fase 8) ── */
+.tituloEnfocable:focus {
+  outline: none;
+}
+
+.cabeceraTarjeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-3);
+}
+
+.pasosSeguimiento {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pasoSeguimiento {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-2);
+  min-width: 0;
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+}
+
+.iconoPaso {
+  flex: none;
+  margin-top: 0.1em;
+}
+
+.textoPaso {
+  display: grid;
+  gap: var(--espacio-0-5);
+  min-width: 0;
+}
+
+.tituloPaso {
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  line-height: var(--interlineado-compacto);
+}
+
+.detallePaso {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  line-height: var(--interlineado-compacto);
+  overflow-wrap: anywhere;
+}
+
+.estadoPaso {
+  font-weight: var(--peso-seminegrita);
+}
+
+.paso_hecho .iconoPaso {
+  color: var(--tono-exito-solido);
+}
+
+.paso_hecho .estadoPaso {
+  color: var(--tono-exito-texto);
+}
+
+/* El paso actual: el estado activo lleva el ámbar (velo y borde), además de su ícono y su texto. */
+.paso_ahora {
+  border-color: var(--color-acento);
+  background: var(--color-acento-suave);
+}
+
+.paso_ahora .iconoPaso,
+.paso_ahora .estadoPaso {
+  color: var(--color-acento-hover);
+}
+
+.paso_despues .iconoPaso {
+  color: var(--color-texto-tenue);
+}
+
+.paso_despues .tituloPaso {
+  color: var(--color-texto-secundario);
+}
+
+.paso_detenido {
+  border-color: var(--tono-peligro-borde);
+  background: var(--tono-peligro-fondo);
+}
+
+.paso_detenido .iconoPaso,
+.paso_detenido .estadoPaso {
+  color: var(--tono-peligro-texto);
+}
+
+.respuestaCliente {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: var(--espacio-3);
+}
+
+.formularioDialogo {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.saldoCliente {
+  font-size: var(--tamano-lg);
+  font-weight: var(--peso-negrita);
+}
+
+.seguimientoTarjeta {
+  display: grid;
+  gap: var(--espacio-1-5);
+  margin-top: var(--espacio-2);
+  padding-top: var(--espacio-2);
+  border-top: 1px solid var(--color-borde);
+}
+
+.lineaSeguimiento {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-1) var(--espacio-2);
+  font-size: var(--tamano-sm);
+}
+
+.porResponder {
+  flex-basis: 100%;
+  color: var(--color-acento-hover);
+  font-weight: var(--peso-seminegrita);
+}
+
+.metaLinea {
+  color: var(--color-texto-secundario);
+}
+
+@media (forced-colors: active) {
+  .paso_ahora {
+    border-width: 2px;
+    border-color: Highlight;
+  }
+}
+
 @media (max-width: 30rem) {
   .tarjetaComprobante {
     padding: var(--espacio-5) var(--espacio-4);

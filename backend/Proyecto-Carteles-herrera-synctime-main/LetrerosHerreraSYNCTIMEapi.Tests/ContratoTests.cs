@@ -89,7 +89,9 @@ public class ContratoTests(ApiFixture api)
                 if (borraLoPropio && Permite(acceso, roles, actor.Rol))
                     continue;
 
-                using var peticion = new HttpRequestMessage(metodo, partes[1].Replace("{id}", "999999"));
+                // Todo parametro de la ruta ({id}, {idPago}, {idAdjunto}...) va con un numero: las rutas con
+                // restriccion {x:int} no reconocerian el texto «{idPago}» y responderian 404 a todos.
+                using var peticion = new HttpRequestMessage(metodo, System.Text.RegularExpressions.Regex.Replace(partes[1], @"\{[^}]+\}", "999999"));
                 if (metodo != HttpMethod.Get && metodo != HttpMethod.Delete)
                     peticion.Content = new StringContent("\"cuerpo ilegible a proposito\"", Encoding.UTF8, "application/json");
 

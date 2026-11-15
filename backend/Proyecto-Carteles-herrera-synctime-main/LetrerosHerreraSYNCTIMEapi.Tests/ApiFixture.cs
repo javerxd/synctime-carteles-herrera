@@ -344,25 +344,59 @@ public sealed class ApiFixture : IAsyncLifetime
         return creada.GetProperty("idSolicitud").GetInt32();
     }
 
-    // Cotizacion de 1000 de mano de obra mas 2 x 500 en materiales: total 2000.
-    public async Task<JsonElement> CrearCotizacionAsync(int idSolicitud)
-    {
-        return await Cliente(await TokenAdminAsync())
-            .PostAsJsonAsync("/api/v1/cotizaciones/", new
-            {
-                idSolicitud,
-                costoManoObra = 1000m,
-                otrosCostos = 0m,
-                materiales = new[] { new { idMaterial = 1, medidaAplicada = "2 x 1", cantidad = 2m, costoUnitario = 500m } }
-            })
+    // Fase 8: se emite sobre la solicitud (que pasa a «cotizado»). Cotizacion de 1000 de mano de obra mas
+    // 2 x 500 en materiales: total 2000.
+    public async Task<JsonElement> CrearCotizacionAsync(int idSolicitud, string? token = null) =>
+        await Cliente(token ?? await TokenAdminAsync())
+            .PostAsJsonAsync($"/api/v1/solicitudes/{idSolicitud}/cotizaciones", CuerpoCotizacion())
             .EsperarAsync(HttpStatusCode.Created);
+
+    public static object CuerpoCotizacion(decimal manoObra = 1000m, decimal otros = 0m, string? observaciones = null) => new
+    {
+        costoManoObra = manoObra,
+        otrosCostos = otros,
+        observaciones,
+        materiales = new[] { new { idMaterial = 1, medidaAplicada = "2 x 1", cantidad = 2m, costoUnitario = 500m } }
+    };
+
+    // Fase 8: la respuesta que el cliente dio en el local, registrada por el personal con la version vista.
+    public async Task<JsonElement> ResponderCotizacionAsync(int idCotizacion, string decision = "aprobada", string? motivo = null)
+    {
+        var admin = Cliente(await TokenAdminAsync());
+        var version = (await admin.GetAsync($"/api/v1/cotizaciones/{idCotizacion}").EsperarAsync(HttpStatusCode.OK)).GetProperty("rowVersion").GetString()!;
+        return await admin.SendAsync(ConVersion(HttpMethod.Post, $"/api/v1/cotizaciones/{idCotizacion}/respuesta", version,
+            new { decision, via = "presencial", motivo })).EsperarAsync(HttpStatusCode.OK);
     }
 
-    public async Task AprobarCotizacionAsync(int idCotizacion)
+    public Task AprobarCotizacionAsync(int idCotizacion) => ResponderCotizacionAsync(idCotizacion);
+
+    // «Hoy» en Chile, como lo usa la API.
+    public static DateOnly HoyChile() => DateOnly.FromDateTime(Negocio.Local.HoraChile.Convertir(DateTimeOffset.UtcNow));
+
+    // Datos minimos de un pedido (E08): retiro en el local, entrega en 5 dias.
+    public static object DatosPedido(int idResponsable, object? abonoInicial = null) => new
     {
-        await Cliente(await TokenAdminAsync())
-            .PutAsJsonAsync($"/api/v1/cotizaciones/{idCotizacion}", new { costoManoObra = 1000m, otrosCostos = 0m, estado = "aprobada" })
-            .EsperarAsync(HttpStatusCode.OK);
+        idEmpleadoResponsable = idResponsable,
+        fechaEntregaEstimada = HoyChile().AddDays(5),
+        modalidadEntrega = "retiro_local",
+        requiereInstalacion = false,
+        costoInstalacionAdicional = 0,
+        abonoInicial
+    };
+
+    // Fase 8: un pedido nace de una cotizacion aprobada. Sobre la solicitud indicada (o una presencial nueva)
+    // se emite una cotizacion de `monto` en mano de obra, sin materiales; se aprueba en el local y se crea el
+    // pedido «aceptado». Devuelve la ficha del pedido.
+    public async Task<JsonElement> CrearPedidoAsync(int monto = 100_000, int? idSolicitud = null, object? abonoInicial = null)
+    {
+        var admin = Cliente(await TokenAdminAsync());
+        var solicitud = idSolicitud ?? await CrearSolicitudAsync();
+        var cotizacion = await admin.PostAsJsonAsync($"/api/v1/solicitudes/{solicitud}/cotizaciones",
+            new { costoManoObra = monto, otrosCostos = 0, materiales = Array.Empty<object>() }).EsperarAsync(HttpStatusCode.Created);
+        var idCotizacion = cotizacion.GetProperty("idCotizacion").GetInt32();
+        await ResponderCotizacionAsync(idCotizacion);
+        return await admin.PostAsJsonAsync($"/api/v1/cotizaciones/{idCotizacion}/pedido", DatosPedido(await IdAdminAsync(), abonoInicial))
+            .EsperarAsync(HttpStatusCode.Created);
     }
 
     // Fase 7: version vigente de una solicitud (el rowVersion de su ficha), para If-Match.

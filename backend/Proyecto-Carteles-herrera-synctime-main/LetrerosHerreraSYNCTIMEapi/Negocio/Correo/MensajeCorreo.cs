@@ -20,6 +20,7 @@ public static class TiposCorreo
     public const string RecuperacionCuenta = "recuperacion_cuenta";
     public const string AvisoCambioCorreo = "aviso_cambio_correo";
     public const string ConfirmacionSolicitud = "confirmacion_solicitud";
+    public const string CotizacionLista = "cotizacion_lista";
     public const string Prueba = "prueba";
 }
 

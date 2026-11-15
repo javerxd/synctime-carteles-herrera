@@ -79,6 +79,12 @@
   cursor: not-allowed;
 }
 
+/* Solo lectura (por ejemplo, un monto que solo cambia gestión): se lee y se copia, pero no se edita. */
+.control[readonly] {
+  background: var(--campo-fondo-deshabilitado);
+  cursor: default;
+}
+
 .area {
   min-height: calc(var(--campo-alto) * 2.5);
   resize: vertical;

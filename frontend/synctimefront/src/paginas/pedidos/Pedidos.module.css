@@ -1,0 +1,674 @@
+/* Pedidos (fase 8): listado y cobranza, ficha, creación, calendario de entregas y alertas del inicio.
+   Montos en cifras tabulares y alineados a la derecha; los estados siempre con texto, ícono y color. */
+
+.nota {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* ── Desglose de montos (ficha y creación) ── */
+.desglose {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: var(--espacio-4);
+  border-radius: var(--radio-md);
+  background: var(--color-fondo-alterno);
+}
+
+.desglose > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-4);
+}
+
+.desglose dt {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+}
+
+.desglose dd {
+  margin: 0;
+  font-size: var(--tamano-sm);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.desglose .filaFuerte {
+  padding-top: var(--espacio-2);
+  border-top: 1px solid var(--color-borde);
+}
+
+.filaFuerte dt,
+.filaFuerte dd {
+  color: var(--color-texto);
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+}
+
+.desglose .filaSaldo {
+  margin-top: var(--espacio-1);
+  padding-top: var(--espacio-3);
+  border-top: 1px solid var(--color-borde-fuerte);
+}
+
+.filaSaldo dt {
+  color: var(--color-texto);
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+}
+
+.filaSaldo dd {
+  color: var(--color-texto);
+  font-size: var(--tamano-xl);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+}
+
+.saldoPendiente dd {
+  color: var(--tono-aviso-texto);
+}
+
+/* ── Listado y cobranza ── */
+.sinCorte {
+  white-space: nowrap;
+}
+
+.estadosCelda {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-1) var(--espacio-2);
+}
+
+.cicloCerrado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  color: var(--tono-exito-texto);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-seminegrita);
+  white-space: nowrap;
+}
+
+.porCobrar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-4);
+}
+
+.iconoPorCobrar {
+  flex: none;
+  margin-top: var(--espacio-1);
+  color: var(--color-texto-secundario);
+}
+
+.etiquetaPorCobrar {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  letter-spacing: 0;
+}
+
+.montoPorCobrar {
+  font-size: var(--tamano-3xl);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+  line-height: 1.15;
+}
+
+/* ── Ficha ── */
+.cabeceraTarjeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+}
+
+.transiciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+/* En el teléfono, una acción por fila y a todo el ancho. */
+@media (max-width: 30rem) {
+  .transiciones > * {
+    flex: 1 1 100%;
+  }
+}
+
+/* Abonos: un libro de caja con el monto a la derecha. */
+.abonos {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  container-type: inline-size;
+}
+
+.abono {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--espacio-1) var(--espacio-4);
+  padding-block: var(--espacio-3);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.abono:first-child {
+  padding-top: 0;
+}
+
+.abono:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.abonoDetalle {
+  display: grid;
+  gap: var(--espacio-0-5);
+  min-width: 0;
+}
+
+.abonoTitulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--espacio-1);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.insigniaEnLinea {
+  margin-left: var(--espacio-1);
+}
+
+.abonoMeta {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  overflow-wrap: anywhere;
+}
+
+.abonoMotivo {
+  color: var(--tono-peligro-texto);
+  font-size: var(--tamano-xs);
+  overflow-wrap: anywhere;
+}
+
+.abonoMonto {
+  font-size: var(--tamano-base);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.abonoAnulado .abonoMonto {
+  color: var(--color-texto-secundario);
+}
+
+.abonoAccion {
+  grid-column: 2;
+  justify-self: end;
+}
+
+@container (min-width: 32rem) {
+  .abono {
+    grid-template-columns: minmax(0, 1fr) auto 6.5rem;
+  }
+
+  .abonoAccion {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+.tachado {
+  color: var(--color-texto-secundario);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* ── Crear pedido y pedido directo ── */
+.rejillaCrear {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .rejillaCrear {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+  }
+
+  .columnaResumen {
+    position: sticky;
+    top: calc(var(--altura-barra) + var(--espacio-4));
+  }
+}
+
+.columnaCrear {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+}
+
+.tarjetaResumen,
+.resumenMontos {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+/* El paso del cliente, del mismo ancho que la columna del formulario que viene abajo. */
+@media (min-width: 64rem) {
+  .pasoCliente {
+    max-width: calc(100% - 20rem - var(--espacio-6));
+  }
+}
+
+/* ── Calendario de entregas ── */
+.barraCalendario {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3) var(--espacio-4);
+}
+
+.mesCalendario {
+  font-size: var(--tamano-xl);
+}
+
+.navegacionMes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2) var(--espacio-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.cuentaLeyenda {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.vacioMes {
+  padding-block: var(--espacio-6);
+}
+
+.calendario {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.diasSemana {
+  display: none;
+}
+
+/* Al cambiar de mes, la cuadrícula anterior queda atenuada hasta que llegan las entregas del nuevo. */
+.actualizando .cuadricula {
+  opacity: 0.55;
+  transition: opacity var(--duracion-estado) var(--curva-estandar);
+}
+
+.cuadricula {
+  display: grid;
+  gap: var(--espacio-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dia {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-2);
+  min-width: 0;
+  padding: var(--espacio-3) var(--espacio-4);
+  border: 1px solid var(--color-borde-sutil);
+  border-radius: var(--radio-lg);
+  background: var(--color-superficie);
+  box-shadow: var(--sombra-reposo);
+}
+
+.numeroDia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+  font-size: var(--tamano-base);
+  letter-spacing: 0;
+}
+
+.diaCorto {
+  display: none;
+}
+
+.diaLargo {
+  display: inline-block;
+}
+
+.diaLargo::first-letter {
+  text-transform: uppercase;
+}
+
+.marcaHoy {
+  padding: 0 var(--espacio-2);
+  border: 1px solid var(--color-acento);
+  border-radius: var(--radio-pildora);
+  color: var(--color-acento-hover);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-seminegrita);
+  line-height: 1.5;
+}
+
+/* En el teléfono es una lista: solo los días del mes que tienen entregas. */
+.diaSinEntregas,
+.fueraDeMes,
+.calendarioVacio {
+  display: none;
+}
+
+.entregas {
+  display: grid;
+  gap: var(--espacio-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entrega {
+  --_fondo: var(--tono-info-fondo);
+  --_borde: var(--tono-info-borde);
+  --_texto: var(--tono-info-texto);
+
+  display: grid;
+  gap: 0;
+  min-height: var(--tamano-control);
+  padding: var(--espacio-1-5) var(--espacio-2-5);
+  border: 1px solid var(--_borde);
+  border-radius: var(--radio-md);
+  background: var(--_fondo);
+  color: var(--color-texto);
+  text-decoration: none;
+  transition: border-color var(--duracion-estado) var(--curva-estandar);
+}
+
+.entregaEntregado {
+  --_fondo: var(--tono-exito-fondo);
+  --_borde: var(--tono-exito-borde);
+  --_texto: var(--tono-exito-texto);
+}
+
+.entregaAtrasado {
+  --_fondo: var(--tono-peligro-fondo);
+  --_borde: var(--tono-peligro-borde);
+  --_texto: var(--tono-peligro-texto);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .entrega:hover {
+    border-color: var(--_texto);
+  }
+}
+
+.entregaEstado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  color: var(--_texto);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-seminegrita);
+}
+
+.entregaEstado svg {
+  flex: none;
+}
+
+.entregaCliente {
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  overflow-wrap: anywhere;
+}
+
+.entregaModalidad {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+.entregaModalidad:empty {
+  display: none;
+}
+
+/* Desde 768 px: la cuadrícula de lunes a domingo, con filos de 1 px entre los días. */
+@media (min-width: 48rem) {
+  .calendario,
+  .calendarioVacio {
+    display: grid;
+    gap: 0;
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-lg);
+    overflow: hidden;
+    background: var(--color-borde);
+  }
+
+  .diasSemana {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--color-borde);
+  }
+
+  .diasSemana span {
+    padding: var(--espacio-2) var(--espacio-3);
+    background: var(--color-fondo-alterno);
+    color: var(--color-texto-secundario);
+    font-size: var(--tamano-xs);
+    font-weight: var(--peso-seminegrita);
+    text-transform: capitalize;
+  }
+
+  .cuadricula {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1px;
+    margin-top: 1px;
+  }
+
+  .dia,
+  .diaSinEntregas,
+  .fueraDeMes {
+    display: grid;
+    min-height: 6.5rem;
+    padding: var(--espacio-2);
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .fueraDeMes {
+    background: var(--color-fondo-hundido);
+  }
+
+  .fueraDeMes .diaCorto {
+    color: var(--color-texto-secundario);
+    font-weight: var(--peso-medio);
+  }
+
+  .numeroDia {
+    gap: var(--espacio-1);
+    font-size: var(--tamano-sm);
+  }
+
+  .diaCorto {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--radio-pildora);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hoy .diaCorto {
+    border: 1px solid var(--color-acento);
+    color: var(--color-acento-hover);
+  }
+
+  /* El nombre largo del día sigue para el lector de pantalla. */
+  .diaLargo {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .entrega {
+    padding: var(--espacio-1) var(--espacio-1-5);
+  }
+
+  .entregaCliente {
+    font-size: var(--tamano-xs);
+  }
+}
+
+/* ── Alertas del inicio (gestión) ── */
+.alertas {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.tituloAlertas {
+  font-size: var(--tamano-lg);
+}
+
+.rejillaAlertas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--espacio-5);
+}
+
+.bloqueAlerta {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-3);
+  min-width: 0;
+}
+
+.cabeceraAlerta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-1) var(--espacio-3);
+}
+
+.tituloAlerta {
+  font-size: var(--tamano-base);
+}
+
+.cuentaAlerta {
+  color: var(--color-texto-secundario);
+  font-weight: var(--peso-medio);
+  font-variant-numeric: tabular-nums;
+}
+
+.verMas {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  min-height: 1.5rem;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.listaAlerta {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listaAlerta li {
+  display: grid;
+  justify-items: start;
+  gap: var(--espacio-1);
+  padding-bottom: var(--espacio-2);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.listaAlerta li:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.enlaceAlerta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  overflow-wrap: anywhere;
+}
+
+.metaAlerta {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+.montoAlerta {
+  font-size: var(--tamano-2xl);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+  line-height: 1.15;
+}
+
+@media (max-width: 30rem) {
+  .textoBotonMes {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .navegacionMes {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (forced-colors: active) {
+  .entrega {
+    border-color: CanvasText;
+  }
+
+  .hoy .diaCorto,
+  .marcaHoy {
+    border-color: Highlight;
+  }
+}

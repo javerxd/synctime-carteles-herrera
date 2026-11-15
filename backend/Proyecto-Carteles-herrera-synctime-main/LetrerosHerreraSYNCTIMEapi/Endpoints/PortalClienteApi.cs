@@ -1,46 +1,41 @@
 using System.Security.Claims;
-using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Security;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
+using LetrerosHerreraSYNCTIMEapi.Services;
 
 namespace LetrerosHerreraSYNCTIMEapi.Endpoints;
 
-// Los pedidos del cliente con sesion (se rehace en la fase 8). Sus solicitudes y adjuntos estan en
-// MisSolicitudesApi (fase 7); la solicitud publica sin cuenta (/solicitudes/online) se elimino en la fase 7.
+// Fase 8 (RFU07, RFU08, S04, S06): los pedidos y las cotizaciones del cliente con sesion. El id sale siempre
+// del token: lo ajeno responde 404, igual que lo que no existe. El cliente no ve el historial interno del
+// pedido ni quien registro cada abono. Sus solicitudes y adjuntos estan en MisSolicitudesApi (fase 7).
 public static class PortalClienteApi
 {
     public static void MapPortalClienteApi(this WebApplication app)
     {
-        // ── Cliente con sesion: solo ve lo suyo; el id sale siempre del token ──
         var mis = app.MapGroup("/api/v1/mis").WithTags("Portal cliente")
             .RequireAuthorization(Politicas.Cliente).RequireRateLimiting("ApiGeneral");
 
-        mis.MapGet("/pedidos", async (ClaimsPrincipal user, LetrerosHerreradbContext db, CancellationToken ct) =>
+        mis.MapGet("/pedidos", async (ClaimsPrincipal user, ServicioPedidos servicio, CancellationToken ct) =>
+            Results.Ok(await servicio.DelClienteAsync(user.IdUsuario(), ct)));
+
+        // La cotizacion (S06), solo si es de una solicitud suya y no esta eliminada. Va con su ETag.
+        mis.MapGet("/cotizaciones/{id:int}", async (int id, ClaimsPrincipal user, HttpContext http, ServicioCotizaciones servicio, CancellationToken ct) =>
         {
-            var idCliente = user.IdUsuario();
-            return Results.Ok(await db.Pedidos.AsNoTracking()
-                .Where(p => p.Solicitud!.IdCliente == idCliente)
-                .OrderByDescending(p => p.FechaPedido)
-                .Select(p => new
-                {
-                    p.IdPedido,
-                    p.IdSolicitud,
-                    p.FechaPedido,
-                    p.FechaEntregaEstimada,
-                    p.FechaEntregaReal,
-                    p.ModalidadEntrega,
-                    p.RequiereInstalacion,
-                    p.DireccionInstalacion,
-                    p.CostoInstalacionAdicional,
-                    p.MontoBaseTrabajo,
-                    p.MontoTotalFinal,
-                    p.EstadoPedido,
-                    p.EstadoPago,
-                    p.MontoAbonado,
-                    p.SaldoPendiente
-                })
-                .ToListAsync(ct));
+            var ficha = await servicio.FichaAsync(id, user.IdUsuario(), ct);
+            if (ficha is null)
+                return Results.NotFound();
+            http.Response.Headers.ETag = Concurrencia.ETag(ficha.RowVersion);
+            return Results.Ok(ficha.ParaElCliente());
+        });
+
+        // Aprobar o rechazar (motivo opcional), con la version vista. La via es siempre «cliente_web».
+        mis.MapPost("/cotizaciones/{id:int}/respuesta", async (int id, MiRespuestaCotizacionRequest req, ClaimsPrincipal user, HttpContext http,
+            ServicioCotizaciones servicio, CancellationToken ct) =>
+        {
+            if (!Concurrencia.TryLeerIfMatch(http.Request, out var version))
+                return CotizacionApi.IfMatchIlegible();
+            var resultado = await servicio.ResponderAsync(id, QuienResponde.Cliente(user.IdUsuario()), req.Decision, req.Motivo,
+                version ?? req.RowVersion, ct);
+            return RespuestasCotizacion.Responder(resultado, http, r => Results.Ok(r.Ficha.ParaElCliente()));
         });
     }
 }

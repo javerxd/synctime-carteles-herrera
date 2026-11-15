@@ -1,6 +1,6 @@
 # Diccionario de datos — LetreriaLosHerreraDB
 
-Estado del esquema: migración `CuentasYSesion` (13-11-2026), 21 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
+Estado del esquema: migración `CotizacionesYPedidos` (14-11-2026), 24 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
 
 **Convenciones**
 - Motor SQL Server 2025 Express, intercalación `Modern_Spanish_CI_AS` (ordena y compara en español, sin distinguir mayúsculas).
@@ -11,7 +11,7 @@ Estado del esquema: migración `CuentasYSesion` (13-11-2026), 21 tablas. Diagram
 - Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`) y las de la fase 5 (`consultas_contacto` y la autorización del logo en `catalogo`) y la fase 6 (`tokens_renovacion`, `codigos_cuenta` y `clientes.fecha_verificacion_correo`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local.
 - `row_version` es un `rowversion`: cambia en cada modificación y permite rechazar el cambio de un registro que otra persona modificó después de abrirlo (RNFP10).
 
-Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026).
+Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026). Las de la fase 8 (14-11-2026) se marcan **NUEVA (fase 8)** o **CAMBIA (fase 8)**, y la tabla `pedidos_historial` también es de esa fecha.
 
 ---
 
@@ -205,7 +205,7 @@ Datos iniciales: 5 materiales. Restricciones: `pk_materiales`, `uq_materiales_no
 
 ## cotizaciones
 
-Presupuesto de una solicitud (RFS05). Una solicitud puede tener varias; solo una aprobada da origen al pedido.
+Presupuesto de una solicitud (RFS05). Una solicitud puede tener varias; solo una aprobada da origen al pedido. Desde la fase 8, la base no admite dos cotizaciones «pendiente» de una misma solicitud.
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
@@ -213,14 +213,23 @@ Presupuesto de una solicitud (RFS05). Una solicitud puede tener varias; solo una
 | `id_solicitud` | int | No | | FK a `solicitudes` |
 | `id_empleado` | int | No | | FK a `empleados`: quién la elaboró |
 | `fecha_cotizacion` | datetime2(0) | No | `SYSDATETIME()` | Fecha |
-| `observaciones` | nvarchar(500) | Sí | | Observaciones |
+| `observaciones` | nvarchar(2000) | Sí | | Observaciones. **CAMBIA (fase 8):** hasta 2000 caracteres (antes 500). Las ve el cliente |
 | `costo_materiales_total` | decimal(12,2) | No | 0 | Suma de las líneas de materiales. La mantiene el trigger `trg_cotizacion_materiales_recalcular_total` |
-| `costo_mano_obra` | decimal(12,2) | No | 0 | Mano de obra |
-| `otros_costos` | decimal(12,2) | No | 0 | Otros gastos |
+| `costo_mano_obra` | decimal(12,2) | No | 0 | Mano de obra. **Fase 8:** sin decimales (`ck_cotizaciones_montos_enteros`) |
+| `otros_costos` | decimal(12,2) | No | 0 | Otros gastos. **Fase 8:** sin decimales (`ck_cotizaciones_montos_enteros`) |
 | `total_cotizacion` | decimal(14,2) | — | Calculada: materiales + mano de obra + otros | Total |
 | `estado` | nvarchar(15) | No | `pendiente` | `pendiente`, `aprobada` o `rechazada`. La aprueba el cliente en la web o el personal cuando el cliente confirma por teléfono o WhatsApp |
+| `fecha_respuesta` | datetimeoffset(0) | Sí | | **NUEVA (fase 8).** Cuándo se respondió. Presente si y solo si el estado no es `pendiente` (`ck_cotizaciones_respuesta`) |
+| `via_respuesta` | nvarchar(15) | Sí | | **NUEVA (fase 8).** `cliente_web`, `telefono`, `whatsapp` o `presencial` (`ck_cotizaciones_via`). Presente si y solo si hay `fecha_respuesta` |
+| `id_empleado_respuesta` | int | Sí | | **NUEVA (fase 8).** FK a `empleados`: quién registró la respuesta. Nulo si la respondió el cliente en la web |
+| `motivo_rechazo` | nvarchar(500) | Sí | | **NUEVA (fase 8).** Motivo, si se rechazó. La API lo pide opcional y solo lo guarda al rechazar |
+| `row_version` | rowversion | No | automática | **NUEVA (fase 8).** Control de concurrencia: editar, responder o eliminar exige la versión vista (`If-Match`) |
+| `eliminado_logico` | bit | No | 0 | **NUEVA (fase 8).** 1 = eliminada; la fila se conserva. Solo se eliminan pendientes o rechazadas sin pedido |
+| `fecha_eliminacion_logica` | datetimeoffset(0) | Sí | | **NUEVA (fase 8).** Cuándo se eliminó |
 
-Restricciones: `pk_cotizaciones`, `fk_cotizaciones_solicitud` (en cascada), `fk_cotizaciones_empleado`, `ck_cotizaciones_costos`, `ck_cotizaciones_estado`. Índice `ix_cotizaciones_solicitud` (`id_solicitud`, `estado`).
+Restricciones: `pk_cotizaciones`, `fk_cotizaciones_solicitud` (en cascada), `fk_cotizaciones_empleado`, `ck_cotizaciones_costos`, `ck_cotizaciones_estado`. Desde la fase 8 también `fk_cotizaciones_empleado_respuesta`, `ck_cotizaciones_montos_enteros` (mano de obra y otros costos sin decimales), `ck_cotizaciones_respuesta` (pendiente si y solo si no hay fecha de respuesta) y `ck_cotizaciones_via`.
+
+Índices: `ix_cotizaciones_solicitud` (`id_solicitud`, `estado`), para la bandeja de cotizaciones de una solicitud. **`uq_cotizaciones_una_pendiente` (NUEVO, fase 8):** único, sobre `id_solicitud` y filtrado a `estado = 'pendiente'` y `eliminado_logico = 0`: una solicitud tiene a lo más una cotización pendiente, aunque dos personas cotizen a la vez. `ix_cotizaciones_empleado_respuesta` (NUEVO), para la clave foránea de la respuesta.
 
 ## cotizacion_materiales
 
@@ -231,22 +240,22 @@ Líneas de materiales de una cotización.
 | `id_cotizacion_material` | int | No | autoincremental | PK |
 | `id_cotizacion` | int | No | | FK a `cotizaciones` (se borra con ella) |
 | `id_material` | int | No | | FK a `materiales` |
-| `medida_aplicada` | nvarchar(80) | Sí | | Medida a la que se aplica |
+| `medida_aplicada` | nvarchar(100) | Sí | | Medida a la que se aplica. **CAMBIA (fase 8):** hasta 100 caracteres (antes 80) |
 | `cantidad` | decimal(10,2) | No | | Cantidad en la unidad del material (admite decimales: 1,5 m²). CHECK > 0 |
-| `costo_unitario` | decimal(12,2) | No | | Costo por unidad al cotizar. CHECK ≥ 0 |
-| `subtotal` | decimal(14,2) | — | Calculada: cantidad × costo unitario | Subtotal |
+| `costo_unitario` | decimal(12,2) | No | | Costo por unidad al cotizar. CHECK ≥ 0. **Fase 8:** sin decimales (`ck_cot_mat_costo_entero`) |
+| `subtotal` | decimal(14,2) | — | Calculada: cantidad × costo unitario | Subtotal. Puede tener centavos por la cantidad |
 
-Restricciones: `pk_cotizacion_materiales`, `fk_cot_mat_cotizacion` (en cascada), `fk_cot_mat_material`, `ck_cot_mat_cantidad`, `ck_cot_mat_costo`. Índice `ix_cot_mat_cotizacion`. Tiene el trigger `trg_cotizacion_materiales_recalcular_total`.
+Restricciones: `pk_cotizacion_materiales`, `fk_cot_mat_cotizacion` (en cascada), `fk_cot_mat_material`, `ck_cot_mat_cantidad`, `ck_cot_mat_costo`, `ck_cot_mat_costo_entero` (**NUEVA, fase 8**). Índice `ix_cot_mat_cotizacion`. Tiene el trigger `trg_cotizacion_materiales_recalcular_total`.
 
 ## pedidos
 
-Trabajo acordado (RFS06). **Tabla modificada el 12-11-2026:** el estado operativo y el estado de pago pasan a ser independientes.
+Trabajo acordado (RFS06). **Tabla modificada el 12-11-2026:** el estado operativo y el estado de pago pasan a ser independientes. **Modificada el 14-11-2026 (fase 8):** anulación con motivo, borrado lógico, un pedido por cotización e historial de estados en `pedidos_historial`.
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
 | `id_pedido` | int | No | autoincremental | PK |
 | `id_solicitud` | int | No | | FK a `solicitudes`. UQ: una solicitud da a lo más un pedido. En un pedido directo, la solicitud se genera internamente |
-| `id_cotizacion` | int | Sí | | FK a `cotizaciones`: la cotización aprobada de origen |
+| `id_cotizacion` | int | Sí | | FK a `cotizaciones`: la cotización aprobada de origen. **UQ filtrado desde la fase 8** (`uq_pedidos_cotizacion`): una cotización da a lo más un pedido, aunque el pedido se elimine |
 | `origen` | nvarchar(15) | No | `cotizacion` | **NUEVA.** `cotizacion` (nace de una cotización aprobada) o `directo` (acordado en el taller sin solicitud previa) |
 | `id_empleado_responsable` | int | No | | FK a `empleados`: responsable del trabajo |
 | `fecha_pedido` | datetime2(0) | No | `SYSDATETIME()` | Fecha de creación. Sirve para filtrar por año y mes |
@@ -254,25 +263,30 @@ Trabajo acordado (RFS06). **Tabla modificada el 12-11-2026:** el estado operativ
 | `fecha_entrega_real` | datetime2(0) | Sí | | Fecha en que se entregó |
 | `modalidad_entrega` | nvarchar(25) | No | `retiro_local` | `retiro_local`, `entrega_domicilio` o `instalacion_terreno` |
 | `requiere_instalacion` | bit | No | 0 | Si lleva instalación |
-| `direccion_instalacion` | nvarchar(255) | Sí | | Dónde se instala |
+| `direccion_instalacion` | nvarchar(300) | Sí | | Dónde se instala. **CAMBIA (fase 8):** hasta 300 caracteres (antes 255). La API la exige salvo con `retiro_local`, donde se guarda nula |
 | `costo_instalacion_adicional` | decimal(12,2) | No | 0 | Costo de instalación en pesos |
 | `monto_base_trabajo` | decimal(12,2) | No | 0 | Monto del trabajo en pesos (de la cotización o acordado) |
 | `monto_total_final` | decimal(14,2) | — | Calculada: monto base + instalación | Monto final |
-| `estado_pedido` | nvarchar(15) | No | `aceptado` | **CAMBIA** (antes `estado`). Estado operativo: `aceptado`, `en_proceso`, `terminado`, `entregado` o `anulado`. «Anulado» reemplaza a «cancelado», que en Chile se entiende como «pagado» |
+| `estado_pedido` | nvarchar(15) | No | `aceptado` | **CAMBIA** (antes `estado`). Estado operativo: `aceptado`, `en_proceso`, `terminado`, `entregado` o `anulado`. «Anulado» reemplaza a «cancelado», que en Chile se entiende como «pagado». Desde la fase 8, cada cambio queda en `pedidos_historial` y las transiciones las valida la API (`TransicionesPedido`) |
 | `monto_abonado` | int | No | 0 | **NUEVA.** Total pagado hasta ahora, en pesos: la suma de los `pagos` del pedido. La mantiene el trigger `trg_pagos_recalcular_monto_abonado`; no se escribe a mano |
 | `saldo_pendiente` | int | — | Calculada: monto final − monto abonado | **NUEVA.** Lo que falta por cobrar |
 | `estado_pago` | nvarchar(12) | — | Calculada: `no_pagado` si el abono es 0; `pagado_total` si cubre el monto final; si no, `abonado` | **NUEVA.** Estado financiero, independiente del operativo |
 | `numero_factura` | nvarchar(30) | Sí | | **NUEVA.** Número de factura cuando se paga. No es único: un cliente habitual puede pagar varios pedidos con una sola factura a fin de mes |
-| `row_version` | rowversion | No | automática | Control de concurrencia |
+| `motivo_anulacion` | nvarchar(500) | Sí | | **NUEVA (fase 8).** Motivo de 10 a 500 caracteres. Presente si y solo si el estado es `anulado` (`ck_pedidos_anulacion`) |
+| `fecha_anulacion` | datetimeoffset(0) | Sí | | **NUEVA (fase 8).** Cuándo se anuló. Va junto con `motivo_anulacion` |
+| `eliminado_logico` | bit | No | 0 | **NUEVA (fase 8).** 1 = eliminado; la fila se conserva para estadísticas. Solo se elimina un pedido anulado sin abonos vigentes |
+| `fecha_eliminacion_logica` | datetimeoffset(0) | Sí | | **NUEVA (fase 8).** Cuándo se eliminó |
+| `row_version` | rowversion | No | automática | Control de concurrencia: editar y cambiar el estado exigen la versión vista (`If-Match`). Registrar o anular un abono no la exige, pero también cambia la versión del pedido |
 
 **Regla de cierre:** el ciclo de un pedido termina solo cuando `estado_pedido = entregado` y `estado_pago = pagado_total`.
 
-Restricciones: `pk_pedidos`, `uq_pedidos_solicitud`, `fk_pedidos_solicitud`, `fk_pedidos_cotizacion`, `fk_pedidos_empleado`, `ck_pedidos_modalidad`, `ck_pedidos_costos`, `ck_pedidos_estado_pedido` (**NUEVA**, reemplaza a `ck_pedidos_estado`), `ck_pedidos_origen` (**NUEVA**), `ck_pedidos_monto_abonado` (**NUEVA**: el abono va de 0 al monto final), `ck_pedidos_montos_enteros` (**NUEVA**: monto base e instalación en pesos sin decimales y con un total de hasta 2.000 millones; sin esta regla, el saldo, que es entero, y el estado de pago podrían contradecirse).
+Restricciones: `pk_pedidos`, `uq_pedidos_solicitud`, `fk_pedidos_solicitud`, `fk_pedidos_cotizacion`, `fk_pedidos_empleado`, `ck_pedidos_modalidad`, `ck_pedidos_costos`, `ck_pedidos_estado_pedido` (**NUEVA**, reemplaza a `ck_pedidos_estado`), `ck_pedidos_origen` (**NUEVA**), `ck_pedidos_monto_abonado` (**NUEVA**: el abono va de 0 al monto final), `ck_pedidos_montos_enteros` (**NUEVA**: monto base e instalación en pesos sin decimales y con un total de hasta 2.000 millones; sin esta regla, el saldo, que es entero, y el estado de pago podrían contradecirse) y `ck_pedidos_anulacion` (**NUEVA, fase 8**: `anulado` si y solo si hay motivo y fecha de anulación).
 
 Índices y la consulta que resuelve cada uno:
 - `ix_pedidos_fecha_estado` (`fecha_pedido`, `estado_pedido`): filtros por año, mes y estado; pedidos por mes.
 - `ix_pedidos_calendario_entrega` (`fecha_entrega_estimada`, `estado_pedido`): calendario de entregas.
 - `ix_pedidos_cobranza` (`estado_pago`, `estado_pedido`, incluye `saldo_pendiente`): **NUEVO**, listado de cobranza (pedidos no anulados con pago `no_pagado` o `abonado`).
+- `uq_pedidos_cotizacion` (**NUEVO, fase 8**): único, sobre `id_cotizacion` y filtrado a las cotizaciones no nulas. Una cotización da a lo más un pedido. Reemplaza al índice `IX_pedidos_id_cotizacion`, y cubre la clave foránea `fk_pedidos_cotizacion`. No filtra por `eliminado_logico`: un pedido eliminado sigue ocupando su cotización.
 - El filtro por cliente usa `ix_solicitudes_cliente`, a través de la solicitud del pedido.
 
 ## pagos
@@ -289,14 +303,41 @@ Restricciones: `pk_pedidos`, `uq_pedidos_solicitud`, `fk_pedidos_solicitud`, `fk
 | `observacion` | nvarchar(300) | Sí | | Nota libre, por ejemplo el número de la transferencia |
 | `id_empleado_registra` | int | No | | FK a `empleados`: quién registró el abono |
 | `fecha_registro` | datetime2(0) | No | `SYSDATETIME()` | Cuándo se registró |
+| `anulado` | bit | No | 0 | **NUEVA (fase 8).** 1 = el abono se anuló. Un abono no se edita ni se borra: se anula con motivo y deja de sumar (decisión del 14-11-2026) |
+| `motivo_anulacion` | nvarchar(300) | Sí | | **NUEVA (fase 8).** Motivo de 10 a 300 caracteres. Presente si y solo si `anulado` = 1 |
+| `id_empleado_anula` | int | Sí | | **NUEVA (fase 8).** FK a `empleados`: quién anuló el abono. Presente si y solo si `anulado` = 1 |
+| `fecha_anulacion` | datetimeoffset(0) | Sí | | **NUEVA (fase 8).** Cuándo se anuló. Presente si y solo si `anulado` = 1 |
 
-**Regla:** después de insertar, modificar o borrar un pago, el trigger `trg_pagos_recalcular_monto_abonado` deja `pedidos.monto_abonado` igual a la suma de los pagos del pedido. Para eso suma al pedido la diferencia de cada operación (lo insertado menos lo borrado), sin volver a leer toda la tabla: dos abonos simultáneos al mismo pedido no se interbloquean, y el segundo suma sobre el total ya confirmado del primero, también si la base activa el aislamiento por instantáneas. Solo escribe el pedido si el total cambió: corregir la observación de un abono no invalida la versión del pedido que otra persona tiene abierta. Nadie más escribe `monto_abonado` (la API la ignora al guardar). Si esa suma supera el monto final, `ck_pedidos_monto_abonado` rechaza la operación completa y el pago no se guarda. Así `estado_pago` y `saldo_pendiente` siempre coinciden con el historial.
+**Regla:** después de insertar, modificar o borrar un pago, el trigger `trg_pagos_recalcular_monto_abonado` deja `pedidos.monto_abonado` igual a la suma de los pagos del pedido. Para eso suma al pedido la diferencia de cada operación (lo insertado vigente menos lo borrado o anulado vigente), sin volver a leer toda la tabla: dos abonos simultáneos al mismo pedido no se interbloquean, y el segundo suma sobre el total ya confirmado del primero, también si la base activa el aislamiento por instantáneas. Solo escribe el pedido si el total cambió: corregir la observación de un abono no invalida la versión del pedido que otra persona tiene abierta. Nadie más escribe `monto_abonado` (la API la ignora al guardar). Si esa suma supera el monto final, `ck_pedidos_monto_abonado` rechaza la operación completa y el pago no se guarda. Así `estado_pago` y `saldo_pendiente` siempre coinciden con el historial.
 
-Restricciones: `pk_pagos`, `fk_pagos_pedido`, `fk_pagos_empleado`, `ck_pagos_monto`, `ck_pagos_medio_pago`.
+**Anulación (fase 8).** Solo cuentan los abonos vigentes (`anulado = 0`). Anular un abono resta su monto del pedido, y el saldo vuelve a lo que era antes de ese abono. Un abono anulado no se puede reactivar: el trigger lo rechaza con el error 50080, que la API responde como `409 abono_anulado`. Para corregir un abono mal ingresado se anula con motivo y se registra el correcto. Quedan a la vista en el pedido: el abono anulado aparece tachado, con su motivo, quién y cuándo.
+
+Restricciones: `pk_pagos`, `fk_pagos_pedido`, `fk_pagos_empleado`, `ck_pagos_monto`, `ck_pagos_medio_pago`. Desde la fase 8, también `fk_pagos_empleado_anula` y `ck_pagos_anulacion` (un abono anulado tiene motivo, quién y cuándo; uno vigente no tiene ninguno de los tres).
 
 Índices y la consulta que resuelve cada uno:
 - `ix_pagos_pedido_fecha` (`id_pedido`, `fecha_pago`): historial de un pedido en orden de fecha; también cubre la clave foránea y la suma que hace el trigger.
 - `IX_pagos_id_empleado_registra`: clave foránea al empleado (lo crea EF Core por convención, como en las demás tablas).
+- `ix_pagos_empleado_anula` (**NUEVO, fase 8**): clave foránea a quien anuló el abono.
+
+## pedidos_historial
+
+**Tabla nueva (14-11-2026, fase 8).** Cada cambio de estado de un pedido, y también su creación (`estado_anterior` nulo). Siempre lo hace un empleado. Un cambio de montos (solo gestión) queda aquí también, sin cambio de estado: `estado_anterior` igual a `estado_nuevo`, y la nota dice los montos antes y después. Los pedidos que ya existían al aplicar la migración recibieron una fila de creación («Registrado antes del historial de pedidos»), a nombre de su responsable y con la fecha del pedido. La anulación de un abono no pasa por aquí: queda tachada en la lista de abonos del pedido (`pagos`).
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_historial` | int | No | autoincremental | PK |
+| `id_pedido` | int | No | | FK a `pedidos`. Sin acción en cascada |
+| `estado_anterior` | nvarchar(15) | Sí | | Estado antes del cambio. Nulo al crearse el pedido |
+| `estado_nuevo` | nvarchar(15) | No | | Estado después del cambio: `aceptado`, `en_proceso`, `terminado`, `entregado` o `anulado` |
+| `nota` | nvarchar(500) | Sí | | Nota del avance, motivo de la anulación o los montos que cambiaron |
+| `id_empleado` | int | No | | FK a `empleados`: quién hizo el cambio. Sin acción en cascada |
+| `fecha` | datetimeoffset(0) | No | | Cuándo ocurrió |
+
+Restricciones: `pk_pedidos_historial`, `fk_pedidos_historial_pedido`, `fk_pedidos_historial_empleado` y `ck_pedidos_historial_estados` (los dos estados son de los cinco válidos del pedido).
+
+Índices: `ix_pedidos_historial_pedido` (`id_pedido`, `fecha`), que da el historial de un pedido en orden de fecha, y `ix_pedidos_historial_empleado` (`id_empleado`), para la clave foránea.
+
+---
 
 ## horarios_atencion
 
@@ -501,7 +542,7 @@ Límites de envío, en la API y no en la base: como máximo 1 código por minuto
 |---|---|---|
 | `vw_metricas_conversion_online` | Vista | Por año y mes: solicitudes en línea, cuántas se concretaron en un pedido **no anulado** y el porcentaje de conversión. **Actualizada el 12-11-2026** (antes excluía los pedidos «cancelados») |
 | `trg_cotizacion_materiales_recalcular_total` | Trigger | Tras insertar, modificar o borrar líneas de materiales, recalcula `costo_materiales_total` de las cotizaciones afectadas |
-| `trg_pagos_recalcular_monto_abonado` | Trigger | **Nuevo (12-11-2026).** Tras insertar, modificar o borrar pagos, ajusta `monto_abonado` de los pedidos afectados con la diferencia, de modo que siempre sea la suma de sus pagos |
+| `trg_pagos_recalcular_monto_abonado` | Trigger | **Nuevo (12-11-2026).** Tras insertar, modificar o borrar pagos, ajusta `monto_abonado` de los pedidos afectados con la diferencia, de modo que siempre sea la suma de sus pagos. **Reescrito el 14-11-2026 (fase 8):** solo cuenta los abonos vigentes (`anulado = 0`); anular un abono resta su monto, y reactivar uno anulado se rechaza con el error 50080 |
 | `sp_depurar_solicitudes_no_concretadas` | Procedimiento | Borra solicitudes rechazadas o eliminadas, sin pedido, con más de `@meses_antiguedad` meses (12 por defecto, RNFO04) |
 
 ## Historial de cambios del esquema
@@ -517,3 +558,4 @@ Límites de envío, en la API y no en la base: como máximo 1 código por minuto
 | `PortadaPublica` | 13-11-2026 | Tabla nueva `consultas_contacto`. En `catalogo`, `imagen_url` deja de ser obligatoria y se agregan `id_imagen`, `incluye_logo_cliente`, `id_empleado_autoriza_logo` y `fecha_autorizacion_logo`, con sus claves foráneas, las restricciones `ck_catalogo_logo` y `ck_catalogo_autorizacion_logo` e índices. En `imagenes`, `es_ejemplo`. No borra tablas, columnas ni filas (prueba `PortadaPublica_SoloAgrega`) |
 | `CuentasYSesion` | 13-11-2026 | Tablas nuevas `tokens_renovacion` (sesiones; solo se guarda el hash del token) y `codigos_cuenta` (enlaces de verificación y códigos de recuperación; solo el hash). En `clientes`, la columna `fecha_verificacion_correo` y la restricción `ck_clientes_cuenta_con_correo`, que impide una contraseña sin correo: si algún cliente tuviera contraseña sin correo, la migración se detiene. En la base real no hay clientes (consultado el 13-11-2026). Solo agrega (prueba `CuentasYSesion_SoloAgrega`). Aplicada en la base demo; no en la real |
 | `SolicitudesYAdjuntos` | 14-11-2026 | Tablas nuevas `adjuntos_solicitud` (archivos de las solicitudes, privados) y `solicitudes_historial` (cambios de estado). En `solicitudes`, la columna nueva `huella_ip` con su índice `ix_solicitudes_huella_ip`, y se amplían `descripcion_general` (2000), `motivo_rechazo` (500) y `solicitud_detalles.descripcion` (500). No borra tablas, columnas ni filas (prueba `SolicitudesYAdjuntos_SoloAgrega`). Aplicada en la base demo; no en la real |
+| `CotizacionesYPedidos` | 14-11-2026 | Cotizaciones con `row_version`, respuesta (fecha, vía, quién y motivo de rechazo), borrado lógico y el índice único filtrado `uq_cotizaciones_una_pendiente`. Pedidos con motivo y fecha de anulación, borrado lógico y `uq_pedidos_cotizacion`. Tabla nueva `pedidos_historial`. En `pagos`, la anulación de abonos y el trigger `trg_pagos_recalcular_monto_abonado` reescrito (solo suma los vigentes). Amplía `cotizaciones.observaciones` (2000), `cotizacion_materiales.medida_aplicada` (100) y `pedidos.direccion_instalacion` (300). Antes de cada regla nueva completa los datos existentes: respuesta «presencial» de las cotizaciones ya respondidas, motivo «Anulado antes de la fase 8» de los pedidos anulados y una fila de creación en el historial de cada pedido. Revertirla se detiene (`THROW` 50081 o 50082) si hay abonos anulados o textos que no caben en las columnas anteriores, sin tocar nada. Solo agrega y amplía (prueba `CotizacionesYPedidos_SoloAgrega`). La API la aplica en la base demo al arrancar; la base real espera la autorización del usuario |

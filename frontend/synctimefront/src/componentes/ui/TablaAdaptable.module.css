@@ -142,3 +142,9 @@
     background: none;
   }
 }
+
+/* Filas del filtro anterior mientras llegan las nuevas: atenuadas, sin saltar al esqueleto. */
+.actualizando .contenedor {
+  opacity: 0.55;
+  transition: opacity var(--duracion-estado) var(--curva-estandar);
+}

@@ -19,8 +19,8 @@ import {
 import estilosPanel from '../../panel/Panel.module.css';
 import estilos from '../Solicitudes.module.css';
 
-/** Busca al cliente por teléfono o RUT antes de crearlo (así no se duplica). */
-function BuscarCliente({ alEncontrar, alNoEncontrar, primario }) {
+/** Busca al cliente por teléfono o RUT antes de crearlo (así no se duplica). También lo usa el pedido directo. */
+export function BuscarCliente({ alEncontrar, alNoEncontrar, primario }) {
   const {
     comprobar, datos, propiedades, refFormulario,
   } = useFormulario({ inicial: { telefono: '', rut: '' }, validar: validarBusqueda, orden: ['telefono', 'rut'] });
@@ -63,7 +63,7 @@ function BuscarCliente({ alEncontrar, alNoEncontrar, primario }) {
 }
 
 /** Crea el cliente que no existía, con lo que ya se escribió al buscar. */
-function CrearCliente({ inicial, alCrear, alCancelar }) {
+export function CrearCliente({ inicial, alCrear, alCancelar, paraQue = 'la solicitud' }) {
   const {
     aplicarErroresApi, comprobar, datos, propiedades, refFormulario,
   } = useFormulario({
@@ -93,7 +93,7 @@ function CrearCliente({ inicial, alCrear, alCancelar }) {
   return (
     <form ref={refFormulario} className={estilosPanel.formulario} onSubmit={crear} noValidate aria-labelledby="titulo-crear-cliente">
       <h3 ref={refTitulo} tabIndex={-1} id="titulo-crear-cliente" className={estilos.subtituloBloque}>Nuevo cliente</h3>
-      <Aviso tono="info" titulo="No hay un cliente con esos datos">Regístralo para seguir con la solicitud.</Aviso>
+      <Aviso tono="info" titulo="No hay un cliente con esos datos">Regístralo para seguir con {paraQue}.</Aviso>
       {estado.error && <Aviso tono="peligro" titulo={estado.error} />}
       <div className={estilosPanel.dosColumnas}>
         <Campo etiqueta="Nombre" requerido autoComplete="off" maxLength={80} {...campo('nombre')} />
@@ -111,7 +111,7 @@ function CrearCliente({ inicial, alCrear, alCancelar }) {
   );
 }
 
-function ClienteElegido({ cliente, alCambiar }) {
+export function ClienteElegido({ cliente, alCambiar }) {
   return (
     <div className={estilos.clienteElegido}>
       <UserRound size={22} strokeWidth={1.5} aria-hidden="true" className={estilos.iconoCliente} />

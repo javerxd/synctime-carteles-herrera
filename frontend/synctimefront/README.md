@@ -184,20 +184,25 @@ synctimefront/
 
 ---
 
+## Cotizaciones, pedidos y calendario (fase 8)
+
+- **Pantallas del personal:** `/panel/cotizaciones` (listado con filtros en la dirección), `/panel/cotizaciones/:id` (la cotización), `/panel/solicitudes/:id/cotizar` y `/panel/cotizaciones/:id/editar` (el editor de materiales, mano de obra y otros costos), `/panel/cotizaciones/:id/pedido` (el pedido desde la cotización aprobada, con abono inicial opcional), `/panel/pedidos` (listado con filtros; «Por cobrar» aplica la cobranza), `/panel/pedidos/:id` (la ficha: avance, edición, abonos e historial), `/panel/pedidos/directo` (el pedido presencial directo, que reemplaza al diálogo de la fase 3) y `/panel/calendario` (calendario de entregas). Las alertas de entregas y cobranza aparecen en `/panel`, solo para gestión.
+- **Pantallas del cliente:** `/cuenta/solicitudes` y `/cuenta/solicitudes/:id` muestran el seguimiento: la cotización, con «Aprobar» y «Rechazar» mientras está pendiente, y el pedido, con su estado, su pago, su saldo, la fecha estimada y la modalidad. Cada estado se dice con texto, además del color.
+- **Código:** las pantallas están en `src/paginas/cotizaciones/` y `src/paginas/pedidos/`, con sus reglas en `reglasCotizacion.js`, `reglasPedido.js` y `reglasCalendario.js`. El seguimiento del cliente está en `src/paginas/solicitudes/Seguimiento.jsx`, y lo que comparten (el aviso de versión vieja y la revisión tras un corte) en `src/paginas/compartidos/`. Las llamadas a la API, en `src/api/cotizaciones.js` y `src/api/pedidos.js`.
+- **Montos y fechas:** los montos son pesos enteros (`formatearPesos`), y el total de la cotización se redondea al peso, con la mitad hacia arriba. Las fechas son de hora de Chile, y «hoy» es la fecha de Chile.
+- **Versión:** cada edición, respuesta o cambio de estado envía la versión vista en `If-Match`. Si otra persona cambió el registro, la pantalla conserva lo escrito, avisa y permite cargar la versión actual. Registrar un abono no envía versión.
+- **Sin clave de idempotencia:** la API no tiene una para cotizaciones, pedidos ni abonos. Si se pierde la respuesta, la pantalla revisa antes de dejar reintentar: si el registro ya quedó, lo abre en vez de crearlo otra vez (`src/paginas/compartidos/trasCorte.js`).
+- **Pruebas:** `src/test/cotizaciones.test.jsx` y `src/test/pedidosFase8.test.jsx`. En `e2e/pantallas.spec.js`, el editor de cotización, la aprobación del cliente, el avance del pedido con sus abonos, el calendario y el pedido directo.
+
+---
+
 ## 🧪 Ejecución de Pruebas Automatizadas
 
-Para ejecutar las 14 pruebas automatizadas:
+Al cerrar la fase 8, la suite tiene 348 pruebas de Vitest y 141 de Playwright:
 ```bash
+# Pruebas unitarias y de componentes (Vitest)
 npm test
-```
 
-Resultado verificado:
-```
-✓ src/test/RoleGuard.test.jsx (4 tests)
-✓ src/test/ProtectedRoute.test.jsx (2 tests)
-✓ src/test/Login.test.jsx (4 tests)
-✓ src/test/SolicitudesCRUD.test.jsx (4 tests)
-
-Test Files  4 passed (4)
-     Tests  14 passed (14)
+# Pruebas end-to-end (Playwright)
+npm run test:e2e
 ```

@@ -310,25 +310,29 @@ public sealed class SolicitudesFase7Tests(ApiFixture api)
         Assert.Equal("sin_version", sinVersion.GetProperty("codigo").GetString());
         Assert.True(sinMotivo.GetProperty("errores").TryGetProperty("motivo", out _));
 
-        // «cotizado» (lo pondra la fase 8 al emitir la cotizacion) vuelve a «solicitado» y su cotizacion
-        // pendiente queda rechazada.
+        // Fase 8: emitir la cotizacion la deja «cotizado» (lo hace el sistema). Devolverla a «solicitado»
+        // deja la cotizacion pendiente rechazada, registrada en el local por quien la devolvio.
         var cotizacion = await api.CrearCotizacionAsync(id);
-        await api.ConsultarAsync(db => db.Solicitudes.Where(s => s.IdSolicitud == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.Estado, "cotizado")));
         var devuelta = await EstadoAsync(admin, id, new { estado = "solicitado" }).EsperarAsync(HttpStatusCode.OK);
         Assert.Equal("solicitado", devuelta.GetProperty("estado").GetString());
         var idCotizacion = cotizacion.GetProperty("idCotizacion").GetInt32();
-        Assert.Equal("rechazada", await api.ConsultarAsync(db => db.Cotizaciones.Where(c => c.IdCotizacion == idCotizacion).Select(c => c.Estado).SingleAsync()));
+        var respondida = await api.ConsultarAsync(db => db.Cotizaciones.AsNoTracking().SingleAsync(c => c.IdCotizacion == idCotizacion));
+        Assert.Equal("rechazada", respondida.Estado);
+        Assert.Equal("presencial", respondida.ViaRespuesta);
+        Assert.Equal(await api.IdAdminAsync(), respondida.IdEmpleadoRespuesta);
+        Assert.NotNull(respondida.FechaRespuesta);
 
         // RFU11: cualquier trabajador puede rechazar (aqui, un operario).
         var operario = await api.CrearEmpleadoAsync("operario");
         var rechazada = await RechazarAsync(id, "El cliente desistió del pedido", operario.Token);
         var historial = rechazada.GetProperty("historial").EnumerateArray().ToList();
-        Assert.Equal(["solicitado", "solicitado", "rechazado"], historial.Select(h => h.GetProperty("estadoNuevo").GetString()));
+        Assert.Equal(["solicitado", "cotizado", "solicitado", "rechazado"], historial.Select(h => h.GetProperty("estadoNuevo").GetString()));
         Assert.Equal(JsonValueKind.Null, historial[0].GetProperty("estadoAnterior").ValueKind);
-        Assert.Equal("cotizado", historial[1].GetProperty("estadoAnterior").GetString());
-        Assert.Equal("El cliente desistió del pedido", historial[2].GetProperty("motivo").GetString());
-        Assert.Equal("personal", historial[2].GetProperty("actor").GetString());
-        Assert.Equal("Emp Prueba", historial[2].GetProperty("por").GetString());
+        Assert.Equal("sistema", historial[1].GetProperty("actor").GetString());
+        Assert.Equal("cotizado", historial[2].GetProperty("estadoAnterior").GetString());
+        Assert.Equal("El cliente desistió del pedido", historial[3].GetProperty("motivo").GetString());
+        Assert.Equal("personal", historial[3].GetProperty("actor").GetString());
+        Assert.Equal("Emp Prueba", historial[3].GetProperty("por").GetString());
         Assert.Equal("Admin Pruebas", rechazada.GetProperty("registradaPor").GetString());
 
         // Una rechazada ya no se edita.
@@ -343,8 +347,8 @@ public sealed class SolicitudesFase7Tests(ApiFixture api)
         var admin = api.Cliente(await api.TokenAdminAsync());
         var id = await api.CrearSolicitudAsync();
         var url = $"/api/v1/solicitudes/{id}";
+        // Fase 8: emitir la cotizacion deja la solicitud «cotizado».
         var cotizacion = await api.CrearCotizacionAsync(id);
-        await api.ConsultarAsync(db => db.Solicitudes.Where(s => s.IdSolicitud == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.Estado, "cotizado")));
 
         using var abierta = await admin.GetAsync(url);
         var etag = abierta.Headers.ETag!.Tag;

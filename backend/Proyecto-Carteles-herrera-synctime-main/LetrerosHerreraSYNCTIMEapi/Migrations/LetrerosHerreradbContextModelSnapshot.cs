@@ -806,6 +806,12 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("costo_materiales_total");
 
+                    b.Property<bool>("EliminadoLogico")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("eliminado_logico");
+
                     b.Property<string>("Estado")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -820,17 +826,34 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("fecha_cotizacion")
                         .HasDefaultValueSql("SYSDATETIME()");
 
+                    b.Property<DateTimeOffset?>("FechaEliminacionLogica")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_eliminacion_logica");
+
+                    b.Property<DateTimeOffset?>("FechaRespuesta")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_respuesta");
+
                     b.Property<int>("IdEmpleado")
                         .HasColumnType("int")
                         .HasColumnName("id_empleado");
+
+                    b.Property<int?>("IdEmpleadoRespuesta")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_respuesta");
 
                     b.Property<int>("IdSolicitud")
                         .HasColumnType("int")
                         .HasColumnName("id_solicitud");
 
-                    b.Property<string>("Observaciones")
+                    b.Property<string>("MotivoRechazo")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
+                        .HasColumnName("motivo_rechazo");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
                         .HasColumnName("observaciones");
 
                     b.Property<decimal>("OtrosCostos")
@@ -839,16 +862,36 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("otros_costos");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
+
                     b.Property<decimal>("TotalCotizacion")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("decimal(14,2)")
                         .HasColumnName("total_cotizacion")
                         .HasComputedColumnSql("CONVERT(DECIMAL(14,2), costo_materiales_total + costo_mano_obra + otros_costos)", true);
 
+                    b.Property<string>("ViaRespuesta")
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)")
+                        .HasColumnName("via_respuesta");
+
                     b.HasKey("IdCotizacion")
                         .HasName("pk_cotizaciones");
 
                     b.HasIndex("IdEmpleado");
+
+                    b.HasIndex("IdEmpleadoRespuesta")
+                        .HasDatabaseName("ix_cotizaciones_empleado_respuesta");
+
+                    b.HasIndex("IdSolicitud")
+                        .IsUnique()
+                        .HasDatabaseName("uq_cotizaciones_una_pendiente")
+                        .HasFilter("[estado] = N'pendiente' AND [eliminado_logico] = 0");
 
                     b.HasIndex("IdSolicitud", "Estado")
                         .HasDatabaseName("ix_cotizaciones_solicitud");
@@ -858,6 +901,12 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                             t.HasCheckConstraint("ck_cotizaciones_costos", "costo_materiales_total >= 0 AND costo_mano_obra >= 0 AND otros_costos >= 0");
 
                             t.HasCheckConstraint("ck_cotizaciones_estado", "estado IN (N'pendiente', N'aprobada', N'rechazada')");
+
+                            t.HasCheckConstraint("ck_cotizaciones_montos_enteros", "costo_mano_obra = FLOOR(costo_mano_obra) AND otros_costos = FLOOR(otros_costos)");
+
+                            t.HasCheckConstraint("ck_cotizaciones_respuesta", "(CASE WHEN estado = N'pendiente' THEN 1 ELSE 0 END) = (CASE WHEN fecha_respuesta IS NULL THEN 1 ELSE 0 END) AND (CASE WHEN via_respuesta IS NULL THEN 0 ELSE 1 END) = (CASE WHEN fecha_respuesta IS NULL THEN 0 ELSE 1 END)");
+
+                            t.HasCheckConstraint("ck_cotizaciones_via", "via_respuesta IS NULL OR via_respuesta IN (N'cliente_web', N'telefono', N'whatsapp', N'presencial')");
                         });
                 });
 
@@ -887,8 +936,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("id_material");
 
                     b.Property<string>("MedidaAplicada")
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
                         .HasColumnName("medida_aplicada");
 
                     b.Property<decimal>("Subtotal")
@@ -912,6 +961,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                             t.HasCheckConstraint("ck_cot_mat_cantidad", "cantidad > 0");
 
                             t.HasCheckConstraint("ck_cot_mat_costo", "costo_unitario >= 0");
+
+                            t.HasCheckConstraint("ck_cot_mat_costo_entero", "costo_unitario = FLOOR(costo_unitario)");
                         });
 
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
@@ -1289,6 +1340,16 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdPago"));
 
+                    b.Property<bool>("Anulado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("anulado");
+
+                    b.Property<DateTimeOffset?>("FechaAnulacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_anulacion");
+
                     b.Property<DateOnly>("FechaPago")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("date")
@@ -1300,6 +1361,10 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_registro")
                         .HasDefaultValueSql("SYSDATETIME()");
+
+                    b.Property<int?>("IdEmpleadoAnula")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_anula");
 
                     b.Property<int>("IdEmpleadoRegistra")
                         .HasColumnType("int")
@@ -1319,6 +1384,11 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("int")
                         .HasColumnName("monto");
 
+                    b.Property<string>("MotivoAnulacion")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("motivo_anulacion");
+
                     b.Property<string>("Observacion")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)")
@@ -1326,6 +1396,9 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.HasKey("IdPago")
                         .HasName("pk_pagos");
+
+                    b.HasIndex("IdEmpleadoAnula")
+                        .HasDatabaseName("ix_pagos_empleado_anula");
 
                     b.HasIndex("IdEmpleadoRegistra");
 
@@ -1335,6 +1408,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.ToTable("pagos", null, t =>
                         {
                             t.HasTrigger("trg_pagos_recalcular_monto_abonado");
+
+                            t.HasCheckConstraint("ck_pagos_anulacion", "(anulado = 1 AND motivo_anulacion IS NOT NULL AND id_empleado_anula IS NOT NULL AND fecha_anulacion IS NOT NULL) OR (anulado = 0 AND motivo_anulacion IS NULL AND id_empleado_anula IS NULL AND fecha_anulacion IS NULL)");
 
                             t.HasCheckConstraint("ck_pagos_medio_pago", "medio_pago IN (N'efectivo', N'transferencia', N'tarjeta_debito', N'tarjeta_credito', N'cheque', N'otro')");
 
@@ -1360,9 +1435,15 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("costo_instalacion_adicional");
 
                     b.Property<string>("DireccionInstalacion")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
                         .HasColumnName("direccion_instalacion");
+
+                    b.Property<bool>("EliminadoLogico")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("eliminado_logico");
 
                     b.Property<string>("EstadoPago")
                         .IsRequired()
@@ -1379,6 +1460,14 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("nvarchar(15)")
                         .HasDefaultValue("aceptado")
                         .HasColumnName("estado_pedido");
+
+                    b.Property<DateTimeOffset?>("FechaAnulacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_anulacion");
+
+                    b.Property<DateTimeOffset?>("FechaEliminacionLogica")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_eliminacion_logica");
 
                     b.Property<DateTime>("FechaEntregaEstimada")
                         .HasColumnType("datetime2(0)")
@@ -1432,6 +1521,11 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("monto_total_final")
                         .HasComputedColumnSql("CONVERT(DECIMAL(14,2), monto_base_trabajo + costo_instalacion_adicional)", true);
 
+                    b.Property<string>("MotivoAnulacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("motivo_anulacion");
+
                     b.Property<string>("NumeroFactura")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)")
@@ -1467,7 +1561,10 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.HasKey("IdPedido")
                         .HasName("pk_pedidos");
 
-                    b.HasIndex("IdCotizacion");
+                    b.HasIndex("IdCotizacion")
+                        .IsUnique()
+                        .HasDatabaseName("uq_pedidos_cotizacion")
+                        .HasFilter("[id_cotizacion] IS NOT NULL");
 
                     b.HasIndex("IdEmpleadoResponsable");
 
@@ -1488,6 +1585,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.ToTable("pedidos", null, t =>
                         {
+                            t.HasCheckConstraint("ck_pedidos_anulacion", "(estado_pedido = N'anulado' AND motivo_anulacion IS NOT NULL AND fecha_anulacion IS NOT NULL) OR (estado_pedido <> N'anulado' AND motivo_anulacion IS NULL AND fecha_anulacion IS NULL)");
+
                             t.HasCheckConstraint("ck_pedidos_costos", "costo_instalacion_adicional >= 0 AND monto_base_trabajo >= 0");
 
                             t.HasCheckConstraint("ck_pedidos_estado_pedido", "estado_pedido IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado')");
@@ -1499,6 +1598,58 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                             t.HasCheckConstraint("ck_pedidos_montos_enteros", "monto_base_trabajo = FLOOR(monto_base_trabajo) AND costo_instalacion_adicional = FLOOR(costo_instalacion_adicional) AND monto_base_trabajo + costo_instalacion_adicional <= 2000000000");
 
                             t.HasCheckConstraint("ck_pedidos_origen", "origen IN (N'cotizacion', N'directo')");
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.PedidoHistorial", b =>
+                {
+                    b.Property<int>("IdHistorial")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_historial");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdHistorial"));
+
+                    b.Property<string>("EstadoAnterior")
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)")
+                        .HasColumnName("estado_anterior");
+
+                    b.Property<string>("EstadoNuevo")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)")
+                        .HasColumnName("estado_nuevo");
+
+                    b.Property<DateTimeOffset>("Fecha")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha");
+
+                    b.Property<int>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.Property<int>("IdPedido")
+                        .HasColumnType("int")
+                        .HasColumnName("id_pedido");
+
+                    b.Property<string>("Nota")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("nota");
+
+                    b.HasKey("IdHistorial")
+                        .HasName("pk_pedidos_historial");
+
+                    b.HasIndex("IdEmpleado")
+                        .HasDatabaseName("ix_pedidos_historial_empleado");
+
+                    b.HasIndex("IdPedido", "Fecha")
+                        .HasDatabaseName("ix_pedidos_historial_pedido");
+
+                    b.ToTable("pedidos_historial", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_pedidos_historial_estados", "estado_nuevo IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado') AND (estado_anterior IS NULL OR estado_anterior IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado'))");
                         });
                 });
 
@@ -2054,6 +2205,12 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_cotizaciones_empleado");
 
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoRespuesta")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleadoRespuesta")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_cotizaciones_empleado_respuesta");
+
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Solicitud", "Solicitud")
                         .WithMany("Cotizaciones")
                         .HasForeignKey("IdSolicitud")
@@ -2062,6 +2219,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasConstraintName("fk_cotizaciones_solicitud");
 
                     b.Navigation("Empleado");
+
+                    b.Navigation("EmpleadoRespuesta");
 
                     b.Navigation("Solicitud");
                 });
@@ -2101,6 +2260,12 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pago", b =>
                 {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoAnula")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleadoAnula")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_pagos_empleado_anula");
+
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoRegistra")
                         .WithMany("PagosRegistrados")
                         .HasForeignKey("IdEmpleadoRegistra")
@@ -2114,6 +2279,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_pagos_pedido");
+
+                    b.Navigation("EmpleadoAnula");
 
                     b.Navigation("EmpleadoRegistra");
 
@@ -2146,6 +2313,27 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("EmpleadoResponsable");
 
                     b.Navigation("Solicitud");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.PedidoHistorial", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_pedidos_historial_empleado");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Pedido", "Pedido")
+                        .WithMany("Historial")
+                        .HasForeignKey("IdPedido")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_pedidos_historial_pedido");
+
+                    b.Navigation("Empleado");
+
+                    b.Navigation("Pedido");
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Producto", b =>
@@ -2294,6 +2482,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pedido", b =>
                 {
+                    b.Navigation("Historial");
+
                     b.Navigation("Pagos");
                 });
 

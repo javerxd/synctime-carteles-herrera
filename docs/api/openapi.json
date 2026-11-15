@@ -381,7 +381,7 @@
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Ficha de una solicitud: comprobante, historial de estados y quién la registró (ETag con la versión)",
+        "summary": "Devuelve la ficha de una solicitud con su historial y sus cotizaciones (no eliminadas, de la más nueva a la más antigua, con el pedido que dio cada una)",
         "x-acceso": "personal"
       },
       "put": {
@@ -422,7 +422,7 @@
         "tags": [
           "Portal del cliente"
         ],
-        "summary": "Lista paginada de las solicitudes del cliente en sesión, con su resumen",
+        "summary": "Lista paginada de las solicitudes del cliente en sesión, con su resumen, su cotización vigente y su pedido",
         "x-acceso": "cliente"
       },
       "post": {
@@ -438,7 +438,7 @@
         "tags": [
           "Portal del cliente"
         ],
-        "summary": "Lista los pedidos del cliente en sesión",
+        "summary": "Lista los pedidos del cliente en sesión con su estado, pago, saldo, fecha estimada, modalidad y ciclo cerrado; un pedido eliminado se muestra marcado",
         "x-acceso": "cliente"
       }
     },
@@ -447,20 +447,8 @@
         "tags": [
           "Cotizaciones"
         ],
-        "summary": "Lista las cotizaciones",
+        "summary": "Lista paginada de cotizaciones (sin las eliminadas). Filtros: estado, desde, hasta, idCliente, q (número de cotización o de solicitud, nombre, teléfono o RUT), orden (fecha_desc, fecha_asc, total_desc), pagina y tamano",
         "x-acceso": "personal"
-      },
-      "post": {
-        "tags": [
-          "Cotizaciones"
-        ],
-        "summary": "Crea una cotización para una solicitud",
-        "x-acceso": "personal",
-        "x-roles": [
-          "dueño",
-          "administrador",
-          "diseñador"
-        ]
       }
     },
     "/api/v1/cotizaciones/{id}": {
@@ -468,26 +456,21 @@
         "tags": [
           "Cotizaciones"
         ],
-        "summary": "Devuelve una cotización",
+        "summary": "Devuelve la cotización (S06) con su ETag; idPedido y pedidoEliminado informan el pedido que dio, aunque se haya eliminado",
         "x-acceso": "personal"
       },
       "put": {
         "tags": [
           "Cotizaciones"
         ],
-        "summary": "Modifica una cotización",
-        "x-acceso": "personal",
-        "x-roles": [
-          "dueño",
-          "administrador",
-          "diseñador"
-        ]
+        "summary": "Edita una cotización «pendiente» (If-Match): reemplaza sus líneas, mano de obra, otros costos y observaciones",
+        "x-acceso": "personal"
       },
       "delete": {
         "tags": [
           "Cotizaciones"
         ],
-        "summary": "Elimina una cotización",
+        "summary": "Borrado lógico (If-Match) de una cotización «pendiente» o «rechazada» sin pedido; si estaba pendiente, la solicitud vuelve a «solicitado». 204",
         "x-acceso": "gestion"
       }
     },
@@ -496,20 +479,8 @@
         "tags": [
           "Pedidos"
         ],
-        "summary": "Lista los pedidos",
+        "summary": "Lista paginada de pedidos (sin los eliminados) con el resumen de cobranza de todo el filtro; cada fila trae la fecha real de entrega. Filtros: estadoPedido, estadoPago, cobranza, anio, mes, idCliente, idResponsable, q, orden (fecha_desc, fecha_asc, entrega_asc, saldo_desc), pagina y tamano",
         "x-acceso": "personal"
-      },
-      "post": {
-        "tags": [
-          "Pedidos"
-        ],
-        "summary": "Crea un pedido",
-        "x-acceso": "personal",
-        "x-roles": [
-          "dueño",
-          "administrador",
-          "operario"
-        ]
       }
     },
     "/api/v1/pedidos/{id}": {
@@ -517,26 +488,21 @@
         "tags": [
           "Pedidos"
         ],
-        "summary": "Devuelve un pedido",
+        "summary": "Devuelve la ficha del pedido (S07) con su ETag",
         "x-acceso": "personal"
       },
       "put": {
         "tags": [
           "Pedidos"
         ],
-        "summary": "Modifica un pedido",
-        "x-acceso": "personal",
-        "x-roles": [
-          "dueño",
-          "administrador",
-          "operario"
-        ]
+        "summary": "Edita los datos del pedido (If-Match). Cambiar montoBaseTrabajo o costoInstalacionAdicional es de gestión (403 solo_gestion) y queda en el historial. Anulado: nada; entregado: solo numeroFactura. 409 monto_bajo_abonado",
+        "x-acceso": "personal"
       },
       "delete": {
         "tags": [
           "Pedidos"
         ],
-        "summary": "Elimina un pedido",
+        "summary": "Borrado lógico (If-Match) de un pedido «anulado» sin abonos vigentes. 204",
         "x-acceso": "gestion"
       }
     },
@@ -732,7 +698,7 @@
         "tags": [
           "Portal del cliente"
         ],
-        "summary": "Comprobante de una solicitud del cliente en sesión (404 si no es suya)",
+        "summary": "El comprobante de una solicitud propia, con su cotización vigente y su pedido (S04)",
         "x-acceso": "cliente"
       }
     },
@@ -786,6 +752,105 @@
         ],
         "summary": "Busca un cliente por teléfono o RUT antes del registro presencial; responde una lista de 0 o 1 cliente",
         "x-acceso": "personal"
+      }
+    },
+    "/api/v1/solicitudes/{id}/cotizaciones": {
+      "post": {
+        "tags": [
+          "Cotizaciones"
+        ],
+        "summary": "Emite una cotización sobre una solicitud «solicitado»: la solicitud pasa a «cotizado» y, si el cliente tiene el correo confirmado, se encola «Tu cotización #N está lista». 201 con la cotización; 409 cotizacion_pendiente si ya hay una pendiente",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/cotizaciones/{id}/respuesta": {
+      "post": {
+        "tags": [
+          "Cotizaciones"
+        ],
+        "summary": "Registra la respuesta que el cliente dio por teléfono, WhatsApp o en el local (If-Match): { decision, via, motivo? }. Aprobar deja la solicitud «aceptado»; rechazar la devuelve a «solicitado»",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/cotizaciones/{id}/pedido": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Crea el pedido de una cotización «aprobada» de una solicitud «aceptado», con el abono inicial opcional, en una transacción. 201 con la ficha; 409 cotizacion_con_pedido si ya tiene (o tuvo) un pedido",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/pedidos/directo": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Pedido presencial directo (RFU35): en una transacción, la solicitud presencial ya aceptada, la cotización aprobada, el pedido y el abono. No envía correos. 201 con la ficha",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/pedidos/{id}/estado": {
+      "patch": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Cambia el estado del pedido (If-Match): { estado, fechaEntregaReal?, motivo?, nota? }. 409 transicion_invalida; anular un pedido con abonos (vigentes o anulados) es solo de gestión (403 solo_gestion)",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/pedidos/{id}/pagos": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Registra un abono (sin versión; bloquea el pedido): { monto, fechaPago?, medioPago, observacion?, numeroFactura? }. La factura solo completa la del pedido. 201 con la ficha; 409 abono_excede_saldo, pedido_anulado o factura_distinta",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/pedidos/{id}/pagos/{idPago}/anular": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Anula un abono con motivo: deja de sumar y queda en el historial. Gestión anula cualquiera; el resto, solo los propios de las últimas 24 horas (403 solo_gestion). 200 con la ficha",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/pedidos/calendario": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Calendario de entregas (S08) entre desde y hasta (como mucho 62 días): pendientes en su fecha estimada y entregados en su fecha real",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/pedidos/alertas": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Alertas para gestión: entregas de hoy a hoy + 3, atrasadas (como mucho 20 cada una) y total por cobrar",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/mis/cotizaciones/{id}": {
+      "get": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "La cotización (S06) de una solicitud propia, con su ETag. 404 si es ajena o está eliminada",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mis/cotizaciones/{id}/respuesta": {
+      "post": {
+        "tags": [
+          "Portal del cliente"
+        ],
+        "summary": "El cliente aprueba o rechaza su cotización pendiente (If-Match): { decision, motivo? }",
+        "x-acceso": "cliente"
       }
     }
   },

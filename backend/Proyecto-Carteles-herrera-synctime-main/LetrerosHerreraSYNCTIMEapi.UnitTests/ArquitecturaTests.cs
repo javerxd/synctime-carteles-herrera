@@ -12,9 +12,6 @@ public class ArquitecturaTests
     [
         "AuthApi.cs",          // fase 6
         "CatalogoApi.cs",      // fases 5 y 9
-        "CotizacionApi.cs",    // fase 8
-        "PedidoApi.cs",        // fase 8
-        "PortalClienteApi.cs", // fase 8 (sus solicitudes ya pasaron a MisSolicitudesApi en la fase 7)
         "Reautenticacion.cs",  // fase 6
         "RostroApi.cs"         // fase 10
     ];

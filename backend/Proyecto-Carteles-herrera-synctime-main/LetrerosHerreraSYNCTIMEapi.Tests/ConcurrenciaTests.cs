@@ -49,17 +49,26 @@ public sealed class ConcurrenciaTests(ApiFixture api)
         Assert.Equal("Sin stock del material", actual.GetProperty("motivoRechazo").GetString());
     }
 
+    // Fase 8: avanzar y editar un pedido exigen la version vista.
     [Fact]
-    public async Task Pedido_Put_WithStaleVersion_ReturnsConflict()
+    public async Task Pedido_WithStaleVersion_ReturnsConflict()
     {
         var (cliente, url, creado) = await CrearPedidoAsync();
-        object Cuerpo(string estadoPedido, string rowVersion) => new { estadoPedido, fechaEntregaEstimada = DateTime.Now.AddDays(5), modalidadEntrega = "retiro_local", rowVersion };
 
-        await cliente.PutAsJsonAsync(url, Cuerpo("en_proceso", Version(creado))).EsperarAsync(HttpStatusCode.OK);
-        await cliente.PutAsJsonAsync(url, Cuerpo("anulado", Version(creado))).EsperarAsync(HttpStatusCode.Conflict);
+        await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "en_proceso", rowVersion = Version(creado) }).EsperarAsync(HttpStatusCode.OK);
+        var rechazo = await cliente.PatchAsJsonAsync($"{url}/estado", new { estado = "anulado", motivo = "El cliente se arrepintió", rowVersion = Version(creado) })
+            .EsperarAsync(HttpStatusCode.Conflict);
+        Assert.Equal("version_obsoleta", rechazo.GetProperty("codigo").GetString());
+        await cliente.PutAsJsonAsync(url, new
+        {
+            idEmpleadoResponsable = creado.GetProperty("responsable").GetProperty("idEmpleado").GetInt32(),
+            fechaEntregaEstimada = ApiFixture.HoyChile().AddDays(9), modalidadEntrega = "retiro_local", montoBaseTrabajo = 100_000,
+            rowVersion = Version(creado)
+        }).EsperarAsync(HttpStatusCode.Conflict);
 
         var actual = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
         Assert.Equal("en_proceso", actual.GetProperty("estadoPedido").GetString());
+        Assert.Equal(creado.GetProperty("fechaEntregaEstimada").GetString(), actual.GetProperty("fechaEntregaEstimada").GetString());
     }
 
     [Fact]
@@ -77,7 +86,9 @@ public sealed class ConcurrenciaTests(ApiFixture api)
             peticion.Headers.TryAddWithoutValidation("If-Match", "\"no-es-base64!\"");
             await cliente.SendAsync(peticion).EsperarAsync(HttpStatusCode.BadRequest);
         }
-        await cliente.PutAsJsonAsync(urlPedido, new { estadoPedido = "en_proceso", fechaEntregaEstimada = DateTime.Now.AddDays(5), modalidadEntrega = "retiro_local" }).EsperarAsync(HttpStatusCode.BadRequest);
+        var sinVersion = await cliente.PatchAsJsonAsync($"{urlPedido}/estado", new { estado = "en_proceso" }).EsperarAsync(HttpStatusCode.BadRequest);
+        Assert.Equal("sin_version", sinVersion.GetProperty("codigo").GetString());
+        await cliente.PutAsJsonAsync(urlPedido, new { fechaEntregaEstimada = ApiFixture.HoyChile().AddDays(5), modalidadEntrega = "retiro_local" }).EsperarAsync(HttpStatusCode.BadRequest);
     }
 
     // Otra persona guarda justo despues de la comprobacion de version: aqui la frena la base, no Verificar.
@@ -127,12 +138,8 @@ public sealed class ConcurrenciaTests(ApiFixture api)
 
     private async Task<(HttpClient Cliente, string Url, JsonElement Creado)> CrearPedidoAsync()
     {
-        var cliente = api.Cliente(await api.TokenAdminAsync());
-        var idSolicitud = await api.CrearSolicitudAsync();
-        await api.AceptarSolicitudAsync(idSolicitud);
-        var creado = await cliente.PostAsJsonAsync("/api/v1/pedidos/", new { idSolicitud, idEmpleadoResponsable = await api.IdAdminAsync(), fechaEntregaEstimada = DateTime.Now.AddDays(5) })
-            .EsperarAsync(HttpStatusCode.Created);
-        return (cliente, $"/api/v1/pedidos/{creado.GetProperty("idPedido").GetInt32()}", creado);
+        var creado = await api.CrearPedidoAsync();
+        return (api.Cliente(await api.TokenAdminAsync()), $"/api/v1/pedidos/{creado.GetProperty("idPedido").GetInt32()}", creado);
     }
 
     private sealed class OtraPersonaGuardaAntes(int idSolicitud) : SaveChangesInterceptor

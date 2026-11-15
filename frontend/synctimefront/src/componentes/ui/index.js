@@ -10,10 +10,14 @@ export { Chip } from './Chip';
 export { Dialogo } from './Dialogo';
 export { Enlace } from './Enlace';
 export { Esqueleto } from './Esqueleto';
+export { Opciones } from './Opciones';
 export { EstadoVacio } from './EstadoVacio';
-export { EstadoCartel, EstadoPago, EstadoPedido, EstadoSolicitud, Insignia } from './Insignia';
 export {
-  ESTADOS_PAGO, ESTADOS_PEDIDO, ESTADOS_SOLICITUD, TEXTOS_ESTADO_PAGO, TEXTOS_ESTADO_PEDIDO, TEXTOS_ESTADO_SOLICITUD,
+  EstadoCartel, EstadoCotizacion, EstadoEntrega, EstadoPago, EstadoPedido, EstadoSolicitud, Insignia,
+} from './Insignia';
+export {
+  ESTADOS_COTIZACION, ESTADOS_ENTREGA, ESTADOS_PAGO, ESTADOS_PEDIDO, ESTADOS_SOLICITUD,
+  TEXTOS_ESTADO_COTIZACION, TEXTOS_ESTADO_PAGO, TEXTOS_ESTADO_PEDIDO, TEXTOS_ESTADO_SOLICITUD,
 } from './estados';
 export { Paginacion } from './Paginacion';
 export { Pestanas } from './Pestanas';

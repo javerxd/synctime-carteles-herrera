@@ -21,13 +21,23 @@ public class Pago
     public string MedioPago { get; set; } = "efectivo";
     public string? Observacion { get; set; }
 
-    // Quien lo registro y cuando.
+    // Quien lo registro y cuando (hora de Chile).
     public int IdEmpleadoRegistra { get; set; }
     public DateTime FechaRegistro { get; set; }
+
+    // Fase 8 (decision 2 del 14-11-2026): un abono mal ingresado no se edita ni se borra, se anula con
+    // motivo. Queda en el historial con quien y cuando, y el trigger deja de sumarlo.
+    public bool Anulado { get; set; }
+    public string? MotivoAnulacion { get; set; }
+    public int? IdEmpleadoAnula { get; set; }
+    public DateTimeOffset? FechaAnulacion { get; set; }
 
     [JsonIgnore]
     public virtual Pedido? Pedido { get; set; }
 
     [JsonIgnore]
     public virtual Empleado? EmpleadoRegistra { get; set; }
+
+    [JsonIgnore]
+    public virtual Empleado? EmpleadoAnula { get; set; }
 }

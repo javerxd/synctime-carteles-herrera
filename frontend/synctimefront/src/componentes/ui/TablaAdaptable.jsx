@@ -10,6 +10,8 @@ import estilos from './TablaAdaptable.module.css';
  * ensancha la página. Los roles explícitos conservan la semántica de tabla cuando el CSS cambia su forma.
  * columnas: [{ clave, encabezado, alinear: 'inicio' | 'fin', render: (fila) => nodo, principal }]
  * claveFila: nombre de la propiedad única de cada fila, o una función (fila) => clave.
+ * `actualizando`: las filas son del filtro anterior y ya se piden las nuevas; se ven atenuadas (aria-busy) en vez
+ * de saltar al esqueleto, así la tabla y la paginación no parpadean.
  */
 export function TablaAdaptable({
   titulo,
@@ -17,6 +19,7 @@ export function TablaAdaptable({
   filas,
   claveFila = 'id',
   cargando = false,
+  actualizando = false,
   filasEsqueleto = 4,
   vacio,
   tituloVisible = false,
@@ -25,7 +28,7 @@ export function TablaAdaptable({
   const clave = typeof claveFila === 'function' ? claveFila : (fila) => fila[claveFila];
 
   // La región de estado existe siempre y solo cambia su texto: así el lector de pantalla la anuncia.
-  const anuncio = <p role="status" className="solo-lectores">{cargando ? `Cargando ${titulo.toLowerCase()}…` : ''}</p>;
+  const anuncio = <p role="status" className="solo-lectores">{cargando || actualizando ? `Cargando ${titulo.toLowerCase()}…` : ''}</p>;
 
   if (cargando) {
     return (
@@ -52,7 +55,7 @@ export function TablaAdaptable({
   }
 
   return (
-    <div className={[estilos.adaptable, className].filter(Boolean).join(' ')}>
+    <div className={[estilos.adaptable, actualizando && estilos.actualizando, className].filter(Boolean).join(' ')} aria-busy={actualizando ? 'true' : undefined}>
       {anuncio}
       <div className={estilos.contenedor}>
         <table role="table" className={estilos.tabla}>

@@ -1,132 +1,120 @@
-using LetrerosHerreraSYNCTIMEapi.Api;
 using System.Security.Claims;
-using LetrerosHerreraSYNCTIMEapi.Models;
+using LetrerosHerreraSYNCTIMEapi.Api;
+using LetrerosHerreraSYNCTIMEapi.Negocio;
+using LetrerosHerreraSYNCTIMEapi.Negocio.Cotizaciones;
 using LetrerosHerreraSYNCTIMEapi.Security;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
+using LetrerosHerreraSYNCTIMEapi.Services;
 
 namespace LetrerosHerreraSYNCTIMEapi.Endpoints;
 
+// Cotizaciones vistas por el personal (fase 8): todo el personal cotiza y registra la respuesta del cliente
+// (RFU12, RFU08). Editar, responder y eliminar exigen la version vista (If-Match). Sin consultas directas a la
+// base: todo pasa por ServicioCotizaciones. Las antiguas POST /cotizaciones y DELETE fisico se retiraron.
 public static class CotizacionApi
 {
-    private static readonly string[] EstadosValidos = ["pendiente", "aprobada", "rechazada"];
-
     public static void MapCotizacionApi(this WebApplication app)
     {
         var group = app.MapGroup("/api/v1/cotizaciones").WithTags("Cotizaciones")
             .RequireAuthorization(Politicas.Empleado).RequireRateLimiting("ApiGeneral");
 
-        group.MapGet("/", async (LetrerosHerreradbContext db) =>
-            Results.Ok(await db.Cotizaciones.AsNoTracking()
-                .Include(c => c.Materiales)
-                .Include(c => c.Solicitud)
-                .Include(c => c.Empleado)
-                .ToListAsync()));
-
-        group.MapGet("/{id}", async (int id, LetrerosHerreradbContext db) =>
+        group.MapGet("/", async (ServicioCotizaciones servicio, CancellationToken ct, string? estado, DateOnly? desde, DateOnly? hasta,
+            int? idCliente, string? q, string? orden, int? pagina, int? tamano) =>
         {
-            var cot = await db.Cotizaciones
-                .Include(c => c.Materiales).ThenInclude(m => m.Material)
-                .Include(c => c.Solicitud)
-                .Include(c => c.Empleado)
-                .FirstOrDefaultAsync(c => c.IdCotizacion == id);
-            return cot is null ? Results.NotFound() : Results.Ok(cot);
+            var errores = ValidacionCotizacion.ValidarFiltro(estado, orden);
+            if (errores.Count > 0)
+                return ErrorApi.Invalido(ValidacionCotizacion.Resumen(errores), errores);
+            return Results.Ok(await servicio.ListarAsync(new FiltroCotizaciones(estado, desde, hasta, idCliente, orden),
+                new ParametrosListado(pagina, tamano, orden, q), ct));
         });
 
-        group.MapPost("/", async (CrearCotizacionRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db) =>
+        group.MapGet("/{id:int}", async (int id, HttpContext http, ServicioCotizaciones servicio, CancellationToken ct) =>
         {
-            if (!await db.Solicitudes.AnyAsync(s => s.IdSolicitud == req.IdSolicitud && !s.EliminadoLogico))
-                return ErrorApi.Invalido("Solicitud no existe.");
+            var ficha = await servicio.FichaAsync(id, idClienteDueno: null, ct);
+            if (ficha is null)
+                return Results.NotFound();
+            http.Response.Headers.ETag = Concurrencia.ETag(ficha.RowVersion);
+            return Results.Ok(ficha);
+        });
 
-            var error = await ValidarCostosAsync(req.CostoManoObra, req.OtrosCostos, req.Materiales, db);
-            if (error is not null)
-                return ErrorApi.Invalido(error);
-
-            var cotizacion = new Cotizacion
-            {
-                IdSolicitud = req.IdSolicitud,
-                IdEmpleado = user.IdUsuario(),
-                Observaciones = req.Observaciones,
-                CostoManoObra = req.CostoManoObra,
-                OtrosCostos = req.OtrosCostos,
-                Materiales = ToMateriales(req.Materiales)
-            };
-
-            db.Cotizaciones.Add(cotizacion);
-            await db.SaveChangesAsync();
-            // El trigger recalcula costo_materiales_total en la base: se relee para no responder un total viejo.
-            await db.Entry(cotizacion).ReloadAsync();
-            return Results.Created($"/api/v1/cotizaciones/{cotizacion.IdCotizacion}", cotizacion);
-        })
-        .RequireAuthorization(p => p.RequireRole("dueño", "administrador", "diseñador"));
-
-        group.MapPut("/{id}", async (int id, ActualizarCotizacionRequest req, LetrerosHerreradbContext db) =>
+        group.MapPut("/{id:int}", async (int id, CotizacionRequest req, HttpContext http, ServicioCotizaciones servicio, CancellationToken ct) =>
         {
-            if (!EstadosValidos.Contains(req.Estado))
-                return ErrorApi.Invalido($"Estado inválido. Valores: {string.Join(", ", EstadosValidos)}");
+            if (!Concurrencia.TryLeerIfMatch(http.Request, out var version))
+                return IfMatchIlegible();
+            return RespuestasCotizacion.Responder(await servicio.EditarAsync(id, req.Entrada(), version ?? req.RowVersion, ct), http,
+                r => Results.Ok(r.Ficha));
+        });
 
-            var error = await ValidarCostosAsync(req.CostoManoObra, req.OtrosCostos, req.Materiales, db);
-            if (error is not null)
-                return ErrorApi.Invalido(error);
-
-            var cot = await db.Cotizaciones.Include(c => c.Materiales).FirstOrDefaultAsync(c => c.IdCotizacion == id);
-            if (cot is null) return Results.NotFound();
-
-            cot.Observaciones = req.Observaciones;
-            cot.CostoManoObra = req.CostoManoObra;
-            cot.OtrosCostos = req.OtrosCostos;
-            cot.Estado = req.Estado;
-
-            // Sin la lista de materiales se conservan los actuales; una lista vacia los quita.
-            if (req.Materiales is not null)
-            {
-                cot.Materiales.Clear();
-                foreach (var material in ToMateriales(req.Materiales))
-                    cot.Materiales.Add(material);
-            }
-
-            await db.SaveChangesAsync();
-            await db.Entry(cot).ReloadAsync();
-            return Results.Ok(cot);
-        })
-        .RequireAuthorization(p => p.RequireRole("dueño", "administrador", "diseñador"));
-
-        group.MapDelete("/{id}", async (int id, LetrerosHerreradbContext db) =>
+        // El cliente confirmo por telefono, WhatsApp o en el local: queda quien la marco y por que via.
+        group.MapPost("/{id:int}/respuesta", async (int id, RespuestaCotizacionRequest req, ClaimsPrincipal user, HttpContext http,
+            ServicioCotizaciones servicio, CancellationToken ct) =>
         {
-            var cot = await db.Cotizaciones.FindAsync(id);
-            if (cot is null) return Results.NotFound();
-            db.Cotizaciones.Remove(cot);
-            await db.SaveChangesAsync();
-            return Results.NoContent();
+            if (!Concurrencia.TryLeerIfMatch(http.Request, out var version))
+                return IfMatchIlegible();
+            var resultado = await servicio.ResponderAsync(id, QuienResponde.Personal(user.IdUsuario(), req.Via), req.Decision, req.Motivo,
+                version ?? req.RowVersion, ct);
+            return RespuestasCotizacion.Responder(resultado, http, r => Results.Ok(r.Ficha));
+        });
+
+        // Borrado logico: solo una «pendiente» o «rechazada» sin pedido.
+        group.MapDelete("/{id:int}", async (int id, ClaimsPrincipal user, HttpContext http, ServicioCotizaciones servicio, CancellationToken ct) =>
+        {
+            if (!Concurrencia.TryLeerIfMatch(http.Request, out var version))
+                return IfMatchIlegible();
+            return RespuestasCotizacion.Responder(await servicio.EliminarAsync(id, user.IdUsuario(), version, ct), http, _ => Results.NoContent());
         })
-        .RequireAuthorization(p => p.RequireRole("dueño", "administrador"));
+        .RequireAuthorization(Politicas.Gestion);
+
+        // Emitir: quien la elabora sale del token. Responde 201 con la cotizacion y su ETag.
+        app.MapPost("/api/v1/solicitudes/{id:int}/cotizaciones", async (int id, CotizacionRequest req, ClaimsPrincipal user, HttpContext http,
+                ServicioCotizaciones servicio, CancellationToken ct) =>
+            RespuestasCotizacion.Responder(await servicio.EmitirAsync(id, user.IdUsuario(), req.Entrada(), ct), http,
+                r => Results.Created($"/api/v1/cotizaciones/{r.Ficha.IdCotizacion}", r.Ficha)))
+            .WithTags("Cotizaciones")
+            .RequireAuthorization(Politicas.Empleado)
+            .RequireRateLimiting("ApiGeneral");
     }
 
-    private static async Task<string?> ValidarCostosAsync(decimal manoObra, decimal otrosCostos, List<CotizacionMaterialRequest>? materiales, LetrerosHerreradbContext db)
-    {
-        if (manoObra < 0 || otrosCostos < 0)
-            return "Los costos no pueden ser negativos.";
-        if (materiales is null or { Count: 0 })
-            return null;
-        if (materiales.Any(m => m.Cantidad <= 0 || m.CostoUnitario < 0))
-            return "Cada material requiere cantidad mayor que cero y costo no negativo.";
-
-        var ids = materiales.Select(m => m.IdMaterial).Distinct().ToList();
-        return await db.Materiales.CountAsync(m => ids.Contains(m.IdMaterial)) == ids.Count
-            ? null
-            : "Uno de los materiales no existe.";
-    }
-
-    private static List<CotizacionMaterial> ToMateriales(List<CotizacionMaterialRequest>? materiales) =>
-        materiales?.Select(m => new CotizacionMaterial
-        {
-            IdMaterial = m.IdMaterial,
-            MedidaAplicada = m.MedidaAplicada,
-            Cantidad = m.Cantidad,
-            CostoUnitario = m.CostoUnitario
-        }).ToList() ?? [];
+    internal static IResult IfMatchIlegible() =>
+        ErrorApi.Invalido("La cabecera If-Match no es una versión válida. Vuelve a cargar la cotización.");
 }
 
-public record CrearCotizacionRequest(int IdSolicitud, string? Observaciones, decimal CostoManoObra, decimal OtrosCostos, List<CotizacionMaterialRequest>? Materiales);
-public record ActualizarCotizacionRequest(string? Observaciones, decimal CostoManoObra, decimal OtrosCostos, string Estado, List<CotizacionMaterialRequest>? Materiales);
-public record CotizacionMaterialRequest(int IdMaterial, string? MedidaAplicada, decimal Cantidad, decimal CostoUnitario);
+// Traduce el resultado del servicio a la respuesta HTTP, igual para el cliente y para el personal.
+public static class RespuestasCotizacion
+{
+    public static IResult Responder(ResultadoCotizacion resultado, HttpContext http, Func<ResultadoCotizacion.Correcta, IResult> correcta)
+    {
+        switch (resultado)
+        {
+            case ResultadoCotizacion.Correcta ok:
+                http.Response.Headers.ETag = Concurrencia.ETag(ok.Ficha.RowVersion);
+                return correcta(ok);
+            case ResultadoCotizacion.Eliminada:
+                return correcta(null!);
+            case ResultadoCotizacion.Invalida { Errores: var errores }:
+                return ErrorApi.Invalido(ValidacionCotizacion.Resumen(errores), errores);
+            case ResultadoCotizacion.Conflicto { Codigo: var codigo, Mensaje: var mensaje, DesdeLaBase: var desdeLaBase }:
+                return ErrorApi.Crear(StatusCodes.Status409Conflict, codigo, mensaje, nivel: desdeLaBase ? ErrorApi.NivelBaseDeDatos : ErrorApi.NivelApi);
+            case ResultadoCotizacion.SinVersion:
+                return ErrorApi.Crear(StatusCodes.Status400BadRequest, "sin_version", "Indica la versión que viste (cabecera If-Match con el ETag, o rowVersion).");
+            case ResultadoCotizacion.VersionObsoleta:
+                return ErrorApi.Crear(StatusCodes.Status409Conflict, Concurrencia.CodigoVersionObsoleta, ServicioCotizaciones.MensajeVersionObsoleta);
+            default:
+                return Results.NotFound();
+        }
+    }
+}
+
+// Los montos y la cantidad son nulables: si no vienen, la validacion responde 400 por campo en vez de tomar 0.
+public record CotizacionMaterialRequest(int IdMaterial, string? MedidaAplicada, decimal? Cantidad, decimal? CostoUnitario);
+
+public record CotizacionRequest(List<CotizacionMaterialRequest>? Materiales, decimal? CostoManoObra, decimal? OtrosCostos, string? Observaciones,
+    byte[]? RowVersion = null)
+{
+    public EntradaCotizacion Entrada() => new(
+        Materiales?.Select(m => new EntradaMaterial(m.IdMaterial, m.MedidaAplicada, m.Cantidad, m.CostoUnitario)).ToList(),
+        CostoManoObra, OtrosCostos, Observaciones);
+}
+
+public record RespuestaCotizacionRequest(string? Decision, string? Via, string? Motivo, byte[]? RowVersion = null);
+
+public record MiRespuestaCotizacionRequest(string? Decision, string? Motivo, byte[]? RowVersion = null);

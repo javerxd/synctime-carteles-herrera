@@ -41,6 +41,12 @@ public class Pedido
     public string? NumeroFactura { get; set; }
     public byte[] RowVersion { get; set; } = null!;
 
+    // Fase 8: un pedido anulado guarda su motivo y su fecha (ck_pedidos_anulacion). El borrado es logico.
+    public string? MotivoAnulacion { get; set; }
+    public DateTimeOffset? FechaAnulacion { get; set; }
+    public bool EliminadoLogico { get; set; }
+    public DateTimeOffset? FechaEliminacionLogica { get; set; }
+
     public virtual Solicitud? Solicitud { get; set; }
     public virtual Cotizacion? Cotizacion { get; set; }
     public virtual Empleado? EmpleadoResponsable { get; set; }
@@ -48,4 +54,8 @@ public class Pedido
     // Historial de abonos y pagos, con fecha, medio y quien lo registro.
     [JsonIgnore]
     public virtual ICollection<Pago> Pagos { get; set; } = new List<Pago>();
+
+    // Fase 8: cada cambio de estado del pedido, tambien su creacion.
+    [JsonIgnore]
+    public virtual ICollection<PedidoHistorial> Historial { get; set; } = new List<PedidoHistorial>();
 }

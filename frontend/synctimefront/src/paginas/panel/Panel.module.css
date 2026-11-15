@@ -239,3 +239,27 @@
     display: none !important;
   }
 }
+
+/* Un indicador del inicio que lleva a su listado: el enlace cubre toda la tarjeta. */
+.enlaceIndicador {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+  text-decoration: none;
+}
+
+.enlaceIndicador::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.enlaceIndicador:focus-visible {
+  outline: none;
+}
+
+.indicador:has(.enlaceIndicador:focus-visible) {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}

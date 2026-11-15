@@ -33,6 +33,7 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<CodigoCuenta> CodigosCuenta { get; set; } = null!;
     public DbSet<AdjuntoSolicitud> AdjuntosSolicitud { get; set; } = null!;
     public DbSet<SolicitudHistorial> SolicitudesHistorial { get; set; } = null!;
+    public DbSet<PedidoHistorial> PedidosHistorial { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -307,6 +308,15 @@ public class LetrerosHerreradbContext : DbContext
             {
                 t.HasCheckConstraint("ck_cotizaciones_costos", "costo_materiales_total >= 0 AND costo_mano_obra >= 0 AND otros_costos >= 0");
                 t.HasCheckConstraint("ck_cotizaciones_estado", "estado IN (N'pendiente', N'aprobada', N'rechazada')");
+                // Fase 8: pesos enteros, IVA incluido (decision 1 del 14-11-2026).
+                t.HasCheckConstraint("ck_cotizaciones_montos_enteros",
+                    "costo_mano_obra = FLOOR(costo_mano_obra) AND otros_costos = FLOOR(otros_costos)");
+                // Solo una «pendiente» no tiene respuesta, y toda respuesta dice por que via llego.
+                t.HasCheckConstraint("ck_cotizaciones_respuesta",
+                    "(CASE WHEN estado = N'pendiente' THEN 1 ELSE 0 END) = (CASE WHEN fecha_respuesta IS NULL THEN 1 ELSE 0 END) " +
+                    "AND (CASE WHEN via_respuesta IS NULL THEN 0 ELSE 1 END) = (CASE WHEN fecha_respuesta IS NULL THEN 0 ELSE 1 END)");
+                t.HasCheckConstraint("ck_cotizaciones_via",
+                    "via_respuesta IS NULL OR via_respuesta IN (N'cliente_web', N'telefono', N'whatsapp', N'presencial')");
             });
             entity.HasKey(e => e.IdCotizacion).HasName("pk_cotizaciones");
             entity.Property(e => e.IdCotizacion).HasColumnName("id_cotizacion");
@@ -314,7 +324,8 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
             entity.Property(e => e.FechaCotizacion).HasColumnName("fecha_cotizacion").HasColumnType("datetime2(0)")
                 .HasDefaultValueSql("SYSDATETIME()");
-            entity.Property(e => e.Observaciones).HasColumnName("observaciones").HasMaxLength(500);
+            // Fase 8: hasta 2000 caracteres (antes 500); ampliar una columna no pierde datos. Las ve el cliente.
+            entity.Property(e => e.Observaciones).HasColumnName("observaciones").HasMaxLength(2000);
             entity.Property(e => e.CostoMaterialesTotal).HasColumnName("costo_materiales_total").HasColumnType("decimal(12,2)")
                 .HasDefaultValue(0m);
             entity.Property(e => e.CostoManoObra).HasColumnName("costo_mano_obra").HasColumnType("decimal(12,2)")
@@ -324,8 +335,21 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.TotalCotizacion).HasColumnName("total_cotizacion").HasColumnType("decimal(14,2)")
                 .HasComputedColumnSql("CONVERT(DECIMAL(14,2), costo_materiales_total + costo_mano_obra + otros_costos)", stored: true);
             entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(15).HasDefaultValue("pendiente");
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
+            entity.Property(e => e.FechaRespuesta).HasColumnName("fecha_respuesta").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.ViaRespuesta).HasColumnName("via_respuesta").HasMaxLength(15);
+            entity.Property(e => e.IdEmpleadoRespuesta).HasColumnName("id_empleado_respuesta");
+            entity.Property(e => e.MotivoRechazo).HasColumnName("motivo_rechazo").HasMaxLength(500);
+            entity.Property(e => e.EliminadoLogico).HasColumnName("eliminado_logico").HasDefaultValue(false);
+            entity.Property(e => e.FechaEliminacionLogica).HasColumnName("fecha_eliminacion_logica").HasColumnType("datetimeoffset(0)");
 
             entity.HasIndex(e => new { e.IdSolicitud, e.Estado }).HasDatabaseName("ix_cotizaciones_solicitud");
+            // Fase 8: una sola cotizacion «pendiente» (no eliminada) por solicitud. Antes era una desviacion
+            // anotada; ahora la garantiza la base aunque dos personas coticen a la vez.
+            entity.HasIndex(e => e.IdSolicitud).IsUnique()
+                .HasFilter("[estado] = N'pendiente' AND [eliminado_logico] = 0")
+                .HasDatabaseName("uq_cotizaciones_una_pendiente");
+            entity.HasIndex(e => e.IdEmpleadoRespuesta).HasDatabaseName("ix_cotizaciones_empleado_respuesta");
 
             entity.HasOne(e => e.Solicitud)
                 .WithMany(s => s.Cotizaciones)
@@ -338,6 +362,12 @@ public class LetrerosHerreradbContext : DbContext
                 .HasForeignKey(e => e.IdEmpleado)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_cotizaciones_empleado");
+
+            entity.HasOne(e => e.EmpleadoRespuesta)
+                .WithMany()
+                .HasForeignKey(e => e.IdEmpleadoRespuesta)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_cotizaciones_empleado_respuesta");
         });
 
         // ── cotizacion_materiales ──
@@ -349,12 +379,15 @@ public class LetrerosHerreradbContext : DbContext
                 t.HasTrigger("trg_cotizacion_materiales_recalcular_total");
                 t.HasCheckConstraint("ck_cot_mat_cantidad", "cantidad > 0");
                 t.HasCheckConstraint("ck_cot_mat_costo", "costo_unitario >= 0");
+                // Fase 8: el costo unitario va en pesos enteros; la cantidad admite 2 decimales.
+                t.HasCheckConstraint("ck_cot_mat_costo_entero", "costo_unitario = FLOOR(costo_unitario)");
             });
             entity.HasKey(e => e.IdCotizacionMaterial).HasName("pk_cotizacion_materiales");
             entity.Property(e => e.IdCotizacionMaterial).HasColumnName("id_cotizacion_material");
             entity.Property(e => e.IdCotizacion).HasColumnName("id_cotizacion");
             entity.Property(e => e.IdMaterial).HasColumnName("id_material");
-            entity.Property(e => e.MedidaAplicada).HasColumnName("medida_aplicada").HasMaxLength(80);
+            // Fase 8: hasta 100 caracteres (antes 80).
+            entity.Property(e => e.MedidaAplicada).HasColumnName("medida_aplicada").HasMaxLength(100);
             entity.Property(e => e.Cantidad).HasColumnName("cantidad").HasColumnType("decimal(10,2)");
             entity.Property(e => e.CostoUnitario).HasColumnName("costo_unitario").HasColumnType("decimal(12,2)");
             entity.Property(e => e.Subtotal).HasColumnName("subtotal").HasColumnType("decimal(14,2)")
@@ -394,6 +427,10 @@ public class LetrerosHerreradbContext : DbContext
                 t.HasCheckConstraint("ck_pedidos_montos_enteros",
                     "monto_base_trabajo = FLOOR(monto_base_trabajo) AND costo_instalacion_adicional = FLOOR(costo_instalacion_adicional) " +
                     "AND monto_base_trabajo + costo_instalacion_adicional <= 2000000000");
+                // Fase 8: un pedido anulado dice por que y cuando; uno que no esta anulado no trae esos datos.
+                t.HasCheckConstraint("ck_pedidos_anulacion",
+                    "(estado_pedido = N'anulado' AND motivo_anulacion IS NOT NULL AND fecha_anulacion IS NOT NULL) " +
+                    "OR (estado_pedido <> N'anulado' AND motivo_anulacion IS NULL AND fecha_anulacion IS NULL)");
             });
             entity.HasKey(e => e.IdPedido).HasName("pk_pedidos");
             entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
@@ -408,7 +445,8 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.ModalidadEntrega).HasColumnName("modalidad_entrega").HasMaxLength(25)
                 .HasDefaultValue("retiro_local");
             entity.Property(e => e.RequiereInstalacion).HasColumnName("requiere_instalacion").HasDefaultValue(false);
-            entity.Property(e => e.DireccionInstalacion).HasColumnName("direccion_instalacion").HasMaxLength(255);
+            // Fase 8: hasta 300 caracteres (antes 255).
+            entity.Property(e => e.DireccionInstalacion).HasColumnName("direccion_instalacion").HasMaxLength(300);
             entity.Property(e => e.CostoInstalacionAdicional).HasColumnName("costo_instalacion_adicional").HasColumnType("decimal(12,2)")
                 .HasDefaultValue(0m);
             entity.Property(e => e.MontoBaseTrabajo).HasColumnName("monto_base_trabajo").HasColumnType("decimal(12,2)")
@@ -433,8 +471,15 @@ public class LetrerosHerreradbContext : DbContext
                     "ELSE N'abonado' END)", stored: true);
             entity.Property(e => e.NumeroFactura).HasColumnName("numero_factura").HasMaxLength(30);
             entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
+            entity.Property(e => e.MotivoAnulacion).HasColumnName("motivo_anulacion").HasMaxLength(500);
+            entity.Property(e => e.FechaAnulacion).HasColumnName("fecha_anulacion").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.EliminadoLogico).HasColumnName("eliminado_logico").HasDefaultValue(false);
+            entity.Property(e => e.FechaEliminacionLogica).HasColumnName("fecha_eliminacion_logica").HasColumnType("datetimeoffset(0)");
 
             entity.HasIndex(e => e.IdSolicitud).IsUnique().HasDatabaseName("uq_pedidos_solicitud");
+            // Fase 8: una cotizacion da a lo mas un pedido.
+            entity.HasIndex(e => e.IdCotizacion).IsUnique().HasFilter("[id_cotizacion] IS NOT NULL")
+                .HasDatabaseName("uq_pedidos_cotizacion");
             entity.HasIndex(e => new { e.FechaEntregaEstimada, e.EstadoPedido }).HasDatabaseName("ix_pedidos_calendario_entrega");
             entity.HasIndex(e => new { e.FechaPedido, e.EstadoPedido }).HasDatabaseName("ix_pedidos_fecha_estado");
             // Cobranza: pedidos no pagados o con abono, por estado operativo, con su saldo.
@@ -461,8 +506,8 @@ public class LetrerosHerreradbContext : DbContext
 
         // ── pagos ──
         // Historial de abonos y pagos de cada pedido. El trigger recalcula pedidos.monto_abonado con la
-        // suma de sus pagos; si la suma supera el monto final, ck_pedidos_monto_abonado rechaza la
-        // operacion completa y el pago no se guarda.
+        // suma de sus pagos vigentes (fase 8: los anulados no suman); si la suma supera el monto final,
+        // ck_pedidos_monto_abonado rechaza la operacion completa y el pago no se guarda.
         modelBuilder.Entity<Pago>(entity =>
         {
             entity.ToTable("pagos", t =>
@@ -471,6 +516,10 @@ public class LetrerosHerreradbContext : DbContext
                 t.HasCheckConstraint("ck_pagos_monto", "monto > 0");
                 t.HasCheckConstraint("ck_pagos_medio_pago",
                     "medio_pago IN (N'efectivo', N'transferencia', N'tarjeta_debito', N'tarjeta_credito', N'cheque', N'otro')");
+                // Fase 8: un abono anulado dice por que, quien y cuando; uno vigente no trae esos datos.
+                t.HasCheckConstraint("ck_pagos_anulacion",
+                    "(anulado = 1 AND motivo_anulacion IS NOT NULL AND id_empleado_anula IS NOT NULL AND fecha_anulacion IS NOT NULL) " +
+                    "OR (anulado = 0 AND motivo_anulacion IS NULL AND id_empleado_anula IS NULL AND fecha_anulacion IS NULL)");
             });
             entity.HasKey(e => e.IdPago).HasName("pk_pagos");
             entity.Property(e => e.IdPago).HasColumnName("id_pago");
@@ -483,9 +532,14 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdEmpleadoRegistra).HasColumnName("id_empleado_registra");
             entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro").HasColumnType("datetime2(0)")
                 .HasDefaultValueSql("SYSDATETIME()");
+            entity.Property(e => e.Anulado).HasColumnName("anulado").HasDefaultValue(false);
+            entity.Property(e => e.MotivoAnulacion).HasColumnName("motivo_anulacion").HasMaxLength(300);
+            entity.Property(e => e.IdEmpleadoAnula).HasColumnName("id_empleado_anula");
+            entity.Property(e => e.FechaAnulacion).HasColumnName("fecha_anulacion").HasColumnType("datetimeoffset(0)");
 
             // Historial de un pedido en orden de fecha; tambien cubre la clave foranea id_pedido.
             entity.HasIndex(e => new { e.IdPedido, e.FechaPago }).HasDatabaseName("ix_pagos_pedido_fecha");
+            entity.HasIndex(e => e.IdEmpleadoAnula).HasDatabaseName("ix_pagos_empleado_anula");
 
             entity.HasOne(e => e.Pedido)
                 .WithMany(p => p.Pagos)
@@ -498,6 +552,38 @@ public class LetrerosHerreradbContext : DbContext
                 .HasForeignKey(e => e.IdEmpleadoRegistra)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_pagos_empleado");
+
+            entity.HasOne(e => e.EmpleadoAnula)
+                .WithMany()
+                .HasForeignKey(e => e.IdEmpleadoAnula)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_pagos_empleado_anula");
+        });
+
+        // ── pedidos_historial (fase 8) ──
+        // Sin cascada: los pedidos no se borran (el borrado es logico) y su historial tampoco.
+        modelBuilder.Entity<PedidoHistorial>(entity =>
+        {
+            entity.ToTable("pedidos_historial", t =>
+                t.HasCheckConstraint("ck_pedidos_historial_estados",
+                    "estado_nuevo IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado') " +
+                    "AND (estado_anterior IS NULL OR estado_anterior IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado'))"));
+            entity.HasKey(e => e.IdHistorial).HasName("pk_pedidos_historial");
+            entity.Property(e => e.IdHistorial).HasColumnName("id_historial");
+            entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
+            entity.Property(e => e.EstadoAnterior).HasColumnName("estado_anterior").HasMaxLength(15);
+            entity.Property(e => e.EstadoNuevo).HasColumnName("estado_nuevo").HasMaxLength(15);
+            entity.Property(e => e.Nota).HasColumnName("nota").HasMaxLength(500);
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.Fecha).HasColumnName("fecha").HasColumnType("datetimeoffset(0)");
+
+            entity.HasIndex(e => new { e.IdPedido, e.Fecha }).HasDatabaseName("ix_pedidos_historial_pedido");
+            entity.HasIndex(e => e.IdEmpleado).HasDatabaseName("ix_pedidos_historial_empleado");
+
+            entity.HasOne(e => e.Pedido).WithMany(p => p.Historial).HasForeignKey(e => e.IdPedido)
+                .OnDelete(DeleteBehavior.NoAction).HasConstraintName("fk_pedidos_historial_pedido");
+            entity.HasOne(e => e.Empleado).WithMany().HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction).HasConstraintName("fk_pedidos_historial_empleado");
         });
 
         // ── horarios_atencion ──

@@ -8,10 +8,10 @@ import { api, rutaRelativa } from './cliente';
 // Listados paginados: { elementos, total, pagina, tamano, totalPaginas }.
 
 /** La versión que vio quien edita, como etiqueta de entidad (If-Match: "AAAAAAAAB9E="). */
-const siVersion = (rowVersion) => (rowVersion ? { cabeceras: { 'If-Match': `"${rowVersion}"` } } : undefined);
+export const siVersion = (rowVersion) => (rowVersion ? { cabeceras: { 'If-Match': `"${rowVersion}"` } } : undefined);
 
 /** Lo que entrega la API como listado: si llega una lista simple, se pagina aquí para que la pantalla no cambie. */
-function comoPaginado(respuesta, { pagina = 1, tamano = 20 } = {}) {
+export function comoPaginado(respuesta, { pagina = 1, tamano = 20 } = {}) {
   if (!Array.isArray(respuesta)) return respuesta;
   const inicio = (pagina - 1) * tamano;
   return {
@@ -40,6 +40,7 @@ export const misSolicitudes = {
   enviar: (solicitud) => api.post('/mis/solicitudes', solicitud),
   listar: ({ pagina = 1, tamano = 10 } = {}) => api.get('/mis/solicitudes', { parametros: { pagina, tamano } })
     .then((r) => comoPaginado(r, { pagina, tamano })),
+  /** Con el seguimiento (fase 8): `cotizacion` { idCotizacion, numero, total, estado } y `pedido` (S04), o null. */
   obtener: (id) => api.get(`/mis/solicitudes/${id}`),
 };
 
@@ -53,7 +54,7 @@ export const adjuntos = {
 export const solicitudes = {
   /** Bandeja: { estado, origen, desde, hasta, q, orden, pagina, tamano } → paginado. */
   listar: (filtros = {}) => api.get('/solicitudes', { parametros: filtros }).then((r) => comoPaginado(r, filtros)),
-  /** Comprobante + historial + registradaPor. */
+  /** Comprobante + historial + registradaPor; en la fase 8, también sus cotizaciones (ver api/cotizaciones.js). */
   obtener: (id) => api.get(`/solicitudes/${id}`),
   /** Registro presencial: { idCliente, descripcionGeneral, detalles } → 201 comprobante. */
   crear: (solicitud) => api.post('/solicitudes', solicitud),

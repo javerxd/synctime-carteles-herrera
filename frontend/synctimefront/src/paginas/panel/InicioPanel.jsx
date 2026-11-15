@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Aviso, Esqueleto, EstadoCartel, Insignia, Tarjeta } from '../../componentes/ui';
-import { panel } from '../../api/panel';
+import { Esqueleto, EstadoCartel, Insignia, Tarjeta } from '../../componentes/ui';
+import { cotizaciones } from '../../api/cotizaciones';
+import { pedidos } from '../../api/pedidos';
 import { publico } from '../../api/publico';
 import { menuPara, GESTION } from '../../estructuras/navegacion';
 import { useSesion } from '../../sesion/sesion';
-import { formatearPesos } from '../../utilidades/formato';
 import { useConsulta } from '../../utilidades/useConsulta';
+import { AlertasGestion } from '../pedidos/AlertasGestion';
 import { SolicitudesPorAtender } from '../solicitudes/panel/SolicitudesPorAtender';
-import { esPorCobrar } from './reglasPedidos';
 import estilos from './Panel.module.css';
 
 const DESCRIPCIONES = {
@@ -23,32 +23,35 @@ const DESCRIPCIONES = {
   '/panel/perfil': 'Tus datos y el acceso con rostro.',
 };
 
-function indicadoresDelTaller(pedidos) {
-  const hoy = new Date();
-  const enSieteDias = new Date(hoy.getTime() + 7 * 86400000);
-  const abiertos = pedidos.filter((p) => !['entregado', 'anulado'].includes(p.estadoPedido));
-  return {
-    enProceso: pedidos.filter((p) => p.estadoPedido === 'en_proceso').length,
-    proximas: abiertos.filter((p) => new Date(p.fechaEntregaEstimada) <= enSieteDias && new Date(p.fechaEntregaEstimada) >= hoy).length,
-    atrasadas: abiertos.filter((p) => new Date(p.fechaEntregaEstimada) < hoy).length,
-    porCobrar: pedidos.filter(esPorCobrar).reduce((s, p) => s + Number(p.saldoPendiente ?? 0), 0),
-  };
+/** Cuántos hay de algo: la API lo cuenta (total del listado), sin traer las filas. */
+const contar = (listar, filtros) => () => listar({ ...filtros, pagina: 1, tamano: 1 }).then((r) => r?.total ?? 0);
+
+const INDICADORES = [
+  { clave: 'en-proceso', nombre: 'Pedidos en proceso', ruta: '/panel/pedidos?estadoPedido=en_proceso', consulta: contar(pedidos.listar, { estadoPedido: 'en_proceso' }) },
+  { clave: 'terminados', nombre: 'Terminados por entregar', ruta: '/panel/pedidos?estadoPedido=terminado', consulta: contar(pedidos.listar, { estadoPedido: 'terminado' }) },
+  { clave: 'por-responder', nombre: 'Cotizaciones por responder', ruta: '/panel/cotizaciones?estado=pendiente', consulta: contar(cotizaciones.listar, { estado: 'pendiente' }) },
+];
+
+function Indicador({ nombre, ruta, consulta: consultar, clave }) {
+  const consulta = useConsulta(`inicio:${clave}`, consultar);
+  return (
+    <Tarjeta interactiva className={estilos.indicador}>
+      <Link to={ruta} className={estilos.enlaceIndicador}>{nombre}</Link>
+      {consulta.cargando && <Esqueleto alto="2rem" ancho="4rem" forma="bloque" />}
+      {consulta.error && <span className={estilos.indicadorFormula}>No pudimos contarlos</span>}
+      {consulta.datos !== undefined && <span className={estilos.indicadorValor}>{consulta.datos}</span>}
+    </Tarjeta>
+  );
 }
 
-/** Inicio del panel: las solicitudes por atender, el resumen del día y el menú general filtrado por rol. */
+/**
+ * Inicio del panel: las solicitudes por atender, las alertas de entrega y cobranza (gestión), el resumen del día
+ * contado en la API y el menú general filtrado por rol.
+ */
 export default function InicioPanel() {
   const { usuario, tieneRol } = useSesion();
-  const pedidos = useConsulta('pedidos', panel.pedidos);
   const cartel = useConsulta('cartel', publico.cartel);
   const esGestion = tieneRol(GESTION);
-  const datos = pedidos.datos ? indicadoresDelTaller(pedidos.datos) : null;
-
-  const tarjetas = [
-    { nombre: 'Pedidos en proceso', valor: datos?.enProceso },
-    { nombre: 'Entregas en los próximos 7 días', valor: datos?.proximas },
-    { nombre: 'Entregas atrasadas', valor: datos?.atrasadas, aviso: datos?.atrasadas > 0 },
-    ...(esGestion ? [{ nombre: 'Saldo por cobrar', valor: datos && formatearPesos(datos.porCobrar) }] : []),
-  ];
 
   return (
     <div className={estilos.pagina}>
@@ -59,19 +62,12 @@ export default function InicioPanel() {
 
       <SolicitudesPorAtender />
 
+      {esGestion && <AlertasGestion />}
+
       <section aria-labelledby="titulo-resumen">
         <h2 id="titulo-resumen" className={estilos.subtitulo}>Hoy en el taller</h2>
-        {pedidos.error && <Aviso tono="peligro" titulo="No pudimos cargar el resumen">{pedidos.error.message}</Aviso>}
         <ul className={estilos.indicadores}>
-          {tarjetas.map((t) => (
-            <li key={t.nombre}>
-              <Tarjeta className={estilos.indicador}>
-                <span className={estilos.indicadorNombre}>{t.nombre}</span>
-                {pedidos.cargando ? <Esqueleto alto="2rem" ancho="5rem" forma="bloque" /> : <span className={estilos.indicadorValor}>{t.valor ?? '—'}</span>}
-                {t.aviso && <Insignia tono="aviso">Revisar en Pedidos</Insignia>}
-              </Tarjeta>
-            </li>
-          ))}
+          {INDICADORES.map((i) => <li key={i.clave}><Indicador {...i} /></li>)}
           <li>
             <Tarjeta className={estilos.indicador}>
               <span className={estilos.indicadorNombre}>Cartel del local</span>

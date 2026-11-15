@@ -38,11 +38,14 @@ public sealed record FichaSolicitud(
     IReadOnlyList<AdjuntoComprobante> Adjuntos,
     byte[] RowVersion,
     string? RegistradaPor,
-    IReadOnlyList<CambioDeEstado> Historial)
+    IReadOnlyList<CambioDeEstado> Historial,
+    IReadOnlyList<Cotizaciones.CotizacionDeLaSolicitud> Cotizaciones)
 {
-    public static FichaSolicitud Desde(ComprobanteSolicitud c, int idCliente, string? registradaPor, IReadOnlyList<CambioDeEstado> historial) =>
+    // Fase 8: con sus cotizaciones (sin las eliminadas), de la mas nueva a la mas antigua.
+    public static FichaSolicitud Desde(ComprobanteSolicitud c, int idCliente, string? registradaPor, IReadOnlyList<CambioDeEstado> historial,
+        IReadOnlyList<Cotizaciones.CotizacionDeLaSolicitud> cotizaciones) =>
         new(c.IdSolicitud, c.Numero, c.FechaChile, c.Origen, c.Estado, c.MotivoRechazo, idCliente, c.Cliente, c.Detalles,
-            c.AreaTotalM2, c.DescripcionGeneral, c.Adjuntos, c.RowVersion, registradaPor, historial);
+            c.AreaTotalM2, c.DescripcionGeneral, c.Adjuntos, c.RowVersion, registradaPor, historial, cotizaciones);
 }
 
 // Actor: "personal", "cliente" o "sistema". Por: nombre de quien lo hizo (null si fue el sistema).
@@ -62,7 +65,8 @@ public sealed record FilaSolicitud(
 
 public sealed record ClienteFila(int IdCliente, string Nombre, string Apellido, string Telefono);
 
-// Una fila de «Mis solicitudes».
+// Una fila de «Mis solicitudes». Fase 8 (S04): con su cotizacion vigente (la ultima no eliminada) y su
+// pedido, si los tiene.
 public sealed record ResumenSolicitud(
     int IdSolicitud,
     string Numero,
@@ -72,7 +76,31 @@ public sealed record ResumenSolicitud(
     string? MotivoRechazo,
     string? Resumen,
     int CantidadItems,
-    int CantidadAdjuntos);
+    int CantidadAdjuntos,
+    Cotizaciones.SeguimientoCotizacion? Cotizacion,
+    Pedidos.SeguimientoPedido? Pedido);
+
+// «Mis solicitudes» por id: el comprobante con el seguimiento (fase 8, S04).
+public sealed record MiSolicitud(
+    int IdSolicitud,
+    string Numero,
+    DateTime FechaChile,
+    string Origen,
+    string Estado,
+    string? MotivoRechazo,
+    ClienteComprobante Cliente,
+    IReadOnlyList<DetalleComprobante> Detalles,
+    decimal? AreaTotalM2,
+    string? DescripcionGeneral,
+    IReadOnlyList<AdjuntoComprobante> Adjuntos,
+    byte[] RowVersion,
+    Cotizaciones.SeguimientoCotizacion? Cotizacion,
+    Pedidos.SeguimientoPedido? Pedido)
+{
+    public static MiSolicitud Desde(ComprobanteSolicitud c, Cotizaciones.SeguimientoCotizacion? cotizacion, Pedidos.SeguimientoPedido? pedido) =>
+        new(c.IdSolicitud, c.Numero, c.FechaChile, c.Origen, c.Estado, c.MotivoRechazo, c.Cliente, c.Detalles, c.AreaTotalM2,
+            c.DescripcionGeneral, c.Adjuntos, c.RowVersion, cotizacion, pedido);
+}
 
 public static class Adjuntos
 {

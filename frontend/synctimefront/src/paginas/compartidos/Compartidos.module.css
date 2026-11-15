@@ -1,0 +1,12 @@
+/* Piezas compartidas de las fichas de la fase 8. */
+.conflicto {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.accionesConflicto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  margin-top: var(--espacio-1);
+}

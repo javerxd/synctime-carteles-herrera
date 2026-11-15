@@ -304,22 +304,27 @@ public static class SemillaDemo
 
         var hoy = DateTime.Today;
         DateTime Tope(DateTime fecha) => fecha > hoy ? hoy : fecha;
+        // Fase 8: las fechas con zona (respuesta, anulacion, historial) en hora de Chile.
+        DateTimeOffset ConZona(DateTime chile) => new(chile, Negocio.Local.HoraChile.ZonaHoraria.GetUtcOffset(chile));
 
         foreach (var d in Pedidos.Where(d => clientes.ContainsKey(d.Cliente)))
         {
             var inicioMes = new DateTime(hoy.Year, hoy.Month, 1).AddMonths(-d.MesesAtras);
             var fecha = Tope(inicioMes.AddDays(d.Dia - 1).AddHours(10));
             var directo = d.Origen == "directo";
+            var enLinea = d.Cliente == "900000201";
             var solicitud = new Solicitud
             {
                 Cliente = clientes[d.Cliente],
                 // La de Rosa Pino llega desde la web (sin empleado); las demas, desde el mostrador.
-                EmpleadoRegistra = d.Cliente == "900000201" ? null : operario,
+                EmpleadoRegistra = enLinea ? null : operario,
                 Estado = "aceptado",
                 FechaSolicitud = fecha.AddDays(directo ? 0 : -3),
                 DescripcionGeneral = d.Trabajo,
                 Detalles = { new SolicitudDetalle { IdProducto = d.Producto, Descripcion = d.Trabajo, Cantidad = 1 } },
             };
+            // Fase 8 (ck_cotizaciones_respuesta): toda cotizacion aprobada dice cuando, por que via y quien la
+            // marco. Rosa Pino aprobo la suya desde la web; las demas se aprobaron en el local.
             var cotizacion = new Cotizacion
             {
                 Solicitud = solicitud,
@@ -327,6 +332,9 @@ public static class SemillaDemo
                 FechaCotizacion = fecha.AddDays(directo ? 0 : -1),
                 CostoManoObra = d.Monto,
                 Estado = "aprobada",
+                FechaRespuesta = ConZona(fecha),
+                ViaRespuesta = enLinea ? "cliente_web" : "presencial",
+                EmpleadoRespuesta = enLinea ? null : operario,
                 Observaciones = directo ? "Generada en el mostrador junto con el pedido." : null,
             };
             var pedido = new Pedido
@@ -345,7 +353,24 @@ public static class SemillaDemo
                 MontoBaseTrabajo = d.Monto,
                 EstadoPedido = d.Estado,
                 NumeroFactura = d.Factura,
+                // Fase 8 (ck_pedidos_anulacion): un pedido anulado dice por que y cuando.
+                MotivoAnulacion = d.Estado == "anulado" ? "El cliente desistió antes de empezar el trabajo." : null,
+                FechaAnulacion = d.Estado == "anulado" ? ConZona(fecha.AddDays(1) > hoy ? fecha : fecha.AddDays(1)) : null,
             };
+            // Fase 8: el historial del pedido, desde su creacion hasta su estado actual.
+            var anterior = (string?)null;
+            foreach (var paso in PasosHasta(d.Estado))
+            {
+                pedido.Historial.Add(new PedidoHistorial
+                {
+                    EstadoAnterior = anterior,
+                    EstadoNuevo = paso,
+                    Nota = paso == "anulado" ? pedido.MotivoAnulacion : anterior is null && directo ? "Pedido directo en el taller" : null,
+                    Empleado = operario,
+                    Fecha = ConZona(fecha)
+                });
+                anterior = paso;
+            }
             db.Pedidos.Add(pedido);
             foreach (var abono in d.Abonos)
             {
@@ -363,6 +388,12 @@ public static class SemillaDemo
         await db.SaveChangesAsync();
         return true;
     }
+
+    // Los estados por los que paso un pedido de la semilla, en orden, desde «aceptado».
+    private static readonly string[] Avance = ["aceptado", "en_proceso", "terminado", "entregado"];
+
+    private static IEnumerable<string> PasosHasta(string estado) =>
+        estado == "anulado" ? ["aceptado", "anulado"] : Avance.Take(Array.IndexOf(Avance, estado) + 1);
 
     // Segunda barrera, por si alguien llama a la semilla sin pasar por EjecutarAsync: solo bases demo o de pruebas.
     private static void ExigirBaseDeDemostracion(LetrerosHerreradbContext db)

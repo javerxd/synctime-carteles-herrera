@@ -1,6 +1,8 @@
 import { CircleHelp, DoorClosed, DoorOpen } from 'lucide-react';
 import { unirClases } from './clases';
-import { ESTADOS_PAGO, ESTADOS_PEDIDO, ESTADOS_SOLICITUD } from './estados';
+import {
+  ESTADOS_COTIZACION, ESTADOS_ENTREGA, ESTADOS_PAGO, ESTADOS_PEDIDO, ESTADOS_SOLICITUD,
+} from './estados';
 import estilos from './Insignia.module.css';
 
 /**
@@ -39,6 +41,15 @@ export function EstadoPago({ estado, ...resto }) {
 
 export function EstadoSolicitud({ estado, ...resto }) {
   return <InsigniaDeCatalogo catalogo={ESTADOS_SOLICITUD} estado={estado} {...resto} />;
+}
+
+export function EstadoCotizacion({ estado, ...resto }) {
+  return <InsigniaDeCatalogo catalogo={ESTADOS_COTIZACION} estado={estado} {...resto} />;
+}
+
+/** Pendiente, entregado o atrasado (calendario y alertas de entrega). */
+export function EstadoEntrega({ estado, ...resto }) {
+  return <InsigniaDeCatalogo catalogo={ESTADOS_ENTREGA} estado={estado} {...resto} />;
 }
 
 /** El cartel electrónico: verde «Abierto / Disponible» o rojo «Cerrado / Ausente», siempre con texto. */

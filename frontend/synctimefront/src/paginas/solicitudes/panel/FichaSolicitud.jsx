@@ -10,6 +10,7 @@ import { useAvisos } from '../../../avisos/Avisos';
 import { unirClases } from '../../../componentes/ui/clases';
 import { formatearFechaHora } from '../../../utilidades/formato';
 import { useConsulta } from '../../../utilidades/useConsulta';
+import { SeccionCotizacion } from '../../cotizaciones/SeccionCotizacion';
 import { Comprobante } from '../Comprobante';
 import { EditorItems } from '../EditorItems';
 import {
@@ -242,6 +243,7 @@ function EdicionSolicitud({ solicitud, productos, alCancelar, alGuardar, alRecar
  * /panel/solicitudes/:id: ficha con el comprobante, los adjuntos (se abren en grande; el PDF se descarga),
  * el historial de estados y quién la registró. Todo el personal (RFU11) edita, adjunta, rechaza con motivo,
  * la devuelve a «Solicitada» o la elimina (borrado lógico); cada acción envía la versión vista (If-Match).
+ * Desde la fase 8 trae la sección «Cotización»: cotizar, registrar la respuesta del cliente y crear el pedido.
  * Es el destino del botón «Ver solicitud» del correo al taller.
  */
 export default function FichaSolicitud() {
@@ -377,6 +379,8 @@ export default function FichaSolicitud() {
               </>
             )}
           </Tarjeta>
+
+          <SeccionCotizacion solicitud={solicitud} alCambiar={consulta.recargar} />
 
           <Tarjeta como="section" className={estilos.seccion}>
             {editable ? (

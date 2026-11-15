@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026 (fase 7 aprobada; fase 8 en curso).
+Última actualización: 14-11-2026 (fase 7 aprobada; fase 8 en revisión).
 
 ## Hecho
 
@@ -18,11 +18,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · plan: `fase-08-plan.md`, especificación: `fase-08-especificacion.md` · informe: `informes/fase-08.md` · pendiente del usuario: su visto bueno y decidir si la API lleva clave de idempotencia
 
 ## En curso
 
-- **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` (nace de `fase-07-solicitudes-y-clientes`) · plan aprobado el 14-11-2026: `fase-08-plan.md`, especificación: `fase-08-especificacion.md`
+_(ninguna)_
 
 ## Por hacer
 

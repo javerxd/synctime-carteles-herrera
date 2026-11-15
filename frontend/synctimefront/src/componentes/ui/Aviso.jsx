@@ -15,7 +15,7 @@ export function Aviso({ tono = 'info', titulo, accion, className, children, ...r
   return (
     <div
       {...resto}
-      role={tono === 'peligro' ? 'alert' : 'status'}
+      role={resto.role ?? (tono === 'peligro' ? 'alert' : 'status')}
       className={unirClases(estilos.mensaje, estilos[tono], className)}
     >
       <Icono size={20} strokeWidth={1.75} aria-hidden="true" className={estilos.icono} />

@@ -38,7 +38,8 @@
 }
 
 /* Activo: el ámbar marca el estado activo, como pide el documento */
-.chip[aria-pressed='true'] {
+.chip[aria-pressed='true'],
+.quitable {
   border-color: var(--chip-borde-activo);
   background: var(--chip-fondo-activo);
   color: var(--chip-texto-activo);

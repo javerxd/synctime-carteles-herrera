@@ -1,17 +1,55 @@
 import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Paperclip, Plus } from 'lucide-react';
-import { Aviso, Boton, Enlace, Esqueleto, EstadoSolicitud, EstadoVacio, Paginacion, Tarjeta } from '../../componentes/ui';
+import {
+  Aviso, Boton, Enlace, Esqueleto, EstadoCotizacion, EstadoPago, EstadoPedido, EstadoSolicitud, EstadoVacio, Paginacion, Tarjeta,
+} from '../../componentes/ui';
 import { misSolicitudes } from '../../api/solicitudes';
-import { formatearFechaHora } from '../../utilidades/formato';
+import { formatearFecha, formatearFechaHora, formatearPesos } from '../../utilidades/formato';
 import { useConsulta } from '../../utilidades/useConsulta';
+import { numeroCotizacion } from '../cotizaciones/reglasCotizacion';
+import { numeroPedido } from '../pedidos/reglasPedido';
 import { Comprobante } from './Comprobante';
+import { CotizacionCliente, PedidoCliente, Seguimiento } from './Seguimiento';
 import { formatearArea, numeroSolicitud } from './reglasSolicitud';
 import estilos from './Solicitudes.module.css';
 
 const POR_PAGINA = 10;
 const cantidadItems = (s) => s.cantidadItems ?? s.detalles?.length ?? null;
 const cantidadAdjuntos = (s) => s.cantidadAdjuntos ?? s.adjuntos?.length ?? 0;
+
+/** La cotización y el pedido de la solicitud, en una línea cada uno (S04). */
+function SeguimientoEnTarjeta({ s }) {
+  const { cotizacion, pedido } = s;
+  if (!cotizacion && !pedido) return null;
+  return (
+    <div className={estilos.seguimientoTarjeta}>
+      {cotizacion && !pedido && (
+        <p className={estilos.lineaSeguimiento}>
+          <span>Cotización <span className="cifras">{numeroCotizacion(cotizacion)}</span> · <strong className="cifras">{formatearPesos(cotizacion.total)}</strong></span>
+          <EstadoCotizacion estado={cotizacion.estado} />
+          {cotizacion.estado === 'pendiente' && <span className={estilos.porResponder}>Por responder: ábrela para aprobarla o rechazarla.</span>}
+        </p>
+      )}
+      {pedido?.eliminado && (
+        <p className={estilos.lineaSeguimiento}>
+          <span>Pedido <span className="cifras">{numeroPedido(pedido)}</span>: este pedido fue eliminado por el taller.</span>
+        </p>
+      )}
+      {pedido && !pedido.eliminado && (
+        <p className={estilos.lineaSeguimiento}>
+          <span>Pedido <span className="cifras">{numeroPedido(pedido)}</span></span>
+          <EstadoPedido estado={pedido.estadoPedido} />
+          <EstadoPago estado={pedido.estadoPago} />
+          <span className={estilos.metaLinea}>
+            {pedido.estadoPedido !== 'anulado' && Number(pedido.saldoPendiente) > 0 && <>Saldo <span className="cifras">{formatearPesos(pedido.saldoPendiente)}</span> · </>}
+            Entrega estimada <span className="cifras">{formatearFecha(pedido.fechaEntregaEstimada)}</span>
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
 
 function resumen(s) {
   const items = cantidadItems(s);
@@ -37,7 +75,7 @@ export default function MisSolicitudes() {
         <div>
           <Enlace como={Link} to="/cuenta" className={estilos.volver}><ArrowLeft size={16} aria-hidden="true" />Mi cuenta</Enlace>
           <h1 ref={refTitulo} tabIndex={-1} className={estilos.titulo}>Mis solicitudes</h1>
-          <p className={estilos.bajada}>El estado de cada solicitud y su comprobante.</p>
+          <p className={estilos.bajada}>El estado de cada solicitud, su cotización y tu pedido.</p>
         </div>
         {lista.length > 0 && <Boton como={Link} to="/cuenta/solicitud" iconoInicio={Plus}>Nueva solicitud</Boton>}
       </div>
@@ -89,6 +127,7 @@ export default function MisSolicitudes() {
                 {s.estado === 'rechazado' && s.motivoRechazo && (
                   <p className={estilos.textoTarjeta}><strong>Motivo del rechazo:</strong> {s.motivoRechazo}</p>
                 )}
+                <SeguimientoEnTarjeta s={s} />
               </Tarjeta>
             </li>
           ))}
@@ -101,7 +140,10 @@ export default function MisSolicitudes() {
   );
 }
 
-/** /cuenta/solicitudes/:id: el comprobante de una solicitud del cliente. */
+/**
+ * /cuenta/solicitudes/:id: el seguimiento (S04) de una solicitud del cliente: los pasos, la cotización con
+ * «Aprobar» y «Rechazar» mientras está pendiente, el pedido y el comprobante.
+ */
 export function MiSolicitud() {
   const { id } = useParams();
   const consulta = useConsulta(`mi-solicitud:${id}`, () => misSolicitudes.obtener(id));
@@ -127,9 +169,17 @@ export function MiSolicitud() {
         </Aviso>
       )}
       {solicitud && (
-        <Tarjeta className={estilos.tarjetaComprobante}>
-          <Comprobante solicitud={solicitud} />
-        </Tarjeta>
+        <>
+          <Seguimiento solicitud={solicitud} />
+          {solicitud.cotizacion && (
+            <CotizacionCliente resumen={solicitud.cotizacion} versionSolicitud={solicitud.rowVersion} alCambiar={consulta.recargar} />
+          )}
+          {solicitud.pedido && <PedidoCliente pedido={solicitud.pedido} />}
+          <Tarjeta como="section" aria-labelledby="titulo-comprobante" className={estilos.tarjetaComprobante}>
+            <h2 id="titulo-comprobante" className="solo-lectores">Comprobante de la solicitud</h2>
+            <Comprobante solicitud={solicitud} nivel={3} />
+          </Tarjeta>
+        </>
       )}
     </div>
   );

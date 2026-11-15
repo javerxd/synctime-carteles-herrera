@@ -1,0 +1,488 @@
+/* Cotizaciones (fase 8): la vista S06, el editor con su vista previa y la sección de la ficha de solicitud.
+   Los montos van en cifras tabulares y alineados a la derecha, para leerlos en columna. */
+
+/* ── Vista de la cotización (S06) ── */
+.vista {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-5);
+}
+
+.encabezadoVista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-3);
+  padding-bottom: var(--espacio-4);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.numeroVista {
+  font-size: var(--tamano-lg);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  gap: var(--espacio-3) var(--espacio-4);
+  margin: 0;
+}
+
+.meta dt,
+.desglose dt {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-seminegrita);
+}
+
+.meta dd {
+  margin: var(--espacio-0-5) 0 0;
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+.bloqueVista {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-3);
+}
+
+.subtituloVista {
+  font-size: var(--tamano-md);
+}
+
+.letreros {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.letreros li {
+  display: grid;
+  gap: var(--espacio-0-5);
+  padding-bottom: var(--espacio-2);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.letreros li:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.letreroNombre {
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.celdaDoble {
+  display: grid;
+  gap: var(--espacio-0-5);
+  min-width: 0;
+}
+
+.detalle {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-normal);
+  overflow-wrap: anywhere;
+}
+
+.lineasVista {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lineasVista li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-4);
+  padding-block: var(--espacio-2-5);
+  border-bottom: 1px solid var(--color-borde);
+}
+
+.lineasVista li:first-child {
+  padding-top: 0;
+}
+
+.nombreMaterial {
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.subtotalVista {
+  flex: none;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  text-align: right;
+}
+
+.sinCorte {
+  white-space: nowrap;
+}
+
+.ninguno,
+.nota {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* El desglose: etiqueta a la izquierda, monto a la derecha, y el total separado por un filo. */
+.desglose {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: var(--espacio-4);
+  border-radius: var(--radio-md);
+  background: var(--color-fondo-alterno);
+}
+
+.desglose > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-4);
+}
+
+.desglose dt {
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+}
+
+.desglose dd {
+  margin: 0;
+  font-size: var(--tamano-sm);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.desglose .filaTotal {
+  margin-top: var(--espacio-1);
+  padding-top: var(--espacio-3);
+  border-top: 1px solid var(--color-borde-fuerte);
+}
+
+.filaTotal dt {
+  color: var(--color-texto);
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+}
+
+.filaTotal dd {
+  font-size: var(--tamano-xl);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+}
+
+.notaTotal {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+.observaciones {
+  max-width: var(--medida-lectura);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.respuesta {
+  display: grid;
+  gap: var(--espacio-1);
+  padding: var(--espacio-3) var(--espacio-4);
+  border: 1px solid;
+  border-radius: var(--radio-md);
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+.respuestaAprobada {
+  border-color: var(--tono-exito-borde);
+  background: var(--tono-exito-fondo);
+  color: var(--tono-exito-texto);
+}
+
+.respuestaRechazada {
+  border-color: var(--tono-peligro-borde);
+  background: var(--tono-peligro-fondo);
+  color: var(--tono-peligro-texto);
+}
+
+/* ── Editor ── */
+.rejillaEditor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+  align-items: start;
+}
+
+@media (min-width: 72rem) {
+  .rejillaEditor {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+  }
+
+}
+
+.columnaEditor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+}
+
+.previa {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.tituloPrevia {
+  font-size: var(--tamano-md);
+}
+
+.bloqueEditor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-4);
+}
+
+.cabeceraBloque {
+  display: grid;
+  gap: var(--espacio-1);
+}
+
+.subtituloEditor {
+  font-size: var(--tamano-lg);
+}
+
+.sinLineas {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  border: 1px dashed var(--color-borde-fuerte);
+  border-radius: var(--radio-md);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.sinLineas svg {
+  flex: none;
+  margin-top: 0.1em;
+}
+
+.lineas {
+  display: grid;
+  gap: var(--espacio-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.linea {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo-alterno);
+  container-type: inline-size;
+}
+
+.leyendaLinea {
+  float: left; /* deja la leyenda dentro del recuadro, a la altura de «Quitar» */
+  width: 100%;
+  padding: 0;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  line-height: 2.25rem;
+}
+
+.quitarLinea {
+  position: absolute;
+  top: var(--espacio-4);
+  right: var(--espacio-3);
+}
+
+.camposLinea {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+  gap: var(--espacio-3);
+}
+
+/* Por el ancho de la línea, no de la ventana: la vista previa y el menú se llevan parte del espacio. */
+@container (min-width: 36rem) {
+  .camposLinea {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr);
+    align-items: start;
+  }
+}
+
+.pieLinea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-1) var(--espacio-4);
+}
+
+.subtotalLinea {
+  margin-left: auto;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  text-align: right;
+}
+
+.subtotalLinea strong {
+  margin-left: var(--espacio-2);
+  color: var(--color-texto);
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+}
+
+.pieLineas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-3);
+}
+
+.dosMontos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--espacio-3);
+  align-items: end;
+}
+
+/* El pie del editor: el total a la izquierda y las acciones a la derecha. */
+.pieEditor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3) var(--espacio-4);
+  padding-top: var(--espacio-4);
+  border-top: 1px solid var(--color-borde);
+}
+
+.accionesPie {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  gap: var(--espacio-3);
+  margin-left: auto;
+}
+
+.totalEnVivo {
+  display: grid;
+  gap: var(--espacio-0-5);
+}
+
+.totalEtiqueta {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+}
+
+.totalMonto {
+  font-size: var(--tamano-2xl);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+  line-height: 1.1;
+}
+
+.resumenSolicitud {
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+/* ── Sección «Cotización» en la ficha de la solicitud ── */
+.seccionCotizacion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-4);
+}
+
+.cabeceraSeccion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.vigente {
+  display: grid;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+}
+
+.filaVigente {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-4);
+}
+
+.montoVigente {
+  font-size: var(--tamano-xl);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+  font-variant-numeric: tabular-nums;
+}
+
+.historialCotizaciones {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historialCotizaciones li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-3);
+  min-height: var(--tamano-control);
+  padding-block: var(--espacio-1);
+  border-bottom: 1px solid var(--color-borde);
+  font-size: var(--tamano-sm);
+}
+
+.historialCotizaciones li:last-child {
+  border-bottom: none;
+}
+
+.enlaceFila {
+  font-weight: var(--peso-seminegrita);
+}
+
+.montoFila {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 30rem) {
+  .accionesPie,
+  .accionesPie > * {
+    width: 100%;
+  }
+}

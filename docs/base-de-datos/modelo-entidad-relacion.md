@@ -1,8 +1,8 @@
 # Modelo entidad-relación — LetreriaLosHerreraDB
 
-Estado del esquema: migración `SolicitudesYAdjuntos` (14-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
+Estado del esquema: migración `CotizacionesYPedidos` (14-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
 
-23 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
+24 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
 
 ## Diagrama
 
@@ -27,14 +27,18 @@ erDiagram
 
     solicitudes ||--o{ cotizaciones : "se cotiza en"
     empleados ||--o{ cotizaciones : "elabora"
+    empleados |o--o{ cotizaciones : "registra la respuesta del cliente"
     cotizaciones ||--o{ cotizacion_materiales : "detalla"
     materiales ||--o{ cotizacion_materiales : "se usa en"
 
     solicitudes ||--o| pedidos : "se concreta en"
-    cotizaciones |o--o{ pedidos : "origina"
+    cotizaciones |o--o| pedidos : "da a lo más un pedido"
     empleados ||--o{ pedidos : "es responsable de"
     pedidos ||--o{ pagos : "se paga con"
     empleados ||--o{ pagos : "registra"
+    empleados |o--o{ pagos : "anula"
+    pedidos ||--o{ pedidos_historial : "registra cada cambio de estado"
+    empleados ||--o{ pedidos_historial : "cambia"
 
     empleados |o--o{ cartel_digital : "actualiza"
     empleados ||--o{ rostros_empleado : "registra su rostro"
@@ -172,6 +176,12 @@ erDiagram
         decimal otros_costos
         decimal total_cotizacion "calculada"
         nvarchar estado "pendiente, aprobada, rechazada"
+        datetimeoffset fecha_respuesta "fase 8, nula si pendiente"
+        nvarchar via_respuesta "fase 8: cliente_web, telefono, whatsapp, presencial"
+        int id_empleado_respuesta FK "fase 8, nulo si lo respondio el cliente"
+        nvarchar motivo_rechazo "fase 8"
+        rowversion row_version "fase 8"
+        bit eliminado_logico "fase 8"
     }
     cotizacion_materiales {
         int id_cotizacion_material PK
@@ -185,7 +195,7 @@ erDiagram
     pedidos {
         int id_pedido PK
         int id_solicitud FK "UK"
-        int id_cotizacion FK
+        int id_cotizacion FK "UK filtrado, fase 8"
         nvarchar origen "NUEVO: cotizacion o directo"
         int id_empleado_responsable FK
         datetime2 fecha_pedido
@@ -202,6 +212,8 @@ erDiagram
         int saldo_pendiente "NUEVO, calculada"
         nvarchar estado_pago "NUEVO, calculada: no_pagado, abonado, pagado_total"
         nvarchar numero_factura "NUEVO, opcional"
+        nvarchar motivo_anulacion "fase 8, solo si anulado"
+        bit eliminado_logico "fase 8"
         rowversion row_version
     }
     pagos {
@@ -213,6 +225,19 @@ erDiagram
         nvarchar observacion
         int id_empleado_registra FK
         datetime2 fecha_registro
+        bit anulado "fase 8: el abono deja de sumar"
+        nvarchar motivo_anulacion "fase 8"
+        int id_empleado_anula FK "fase 8"
+        datetimeoffset fecha_anulacion "fase 8"
+    }
+    pedidos_historial {
+        int id_historial PK
+        int id_pedido FK
+        nvarchar estado_anterior "nulo al crearse"
+        nvarchar estado_nuevo
+        nvarchar nota "hasta 500"
+        int id_empleado FK
+        datetimeoffset fecha
     }
     horarios_atencion {
         int id_horario PK
@@ -315,6 +340,8 @@ erDiagram
 
 `tokens_renovacion` y `codigos_cuenta` son de la cuenta: cada fila pertenece a un cliente o a un empleado, nunca a los dos, y se borran con su titular. `clientes.fecha_verificacion_correo` dice si el correo del cliente está confirmado.
 
+`pedidos_historial` guarda cada cambio de estado de un pedido, con quién lo hizo (fase 8). Una cotización o un pedido eliminados no se borran: se marcan con `eliminado_logico`, y el pedido eliminado sigue ocupando su cotización (`uq_pedidos_cotizacion`). Un abono anulado tampoco se borra: queda en `pagos` con `anulado = 1`.
+
 ## Flujo de negocio que expresa el modelo
 
 ```mermaid
@@ -330,6 +357,8 @@ flowchart LR
 
 Un pedido puede fabricarse y entregarse sin estar pagado, por ejemplo cuando un cliente habitual paga a fin de mes. También puede pagarse por adelantado o con un abono parcial. Por eso el estado operativo y el estado de pago son columnas distintas.
 
+Lo que sigue es la propuesta de la fase 7, **implementada en la fase 8**: la API valida las transiciones del pedido (`TransicionesPedido`, en `Negocio/Pedidos/ReglasPedido.cs`), y la base calcula el estado de pago.
+
 ```mermaid
 stateDiagram-v2
     direction LR
@@ -337,10 +366,14 @@ stateDiagram-v2
         [*] --> aceptado
         aceptado --> en_proceso
         en_proceso --> terminado
-        terminado --> entregado
-        aceptado --> anulado
-        en_proceso --> anulado
-        terminado --> anulado
+        terminado --> entregado : se registra la fecha real
+        en_proceso --> aceptado : vuelta atrás
+        terminado --> en_proceso : vuelta atrás
+        aceptado --> anulado : con motivo
+        en_proceso --> anulado : con motivo
+        terminado --> anulado : con motivo
+        entregado --> [*]
+        anulado --> [*]
     }
 ```
 
@@ -352,21 +385,27 @@ stateDiagram-v2
         no_pagado --> abonado : abono parcial
         no_pagado --> pagado_total : pago completo
         abonado --> pagado_total : se completa el saldo
+        abonado --> no_pagado : se anula el único abono
+        pagado_total --> abonado : se anula un abono, o sube el monto final
+        pagado_total --> no_pagado : se anula el único abono
     }
 ```
 
 - **«Anulado» reemplaza a «cancelado»**, porque en Chile «cancelado» se entiende como «pagado».
-- **Cada abono queda en `pagos`** con su monto, fecha, medio de pago y quién lo registró. El trigger `trg_pagos_recalcular_monto_abonado` mantiene `monto_abonado` igual a la suma de los pagos del pedido.
+- **Cada abono queda en `pagos`** con su monto, fecha, medio de pago y quién lo registró. El trigger `trg_pagos_recalcular_monto_abonado` mantiene `monto_abonado` igual a la suma de los abonos vigentes del pedido. Desde la fase 8, un abono se **anula con motivo** en vez de editarse o borrarse: deja de sumar, queda tachado en el pedido con quién y cuándo, y no se puede reactivar.
 - **El estado de pago no se escribe a mano.** La base lo calcula a partir de `monto_abonado` y del monto final: sin abono es `no_pagado`, con el total cubierto es `pagado_total`, y entre ambos es `abonado`. Así nunca contradice a los montos.
 - **Saldo pendiente** = monto final − monto abonado. La base impide abonar más que el monto final (`ck_pedidos_monto_abonado`): un pago que haría superarlo no se guarda.
 - **Cierre del ciclo:** un pedido está cerrado solo cuando su estado es `entregado` y su pago es `pagado_total`.
 - **Cobranza:** el índice `ix_pedidos_cobranza` resuelve el listado de pedidos no anulados con pago `no_pagado` o `abonado` y su saldo.
-- Las transiciones del estado operativo (qué paso puede seguir a cuál) las valida la capa de negocio en la fase 8. El diagrama de arriba es el que aprobó el plan de la fase 7.
+- **Transiciones (fase 8).** Además del avance, se puede volver un paso atrás (de «en proceso» a «aceptado», o de «terminado» a «en proceso») por si alguien se equivocó; queda en el historial. «Entregado» pide la fecha real, que no puede ser futura ni anterior a la del pedido. «Anulado» pide un motivo de 10 a 500 caracteres. «Entregado» y «anulado» no cambian más. Cualquier otro cambio responde `409 transicion_invalida` con la explicación. Cada cambio queda en `pedidos_historial`, con quién y cuándo.
+- **Montos.** Solo gestión cambia el monto base o el costo de instalación de un pedido ya creado, y el cambio queda en el historial. El monto final no puede quedar bajo lo abonado.
+- **Anular con abonos (decisión 4, 14-11-2026).** Solo gestión puede anular un pedido que tiene o tuvo abonos. Lo abonado queda como «a devolver o a favor del cliente», y la devolución no se registra en el sistema.
+- **Pago previo.** No se exige para crear el pedido (RNFO02). Un pedido puede entregarse sin pagar y cerrarse cuando se completa el pago.
 
 
 ## Estados de la solicitud y de la cotización (fase 7)
 
-Diagramas aprobados en el plan de la fase 7 (`docs/plan/fase-07-plan.md`, 14-11-2026). La API aplica las transiciones de la solicitud en `Negocio/Solicitudes/ReglasSolicitud.cs` (`TransicionesSolicitud`). Las de la cotización se aplican en la fase 8.
+Diagramas aprobados en el plan de la fase 7 (`docs/plan/fase-07-plan.md`, 14-11-2026). La API aplica las transiciones de la solicitud en `Negocio/Solicitudes/ReglasSolicitud.cs` (`TransicionesSolicitud`). Las de la cotización las aplica `ServicioCotizaciones` desde la fase 8.
 
 ### Solicitud
 
@@ -401,7 +440,9 @@ stateDiagram-v2
     rechazada --> [*]
 ```
 
-- **Varias por solicitud, una pendiente a la vez.** Las anteriores quedan como historial. La regla está fijada, pero la base todavía no impide tener dos pendientes: lo aplica la fase 8.
+- **Varias por solicitud, una pendiente a la vez.** Las anteriores quedan como historial. Desde la fase 8, la base lo garantiza con el índice único filtrado `uq_cotizaciones_una_pendiente`, así que dos personas que cotizan a la vez no pueden dejar dos pendientes. Emitir sobre una solicitud que ya tiene una pendiente responde `409`.
+- **Efecto en la solicitud (fase 8).** Al emitir, la solicitud pasa de «solicitado» a «cotizado». Al aprobar, pasa a «aceptado» y se abre el paso a pedido. Al rechazar, vuelve a «solicitado» y puede cotizarse de nuevo. Cada paso queda en `solicitudes_historial`.
+- **Eliminar (gestión).** Es un borrado lógico, solo de una pendiente o rechazada sin pedido. Si la pendiente se elimina, la solicitud vuelve a «solicitado».
 - **Cuándo queda rechazada una pendiente:** también al rechazar o devolver la solicitud, además de cuando el cliente la rechaza o la solicitud se edita. La API ya lo hace en esos casos.
 - **Edición:** una cotización aprobada o rechazada ya no se edita.
-- **Pedido y pago:** siguen la propuesta de las secciones anteriores. Se programan en la fase 8.
+- **Pedido y pago:** implementados en la fase 8, como se describe en la sección «Estados del pedido». Un pedido nace de una cotización aprobada, y `uq_pedidos_cotizacion` da a lo más un pedido por cotización.

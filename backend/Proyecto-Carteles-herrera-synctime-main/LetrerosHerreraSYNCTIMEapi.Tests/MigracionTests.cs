@@ -83,10 +83,8 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task SolicitudesYAdjuntos_SoloAgrega()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_SolicitudesYAdjuntos", ultima);
         var script = await api.ConsultarAsync(db => Task.FromResult(
-            db.GetService<IMigrator>().GenerateScript("20261114002321_CuentasYSesion", ultima)));
+            db.GetService<IMigrator>().GenerateScript("20261114002321_CuentasYSesion", "20261114035839_SolicitudesYAdjuntos")));
 
         Assert.Contains("CREATE TABLE [adjuntos_solicitud]", script);
         Assert.Contains("CREATE TABLE [solicitudes_historial]", script);
@@ -96,6 +94,73 @@ public sealed class MigracionTests(ApiFixture api)
         Assert.Contains("ALTER COLUMN [descripcion] nvarchar(500) NOT NULL", script);
         foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
             Assert.DoesNotContain(prohibido, script);
+    }
+
+    // Fase 8: agrega columnas, la tabla pedidos_historial, indices unicos y reglas, y reescribe el trigger de
+    // pagos (los abonos anulados no suman). Amplia tres textos. Antes de cada regla completa los datos que ya
+    // existen (respuesta de las cotizaciones respondidas, motivo de los pedidos anulados, historial de cada
+    // pedido); en la base demo se consulto antes (14-11-2026) que nada choca. No borra tablas, columnas ni filas.
+    [Fact]
+    public async Task CotizacionesYPedidos_SoloAgrega()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_CotizacionesYPedidos", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(
+            db.GetService<IMigrator>().GenerateScript("20261114035839_SolicitudesYAdjuntos", ultima)));
+
+        Assert.Contains("CREATE TABLE [pedidos_historial]", script);
+        Assert.Contains("ADD [row_version] rowversion NOT NULL", script);
+        Assert.Contains("CREATE UNIQUE INDEX [uq_cotizaciones_una_pendiente]", script);
+        Assert.Contains("CREATE UNIQUE INDEX [uq_pedidos_cotizacion]", script);
+        Assert.Contains("ALTER COLUMN [observaciones] nvarchar(2000) NULL", script);
+        Assert.Contains("WHERE anulado = 0", script);
+        // Cada regla nueva va despues del relleno que la hace cumplir.
+        Assert.True(script.IndexOf("via_respuesta = N'presencial'", StringComparison.Ordinal) < script.IndexOf("ck_cotizaciones_respuesta", StringComparison.Ordinal));
+        Assert.True(script.IndexOf("N'Anulado antes de la fase 8'", StringComparison.Ordinal) < script.IndexOf("ck_pedidos_anulacion", StringComparison.Ordinal));
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM" })
+            Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
+    }
+
+    // Revertir la fase 8 nunca destruye datos en silencio: si hay abonos anulados o textos que no caben en las
+    // columnas anteriores, se detiene (THROW) antes de tocar nada. No borra filas.
+    [Fact]
+    public async Task RevertirCotizacionesYPedidos_SeDetieneAntesDePerderDatos()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        var abajo = await api.ConsultarAsync(db => Task.FromResult(
+            db.GetService<IMigrator>().GenerateScript(ultima, "20261114035839_SolicitudesYAdjuntos")));
+
+        Assert.Contains("THROW 50081", abajo, StringComparison.Ordinal);
+        Assert.Contains("THROW 50082", abajo, StringComparison.Ordinal);
+        // El unico DELETE es el del propio historial de migraciones de EF.
+        Assert.Equal(["DELETE FROM [__EFMigrationsHistory]"],
+            System.Text.RegularExpressions.Regex.Matches(abajo, @"DELETE FROM \S+").Select(m => m.Value));
+        Assert.True(abajo.IndexOf("THROW 50082", StringComparison.Ordinal) < abajo.IndexOf("DROP COLUMN", StringComparison.Ordinal));
+    }
+
+    // Fase 8: un abono anulado deja de sumar, y la base no deja reactivarlo.
+    [Fact]
+    public async Task ElTrigger_NoSumaLosAbonosAnulados_YNoDejaReactivarlos()
+    {
+        var pedido = await api.CrearPedidoAsync(50_000);
+        var id = pedido.GetProperty("idPedido").GetInt32();
+        var idAdmin = await api.IdAdminAsync();
+        await api.ConsultarAsync(db => db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO dbo.pagos (id_pedido, monto, medio_pago, id_empleado_registra) VALUES ({id}, 20000, N'efectivo', {idAdmin}), ({id}, 5000, N'efectivo', {idAdmin})"));
+        Task<int> AbonadoAsync() => api.ConsultarAsync(db => db.Pedidos.AsNoTracking().Where(p => p.IdPedido == id).Select(p => p.MontoAbonado).SingleAsync());
+        Assert.Equal(25_000, await AbonadoAsync());
+
+        await api.ConsultarAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE dbo.pagos SET anulado = 1, motivo_anulacion = N'Mal ingresado', id_empleado_anula = {idAdmin}, fecha_anulacion = SYSDATETIMEOFFSET()
+            WHERE id_pedido = {id} AND monto = 5000
+            """));
+        Assert.Equal(20_000, await AbonadoAsync());
+
+        await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(() => api.ConsultarAsync(db => db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE dbo.pagos SET anulado = 0, motivo_anulacion = NULL, id_empleado_anula = NULL, fecha_anulacion = NULL
+            WHERE id_pedido = {id} AND monto = 5000
+            """)));
+        Assert.Equal(20_000, await AbonadoAsync());
     }
 
     [Fact]
@@ -114,7 +179,12 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(45, restricciones.Count);
+        Assert.Equal(52, restricciones.Count);
+        // Fase 8: montos enteros en la cotizacion, respuesta con fecha y via, anulacion de pedidos y abonos con
+        // sus datos, y estados validos en el historial del pedido.
+        foreach (var nombre in new[] { "ck_cotizaciones_montos_enteros", "ck_cotizaciones_respuesta", "ck_cotizaciones_via", "ck_cot_mat_costo_entero",
+                     "ck_pedidos_anulacion", "ck_pagos_anulacion", "ck_pedidos_historial_estados" })
+            Assert.Contains(nombre, restricciones);
         // Fase 7: un adjunto tiene un solo autor, solo esta vinculado con fecha, y es imagen (con medidas) o PDF.
         foreach (var nombre in new[] { "ck_adjuntos_solicitud_autor", "ck_adjuntos_solicitud_vinculo", "ck_adjuntos_solicitud_tipo",
                      "ck_adjuntos_solicitud_bytes", "ck_adjuntos_solicitud_medidas", "ck_solicitudes_historial_estados", "ck_solicitudes_historial_actor" })

@@ -1,5 +1,6 @@
 import {
-  Ban, BadgeCheck, CircleCheck, CircleDollarSign, CircleX, ClipboardCheck, Coins, FileText, Hammer, Inbox, PackageCheck, Truck,
+  AlarmClock, Ban, BadgeCheck, CalendarCheck, CalendarClock, CircleCheck, CircleDollarSign, CircleX, ClipboardCheck, Coins,
+  FileCheck, FileClock, FileText, FileX, Hammer, Inbox, PackageCheck, Truck,
 } from 'lucide-react';
 
 // Estado operativo del pedido. «Anulado» y no «cancelado»: en Chile «cancelado» se entiende como pagado.
@@ -27,9 +28,24 @@ export const ESTADOS_SOLICITUD = {
   rechazado: { texto: 'Rechazada', tono: 'peligro', icono: CircleX },
 };
 
+// Estado de la cotización (fase 8): pendiente → aprobada o rechazada, por el cliente o por el personal.
+export const ESTADOS_COTIZACION = {
+  pendiente: { texto: 'Pendiente', tono: 'aviso', icono: FileClock },
+  aprobada: { texto: 'Aprobada', tono: 'exito', icono: FileCheck },
+  rechazada: { texto: 'Rechazada', tono: 'peligro', icono: FileX },
+};
+
+// La entrega en el calendario (fase 8): se calcula del estado del pedido y de su fecha estimada.
+export const ESTADOS_ENTREGA = {
+  pendiente: { texto: 'Pendiente', tono: 'info', icono: CalendarClock },
+  entregado: { texto: 'Entregado', tono: 'exito', icono: CalendarCheck },
+  atrasado: { texto: 'Atrasado', tono: 'peligro', icono: AlarmClock },
+};
+
 const soloTextos = (catalogo) => Object.fromEntries(Object.entries(catalogo).map(([clave, { texto }]) => [clave, texto]));
 
 // Para listas desplegables de filtros: { aceptado: 'Aceptado', ... }
 export const TEXTOS_ESTADO_PEDIDO = soloTextos(ESTADOS_PEDIDO);
 export const TEXTOS_ESTADO_PAGO = soloTextos(ESTADOS_PAGO);
 export const TEXTOS_ESTADO_SOLICITUD = soloTextos(ESTADOS_SOLICITUD);
+export const TEXTOS_ESTADO_COTIZACION = soloTextos(ESTADOS_COTIZACION);

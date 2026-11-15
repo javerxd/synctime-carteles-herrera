@@ -21,7 +21,9 @@ const PEDIDOS = [
 
 const ids = (lista) => lista.map((p) => p.idPedido);
 
-describe('filtros de pedidos (RFU36, E27)', () => {
+// Desde la fase 8 el listado filtra en la API; estas reglas quedan para los cálculos provisionales de
+// Indicadores y Reportes (fases 12 y 13).
+describe('filtros de pedidos en el navegador (Indicadores y Reportes)', () => {
   it('sin filtros devuelve todos, del más nuevo al más antiguo (a igual fecha, el número mayor)', () => {
     expect(ids(filtrarPedidos(PEDIDOS, {}))).toEqual([5, 1, 2, 4, 3]);
   });
@@ -56,8 +58,15 @@ describe('filtros de pedidos (RFU36, E27)', () => {
     expect(aniosDisponibles(PEDIDOS)).toEqual([2026, 2025]);
   });
 
-  it('el nombre del cliente se arma con nombre y apellido', () => {
+  it('el nombre del cliente se arma con nombre y apellido, desde la fila de la API (fase 8) o su solicitud (fase 3)', () => {
     expect(nombreCliente(PEDIDOS[1])).toBe('Luis Araya');
+    expect(nombreCliente({ cliente: { nombre: 'Rosa', apellido: 'Pino' } })).toBe('Rosa Pino');
+    expect(nombreCliente({ cliente: 'Ferretería Biobío' })).toBe('Ferretería Biobío');
     expect(nombreCliente({ solicitud: null })).toBe('Cliente sin datos');
+  });
+
+  it('con la fila de la API (fase 8), busca también por el teléfono del cliente', () => {
+    const fila = { ...PEDIDOS[0], solicitud: undefined, cliente: { nombre: 'Rosa', apellido: 'Pino', telefono: '912345678' } };
+    expect(ids(filtrarPedidos([fila], { cliente: '45678' }))).toEqual([1]);
   });
 });

@@ -6,7 +6,9 @@ using LetrerosHerreraSYNCTIMEapi.Infraestructura.Imagenes;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
+using LetrerosHerreraSYNCTIMEapi.Negocio.Cotizaciones;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Local;
+using LetrerosHerreraSYNCTIMEapi.Negocio.Pedidos;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Solicitudes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -243,7 +245,23 @@ public sealed class ServicioSolicitudes(
         var cambios = historial.Select(h => new CambioDeEstado(h.EstadoAnterior, h.EstadoNuevo, h.Motivo, HoraChile.Convertir(h.Fecha),
             h.IdEmpleado is not null ? "personal" : h.IdCliente is not null ? "cliente" : "sistema",
             h.Empleado ?? h.Cliente)).ToList();
-        return FichaSolicitud.Desde(leida.Comprobante, leida.IdCliente, leida.RegistradaPor, cambios);
+        // Fase 8: sus cotizaciones, con el pedido que dio cada una (tambien si despues se elimino).
+        var cotizaciones = (await db.Cotizaciones.AsNoTracking()
+            .Where(c => c.IdSolicitud == leida.Comprobante.IdSolicitud && !c.EliminadoLogico)
+            .OrderByDescending(c => c.FechaCotizacion).ThenByDescending(c => c.IdCotizacion)
+            .Select(c => new
+            {
+                c.IdCotizacion,
+                c.FechaCotizacion,
+                c.TotalCotizacion,
+                c.Estado,
+                Pedido = db.Pedidos.Where(p => p.IdCotizacion == c.IdCotizacion).Select(p => new { p.IdPedido, p.EliminadoLogico }).FirstOrDefault()
+            })
+            .ToListAsync(ct))
+            .Select(c => new CotizacionDeLaSolicitud(c.IdCotizacion, ValidacionCotizacion.Numero(c.IdCotizacion), c.FechaCotizacion, c.TotalCotizacion,
+                c.Estado, c.Pedido?.IdPedido, c.Pedido?.EliminadoLogico == true))
+            .ToList();
+        return FichaSolicitud.Desde(leida.Comprobante, leida.IdCliente, leida.RegistradaPor, cambios, cotizaciones);
     }
 
     // Bandeja del personal: filtros por estado, origen y fecha (de Chile), busqueda por numero, nombre,
@@ -298,22 +316,64 @@ public sealed class ServicioSolicitudes(
             .PaginarAsync(parametros, ct);
     }
 
-    // «Mis solicitudes»: solo las del cliente del token.
-    public Task<ResultadoPaginado<ResumenSolicitud>> ListarDelClienteAsync(int idCliente, ParametrosListado parametros, CancellationToken ct) =>
-        db.Solicitudes.AsNoTracking()
+    // «Mis solicitudes»: solo las del cliente del token. Fase 8 (S04): cada una con su cotizacion vigente (la
+    // ultima no eliminada) y su pedido, si los tiene.
+    public async Task<ResultadoPaginado<ResumenSolicitud>> ListarDelClienteAsync(int idCliente, ParametrosListado parametros, CancellationToken ct)
+    {
+        var pagina = await db.Solicitudes.AsNoTracking()
             .Where(s => s.IdCliente == idCliente && !s.EliminadoLogico)
             .OrderByDescending(s => s.FechaSolicitud).ThenByDescending(s => s.IdSolicitud)
-            .Select(s => new ResumenSolicitud(
+            .Select(s => new
+            {
                 s.IdSolicitud,
-                "#" + s.IdSolicitud.ToString(),
                 s.FechaSolicitud,
                 s.Origen,
                 s.Estado,
                 s.MotivoRechazo,
-                s.DescripcionGeneral == null ? null : s.DescripcionGeneral.Substring(0, 160),
-                s.Detalles.Count(),
-                s.Adjuntos.Count()))
+                Resumen = s.DescripcionGeneral == null ? null : s.DescripcionGeneral.Substring(0, 160),
+                Items = s.Detalles.Count(),
+                Adjuntos = s.Adjuntos.Count(),
+                Cotizacion = s.Cotizaciones.Where(c => !c.EliminadoLogico).OrderByDescending(c => c.IdCotizacion)
+                    .Select(c => new FilaSeguimientoCotizacion(c.IdCotizacion, c.TotalCotizacion, c.Estado)).FirstOrDefault(),
+                Pedido = db.Pedidos.Where(p => p.IdSolicitud == s.IdSolicitud)
+                    .Select(p => new FilaSeguimientoPedido(p.IdPedido, p.EstadoPedido, p.EstadoPago, p.SaldoPendiente, p.FechaEntregaEstimada, p.ModalidadEntrega, p.EliminadoLogico))
+                    .FirstOrDefault()
+            })
             .PaginarAsync(parametros, ct);
+
+        var filas = pagina.Elementos.Select(f => new ResumenSolicitud(f.IdSolicitud, MedidasSolicitud.Numero(f.IdSolicitud), f.FechaSolicitud,
+            f.Origen, f.Estado, f.MotivoRechazo, f.Resumen, f.Items, f.Adjuntos, f.Cotizacion?.Seguimiento(), f.Pedido?.Seguimiento())).ToList();
+        return new ResultadoPaginado<ResumenSolicitud>(filas, pagina.Total, pagina.Pagina, pagina.Tamano);
+    }
+
+    // «Mis solicitudes» por id: el comprobante con su cotizacion y su pedido. Lo ajeno no existe (null).
+    public async Task<MiSolicitud?> MiSolicitudAsync(int id, int idCliente, CancellationToken ct)
+    {
+        if (await LeerAsync(id, idCliente, ct) is not { } leida)
+            return null;
+        var cotizacion = await db.Cotizaciones.AsNoTracking()
+            .Where(c => c.IdSolicitud == id && !c.EliminadoLogico).OrderByDescending(c => c.IdCotizacion)
+            .Select(c => new FilaSeguimientoCotizacion(c.IdCotizacion, c.TotalCotizacion, c.Estado))
+            .FirstOrDefaultAsync(ct);
+        var pedido = await db.Pedidos.AsNoTracking()
+            .Where(p => p.IdSolicitud == id)
+            .Select(p => new FilaSeguimientoPedido(p.IdPedido, p.EstadoPedido, p.EstadoPago, p.SaldoPendiente, p.FechaEntregaEstimada, p.ModalidadEntrega, p.EliminadoLogico))
+            .FirstOrDefaultAsync(ct);
+        return MiSolicitud.Desde(leida.Comprobante, cotizacion?.Seguimiento(), pedido?.Seguimiento());
+    }
+
+    private sealed record FilaSeguimientoCotizacion(int IdCotizacion, decimal Total, string Estado)
+    {
+        public SeguimientoCotizacion Seguimiento() => new(IdCotizacion, ValidacionCotizacion.Numero(IdCotizacion), Total, Estado);
+    }
+
+    // Un pedido eliminado (anulado y borrado de forma logica) se sigue mostrando, marcado: el cliente ve que se anulo.
+    private sealed record FilaSeguimientoPedido(int IdPedido, string EstadoPedido, string EstadoPago, int SaldoPendiente, DateTime FechaEntregaEstimada,
+        string ModalidadEntrega, bool Eliminado)
+    {
+        public SeguimientoPedido Seguimiento() => new(IdPedido, ReglasPedido.Numero(IdPedido), EstadoPedido, EstadoPago, SaldoPendiente,
+            DateOnly.FromDateTime(FechaEntregaEstimada), ModalidadEntrega, ReglasPedido.CicloCerrado(EstadoPedido, EstadoPago), Eliminado);
+    }
 
     public async Task<IReadOnlyList<MetricaConversionOnline>> MetricasConversionAsync(CancellationToken ct) =>
         await db.MetricasConversionOnline.AsNoTracking()
@@ -350,7 +410,7 @@ public sealed class ServicioSolicitudes(
         var ahora = reloj.GetUtcNow();
         if (solicitud.Estado == EstadosSolicitud.Cotizado)
         {
-            await RechazarCotizacionPendienteAsync(id, ct);
+            await RechazarCotizacionPendienteAsync(id, idEmpleado, "Se editó la solicitud.", ahora, ct);
             Registrar(solicitud, EstadosSolicitud.Solicitado, "Se editó la solicitud: la cotización pendiente quedó rechazada.", idEmpleado, ahora);
         }
 
@@ -393,10 +453,12 @@ public sealed class ServicioSolicitudes(
 
         // Solo hace falta una transaccion si tambien cambia la cotizacion; si no, basta el SaveChanges.
         await using var transaccion = solicitud.Estado == EstadosSolicitud.Cotizado ? await db.Database.BeginTransactionAsync(ct) : null;
-        if (solicitud.Estado == EstadosSolicitud.Cotizado)
-            await RechazarCotizacionPendienteAsync(id, ct);
         var motivoLimpio = estado == EstadosSolicitud.Rechazado ? motivo!.Trim() : null;
-        Registrar(solicitud, estado!, motivoLimpio, idEmpleado, reloj.GetUtcNow());
+        var ahora = reloj.GetUtcNow();
+        if (solicitud.Estado == EstadosSolicitud.Cotizado)
+            await RechazarCotizacionPendienteAsync(id, idEmpleado,
+                motivoLimpio is null ? "La solicitud volvió a «solicitado»." : "Se rechazó la solicitud.", ahora, ct);
+        Registrar(solicitud, estado!, motivoLimpio, idEmpleado, ahora);
         solicitud.MotivoRechazo = motivoLimpio;
         return await GuardarCambiosAsync(solicitud, version, transaccion, ct);
     }
@@ -450,10 +512,16 @@ public sealed class ServicioSolicitudes(
     }
 
     // Una sola cotizacion «pendiente» a la vez: al editar, rechazar o devolver la solicitud, la vigente
-    // queda «rechazada» y se conserva como historial.
-    private Task<int> RechazarCotizacionPendienteAsync(int idSolicitud, CancellationToken ct) =>
-        db.Cotizaciones.Where(c => c.IdSolicitud == idSolicitud && c.Estado == Pendiente)
-            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Estado, Rechazada), ct);
+    // queda «rechazada» y se conserva como historial. Fase 8: la respuesta la registra quien lo hizo, en el
+    // local, con el motivo (ck_cotizaciones_respuesta exige fecha y via en toda cotizacion respondida).
+    private Task<int> RechazarCotizacionPendienteAsync(int idSolicitud, int idEmpleado, string motivo, DateTimeOffset ahora, CancellationToken ct) =>
+        db.Cotizaciones.Where(c => c.IdSolicitud == idSolicitud && c.Estado == Pendiente && !c.EliminadoLogico)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.Estado, Rechazada)
+                .SetProperty(c => c.FechaRespuesta, (DateTimeOffset?)ahora)
+                .SetProperty(c => c.ViaRespuesta, ViasRespuesta.Presencial)
+                .SetProperty(c => c.IdEmpleadoRespuesta, (int?)idEmpleado)
+                .SetProperty(c => c.MotivoRechazo, motivo), ct);
 
     private async Task<ResultadoSolicitud> GuardarCambiosAsync(Solicitud solicitud, byte[] version,
         IDbContextTransaction? transaccion, CancellationToken ct)

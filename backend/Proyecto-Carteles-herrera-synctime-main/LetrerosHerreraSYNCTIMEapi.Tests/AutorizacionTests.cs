@@ -119,15 +119,9 @@ public sealed class AutorizacionTests(ApiFixture api)
         var ajena = (await api.Cliente(otro.Token).PostAsJsonAsync("/api/v1/mis/solicitudes", ApiFixture.CuerpoSolicitud())
             .EsperarAsync(HttpStatusCode.Created)).GetProperty("idSolicitud").GetInt32();
 
-        await api.AceptarSolicitudAsync(mia);
-        await api.AceptarSolicitudAsync(ajena);
-        var admin = await api.TokenAdminAsync();
-        var idAdmin = await api.IdAdminAsync();
+        // Fase 8: cada pedido nace de la cotizacion aprobada de su solicitud.
         foreach (var idSolicitud in new[] { mia, ajena })
-        {
-            await api.Cliente(admin).PostAsJsonAsync("/api/v1/pedidos/", new { idSolicitud, idEmpleadoResponsable = idAdmin, fechaEntregaEstimada = DateTime.Now.AddDays(3) })
-                .EsperarAsync(HttpStatusCode.Created);
-        }
+            await api.CrearPedidoAsync(idSolicitud: idSolicitud);
 
         var solicitudes = await api.Cliente(yo.Token).GetAsync("/api/v1/mis/solicitudes").EsperarAsync(HttpStatusCode.OK);
         var pedidos = await api.Cliente(yo.Token).GetAsync("/api/v1/mis/pedidos").EsperarAsync(HttpStatusCode.OK);

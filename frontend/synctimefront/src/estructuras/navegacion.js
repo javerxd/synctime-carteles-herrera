@@ -15,9 +15,9 @@ export const MENU_PANEL = [
     entradas: [
       { ruta: '/panel', etiqueta: 'Inicio', icono: House, roles: PERSONAL, exacta: true },
       { ruta: '/panel/solicitudes', etiqueta: 'Solicitudes', icono: ClipboardList, roles: PERSONAL },
-      { ruta: '/panel/cotizaciones', etiqueta: 'Cotizaciones', icono: FileText, roles: PERSONAL, fase: 8 },
+      { ruta: '/panel/cotizaciones', etiqueta: 'Cotizaciones', icono: FileText, roles: PERSONAL },
       { ruta: '/panel/pedidos', etiqueta: 'Pedidos', icono: Package, roles: PERSONAL },
-      { ruta: '/panel/calendario', etiqueta: 'Calendario de entregas', icono: CalendarDays, roles: PERSONAL, fase: 8 },
+      { ruta: '/panel/calendario', etiqueta: 'Calendario', icono: CalendarDays, roles: PERSONAL },
       { ruta: '/panel/clientes', etiqueta: 'Clientes', icono: Users, roles: PERSONAL },
       { ruta: '/panel/local', etiqueta: 'Estado del local', icono: Store, roles: PERSONAL },
     ],

@@ -109,6 +109,9 @@ builder.Services.AddScoped<ColaEnTransaccion>();
 builder.Services.AddScoped<ServicioSolicitudes>();
 builder.Services.AddScoped<ServicioAdjuntos>();
 builder.Services.AddScoped<ServicioClientes>();
+// Fase 8: cotizaciones, pedidos y abonos. El aviso «cotizacion lista» usa la misma cola en la transaccion.
+builder.Services.AddScoped<ServicioCotizaciones>();
+builder.Services.AddScoped<ServicioPedidos>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).

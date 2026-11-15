@@ -455,6 +455,13 @@ public class CimientosTests(ApiFixture api)
             var sumas = await db.Pagos.GroupBy(pg => pg.IdPedido).Select(g => new { g.Key, Total = g.Sum(pg => pg.Monto) }).ToListAsync();
             Assert.NotEmpty(sumas);
             Assert.All(pedidos, p => Assert.Equal(sumas.FirstOrDefault(s => s.Key == p.IdPedido)?.Total ?? 0, p.MontoAbonado));
+            // Fase 8: cada pedido tiene su historial hasta el estado actual, el anulado dice por que, y toda
+            // cotizacion aprobada dice cuando y por que via se respondio.
+            var ultimos = await db.PedidosHistorial.GroupBy(h => h.IdPedido)
+                .Select(g => new { g.Key, Estado = g.OrderByDescending(h => h.IdHistorial).Select(h => h.EstadoNuevo).First() }).ToListAsync();
+            Assert.All(pedidos, p => Assert.Equal(p.EstadoPedido, ultimos.Single(u => u.Key == p.IdPedido).Estado));
+            Assert.All(pedidos.Where(p => p.EstadoPedido == "anulado"), p => Assert.False(string.IsNullOrWhiteSpace(p.MotivoAnulacion)));
+            Assert.False(await db.Cotizaciones.AnyAsync(c => c.Estado == "aprobada" && (c.FechaRespuesta == null || c.ViaRespuesta == null)));
         }
         finally
         {

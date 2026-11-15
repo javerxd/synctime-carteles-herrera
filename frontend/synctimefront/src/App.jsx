@@ -28,7 +28,14 @@ const RegistroPresencial = lazy(() => import('./paginas/solicitudes/panel/Regist
 const Clientes = lazy(() => import('./paginas/solicitudes/panel/Clientes'));
 const FichaCliente = lazy(() => import('./paginas/solicitudes/panel/Clientes').then((m) => ({ default: m.FichaCliente })));
 const InicioPanel = lazy(() => import('./paginas/panel/InicioPanel'));
-const Pedidos = lazy(() => import('./paginas/panel/Pedidos'));
+const ListaPedidos = lazy(() => import('./paginas/pedidos/ListaPedidos'));
+const FichaPedido = lazy(() => import('./paginas/pedidos/FichaPedido'));
+const PedidoDirecto = lazy(() => import('./paginas/pedidos/PedidoDirecto'));
+const CrearPedido = lazy(() => import('./paginas/pedidos/CrearPedido'));
+const CalendarioEntregas = lazy(() => import('./paginas/pedidos/CalendarioEntregas'));
+const ListaCotizaciones = lazy(() => import('./paginas/cotizaciones/ListaCotizaciones'));
+const FichaCotizacion = lazy(() => import('./paginas/cotizaciones/FichaCotizacion'));
+const EditorCotizacion = lazy(() => import('./paginas/cotizaciones/EditorCotizacion'));
 const EstadoLocal = lazy(() => import('./paginas/panel/EstadoLocal'));
 const Indicadores = lazy(() => import('./paginas/panel/Indicadores'));
 const Reportes = lazy(() => import('./paginas/panel/Reportes'));
@@ -72,14 +79,20 @@ export default function App() {
 
             <Route path="panel" element={<RequierePersonal><EstructuraPanel /></RequierePersonal>}>
               <Route index element={enCarga(<InicioPanel />)} />
-              <Route path="pedidos" element={enCarga(<Pedidos />)} />
+              <Route path="pedidos" element={enCarga(<ListaPedidos />)} />
+              <Route path="pedidos/directo" element={enCarga(<PedidoDirecto />)} />
+              <Route path="pedidos/:id" element={enCarga(<FichaPedido />)} />
               <Route path="local" element={enCarga(<EstadoLocal />)} />
               <Route path="perfil" element={enCarga(<Perfil />)} />
               <Route path="solicitudes" element={enCarga(<BandejaSolicitudes />)} />
               <Route path="solicitudes/nueva" element={enCarga(<RegistroPresencial />)} />
               <Route path="solicitudes/:id" element={enCarga(<FichaSolicitud />)} />
-              <Route path="cotizaciones" element={<SeccionPendiente titulo="Cotizaciones" fase={8} descripcion="El editor de cotizaciones y su aprobación por el cliente o por el personal." />} />
-              <Route path="calendario" element={<SeccionPendiente titulo="Calendario de entregas" fase={8} descripcion="Las entregas por día, pendientes y entregadas, con alertas de atraso." />} />
+              <Route path="solicitudes/:id/cotizar" element={enCarga(<EditorCotizacion modo="cotizar" />)} />
+              <Route path="cotizaciones" element={enCarga(<ListaCotizaciones />)} />
+              <Route path="cotizaciones/:id" element={enCarga(<FichaCotizacion />)} />
+              <Route path="cotizaciones/:id/editar" element={enCarga(<EditorCotizacion modo="editar" />)} />
+              <Route path="cotizaciones/:id/pedido" element={enCarga(<CrearPedido />)} />
+              <Route path="calendario" element={enCarga(<CalendarioEntregas />)} />
               <Route path="clientes" element={enCarga(<Clientes />)} />
               <Route path="clientes/:id" element={enCarga(<FichaCliente />)} />
               <Route element={<RequierePersonal roles={GESTION} />}>

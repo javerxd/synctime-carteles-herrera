@@ -1,8 +1,8 @@
 ﻿-- =====================================================================================
--- SyncTime - Letrería Los Herrera
+-- SyncTime - Letreros Herrera (la base conserva el nombre LetreriaLosHerreraDB)
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
--- triggers, vista y procedimiento almacenado. Estado: migración ServiciosComunes.
--- Generado el 13-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
+-- triggers, vista y procedimiento almacenado. Estado: migración CotizacionesYPedidos.
+-- Generado el 14-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
 --
 -- Cambios de la revisión del 12-11-2026 (tabla pedidos):
 --   * estado        -> estado_pedido: aceptado, en_proceso, terminado, entregado, anulado.
@@ -18,6 +18,18 @@
 --   * correos_salientes: cola de salida del correo (avisos al taller), con reintentos.
 --   * consentimientos:   quién aceptó qué documento, en qué versión y cuándo, y su revocación.
 --   * imagenes:          imágenes subidas por el taller (los archivos WebP quedan fuera de la base).
+--
+-- Fases 5 a 7 (13 y 14-11-2026): catálogo con autorización de logo y consultas de contacto
+--   (PortadaPublica); tokens de renovación y códigos de cuenta (CuentasYSesion); adjuntos e
+--   historial de solicitudes, y huella de IP (SolicitudesYAdjuntos).
+--
+-- Fase 8 (14-11-2026), migración CotizacionesYPedidos:
+--   * cotizaciones:      versión, respuesta (fecha, vía, quién, motivo), borrado lógico y una sola
+--                        pendiente por solicitud (índice único filtrado). Montos en pesos enteros.
+--   * pedidos:           motivo y fecha de anulación, borrado lógico y un pedido por cotización.
+--   * pedidos_historial: (tabla nueva) cada cambio de estado del pedido, con quién y cuándo.
+--   * pagos:             un abono mal ingresado se anula con motivo; el trigger suma solo los no
+--                        anulados y no deja reactivar uno anulado.
 --
 -- Cómo ejecutarlo. Crea una base NUEVA y se detiene sin hacer nada si ya existe:
 --   sqlcmd -S localhost\SQLEXPRESS -E -C -I -f 65001 -i LetreriaLosHerreraDB.sql
@@ -357,16 +369,27 @@ CREATE TABLE [cotizaciones] (
     [id_solicitud] int NOT NULL,
     [id_empleado] int NOT NULL,
     [fecha_cotizacion] datetime2(0) NOT NULL DEFAULT (SYSDATETIME()),
-    [observaciones] nvarchar(500) NULL,
+    [observaciones] nvarchar(2000) NULL,
     [costo_materiales_total] decimal(12,2) NOT NULL DEFAULT 0.0,
     [costo_mano_obra] decimal(12,2) NOT NULL DEFAULT 0.0,
     [otros_costos] decimal(12,2) NOT NULL DEFAULT 0.0,
     [total_cotizacion] AS CONVERT(DECIMAL(14,2), costo_materiales_total + costo_mano_obra + otros_costos) PERSISTED,
     [estado] nvarchar(15) NOT NULL DEFAULT N'pendiente',
+    [row_version] rowversion NOT NULL,
+    [fecha_respuesta] datetimeoffset(0) NULL,
+    [via_respuesta] nvarchar(15) NULL,
+    [id_empleado_respuesta] int NULL,
+    [motivo_rechazo] nvarchar(500) NULL,
+    [eliminado_logico] bit NOT NULL DEFAULT CAST(0 AS bit),
+    [fecha_eliminacion_logica] datetimeoffset(0) NULL,
     CONSTRAINT [pk_cotizaciones] PRIMARY KEY ([id_cotizacion]),
     CONSTRAINT [ck_cotizaciones_costos] CHECK (costo_materiales_total >= 0 AND costo_mano_obra >= 0 AND otros_costos >= 0),
     CONSTRAINT [ck_cotizaciones_estado] CHECK (estado IN (N'pendiente', N'aprobada', N'rechazada')),
+    CONSTRAINT [ck_cotizaciones_montos_enteros] CHECK (costo_mano_obra = FLOOR(costo_mano_obra) AND otros_costos = FLOOR(otros_costos)),
+    CONSTRAINT [ck_cotizaciones_respuesta] CHECK ((CASE WHEN estado = N'pendiente' THEN 1 ELSE 0 END) = (CASE WHEN fecha_respuesta IS NULL THEN 1 ELSE 0 END) AND (CASE WHEN via_respuesta IS NULL THEN 0 ELSE 1 END) = (CASE WHEN fecha_respuesta IS NULL THEN 0 ELSE 1 END)),
+    CONSTRAINT [ck_cotizaciones_via] CHECK (via_respuesta IS NULL OR via_respuesta IN (N'cliente_web', N'telefono', N'whatsapp', N'presencial')),
     CONSTRAINT [fk_cotizaciones_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado]) ON DELETE NO ACTION,
+    CONSTRAINT [fk_cotizaciones_empleado_respuesta] FOREIGN KEY ([id_empleado_respuesta]) REFERENCES [empleados] ([id_empleado]),
     CONSTRAINT [fk_cotizaciones_solicitud] FOREIGN KEY ([id_solicitud]) REFERENCES [solicitudes] ([id_solicitud]) ON DELETE CASCADE
 );
 GO
@@ -413,13 +436,14 @@ CREATE TABLE [cotizacion_materiales] (
     [id_cotizacion_material] int NOT NULL IDENTITY,
     [id_cotizacion] int NOT NULL,
     [id_material] int NOT NULL,
-    [medida_aplicada] nvarchar(80) NULL,
+    [medida_aplicada] nvarchar(100) NULL,
     [cantidad] decimal(10,2) NOT NULL,
     [costo_unitario] decimal(12,2) NOT NULL,
     [subtotal] AS CONVERT(DECIMAL(14,2), cantidad * costo_unitario) PERSISTED,
     CONSTRAINT [pk_cotizacion_materiales] PRIMARY KEY ([id_cotizacion_material]),
     CONSTRAINT [ck_cot_mat_cantidad] CHECK (cantidad > 0),
     CONSTRAINT [ck_cot_mat_costo] CHECK (costo_unitario >= 0),
+    CONSTRAINT [ck_cot_mat_costo_entero] CHECK (costo_unitario = FLOOR(costo_unitario)),
     CONSTRAINT [fk_cot_mat_cotizacion] FOREIGN KEY ([id_cotizacion]) REFERENCES [cotizaciones] ([id_cotizacion]) ON DELETE CASCADE,
     CONSTRAINT [fk_cot_mat_material] FOREIGN KEY ([id_material]) REFERENCES [materiales] ([id_material]) ON DELETE NO ACTION
 );
@@ -437,7 +461,7 @@ CREATE TABLE [pedidos] (
     [fecha_entrega_real] datetime2(0) NULL,
     [modalidad_entrega] nvarchar(25) NOT NULL DEFAULT N'retiro_local',
     [requiere_instalacion] bit NOT NULL DEFAULT CAST(0 AS bit),
-    [direccion_instalacion] nvarchar(255) NULL,
+    [direccion_instalacion] nvarchar(300) NULL,
     [costo_instalacion_adicional] decimal(12,2) NOT NULL DEFAULT 0.0,
     [monto_base_trabajo] decimal(12,2) NOT NULL DEFAULT 0.0,
     [monto_total_final] AS CONVERT(DECIMAL(14,2), monto_base_trabajo + costo_instalacion_adicional) PERSISTED,
@@ -447,7 +471,12 @@ CREATE TABLE [pedidos] (
     [estado_pago] AS CONVERT(NVARCHAR(12), CASE WHEN monto_abonado = 0 THEN N'no_pagado' WHEN monto_abonado >= monto_base_trabajo + costo_instalacion_adicional THEN N'pagado_total' ELSE N'abonado' END) PERSISTED,
     [numero_factura] nvarchar(30) NULL,
     [row_version] rowversion NOT NULL,
+    [motivo_anulacion] nvarchar(500) NULL,
+    [fecha_anulacion] datetimeoffset(0) NULL,
+    [eliminado_logico] bit NOT NULL DEFAULT CAST(0 AS bit),
+    [fecha_eliminacion_logica] datetimeoffset(0) NULL,
     CONSTRAINT [pk_pedidos] PRIMARY KEY ([id_pedido]),
+    CONSTRAINT [ck_pedidos_anulacion] CHECK ((estado_pedido = N'anulado' AND motivo_anulacion IS NOT NULL AND fecha_anulacion IS NOT NULL) OR (estado_pedido <> N'anulado' AND motivo_anulacion IS NULL AND fecha_anulacion IS NULL)),
     CONSTRAINT [ck_pedidos_costos] CHECK (costo_instalacion_adicional >= 0 AND monto_base_trabajo >= 0),
     CONSTRAINT [ck_pedidos_estado_pedido] CHECK (estado_pedido IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado')),
     CONSTRAINT [ck_pedidos_modalidad] CHECK (modalidad_entrega IN (N'retiro_local', N'entrega_domicilio', N'instalacion_terreno')),
@@ -470,11 +499,33 @@ CREATE TABLE [pagos] (
     [observacion] nvarchar(300) NULL,
     [id_empleado_registra] int NOT NULL,
     [fecha_registro] datetime2(0) NOT NULL DEFAULT (SYSDATETIME()),
+    [anulado] bit NOT NULL DEFAULT CAST(0 AS bit),
+    [motivo_anulacion] nvarchar(300) NULL,
+    [id_empleado_anula] int NULL,
+    [fecha_anulacion] datetimeoffset(0) NULL,
     CONSTRAINT [pk_pagos] PRIMARY KEY ([id_pago]),
+    CONSTRAINT [ck_pagos_anulacion] CHECK ((anulado = 1 AND motivo_anulacion IS NOT NULL AND id_empleado_anula IS NOT NULL AND fecha_anulacion IS NOT NULL) OR (anulado = 0 AND motivo_anulacion IS NULL AND id_empleado_anula IS NULL AND fecha_anulacion IS NULL)),
     CONSTRAINT [ck_pagos_medio_pago] CHECK (medio_pago IN (N'efectivo', N'transferencia', N'tarjeta_debito', N'tarjeta_credito', N'cheque', N'otro')),
     CONSTRAINT [ck_pagos_monto] CHECK (monto > 0),
     CONSTRAINT [fk_pagos_empleado] FOREIGN KEY ([id_empleado_registra]) REFERENCES [empleados] ([id_empleado]) ON DELETE NO ACTION,
+    CONSTRAINT [fk_pagos_empleado_anula] FOREIGN KEY ([id_empleado_anula]) REFERENCES [empleados] ([id_empleado]),
     CONSTRAINT [fk_pagos_pedido] FOREIGN KEY ([id_pedido]) REFERENCES [pedidos] ([id_pedido]) ON DELETE NO ACTION
+);
+GO
+
+
+CREATE TABLE [pedidos_historial] (
+    [id_historial] int NOT NULL IDENTITY,
+    [id_pedido] int NOT NULL,
+    [estado_anterior] nvarchar(15) NULL,
+    [estado_nuevo] nvarchar(15) NOT NULL,
+    [nota] nvarchar(500) NULL,
+    [id_empleado] int NOT NULL,
+    [fecha] datetimeoffset(0) NOT NULL,
+    CONSTRAINT [pk_pedidos_historial] PRIMARY KEY ([id_historial]),
+    CONSTRAINT [ck_pedidos_historial_estados] CHECK (estado_nuevo IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado') AND (estado_anterior IS NULL OR estado_anterior IN (N'aceptado', N'en_proceso', N'terminado', N'entregado', N'anulado'))),
+    CONSTRAINT [fk_pedidos_historial_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado]),
+    CONSTRAINT [fk_pedidos_historial_pedido] FOREIGN KEY ([id_pedido]) REFERENCES [pedidos] ([id_pedido])
 );
 GO
 
@@ -660,11 +711,19 @@ CREATE INDEX [IX_cotizacion_materiales_id_material] ON [cotizacion_materiales] (
 GO
 
 
+CREATE INDEX [ix_cotizaciones_empleado_respuesta] ON [cotizaciones] ([id_empleado_respuesta]);
+GO
+
+
 CREATE INDEX [IX_cotizaciones_id_empleado] ON [cotizaciones] ([id_empleado]);
 GO
 
 
 CREATE INDEX [ix_cotizaciones_solicitud] ON [cotizaciones] ([id_solicitud], [estado]);
+GO
+
+
+CREATE UNIQUE INDEX [uq_cotizaciones_una_pendiente] ON [cotizaciones] ([id_solicitud]) WHERE [estado] = N'pendiente' AND [eliminado_logico] = 0;
 GO
 
 
@@ -692,6 +751,10 @@ CREATE UNIQUE INDEX [uq_materiales_nombre] ON [materiales] ([nombre]);
 GO
 
 
+CREATE INDEX [ix_pagos_empleado_anula] ON [pagos] ([id_empleado_anula]);
+GO
+
+
 CREATE INDEX [IX_pagos_id_empleado_registra] ON [pagos] ([id_empleado_registra]);
 GO
 
@@ -712,15 +775,23 @@ CREATE INDEX [ix_pedidos_fecha_estado] ON [pedidos] ([fecha_pedido], [estado_ped
 GO
 
 
-CREATE INDEX [IX_pedidos_id_cotizacion] ON [pedidos] ([id_cotizacion]);
-GO
-
-
 CREATE INDEX [IX_pedidos_id_empleado_responsable] ON [pedidos] ([id_empleado_responsable]);
 GO
 
 
+CREATE UNIQUE INDEX [uq_pedidos_cotizacion] ON [pedidos] ([id_cotizacion]) WHERE [id_cotizacion] IS NOT NULL;
+GO
+
+
 CREATE UNIQUE INDEX [uq_pedidos_solicitud] ON [pedidos] ([id_solicitud]);
+GO
+
+
+CREATE INDEX [ix_pedidos_historial_empleado] ON [pedidos_historial] ([id_empleado]);
+GO
+
+
+CREATE INDEX [ix_pedidos_historial_pedido] ON [pedidos_historial] ([id_pedido], [fecha]);
 GO
 
 
@@ -792,7 +863,7 @@ CREATE UNIQUE INDEX [uq_tokens_renovacion_hash] ON [tokens_renovacion] ([hash_to
 GO
 
 -- -------------------------------------------------------------------------------------
--- 2. Objetos que el modelo no expresa (migraciones ObjetosProgramablesV6, SepararEstadoPedidoYPago y HistorialDePagos)
+-- 2. Objetos que el modelo no expresa (migraciones ObjetosProgramablesV6, SepararEstadoPedidoYPago, HistorialDePagos y CotizacionesYPedidos)
 -- -------------------------------------------------------------------------------------
 
 -- El cartel digital es una sola fila: su id vale 1 por defecto.
@@ -829,7 +900,7 @@ BEGIN
 END
 GO
 
--- Mantiene pedidos.monto_abonado igual a la suma de los pagos del pedido.
+-- Mantiene pedidos.monto_abonado igual a la suma de los pagos no anulados del pedido.
 GO
 CREATE OR ALTER TRIGGER dbo.trg_pagos_recalcular_monto_abonado
 ON dbo.pagos
@@ -838,10 +909,13 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    IF EXISTS (SELECT 1 FROM inserted i JOIN deleted d ON d.id_pago = i.id_pago WHERE d.anulado = 1 AND i.anulado = 0)
+        THROW 50080, N'Un abono anulado no se puede reactivar.', 1;
+
     ;WITH cambios AS (
-        SELECT id_pedido, monto FROM inserted
+        SELECT id_pedido, monto FROM inserted WHERE anulado = 0
         UNION ALL
-        SELECT id_pedido, -monto FROM deleted
+        SELECT id_pedido, -monto FROM deleted WHERE anulado = 0
     ),
     diferencias AS (
         SELECT id_pedido, SUM(monto) AS diferencia
@@ -913,7 +987,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261113111453_ServiciosComunes', N'10.0.11'),
     (N'20261113154234_PortadaPublica', N'10.0.11'),
     (N'20261114002321_CuentasYSesion', N'10.0.11'),
-    (N'20261114035839_SolicitudesYAdjuntos', N'10.0.11');
+    (N'20261114035839_SolicitudesYAdjuntos', N'10.0.11'),
+    (N'20261114220104_CotizacionesYPedidos', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

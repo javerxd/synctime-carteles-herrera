@@ -158,13 +158,43 @@ Pendientes que quedan para las fases siguientes:
 |---|---|---|---|
 | RNFP02 | Comprobar que un cliente registra una solicitud desde el teléfono en 5 minutos o menos | Es una prueba con una persona real. El flujo ya está probado de punta a punta (`e2e/pantallas.spec.js`) | Usuario, que lo cronometra |
 | RNFO04 | Programar `sp_depurar_solicitudes_no_concretadas` (12 meses) | Hoy lo ejecuta la base a mano; nada lo ejecuta solo | Fase 16 |
-| RFS05, RFU08 | Cotizaciones: crear, aprobar o rechazar. Una sola pendiente por solicitud (la base todavía no lo impide) | Es la fase 8 | Fase 8 |
 | RFS09, RFU19, S05 | Gráficos y métricas del inicio (pedidos, ingresos y conversión) | Dependen de los pedidos y las cotizaciones | Fases 8 y 12 |
 | RFS12 | Bitácora de auditoría general: quién creó, modificó o eliminó cada entidad | Es la auditoría de la fase 11. La fase 7 solo registra el historial de las solicitudes | Fase 11 |
 | RFU06 | Enviar la solicitud con cuenta de Google | Requiere el ID de cliente OAuth de Google | Fase 14 y usuario |
 | RNFP10 | Control de concurrencia en la ficha de clientes | La tabla `clientes` no tiene versión; agregarla exige una migración | Decisión del usuario |
 | Adjuntos | Revisión del contenido de los PDF | No se hace hoy (ver «PDF guardado tal cual») | Decisión del usuario |
 | RNFP07 | Proxies y `ForwardedHeaders` para la IP de la regla contra solicitudes falsas y de los límites por IP | Depende del despliegue | Fase 16 |
+
+## Cambios y pendientes de la fase 8 (14-11-2026)
+
+Recoge lo que se decidió en el plan y en la especificación de la fase 8 (aprobados el 14-11-2026, con cuatro decisiones del usuario), las decisiones de construcción y lo que queda para fases siguientes. Solo la primera tabla son cambios respecto de un requisito; el resto son decisiones y pendientes.
+
+Resuelta en esta fase: la fila de la fase 7 sobre «RFS05, RFU08: una sola pendiente por solicitud». Desde la migración `CotizacionesYPedidos`, la base lo garantiza con `uq_cotizaciones_una_pendiente`.
+
+| Requisito | Qué pide | Qué se hace | Quién lo decidió | Fecha |
+|---|---|---|---|---|
+| RFU13, E25 | Registrar los abonos del cliente, con monto, fecha y medio de pago | Un abono mal ingresado no se edita ni se borra. Se anula con motivo, queda tachado en el pedido con quién y cuándo, y deja de sumar. Después se registra el correcto | Usuario (decisión 2 del plan) | 14-11-2026 |
+| RFU13, E25 | Registrar los pagos del cliente | Anular un pedido que tuvo abonos deja lo abonado como «a devolver o a favor del cliente». La devolución no se registra en el sistema, y la API no tiene una ruta para hacerla | Usuario (decisión 4 del plan) | 14-11-2026 |
+| RFU36, E27 | Filtrar los pedidos por mes | Con `mes` y sin `anio`, la API compara el mes de cualquier año y recorre los pedidos, porque no cabe en un rango de fechas. La pantalla siempre envía el año | Claude, fase 8 | 14-11-2026 |
+| E06, E08, E25 | (El requisito no lo menciona) Que una respuesta perdida no duplique una cotización, un pedido o un abono | La API no tiene clave de idempotencia. Si se pierde la respuesta, la pantalla revisa antes de dejar reintentar: si el registro ya quedó, lo abre en vez de crear otro | Claude, fase 8 | 14-11-2026 |
+
+Decisiones de Claude en la fase 8 (objetables):
+- **Revertir la migración se detiene.** `Down()` no borra nada: si hay abonos anulados (el esquema anterior los volvería a sumar) o textos que no caben en sus columnas, se detiene con `THROW 50081` o `50082` antes de tocar la base. Hay que resolverlo a mano y con respaldo (prueba `RevertirCotizacionesYPedidos_SeDetieneAntesDePerderDatos`).
+- **Los datos se completan antes de cada regla.** Las cotizaciones ya aprobadas o rechazadas reciben fecha y vía «presencial» (no se sabe cuándo ni quién respondió), los pedidos anulados reciben el motivo «Anulado antes de la fase 8» y la fecha del pedido, y cada pedido recibe una fila de creación en el historial. Si la base real tuviera algo que no cumple, la migración falla entera y no cambia nada.
+- **Cambiar los montos de un pedido es de gestión.** El plan no lo pedía; `docs/api/permisos.md` lo fija. El cambio queda en el historial del pedido, sin cambio de estado.
+- **Un pedido eliminado sigue ocupando su cotización.** `uq_pedidos_cotizacion` no filtra por `eliminado_logico`. La pantalla lo dice y no ofrece crear otro pedido.
+- **Reactivar un abono responde `409 abono_anulado`.** Es el error 50080 del trigger, traducido en `ApiExceptionHandler`.
+- **El correo «Tu cotización #N está lista» sale solo si el cliente tiene correo confirmado**, en la misma transacción que la cotización (outbox, como en la fase 7). El pedido directo no envía ningún correo.
+
+Pendientes que quedan para las fases siguientes:
+
+| Requisito | Qué falta | Por qué queda para después | Responsable |
+|---|---|---|---|
+| RFU36, S24 | Reporte de cobranza exportable (Excel, PDF o CSV) con el listado de pedidos por cobrar | Es parte de los reportes | Fase 13 |
+| RFU09 | Avisos al cliente cuando cambia el estado de su solicitud o de su pedido, con enlace de baja | La fase 8 solo envía «Tu cotización #N está lista» (decisión 3 del plan) | Fase 11 |
+| RFS12, RNFP10 | Bitácora general de quién creó, modificó o anuló cada registro | Los pedidos guardan su historial y los abonos anulados guardan quién y cuándo, pero no hay una bitácora común | Fase 11 |
+| E06, E08, E25 | Clave de idempotencia en la API para cotizaciones, pedidos y abonos | Hoy la pantalla revisa antes de reintentar, pero no evita un doble envío desde otra pestaña ni de otra persona | Usuario, decidir si se agrega |
+| Base real | Aplicar las migraciones pendientes (de `SepararEstadoPedidoYPago` a `CotizacionesYPedidos`), con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario, plan de la fase 8) | Usuario |
 
 ## Restricciones del equipo de desarrollo
 

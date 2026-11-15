@@ -6,12 +6,13 @@ import AxeBuilder from '@axe-core/playwright';
 const hoy = new Date();
 const fecha = (mesesAtras, dia) => new Date(hoy.getFullYear(), hoy.getMonth() - mesesAtras, dia, 10).toISOString().slice(0, 19);
 const cliente = (nombre, apellido, telefono) => ({ nombre, apellido, telefono, rut: '46.000.011-K' });
+// Fase 8: las filas del listado de pedidos (GET /pedidos), con su cliente y el resumen de cobranza.
 const pedido = (id, estadoPedido, estadoPago, total, abonado, meses, c) => ({
-  idPedido: id, estadoPedido, estadoPago, origen: id % 3 ? 'cotizacion' : 'directo', fechaPedido: fecha(meses, 5),
-  fechaEntregaEstimada: fecha(meses, 15), fechaEntregaReal: estadoPedido === 'entregado' ? fecha(meses, 14) : null,
-  montoBaseTrabajo: total, costoInstalacionAdicional: 0, montoTotalFinal: total, montoAbonado: abonado, saldoPendiente: total - abonado,
-  modalidadEntrega: 'retiro_local', numeroFactura: null, rowVersion: 'AA==', solicitud: { cliente: c },
-  empleadoResponsable: { nombre: 'Hugo', apellido: 'Vera' },
+  idPedido: id, numero: `#${id}`, estadoPedido, estadoPago, origen: id % 3 ? 'cotizacion' : 'directo', fechaPedido: fecha(meses, 5),
+  fechaEntregaEstimada: fecha(meses, 15).slice(0, 10), fechaEntregaReal: estadoPedido === 'entregado' ? fecha(meses, 14).slice(0, 10) : null,
+  montoTotalFinal: total, montoAbonado: abonado, saldoPendiente: total - abonado,
+  modalidadEntrega: 'retiro_local', cliente: { idCliente: id + 20, ...c }, responsable: { idEmpleado: 1, nombre: 'Hugo Vera' },
+  cicloCerrado: estadoPedido === 'entregado' && estadoPago === 'pagado_total',
 });
 const PEDIDOS = [
   pedido(1, 'en_proceso', 'abonado', 185000, 100000, 0, cliente('Panadería', 'El Trigal', '900000211')),
@@ -21,8 +22,11 @@ const PEDIDOS = [
   pedido(5, 'entregado', 'pagado_total', 410000, 410000, 1, cliente('Transportes', 'Ruiz', '900000215')),
   pedido(6, 'anulado', 'no_pagado', 72000, 0, 2, cliente('Luis', 'Araya', '900000202')),
 ];
+const paginaDe = (elementos, extra = {}) => ({ elementos, total: elementos.length, pagina: 1, tamano: 20, totalPaginas: 1, ...extra });
+const POR_COBRAR = PEDIDOS.filter((p) => p.estadoPedido !== 'anulado' && p.estadoPago !== 'pagado_total');
+const RESUMEN_COBRANZA = { totalPorCobrar: POR_COBRAR.reduce((s, p) => s + p.saldoPendiente, 0), cantidadPorCobrar: POR_COBRAR.length };
 const RESPUESTAS = {
-  '/api/v1/pedidos': PEDIDOS,
+  '/api/v1/pedidos': paginaDe(PEDIDOS, { resumen: RESUMEN_COBRANZA }),
   '/api/v1/cartel-digital': { abiertoEnLocal: false, mensajeEstado: 'Salimos a una instalación', tiempoEstimadoRegreso: '16:30', fechaUltimaModificacion: fecha(0, 1) },
   '/api/v1/horarios': [1, 2, 3, 4, 5, 6, 7].map((d) => ({ diaSemana: d, nombreDia: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d - 1], horaInicio: d < 7 ? '09:00:00' : null, horaFin: d < 6 ? '18:30:00' : d === 6 ? '14:00:00' : null, abierto: d < 7 })),
   '/api/v1/metricas/conversion-online': [{ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1, totalSolicitudesOnline: 4, solicitudesConcretadasEnPedido: 1, porcentajeConversion: 25 }],
@@ -64,6 +68,7 @@ const FICHA = {
   ...COMPROBANTE,
   idCliente: 9,
   registradaPor: null,
+  cotizaciones: [],
   historial: [{ estadoAnterior: null, estadoNuevo: 'solicitado', motivo: null, fechaChile: COMPROBANTE.fechaChile, actor: 'cliente', por: 'Rosa Pino' }],
 };
 const FILA = (id, estado, origen, cliente, items, adjuntos) => ({
@@ -93,6 +98,105 @@ Object.assign(RESPUESTAS, {
   '/api/v1/clientes': CLIENTES,
   '/api/v1/clientes/9': CLIENTES.elementos[0],
   '/api/v1/mis/adjuntos': [],
+});
+
+// ── Fase 8: cotizaciones, pedidos, abonos, calendario y alertas ──
+const HOY_CHILE = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(hoy);
+const diaChile = (dias) => {
+  const [a, m, d] = HOY_CHILE.split('-').map(Number);
+  return new Date(Date.UTC(a, m - 1, d + dias)).toISOString().slice(0, 10);
+};
+const MATERIALES = [
+  { idMaterial: 1, nombre: 'Acrílico 3 mm', unidadMedida: 'm2', costoUnitarioAprox: 18500, activo: true },
+  { idMaterial: 2, nombre: 'Vinilo impreso', unidadMedida: 'm2', costoUnitarioAprox: 9900, activo: true },
+  { idMaterial: 3, nombre: 'Perfil de aluminio', unidadMedida: 'ml', costoUnitarioAprox: 4200, activo: false },
+];
+const EMPLEADOS = [
+  { idEmpleado: 1, nombre: 'Marta', apellido: 'Fuentes', rol: 'dueño', activo: true },
+  { idEmpleado: 2, nombre: 'Hugo', apellido: 'Vera', rol: 'operario', activo: true },
+];
+const ITEMS = COMPROBANTE.detalles.map(({ producto, descripcion, anchoMm, altoMm, cantidad, areaM2 }) => ({ producto, descripcion, anchoMm, altoMm, cantidad, areaM2 }));
+const cotizacionDe = (id, estado, extra = {}) => ({
+  idCotizacion: id, numero: `#${id}`, idSolicitud: 123, numeroSolicitud: '#123', fechaChile: `${HOY_CHILE}T09:15:00`, estado,
+  cliente: { idCliente: 9, ...ROSA }, items: ITEMS,
+  materiales: [
+    { idMaterial: 1, material: 'Acrílico 3 mm', unidad: 'm2', medidaAplicada: '120 × 60 cm', cantidad: 1.44, costoUnitario: 18500, subtotal: 26640 },
+    { idMaterial: 2, material: 'Vinilo impreso', unidad: 'm2', medidaAplicada: null, cantidad: 0.75, costoUnitario: 9900, subtotal: 7425 },
+  ],
+  costoMaterialesTotal: 34065, costoManoObra: 45000, otrosCostos: 5000, total: 84065, totalRedondeado: 84065,
+  observaciones: 'Incluye la instalación en la fachada. Plazo: 5 días hábiles.', elaboradaPor: { idEmpleado: 1, nombre: 'Marta Fuentes' },
+  respuesta: null, idPedido: null, rowVersion: 'AAAAAAAACOT=', ...extra,
+});
+const COT_PENDIENTE = cotizacionDe(45, 'pendiente');
+const COT_APROBADA = cotizacionDe(46, 'aprobada', {
+  respuesta: { fechaChile: `${HOY_CHILE}T11:02:00`, via: 'telefono', motivo: null, registradaPor: { nombre: 'Hugo Vera' } },
+});
+const FILA_COT = (c) => ({
+  idCotizacion: c.idCotizacion, numero: c.numero, idSolicitud: c.idSolicitud, fechaChile: c.fechaChile, cliente: { idCliente: 9, ...ROSA },
+  total: c.total, estado: c.estado, elaboradaPor: c.elaboradaPor,
+});
+// En el listado, de otras solicitudes: la 123 sigue «Solicitada» y se puede cotizar.
+const LISTA_COT = paginaDe([
+  { ...FILA_COT(COT_PENDIENTE), idSolicitud: 122 }, { ...FILA_COT(COT_APROBADA), idSolicitud: 120 },
+  { ...FILA_COT(cotizacionDe(44, 'rechazada')), idSolicitud: 121, fechaChile: fecha(0, 2) },
+]);
+const FICHA_PEDIDO = {
+  idPedido: 1, numero: '#1', origen: 'cotizacion', solicitud: { idSolicitud: 123, numero: '#123' }, cotizacion: { idCotizacion: 46, numero: '#46' },
+  cliente: { idCliente: 9, ...ROSA }, responsable: { idEmpleado: 2, nombre: 'Hugo Vera' }, fechaPedido: `${diaChile(-6)}T10:00:00`,
+  fechaEntregaEstimada: diaChile(2), fechaEntregaReal: null, modalidadEntrega: 'instalacion_terreno', requiereInstalacion: true,
+  direccionInstalacion: 'Colón 455, Los Ángeles', montoBaseTrabajo: 84065, costoInstalacionAdicional: 15000, montoTotalFinal: 99065,
+  estadoPedido: 'aceptado', estadoPago: 'abonado', montoAbonado: 40000, saldoPendiente: 59065, numeroFactura: null, cicloCerrado: false,
+  motivoAnulacion: null, aFavorDelCliente: 0, transicionesPosibles: ['en_proceso', 'anulado'],
+  historial: [{ fechaChile: `${diaChile(-6)}T10:00:00`, estadoAnterior: null, estadoNuevo: 'aceptado', nota: null, empleado: 'Marta Fuentes' }],
+  pagos: [
+    {
+      idPago: 11, monto: 40000, fechaPago: diaChile(-6), medioPago: 'transferencia', observacion: 'Transferencia 0042', registradoPor: 'Marta Fuentes',
+      fechaRegistroChile: `${diaChile(-6)}T10:05:00`, anulado: false, motivoAnulacion: null, anuladoPor: null, fechaAnulacionChile: null, puedeAnular: true,
+    },
+    {
+      idPago: 10, monto: 4000, fechaPago: diaChile(-6), medioPago: 'efectivo', observacion: null, registradoPor: 'Hugo Vera',
+      fechaRegistroChile: `${diaChile(-6)}T09:58:00`, anulado: true, motivoAnulacion: 'Se ingresó dos veces', anuladoPor: 'Marta Fuentes',
+      fechaAnulacionChile: `${diaChile(-6)}T10:01:00`, puedeAnular: false,
+    },
+  ],
+  rowVersion: 'AAAAAAAAPED=',
+};
+const entregaDe = (id, dias, estadoPedido, c, atrasado = false) => ({
+  idPedido: id, numero: `#${id}`, fecha: diaChile(dias), cliente: { idCliente: id + 20, ...c },
+  modalidadEntrega: id % 2 ? 'retiro_local' : 'instalacion_terreno', estadoPedido, estadoPago: 'abonado', atrasado,
+});
+const CALENDARIO = [
+  entregaDe(1, 2, 'aceptado', cliente('Panadería', 'El Trigal', '900000211')),
+  entregaDe(4, -1, 'en_proceso', cliente('Minimarket', 'Don Lucho', '900000214'), true),
+  entregaDe(2, 0, 'entregado', cliente('Ferretería', 'Biobío', '900000212')),
+  entregaDe(7, 0, 'terminado', cliente('Clínica Dental', 'Sonríe', '900000213')),
+];
+const SEGUIMIENTO_COT = { idCotizacion: 45, numero: '#45', total: 84065, estado: 'pendiente' };
+const MI_SOLICITUD = { ...COMPROBANTE, estado: 'cotizado', cotizacion: SEGUIMIENTO_COT, pedido: null };
+Object.assign(RESPUESTAS, {
+  '/api/v1/materiales': MATERIALES,
+  '/api/v1/empleados': EMPLEADOS,
+  '/api/v1/cotizaciones': LISTA_COT,
+  '/api/v1/cotizaciones/45': COT_PENDIENTE,
+  '/api/v1/cotizaciones/46': COT_APROBADA,
+  '/api/v1/pedidos/1': FICHA_PEDIDO,
+  '/api/v1/pedidos/calendario': CALENDARIO,
+  '/api/v1/pedidos/alertas': { proximas: [CALENDARIO[0], CALENDARIO[3]], atrasadas: [CALENDARIO[1]], ...RESUMEN_COBRANZA },
+  '/api/v1/mis/solicitudes/123': MI_SOLICITUD,
+  '/api/v1/mis/cotizaciones/45': { ...COT_PENDIENTE, elaboradaPor: { nombre: 'Marta' } },
+  '/api/v1/mis/solicitudes': {
+    elementos: [
+      { ...BANDEJA.elementos[0], estado: 'cotizado', cotizacion: SEGUIMIENTO_COT, pedido: null },
+      {
+        ...BANDEJA.elementos[1], estado: 'aceptado', cotizacion: { idCotizacion: 40, numero: '#40', total: 99065, estado: 'aprobada' },
+        pedido: {
+          idPedido: 1, numero: '#1', estadoPedido: 'en_proceso', estadoPago: 'abonado', saldoPendiente: 59065, fechaEntregaEstimada: diaChile(2),
+          modalidadEntrega: 'retiro_local', cicloCerrado: false,
+        },
+      },
+    ],
+    total: 2, pagina: 1, tamano: 10, totalPaginas: 1,
+  },
 });
 const IMAGEN_PRUEBA = 'public/marca/logo-lh-256.webp';
 
@@ -158,6 +262,15 @@ const PANTALLAS = [
   ['/panel/solicitudes/nueva', 'Registrar solicitud presencial'],
   ['/panel/clientes', 'Clientes'],
   ['/panel/clientes/9', 'Rosa Pino'],
+  ['/panel/cotizaciones', 'Cotizaciones'],
+  ['/panel/cotizaciones/45', 'Cotización #45'],
+  ['/panel/cotizaciones/45/editar', 'Editar la cotización #45'],
+  ['/panel/solicitudes/123/cotizar', 'Cotizar la solicitud #123'],
+  ['/panel/cotizaciones/46/pedido', 'Crear pedido de la cotización #46'],
+  ['/panel/pedidos?cobranza=true', 'Pedidos por cobrar'],
+  ['/panel/pedidos/1', 'Pedido #1'],
+  ['/panel/pedidos/directo', 'Pedido directo en el taller'],
+  ['/panel/calendario', 'Calendario de entregas'],
 ];
 
 for (const ancho of [360, 768, 1440]) {
@@ -177,25 +290,10 @@ for (const ancho of [360, 768, 1440]) {
       const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(violations.filter((v) => ['critical', 'serious'].includes(v.impact)).map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
       expect(errores).toEqual([]);
-      if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/${ruta.replaceAll('/', '_')}-${ancho}.png`, fullPage: true });
+      if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/${ruta.replace(/[/?=&]/g, '_')}-${ancho}.png`, fullPage: true });
     });
   }
 }
-
-test('el filtro «Por cobrar» deja los pedidos no anulados con saldo y la ficha muestra ambos estados', async ({ page }) => {
-  await entrarComo(page, 'administrador');
-  await page.goto('/panel/pedidos');
-  const filtros = page.getByRole('search', { name: 'Filtros de pedidos' });
-  await expect(filtros.getByRole('status')).toHaveText('6 pedidos · $235.000 por cobrar');
-  await filtros.getByRole('button', { name: 'Por cobrar' }).click();
-  await expect(filtros.getByRole('status')).toHaveText('3 pedidos · $235.000 por cobrar');
-  await page.getByRole('button', { name: 'Ver ficha del pedido 2' }).click();
-  const ficha = page.getByRole('dialog', { name: 'Pedido N.º 2' });
-  await expect(ficha.getByText('Entregado', { exact: true })).toBeVisible();
-  await expect(ficha.getByText('No pagado', { exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(ficha).toBeHidden();
-});
 
 test('un operario ve su menú sin Gestión y recibe la página 403 en Indicadores', async ({ page }) => {
   await entrarComo(page, 'operario');
@@ -716,4 +814,330 @@ test('el inicio del panel muestra las solicitudes por atender', async ({ page })
   await page.goto('/panel');
   const seccion = page.getByRole('region', { name: /Solicitudes por atender/ });
   await expect(seccion.getByRole('link', { name: /#123 · Rosa Pino/ })).toHaveAttribute('href', '/panel/solicitudes/123');
+});
+
+// ── Fase 8: flujos de cotizaciones, pedidos, abonos y calendario ──
+
+/** Revisa que la página no desborde y no tenga fallas graves de accesibilidad. */
+async function sinFallasGraves(page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.filter((v) => ['critical', 'serious'].includes(v.impact)).map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
+}
+
+test('el personal cotiza la solicitud: el catálogo sugiere el costo, el total va en vivo y la vista previa lo muestra', async ({ page }) => {
+  await entrarComo(page, 'operario');
+  let emitida = null;
+  await page.route('**/api/v1/solicitudes/123/cotizaciones', (ruta) => {
+    emitida = ruta.request().postDataJSON();
+    return ruta.fulfill({ status: 201, json: { ...cotizacionDe(90, 'pendiente'), costoManoObra: 30000, otrosCostos: 0 } });
+  });
+  await page.route('**/api/v1/cotizaciones/90', (ruta) => ruta.fulfill({ json: cotizacionDe(90, 'pendiente') }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/panel/solicitudes/123');
+  await page.getByRole('link', { name: 'Cotizar', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Cotizar la solicitud #123' })).toBeFocused();
+
+  await page.getByRole('button', { name: 'Agregar material' }).click();
+  const material = page.getByRole('combobox', { name: /^Material/ });
+  await expect(material).toBeFocused();
+  await expect(material.getByRole('option', { name: 'Perfil de aluminio' })).toHaveCount(0);
+  await material.selectOption('1');
+  await expect(page.getByRole('textbox', { name: /^Costo unitario/ })).toHaveValue('18500');
+  await page.getByRole('textbox', { name: /^Cantidad \(m2\)/ }).fill('1,5');
+  await page.getByRole('textbox', { name: /^Medida/ }).fill('120 × 60 cm');
+  await page.getByRole('textbox', { name: /^Mano de obra/ }).fill('30.000');
+  const pie = page.locator('form').getByText('Total de la cotización', { exact: true }).locator('..');
+  await expect(pie).toContainText('$57.750');
+  const previa = page.getByRole('complementary', { name: 'Vista previa para el cliente' });
+  await expect(previa.getByRole('listitem').filter({ hasText: 'Acrílico 3 mm' })).toBeVisible();
+  await expect(previa.getByText('$57.750')).toBeVisible();
+  await sinFallasGraves(page);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/_flujo_cotizar-1440.png`, fullPage: true });
+
+  await page.getByRole('button', { name: 'Emitir cotización' }).click();
+  await expect(page).toHaveURL(/\/panel\/cotizaciones\/90$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Cotización #90' })).toBeVisible();
+  expect(emitida).toEqual({
+    materiales: [{ idMaterial: 1, medidaAplicada: '120 × 60 cm', cantidad: 1.5, costoUnitario: 18500 }],
+    costoManoObra: 30000, otrosCostos: 0, observaciones: null,
+  });
+});
+
+test('el personal registra que el cliente aprobó por teléfono, con la versión vista', async ({ page }) => {
+  await entrarComo(page, 'diseñador');
+  let respuesta = null;
+  let version = null;
+  await page.route('**/api/v1/cotizaciones/45/respuesta', (ruta) => {
+    respuesta = ruta.request().postDataJSON();
+    version = ruta.request().headers()['if-match'];
+    return ruta.fulfill({ json: { ...COT_APROBADA, idCotizacion: 45, numero: '#45' } });
+  });
+  await page.goto('/panel/cotizaciones/45');
+  await page.getByRole('button', { name: 'Registrar respuesta del cliente' }).click();
+  const dialogo = page.getByRole('dialog', { name: /Respuesta del cliente a la cotización #45/ });
+  await expect(dialogo.getByRole('radio', { name: /La aprobó/ })).toBeFocused();
+  await dialogo.getByRole('button', { name: 'Registrar respuesta' }).click();
+  await expect(dialogo.getByText('Elige si el cliente la aprobó o la rechazó.')).toBeVisible();
+  await dialogo.getByRole('radio', { name: /La aprobó/ }).check();
+  await dialogo.getByRole('radio', { name: 'WhatsApp' }).check();
+  await dialogo.getByRole('button', { name: 'Registrar respuesta' }).click();
+  await expect(dialogo).toBeHidden();
+  expect(respuesta).toEqual({ decision: 'aprobada', via: 'whatsapp' });
+  expect(version).toBe('"AAAAAAAACOT="');
+});
+
+test('el cliente revisa su cotización y la aprueba tras confirmar «Al aprobar, el taller comienza tu trabajo»', async ({ page }) => {
+  await entrarComoCliente(page, { verificado: true });
+  let respuesta = null;
+  let version = null;
+  await page.route('**/api/v1/mis/cotizaciones/45/respuesta', (ruta) => {
+    respuesta = ruta.request().postDataJSON();
+    version = ruta.request().headers()['if-match'];
+    return ruta.fulfill({ json: { ...COT_PENDIENTE, estado: 'aprobada', respuesta: { fechaChile: `${HOY_CHILE}T12:00:00`, via: 'cliente_web', motivo: null, registradaPor: null } } });
+  });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/cuenta/solicitudes');
+  await expect(page.getByText('Por responder: ábrela para aprobarla o rechazarla.')).toBeVisible();
+  await expect(page.getByText('Saldo $59.065', { exact: false })).toBeVisible();
+  await page.getByRole('link', { name: 'Solicitud #123' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Solicitud #123' })).toBeVisible();
+  const seguimiento = page.getByRole('region', { name: 'Seguimiento' });
+  await expect(seguimiento.getByText('Lista para que la revises')).toBeVisible();
+  const cotizacion = page.getByRole('region', { name: 'Tu cotización' });
+  await expect(cotizacion.getByText('$84.065').first()).toBeVisible();
+  await sinFallasGraves(page);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/_flujo_cliente_cotizacion-360.png`, fullPage: true });
+
+  // Rechazar y aprobar se ven igual de grandes.
+  const aprobar = cotizacion.getByRole('button', { name: 'Aprobar', exact: true });
+  const rechazar = cotizacion.getByRole('button', { name: 'Rechazar', exact: true });
+  expect(Math.abs((await aprobar.boundingBox()).height - (await rechazar.boundingBox()).height)).toBeLessThan(2);
+  await aprobar.click();
+  const confirmar = page.getByRole('dialog', { name: '¿Aprobar la cotización #45?' });
+  await expect(confirmar).toContainText('Al aprobar, el taller comienza tu trabajo');
+  await expect(confirmar.getByRole('button', { name: 'Volver' })).toBeFocused();
+  await confirmar.getByRole('button', { name: 'Aprobar cotización' }).click();
+  await expect(confirmar).toBeHidden();
+  expect(respuesta).toEqual({ decision: 'aprobada' });
+  expect(version).toBe('"AAAAAAAACOT="');
+});
+
+test('el cliente rechaza con un motivo opcional; un 409 de versión se explica con palabras para el cliente', async ({ page }) => {
+  await entrarComoCliente(page, { verificado: true });
+  let intentos = 0;
+  await page.route('**/api/v1/mis/cotizaciones/45/respuesta', (ruta) => {
+    intentos += 1;
+    return intentos === 1
+      ? ruta.fulfill({ status: 409, json: { error: 'Otra persona modificó esta cotización.', codigo: 'version_obsoleta', nivel: 'negocio' } })
+      : ruta.fulfill({ json: { ...COT_PENDIENTE, estado: 'rechazada' } });
+  });
+  await page.goto('/cuenta/solicitudes/123');
+  await page.getByRole('region', { name: 'Tu cotización' }).getByRole('button', { name: 'Rechazar', exact: true }).click();
+  const dialogo = page.getByRole('dialog', { name: '¿Rechazar la cotización #45?' });
+  await dialogo.getByRole('textbox', { name: /Por qué la rechazas/ }).fill('Necesito un tamaño menor');
+  await dialogo.getByRole('button', { name: 'Rechazar cotización' }).click();
+  await expect(dialogo.getByText('La cotización cambió. Te mostramos la versión actual.')).toBeVisible();
+  await dialogo.getByRole('button', { name: 'Rechazar cotización' }).click();
+  await expect(dialogo).toBeHidden();
+  expect(intentos).toBe(2);
+});
+
+test('avance del pedido y abonos: transición con If-Match, tope del saldo y 409 abono_excede_saldo', async ({ page }) => {
+  await entrarComo(page, 'operario');
+  let cambio = null;
+  let version = null;
+  let abonos = 0;
+  let ultimoAbono = null;
+  let ficha = FICHA_PEDIDO;
+  await page.route('**/api/v1/pedidos/1', (ruta) => ruta.fulfill({ json: ficha }));
+  await page.route('**/api/v1/pedidos/1/estado', (ruta) => {
+    cambio = ruta.request().postDataJSON();
+    version = ruta.request().headers()['if-match'];
+    ficha = {
+      ...FICHA_PEDIDO, estadoPedido: 'en_proceso', transicionesPosibles: ['terminado', 'aceptado', 'anulado'], rowVersion: 'AAAAAAAAPE2=',
+      historial: [...FICHA_PEDIDO.historial, { fechaChile: `${HOY_CHILE}T10:00:00`, estadoAnterior: 'aceptado', estadoNuevo: 'en_proceso', nota: null, empleado: 'Marta Fuentes' }],
+    };
+    return ruta.fulfill({ json: ficha });
+  });
+  await page.route('**/api/v1/pedidos/1/pagos', (ruta) => {
+    abonos += 1;
+    ultimoAbono = ruta.request().postDataJSON();
+    if (abonos === 1) return ruta.fulfill({ status: 409, json: { error: 'El abono supera el saldo pendiente ($19.065).', codigo: 'abono_excede_saldo', nivel: 'negocio' } });
+    ficha = { ...ficha, montoAbonado: 59065, saldoPendiente: 40000 };
+    return ruta.fulfill({ status: 201, json: ficha });
+  });
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.goto('/panel/pedidos/1');
+  await expect(page.getByRole('heading', { level: 1, name: 'Pedido #1' })).toBeVisible();
+  // El abono anulado queda tachado, con su motivo.
+  await expect(page.getByText('Motivo: Se ingresó dos veces', { exact: false })).toBeVisible();
+  await expect(page.locator('s', { hasText: '$4.000' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Pasar a «En proceso»' }).click();
+  await expect(page.getByRole('button', { name: 'Pasar a «Terminado»' })).toBeVisible();
+  expect(cambio).toEqual({ estado: 'en_proceso' });
+  expect(version).toBe('"AAAAAAAAPED="');
+  await expect(page.getByRole('button', { name: 'Volver a «Aceptado»' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Registrar abono' }).click();
+  const dialogo = page.getByRole('dialog', { name: 'Registrar abono del pedido #1' });
+  const monto = dialogo.getByRole('textbox', { name: /^Monto/ });
+  await expect(monto).toBeFocused();
+  await monto.fill('70.000');
+  await dialogo.getByRole('combobox', { name: /^Medio de pago/ }).selectOption('efectivo');
+  await dialogo.getByRole('button', { name: 'Registrar abono' }).click();
+  await expect(monto).toHaveAccessibleDescription(/supera el saldo pendiente \(\$59\.065\)/);
+  expect(abonos).toBe(0);
+
+  await monto.fill('20.000');
+  await dialogo.getByRole('button', { name: 'Registrar abono' }).click();
+  await expect(monto).toHaveAccessibleDescription('El abono supera el saldo pendiente ($19.065).');
+  await expect(monto).toHaveValue('20.000');
+  await monto.fill('19.065');
+  await dialogo.getByRole('button', { name: 'Registrar abono' }).click();
+  await expect(dialogo).toBeHidden();
+  expect(ultimoAbono).toEqual({ monto: 19065, medioPago: 'efectivo', observacion: null });
+  await sinFallasGraves(page);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/_flujo_pedido-768.png`, fullPage: true });
+});
+
+test('editar el pedido con una versión vieja avisa sin perder lo escrito y ofrece guardar sobre la actual', async ({ page }) => {
+  await entrarComo(page, 'administrador');
+  await page.route('**/api/v1/pedidos/1', (ruta) => (ruta.request().method() === 'PUT'
+    ? ruta.fulfill({ status: 409, json: { error: 'Otra persona modificó este pedido.', codigo: 'version_obsoleta', nivel: 'negocio' } })
+    : ruta.fulfill({ json: FICHA_PEDIDO })));
+  await page.goto('/panel/pedidos/1');
+  await page.getByRole('button', { name: 'Editar datos' }).click();
+  const factura = page.getByRole('textbox', { name: /^Número de factura/ });
+  await factura.fill('F-1204');
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await expect(page.getByText('Otra persona modificó este pedido mientras lo editabas', { exact: true })).toBeVisible();
+  await expect(factura).toHaveValue('F-1204');
+  await expect(page.getByRole('button', { name: 'Guardar sobre la versión actual' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Descartar mis cambios y ver la versión actual' })).toBeVisible();
+});
+
+test('«Por cobrar» pide cobranza=true a la API y muestra el total de todo el filtro', async ({ page }) => {
+  await entrarComo(page, 'administrador');
+  const pedidosCobranza = [];
+  await page.route('**/api/v1/pedidos?*', (ruta) => {
+    const url = new URL(ruta.request().url());
+    const cobranza = url.searchParams.get('cobranza') === 'true';
+    if (cobranza) pedidosCobranza.push(url.search);
+    return ruta.fulfill({ json: cobranza ? paginaDe(POR_COBRAR, { total: 31, totalPaginas: 2, resumen: { totalPorCobrar: 1234567, cantidadPorCobrar: 31 } }) : RESPUESTAS['/api/v1/pedidos'] });
+  });
+  await page.goto('/panel/pedidos');
+  const filtros = page.getByRole('search', { name: 'Filtros de pedidos' });
+  await expect(filtros.getByRole('status')).toHaveText('6 pedidos · $235.000 por cobrar');
+  await filtros.getByRole('button', { name: 'Por cobrar' }).click();
+  await expect(page).toHaveURL(/cobranza=true/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Pedidos por cobrar' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Total por cobrar' })).toContainText('$1.234.567');
+  await expect(filtros.getByRole('status')).toHaveText('31 pedidos · $1.234.567 por cobrar');
+  expect(pedidosCobranza.at(-1)).toContain('pagina=1');
+  await page.getByRole('link', { name: 'Pedido #2' }).click();
+  await expect(page).toHaveURL(/\/panel\/pedidos\/2$/);
+});
+
+test('calendario: mes con color, ícono y texto; anterior, siguiente y «Hoy»; cada pedido abre su ficha', async ({ page }) => {
+  await entrarComo(page, 'operario');
+  const rangos = [];
+  await page.route('**/api/v1/pedidos/calendario?*', (ruta) => {
+    const url = new URL(ruta.request().url());
+    rangos.push([url.searchParams.get('desde'), url.searchParams.get('hasta')]);
+    return ruta.fulfill({ json: CALENDARIO });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/panel/calendario');
+  const cuadricula = page.getByRole('list', { name: /^Entregas de / });
+  await expect(cuadricula.getByRole('link', { name: /Atrasado.*#4 · Minimarket Don Lucho/ })).toBeVisible();
+  await expect(cuadricula.getByRole('link', { name: /Entregado.*#2 · Ferretería Biobío/ })).toBeVisible();
+  await expect(page.locator('[aria-current="date"]')).toHaveCount(1);
+  const [desde, hasta] = rangos[0];
+  const dias = (Date.parse(hasta) - Date.parse(desde)) / 86400000 + 1;
+  expect(dias % 7).toBe(0);
+  expect(dias).toBeLessThanOrEqual(62);
+  await sinFallasGraves(page);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/_flujo_calendario-1440.png`, fullPage: true });
+
+  await page.getByRole('button', { name: /^Mes siguiente/ }).click();
+  await expect(page).toHaveURL(/\?mes=\d{4}-\d{2}$/);
+  await expect.poll(() => rangos.length).toBeGreaterThan(1);
+  await page.getByRole('button', { name: 'Hoy' }).click();
+  await expect(page).toHaveURL(/\/panel\/calendario$/);
+
+  // En el teléfono, una lista con solo los días que tienen entregas.
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect(page.getByRole('heading', { level: 3, name: /entregas?$/ }).first()).toBeVisible();
+  await sinFallasGraves(page);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/_flujo_calendario-360.png`, fullPage: true });
+  await page.getByRole('link', { name: /#1 · Panadería El Trigal/ }).click();
+  await expect(page).toHaveURL(/\/panel\/pedidos\/1$/);
+});
+
+test('pedido directo: busca al cliente, describe el trabajo, cotiza, fija la entrega y deja un abono', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  let creado = null;
+  await page.route('**/api/v1/clientes/buscar?*', (ruta) => ruta.fulfill({ json: [CLIENTES.elementos[0]] }));
+  await page.route('**/api/v1/pedidos/directo', (ruta) => {
+    creado = ruta.request().postDataJSON();
+    return ruta.fulfill({ status: 201, json: { ...FICHA_PEDIDO, idPedido: 77, numero: '#77', origen: 'directo' } });
+  });
+  await page.route('**/api/v1/pedidos/77', (ruta) => ruta.fulfill({ json: { ...FICHA_PEDIDO, idPedido: 77, numero: '#77', origen: 'directo' } }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/panel/pedidos');
+  await page.getByRole('link', { name: 'Pedido directo en el taller' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Pedido directo en el taller' })).toBeVisible();
+  await page.getByRole('textbox', { name: /^Teléfono/ }).fill('912345678');
+  await page.getByRole('button', { name: 'Buscar cliente' }).click();
+  await expect(page.getByText('Rosa Pino', { exact: true })).toBeVisible();
+
+  const tipo = page.getByRole('combobox', { name: /Tipo de letrero/ });
+  await expect(tipo).toBeFocused();
+  await tipo.selectOption('1');
+  await page.getByRole('textbox', { name: /^Ancho/ }).fill('100');
+  await page.getByRole('textbox', { name: /^Alto/ }).fill('50');
+  await page.getByRole('textbox', { name: /^Descripción del trabajo/ }).fill('Cartel para la vitrina, entrega rápida.');
+  await page.getByRole('button', { name: 'Agregar material' }).click();
+  await page.getByRole('combobox', { name: /^Material/ }).selectOption('2');
+  await page.getByRole('textbox', { name: /^Mano de obra/ }).fill('20000');
+  await page.getByRole('textbox', { name: /^Entrega estimada/ }).fill(diaChile(5));
+  await page.getByRole('radio', { name: 'Retiro en el local' }).check();
+  await page.getByRole('textbox', { name: /^Monto/ }).fill('10.000');
+  await page.getByRole('combobox', { name: /^Medio de pago/ }).selectOption('efectivo');
+  const resumen = page.getByRole('region', { name: 'Montos del pedido' });
+  await expect(resumen).toContainText('$29.900');
+  await expect(resumen).toContainText('$19.900');
+  await sinFallasGraves(page);
+  if (process.env.CAPTURAS) await page.screenshot({ path: `${process.env.CAPTURAS}/_flujo_directo-1440.png`, fullPage: true });
+
+  await page.getByRole('button', { name: 'Crear pedido directo' }).click();
+  await expect(page).toHaveURL(/\/panel\/pedidos\/77$/);
+  expect(creado).toEqual({
+    idCliente: 9,
+    descripcionGeneral: 'Cartel para la vitrina, entrega rápida.',
+    detalles: [{ idProducto: 1, descripcion: null, anchoMm: 1000, altoMm: 500, cantidad: 1 }],
+    materiales: [{ idMaterial: 2, medidaAplicada: null, cantidad: 1, costoUnitario: 9900 }],
+    costoManoObra: 20000, otrosCostos: 0, observaciones: null,
+    idEmpleadoResponsable: 1, fechaEntregaEstimada: diaChile(5), modalidadEntrega: 'retiro_local', requiereInstalacion: false,
+    direccionInstalacion: null, costoInstalacionAdicional: 0, numeroFactura: null,
+    abonoInicial: { monto: 10000, medioPago: 'efectivo', observacion: null },
+  });
+});
+
+test('el inicio del panel muestra a gestión las entregas atrasadas, las próximas y el total por cobrar', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel');
+  const alertas = page.getByRole('region', { name: 'Entregas y cobranza' });
+  await expect(alertas.getByRole('region', { name: /Atrasadas/ }).getByRole('link', { name: /#4 · Minimarket Don Lucho/ })).toHaveAttribute('href', '/panel/pedidos/4');
+  await expect(alertas.getByRole('region', { name: /Por cobrar/ })).toContainText('$235.000');
+  await expect(alertas.getByRole('link', { name: 'Ver cobranza' })).toHaveAttribute('href', '/panel/pedidos?cobranza=true');
+});
+
+test('un operario no ve las alertas de gestión en el inicio', async ({ page }) => {
+  await entrarComo(page, 'operario');
+  await page.goto('/panel');
+  await expect(page.getByRole('heading', { level: 1, name: 'Hola, Marta' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Entregas y cobranza' })).toHaveCount(0);
 });

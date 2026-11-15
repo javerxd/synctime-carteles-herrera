@@ -37,6 +37,7 @@ dotnet ef database update --project .\LetrerosHerreraSYNCTIMEapi
 - `HistorialDePagos` (generada y completada a mano): tabla `pagos` con cada abono (monto, fecha, medio de pago, quien lo registro) y el trigger `trg_pagos_recalcular_monto_abonado`, que mantiene `pedidos.monto_abonado` igual a la suma de los pagos. Aprobada por el usuario el 12-11-2026.
 - `CuentasYSesion` (generada por EF): tablas `tokens_renovacion` (sesiones con renovacion) y `codigos_cuenta` (enlaces de verificacion y codigos de recuperacion), la columna `clientes.fecha_verificacion_correo` y la restriccion `ck_clientes_cuenta_con_correo`. Solo agrega. Aplicada en la base demo; la base real espera la autorizacion del usuario.
 - `SolicitudesYAdjuntos` (generada por EF y completada a mano): tablas `adjuntos_solicitud` (logos y diseños de cada solicitud, privados) y `solicitudes_historial` (cada cambio de estado); la columna `solicitudes.huella_ip` con su índice; y las columnas ampliadas `solicitudes.descripcion_general` (2000), `solicitudes.motivo_rechazo` (500) y `solicitud_detalles.descripcion` (500). Solo agrega y amplía: no borra nada. Aplicada en la base demo; la base real espera la autorización del usuario.
+- `CotizacionesYPedidos` (generada por EF y completada a mano): cotizaciones con `row_version`, respuesta (`fecha_respuesta`, `via_respuesta`, `id_empleado_respuesta`, `motivo_rechazo`) y borrado lógico, con el índice único `uq_cotizaciones_una_pendiente` (una sola pendiente por solicitud); pedidos con motivo y fecha de anulación, borrado lógico y el índice único `uq_pedidos_cotizacion` (un pedido por cotización); la tabla `pedidos_historial`; y en `pagos`, la anulación de abonos, con el trigger `trg_pagos_recalcular_monto_abonado` reescrito para sumar solo los vigentes. Amplía `cotizaciones.observaciones` (2000), `cotizacion_materiales.medida_aplicada` (100) y `pedidos.direccion_instalacion` (300). Solo agrega y amplía. Revertirla se detiene si hay abonos anulados o textos que no caben en las columnas anteriores. La API la aplica en la base demo al arrancar; la base real espera la autorización del usuario.
 
 El script SQL completo de la base, el diagrama entidad-relacion y el diccionario de datos estan en `docs/base-de-datos/` de la raiz del repositorio.
 
@@ -207,6 +208,23 @@ Configuración nueva:
 
 Pruebas: `LetrerosHerreraSYNCTIMEapi.Tests/SolicitudesFase7Tests.cs` (integración, con base temporal) y `LetrerosHerreraSYNCTIMEapi.UnitTests/SolicitudesTests.cs` (reglas puras).
 
+## Cotizaciones, pedidos y abonos (fase 8)
+
+Los endpoints del personal están en `Endpoints/CotizacionApi.cs` (cotizaciones y `POST /solicitudes/{id}/cotizaciones`) y `Endpoints/PedidoApi.cs` (pedidos, abonos, calendario y alertas). La respuesta del cliente y sus pedidos, en `Endpoints/PortalClienteApi.cs`, y el seguimiento de sus solicitudes, en `Endpoints/MisSolicitudesApi.cs`. La lógica está en `Services/ServiciosCotizaciones.cs` (`ServicioCotizaciones`) y `Services/ServiciosPedidos.cs` (`ServicioPedidos`). Las reglas, sin HTTP ni base de datos, están en `Negocio/Cotizaciones/` (`ReglasCotizacion.cs`, `FichaCotizacion.cs`) y `Negocio/Pedidos/` (`ReglasPedido.cs`, `FichaPedido.cs`); el correo «cotización lista» está en `Negocio/Correo/CotizacionLista.cs`. Lo que devuelve cada ruta está en `docs/api/contrato.md`, en la sección «Cotizaciones y pedidos (fase 8)».
+
+- **Versión:** cotizaciones y pedidos usan `row_version`. Editar, responder, cambiar el estado y eliminar exigen `If-Match` con el ETag del GET (o `rowVersion` en el cuerpo). Sin versión responde `400 sin_version`; si otra persona cambió el registro, `409 version_obsoleta`. Registrar y anular abonos no la exigen, porque el tope lo protege la base.
+- **Abonos:** la ruta bloquea la fila del pedido (`SELECT … WITH (UPDLOCK, ROWLOCK)`), así que dos abonos simultáneos se registran uno tras otro. Si el abono supera el saldo, la API responde `409 abono_excede_saldo` con el saldo pendiente. Un abono no se edita ni se borra: se anula con motivo (`POST /pedidos/{id}/pagos/{idPago}/anular`) y el trigger deja de sumarlo. Reactivarlo lo impide la base (error 50080, que responde `409 abono_anulado`).
+- **Transacciones:** emitir una cotización escribe en una sola transacción la cotización y sus líneas, el cambio de la solicitud a «cotizado» con su historial, y el correo «cotización lista». Crear un pedido escribe el pedido «aceptado», su historial y el abono inicial. El pedido directo crea además la solicitud presencial y su cotización aprobada, sin enviar correos.
+- **Correo «cotización lista»:** sale por `CorreoParaCliente`, desde la casilla automática, solo si el cliente tiene correo confirmado.
+- **Transiciones:** `TransicionesPedido` valida el diagrama del pedido: avance, vuelta atrás de un paso y anulación con motivo. Cada cambio escribe en `pedidos_historial`.
+- **Borrado lógico:** `DELETE` queda para gestión. Elimina cotizaciones pendientes o rechazadas sin pedido, y pedidos anulados sin abonos vigentes. Nunca borra la fila.
+- **Listados:** `GET /api/v1/pedidos` filtra, ordena y pagina en la base. El resumen con el total por cobrar cubre todo el filtro, no solo la página.
+- **Semilla demo:** cumple las reglas nuevas. Las cotizaciones aprobadas dicen cuándo, por qué vía y quién las respondió, y cada pedido tiene su historial.
+
+No hay configuración nueva en esta fase.
+
+Pruebas: `LetrerosHerreraSYNCTIMEapi.Tests/CotizacionesYPedidosFase8Tests.cs` (integración, con base temporal), `LetrerosHerreraSYNCTIMEapi.UnitTests/CotizacionesYPedidosTests.cs` (reglas puras) y `LetrerosHerreraSYNCTIMEapi.Tests/MigracionTests.cs` (la migración y el trigger de abonos).
+
 ## Validacion
 
 ```powershell
@@ -230,7 +248,7 @@ Una revision de seguridad dejo estos puntos, que no afectan al desarrollo pero d
 - **Limites en memoria:** el limite por cuenta vive en la memoria del proceso. Con mas de una instancia de la API se multiplica, y se pierde al reiniciar.
 - **Sesiones:** el token de acceso sigue valido hasta 15 minutos despues de desactivar al usuario, cambiar su contraseña o cerrar su sesion. La renovacion se corta de inmediato (fase 6).
 - **HTTPS y sondas:** HSTS y la redireccion a HTTPS ya estan activos fuera de desarrollo. Una sonda de salud por HTTP recibira una redireccion: hay que sondear por HTTPS o desde la red interna.
-- **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`, ni quien cambio el correo de un cliente con `PUT /api/v1/clientes/{id}`. Desde la fase 7, solo las solicitudes tienen historial de cambios (`solicitudes_historial`).
+- **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`, ni quien cambio el correo de un cliente con `PUT /api/v1/clientes/{id}`. Desde la fase 7, las solicitudes tienen historial de cambios (`solicitudes_historial`), y desde la fase 8, los pedidos (`pedidos_historial`). Los abonos anulados guardan quién y cuándo, pero no hay todavía una bitácora general.
 - **Portada:** `frame-ancestors` (contra clickjacking) no funciona en la etiqueta `meta` de `index.html`: la cabecera la debe enviar el servidor. Las consultas de contacto y los consentimientos de cookies no tienen plazo de borrado todavia.
 - **Migraciones:** la API solo las aplica sola en Development. En produccion hay que ejecutarlas como un paso del despliegue.
 - **Sesion y sitio:** la cookie de renovacion es `SameSite=Strict`, así que la web y la API deben servirse en el mismo sitio, y `Sitio:UrlPublica` debe ser la direccion publica de la web. Ver `docs/plan/desviaciones.md`.

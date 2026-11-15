@@ -1,10 +1,14 @@
-// Reglas de los filtros de pedidos (RFU36, E27). En esta fase se aplican en el navegador sobre
-// GET /pedidos; la fase 8 los lleva a la API con paginación, con las mismas reglas.
+// Cálculos provisionales en el navegador para Indicadores y Reportes (fases 12 y 13). El listado de
+// pedidos ya filtra en la API (fase 8, src/paginas/pedidos/reglasPedido.js).
+
+/** El cliente del pedido: el de la fila de la API (fase 8) o el de su solicitud (fase 3). */
+const clienteDe = (pedido) => pedido?.cliente ?? pedido?.solicitud?.cliente ?? null;
 
 export function nombreCliente(pedido) {
-  const cliente = pedido?.solicitud?.cliente;
+  const cliente = clienteDe(pedido);
   if (!cliente) return 'Cliente sin datos';
-  return [cliente.nombre, cliente.apellido].filter(Boolean).join(' ');
+  if (typeof cliente === 'string') return cliente;
+  return [cliente.nombre, cliente.apellido].filter(Boolean).join(' ') || 'Cliente sin datos';
 }
 
 const sinTildes = (texto) => String(texto ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -18,7 +22,7 @@ function coincideCliente(pedido, busqueda) {
   if (!texto) return true;
   if (sinTildes(nombreCliente(pedido)).includes(texto)) return true;
   const digitos = soloDigitos(busqueda);
-  const cliente = pedido.solicitud?.cliente ?? {};
+  const cliente = typeof clienteDe(pedido) === 'object' ? clienteDe(pedido) ?? {} : {};
   return digitos.length >= 3 && [cliente.rut, cliente.telefono].some((dato) => soloDigitos(dato).includes(digitos));
 }
 

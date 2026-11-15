@@ -155,26 +155,20 @@ public sealed class PedidoPagoTests(ApiFixture api)
         var (cliente, url) = await PedidoEnApiAsync();
         var actual = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
-        var cuerpo = new
-        {
-            estadoPedido = "en_proceso",
-            fechaEntregaEstimada = DateTime.Now.AddDays(5),
-            modalidadEntrega = "retiro_local",
-            montoBaseTrabajo = 100_000.50m,
-            rowVersion = actual.GetProperty("rowVersion").GetString()
-        };
         // La API lo detecta antes que la base, con un mensaje claro (nivel "api", no "base_de_datos").
-        var alEditar = await cliente.PutAsJsonAsync(url, cuerpo).EsperarAsync(HttpStatusCode.BadRequest);
+        var alEditar = await cliente.PutAsJsonAsync(url, Cuerpo(actual, montoBase: 100_000.50m)).EsperarAsync(HttpStatusCode.BadRequest);
         AssertErrorDeApi(alEditar, "datos_invalidos", "decimales");
 
-        var idSolicitud = await api.CrearSolicitudAsync();
-        await api.AceptarSolicitudAsync(idSolicitud);
-        var alCrear = await cliente.PostAsJsonAsync("/api/v1/pedidos/", new
+        // Fase 8: el pedido nace de una cotizacion aprobada; el costo de instalacion tambien va sin decimales.
+        var idCotizacion = (await api.CrearCotizacionAsync(await api.CrearSolicitudAsync())).GetProperty("idCotizacion").GetInt32();
+        await api.AprobarCotizacionAsync(idCotizacion);
+        var alCrear = await cliente.PostAsJsonAsync($"/api/v1/cotizaciones/{idCotizacion}/pedido", new
         {
-            idSolicitud,
             idEmpleadoResponsable = await api.IdAdminAsync(),
-            fechaEntregaEstimada = DateTime.Now.AddDays(5),
-            montoBaseTrabajo = 50_000,
+            fechaEntregaEstimada = ApiFixture.HoyChile().AddDays(5),
+            modalidadEntrega = "instalacion_terreno",
+            requiereInstalacion = true,
+            direccionInstalacion = "Calle 1",
             costoInstalacionAdicional = 9_990.90m
         }).EsperarAsync(HttpStatusCode.BadRequest);
         AssertErrorDeApi(alCrear, "datos_invalidos", "decimales");
@@ -188,17 +182,9 @@ public sealed class PedidoPagoTests(ApiFixture api)
         await AbonarAsync(id, 30_000);
         var actual = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
-        var cuerpo = new
-        {
-            estadoPedido = "en_proceso",
-            fechaEntregaEstimada = DateTime.Now.AddDays(5),
-            modalidadEntrega = "retiro_local",
-            montoBaseTrabajo = 20_000,
-            rowVersion = actual.GetProperty("rowVersion").GetString()
-        };
-        var error = await cliente.PutAsJsonAsync(url, cuerpo).EsperarAsync(HttpStatusCode.Conflict);
+        var error = await cliente.PutAsJsonAsync(url, Cuerpo(actual, montoBase: 20_000)).EsperarAsync(HttpStatusCode.Conflict);
 
-        AssertErrorDeApi(error, "conflicto", "abonado");
+        AssertErrorDeApi(error, "monto_bajo_abonado", "abonado ($30.000)");
         Assert.Equal(("abonado", 70_000), await PagoAsync(id));
     }
 
@@ -210,18 +196,27 @@ public sealed class PedidoPagoTests(ApiFixture api)
 
         await AbonarAsync(IdDe(url), 30_000);
 
-        await cliente.PutAsJsonAsync(url, Cuerpo("en_proceso", abierto)).EsperarAsync(HttpStatusCode.Conflict);
+        var rechazo = await cliente.PutAsJsonAsync(url, Cuerpo(abierto)).EsperarAsync(HttpStatusCode.Conflict);
+        Assert.Equal("version_obsoleta", rechazo.GetProperty("codigo").GetString());
     }
 
+    // Fase 8: el borrado es logico y de gestion, solo de un pedido anulado y sin abonos vigentes.
     [Fact]
     public async Task BorrarUnPedidoConAbonos_EsConflicto()
     {
         var (cliente, url) = await PedidoEnApiAsync();
         await AbonarAsync(IdDe(url), 10_000);
+        var abierto = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
-        var error = await cliente.DeleteAsync(url).EsperarAsync(HttpStatusCode.Conflict);
+        var sinAnular = await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Delete, url, abierto.GetProperty("rowVersion").GetString()!))
+            .EsperarAsync(HttpStatusCode.Conflict);
+        AssertErrorDeApi(sinAnular, "transicion_invalida", "anulado");
 
-        AssertErrorDeApi(error, "conflicto", "anular");
+        var anulado = await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Patch, $"{url}/estado", abierto.GetProperty("rowVersion").GetString()!,
+            new { estado = "anulado", motivo = "El cliente desistió del trabajo" })).EsperarAsync(HttpStatusCode.OK);
+        var conAbonos = await cliente.SendAsync(ApiFixture.ConVersion(HttpMethod.Delete, url, anulado.GetProperty("rowVersion").GetString()!))
+            .EsperarAsync(HttpStatusCode.Conflict);
+        AssertErrorDeApi(conAbonos, "tiene_abonos", "abonos");
         await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
     }
 
@@ -304,13 +299,17 @@ public sealed class PedidoPagoTests(ApiFixture api)
     public async Task UnPedido_SePuedeEntregarSinEstarPagado()
     {
         var (cliente, url) = await PedidoEnApiAsync();
-        var creado = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
+        var actual = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
 
-        var entregado = await cliente.PutAsJsonAsync(url, Cuerpo("entregado", creado)).EsperarAsync(HttpStatusCode.OK);
+        // Fase 8: el avance va paso a paso con PATCH /estado y la version vista.
+        foreach (var estado in new[] { "en_proceso", "terminado", "entregado" })
+            actual = await cliente.PatchAsJsonAsync($"{url}/estado", new { estado, rowVersion = actual.GetProperty("rowVersion").GetString() })
+                .EsperarAsync(HttpStatusCode.OK);
 
-        Assert.Equal("entregado", entregado.GetProperty("estadoPedido").GetString());
-        Assert.Equal("no_pagado", entregado.GetProperty("estadoPago").GetString());
-        Assert.Equal(MontoBase, entregado.GetProperty("saldoPendiente").GetInt32());
+        Assert.Equal("entregado", actual.GetProperty("estadoPedido").GetString());
+        Assert.Equal("no_pagado", actual.GetProperty("estadoPago").GetString());
+        Assert.Equal(MontoBase, actual.GetProperty("saldoPendiente").GetInt32());
+        Assert.False(actual.GetProperty("cicloCerrado").GetBoolean());
     }
 
     [Fact]
@@ -318,19 +317,24 @@ public sealed class PedidoPagoTests(ApiFixture api)
     {
         var (cliente, url) = await PedidoEnApiAsync();
         var creado = await cliente.GetAsync(url).EsperarAsync(HttpStatusCode.OK);
+        object Cambio(string estado) => new { estado, motivo = "El cliente desistió del trabajo", rowVersion = creado.GetProperty("rowVersion").GetString() };
 
-        await cliente.PutAsJsonAsync(url, Cuerpo("cancelado", creado)).EsperarAsync(HttpStatusCode.BadRequest);
-        var anulado = await cliente.PutAsJsonAsync(url, Cuerpo("anulado", creado)).EsperarAsync(HttpStatusCode.OK);
+        await cliente.PatchAsJsonAsync($"{url}/estado", Cambio("cancelado")).EsperarAsync(HttpStatusCode.BadRequest);
+        var anulado = await cliente.PatchAsJsonAsync($"{url}/estado", Cambio("anulado")).EsperarAsync(HttpStatusCode.OK);
 
         Assert.Equal("anulado", anulado.GetProperty("estadoPedido").GetString());
+        Assert.Equal("El cliente desistió del trabajo", anulado.GetProperty("motivoAnulacion").GetString());
     }
 
-    private static object Cuerpo(string estadoPedido, System.Text.Json.JsonElement pedido) => new
+    // Los datos editables del pedido (PUT), con el monto base indicado y la version de la ficha.
+    private static object Cuerpo(System.Text.Json.JsonElement pedido, decimal montoBase = MontoBase) => new
     {
-        estadoPedido,
-        fechaEntregaEstimada = DateTime.Now.AddDays(5),
+        idEmpleadoResponsable = pedido.GetProperty("responsable").GetProperty("idEmpleado").GetInt32(),
+        fechaEntregaEstimada = ApiFixture.HoyChile().AddDays(5),
         modalidadEntrega = "retiro_local",
-        montoBaseTrabajo = MontoBase,
+        requiereInstalacion = false,
+        costoInstalacionAdicional = 0,
+        montoBaseTrabajo = montoBase,
         rowVersion = pedido.GetProperty("rowVersion").GetString()
     };
 
@@ -340,23 +344,13 @@ public sealed class PedidoPagoTests(ApiFixture api)
         return (api.Cliente(await api.TokenAdminAsync()), $"/api/v1/pedidos/{id}");
     }
 
-    private async Task<int> CrearPedidoAsync()
-    {
-        var cliente = api.Cliente(await api.TokenAdminAsync());
-        var idSolicitud = await api.CrearSolicitudAsync();
-        await api.AceptarSolicitudAsync(idSolicitud);
-        var creado = await cliente.PostAsJsonAsync("/api/v1/pedidos/", new
-        {
-            idSolicitud,
-            idEmpleadoResponsable = await api.IdAdminAsync(),
-            fechaEntregaEstimada = DateTime.Now.AddDays(5),
-            montoBaseTrabajo = MontoBase
-        }).EsperarAsync(HttpStatusCode.Created);
-        return creado.GetProperty("idPedido").GetInt32();
-    }
+    // Fase 8: el pedido nace de una cotizacion aprobada de MontoBase pesos.
+    private async Task<int> CrearPedidoAsync() =>
+        (await api.CrearPedidoAsync(MontoBase)).GetProperty("idPedido").GetInt32();
 
-    // El registro de abonos por la API llega en la fase 8; aqui se guarda con EF, que ademas comprueba
-    // que el modelo declara el trigger de la tabla (sin HasTrigger, SQL Server rechaza el INSERT de EF).
+    // Estas pruebas fijan lo que garantiza la base: el abono se guarda con EF, que ademas comprueba que el
+    // modelo declara el trigger de la tabla (sin HasTrigger, SQL Server rechaza el INSERT de EF). El registro
+    // por la API (con su bloqueo y sus 409) se prueba en CotizacionesYPedidosFase8Tests.
     private async Task<int> AbonarAsync(int idPedido, int monto, string medio = "efectivo", DateOnly? fecha = null)
     {
         var idEmpleado = await api.IdAdminAsync();

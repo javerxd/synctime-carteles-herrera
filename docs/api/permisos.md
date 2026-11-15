@@ -21,6 +21,7 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Reenviar el enlace para confirmar el correo (`/auth/reenviar-verificacion`) | No | Sí | No | No | No |
 | Ver y corregir su cuenta, cambiar su correo, su contraseña y su marketing (`/mi-cuenta`) | No | Sí | No | No | No |
 | Ver sus propias solicitudes y pedidos (`/mis/…`) | No | Sí | No | No | No |
+| Ver y responder (aprobar o rechazar) la cotización de una solicitud propia (`/mis/cotizaciones/{id}`). Lo ajeno responde `404` | No | Sí | No | No | No |
 | Subir y quitar sus borradores de adjuntos (`/mis/adjuntos`). Subir exige correo confirmado | No | Sí | No | No | No |
 | Ver un adjunto (`GET /adjuntos/{id}/miniatura` y `/archivo`). El cliente solo ve los suyos; el personal, todos | No | Sí (solo los suyos) | Sí | Sí | Sí |
 | Listar y ver clientes, solicitudes, cotizaciones, pedidos, materiales y empleados | No | No | Sí | Sí | Sí |
@@ -28,9 +29,13 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Registrar en el local, editar y adjuntar archivos a una solicitud (`POST /solicitudes`, `PUT /solicitudes/{id}`, `POST /solicitudes/{id}/adjuntos`) | No | No | Sí | Sí | Sí |
 | Rechazar, devolver a «solicitado» y eliminar de forma lógica una solicitud (`PATCH /solicitudes/{id}/estado` y `/eliminar-logico`) | No | No | Sí | Sí | Sí |
 | Borrar una solicitud con `DELETE /solicitudes/{id}` (borrado lógico, con la versión vista) | No | No | No | No | Sí |
-| Crear y modificar cotizaciones | No | No | No | Sí | Sí |
-| Crear y modificar pedidos | No | No | Sí | No | Sí |
-| Eliminar clientes, cotizaciones y pedidos | No | No | No | No | Sí |
+| Emitir y editar cotizaciones, y registrar la respuesta que el cliente dio por teléfono, WhatsApp o en el local (fase 8) | No | No | Sí | Sí | Sí |
+| Crear pedidos (desde una cotización aprobada o directos en el taller), editar sus datos sin cambiar los montos, avanzarlos, anular los que nunca tuvieron abonos y registrar abonos (fase 8) | No | No | Sí | Sí | Sí |
+| Anular un abono propio registrado en las últimas 24 horas (`POST /pedidos/{id}/pagos/{idPago}/anular`) | No | No | Sí | Sí | Sí |
+| Cambiar los montos de un pedido ya creado (`montoBaseTrabajo`, `costoInstalacionAdicional` en `PUT /pedidos/{id}`; queda en el historial del pedido) | No | No | No | No | Sí |
+| Anular cualquier abono, y anular un pedido que tenga o haya tenido abonos (vigentes o anulados) | No | No | No | No | Sí |
+| Ver las alertas de entregas y cobranza (`GET /pedidos/alertas`) | No | No | No | No | Sí |
+| Eliminar clientes; eliminar cotizaciones y pedidos (borrado lógico, con la versión vista) | No | No | No | No | Sí |
 | Mantener categorías, productos y publicaciones | No | No | No | No | Sí |
 | Autorizar el logotipo de un cliente en una publicación (`PUT /catalogo/{id}/autorizacion-logo`) | No | No | No | No | Sí |
 | Subir imágenes (`POST /imagenes`) | No | No | No | No | Sí |
@@ -48,8 +53,8 @@ Lo que hoy permite la API y lo que piden los requisitos no coincide en estos pun
 |---|---|---|---|---|
 | 1 | RNFO03, RFU16: solo el personal cambia el estado del local | Solo gestión | Todo el personal | 9 |
 | 2 | RFU11: el trabajador consulta, modifica, **rechaza y elimina** solicitudes | Resuelto en la fase 7: todo el personal rechaza, devuelve y elimina de forma lógica (`PATCH`). `DELETE /solicitudes/{id}` sigue siendo solo de gestión | Todo el personal (el `DELETE`, solo gestión) | 7 |
-| 3 | RFU12: el trabajador cotiza | El operario no puede | Todo el personal | 8 |
-| 4 | RFU13, RFU14: el trabajador confirma el pago, crea el pedido y registra su avance | El diseñador no puede | Todo el personal | 8 |
+| 3 | RFU12: el trabajador cotiza | Resuelto en la fase 8: todo el personal emite, edita y registra la respuesta del cliente. Eliminar sigue siendo de gestión | Todo el personal | 8 |
+| 4 | RFU13, RFU14: el trabajador confirma el pago, crea el pedido y registra su avance | Resuelto en la fase 8: todo el personal crea pedidos, los avanza y registra abonos. Cambiar los montos de un pedido, anular un pedido con abonos (aunque estén anulados), anular abonos ajenos o de más de 24 horas y eliminar son de gestión (decisiones 2 y 4 del 14-11-2026 y revisión de seguridad); el resto del personal recibe `403 solo_gestion` | Todo el personal | 8 |
 | 5 | Decisión del 12-11-2026: el rostro es solo para dueño y administrador | Lo puede activar todo el personal | Solo gestión | 10 |
 | 6 | `POST /auth/rostro/equipo` | La ruta admite a todo el personal y rechaza a los demás roles con un 400 de su lógica interna | Rechazo con 403 en la propia ruta | 10 |
 

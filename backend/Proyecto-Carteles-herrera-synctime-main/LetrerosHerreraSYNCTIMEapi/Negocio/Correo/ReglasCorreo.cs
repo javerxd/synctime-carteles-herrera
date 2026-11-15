@@ -83,4 +83,7 @@ public static class FormatoChile
 
     // Medidas guardadas en milimetros, mostradas en centimetros como en la portada.
     public static string Centimetros(int milimetros) => (milimetros / 10m).ToString("0.#", Cultura);
+
+    // Fase 8: pesos chilenos enteros, con punto de miles: «$1.234.567».
+    public static string Pesos(long monto) => $"${monto.ToString("#,0", Cultura)}";
 }

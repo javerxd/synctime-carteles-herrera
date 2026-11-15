@@ -46,13 +46,13 @@ Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administra
 | `429` | Limite por IP por minuto: 10 logins con contraseña, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos o 100 peticiones generales. Cada uno tiene su contador. `POST /contacto` y `POST /consentimientos/cookies` tienen además 5 envíos por hora por IP cada uno (`RateLimiting:ContactoPorHora` y `CookiesPorHora`). Ademas, 10 fallos por cuenta por minuto en el ingreso, la recuperacion y los cambios de correo o contraseña (`RateLimiting:PorCuenta`). Las subidas de adjuntos tienen 10 por minuto por usuario (`RateLimiting:Adjuntos`) |
 | `503` | El login facial no esta disponible porque falta su clave de cifrado. Tambien `503` con `servicio_ocupado` y la cabecera `Retry-After: 5` si el servidor no consigue el turno de la regla contra solicitudes falsas o de una subida de adjunto en el plazo de `Solicitudes:EsperaBloqueoMs` (15 segundos por defecto) |
 
-**Edicion simultanea.** Solicitudes y pedidos traen `rowVersion` en sus respuestas y en la cabecera `ETag` (la version en base64, entre comillas). Las rutas que los editan o cambian su estado la exigen, en la cabecera `If-Match` (preferida) o en `rowVersion` del cuerpo:
+**Edicion simultanea.** Solicitudes, cotizaciones (fase 8) y pedidos traen `rowVersion` en sus respuestas y en la cabecera `ETag` (la version en base64, entre comillas). Las rutas que los editan, responden o cambian su estado la exigen, en la cabecera `If-Match` (preferida) o en `rowVersion` del cuerpo:
 
 1. Guardar la version que entrega el GET, junto con los datos del formulario.
 2. Enviarla sin cambios en el `PUT`, el `PATCH` o el `DELETE`.
 3. Si responde `409` con `version_obsoleta`, avisar que otra persona cambio el registro y volver a cargarlo. Si responde `200`, usar la version de esa respuesta para la siguiente edicion.
 
-Si falta, responde `400` con `sin_version`. Eliminar tambien la pide. Subir o quitar un adjunto de una solicitud tambien cambia su version. Cotizaciones, clientes y productos no tienen version: ahi prevalece la ultima edicion.
+Si falta, responde `400` con `sin_version`. Eliminar tambien la pide. Subir o quitar un adjunto de una solicitud tambien cambia su version. Registrar o anular un abono **no** la pide (solo suma o resta, y la base protege el tope), pero cambia la version del pedido: la respuesta trae el `ETag` nuevo. Clientes y productos no tienen version: ahi prevalece la ultima edicion.
 
 **Inactivos y ocultos.**
 
@@ -191,7 +191,7 @@ Cualquier otro cambio responde `409` con `transicion_invalida` y una explicació
   rowVersion }
 ```
 
-La ficha del personal (`GET /solicitudes/{id}`) añade `idCliente`, `registradaPor` (quién la registró, o `null` si la envió el cliente) y `historial`: `[{ estadoAnterior, estadoNuevo, motivo, fechaChile, actor: "personal" | "cliente" | "sistema", por }]`.
+La ficha del personal (`GET /solicitudes/{id}`) añade `idCliente`, `registradaPor` (quién la registró, o `null` si la envió el cliente) y `historial`: `[{ estadoAnterior, estadoNuevo, motivo, fechaChile, actor: "personal" | "cliente" | "sistema", por }]`. Fase 8: también `cotizaciones`: `[{ idCotizacion, numero, fechaChile, total, estado, idPedido, pedidoEliminado }]`, sin las eliminadas y de la más nueva a la más antigua (`idPedido` es el pedido que dio, aunque después se haya eliminado).
 
 **Regla contra solicitudes falsas (RFS04, RNFP33).** Antes de guardar una solicitud en línea, la API la frena si se cumple cualquiera de estas condiciones:
 
@@ -222,8 +222,11 @@ Todas las rutas `/mis` salen del token: el cliente nunca viene en la ruta ni en 
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
 | `POST /mis/solicitudes` | `cliente` con correo confirmado | `{ descripcionGeneral, detalles, adjuntos? }`, donde `adjuntos` son los ids de sus borradores. Responde `201` con el comprobante y la cabecera `Location`. `403` con `correo_sin_confirmar` si el correo no esta confirmado. `409` con `contacto_directo` si la regla contra solicitudes falsas la frena (no se escribe nada). `400` con errores por campo (`descripcionGeneral`, `detalles[0].anchoMm`, `adjuntos`...). `503` con `servicio_ocupado` si no consigue el turno de la regla. Guarda la solicitud, vincula los adjuntos y deja en la cola los dos correos, todo en una transacción |
-| `GET /mis/solicitudes` | `cliente` | Paginada (`?pagina=`, `?tamano=`). Solo las suyas, sin las eliminadas, de la más reciente a la más antigua. Cada fila trae `numero`, `fechaChile`, `origen`, `estado`, `motivoRechazo`, `resumen` (los primeros 160 caracteres de la descripción), `cantidadItems` y `cantidadAdjuntos` |
-| `GET /mis/solicitudes/{id}` | `cliente` | El comprobante. `404` si no es suya, si no existe o si esta eliminada |
+| `GET /mis/solicitudes` | `cliente` | Paginada (`?pagina=`, `?tamano=`). Solo las suyas, sin las eliminadas, de la más reciente a la más antigua. Cada fila trae `numero`, `fechaChile`, `origen`, `estado`, `motivoRechazo`, `resumen` (los primeros 160 caracteres de la descripción), `cantidadItems` y `cantidadAdjuntos`. Fase 8 (S04): ademas `cotizacion` (`null` o `{ idCotizacion, numero, total, estado }`, la ultima no eliminada) y `pedido` (`null` o `{ idPedido, numero, estadoPedido, estadoPago, saldoPendiente, fechaEntregaEstimada, modalidadEntrega, cicloCerrado, eliminado }`; un pedido anulado y eliminado por el taller se sigue mostrando, con `eliminado: true`) |
+| `GET /mis/solicitudes/{id}` | `cliente` | El comprobante, con `cotizacion` y `pedido` como en la lista. `404` si no es suya, si no existe o si esta eliminada |
+| `GET /mis/cotizaciones/{id}` | `cliente` | La cotizacion (S06, ver «Cotizaciones y pedidos (fase 8)») de una solicitud suya, con `ETag`. `elaboradaPor` trae solo `{ nombre }` con el nombre de pila (sin `idEmpleado`), igual `respuesta.registradaPor`. `404` si es ajena o esta eliminada |
+| `POST /mis/cotizaciones/{id}/respuesta` | `cliente` | `{ decision: "aprobada" \| "rechazada", motivo? }` con `If-Match`. La via queda `cliente_web`. Responde `200` con la cotizacion. `409 transicion_invalida` si ya no esta pendiente; `409 version_obsoleta`; `400 sin_version`; `404` si es ajena |
+| `GET /mis/pedidos` | `cliente` | Lista (no paginada) de sus pedidos, del mas reciente al mas antiguo: `[{ idPedido, idSolicitud, numero, estadoPedido, estadoPago, saldoPendiente, fechaEntregaEstimada, modalidadEntrega, cicloCerrado, eliminado }]`; los eliminados por el taller van con `eliminado: true`. Sin historial interno ni quien registro cada abono |
 | `GET /mis/adjuntos` | `cliente` | Sus borradores, aún sin enviar, del más antiguo al más nuevo. Cada uno tiene la forma de la respuesta de la subida. Los usa el formulario para recuperar lo que el cliente subió antes y no envió |
 | `POST /mis/adjuntos` | `cliente` con correo confirmado | Multipart con el campo `archivo`. Responde `201` con `{ idAdjunto, tipo, nombre, bytes, ancho, alto, urlMiniatura }`. `400` con `sin_archivo`, `formato_no_aceptado`, `archivo_muy_grande`, `imagen_invalida`. `409` con `tope_adjuntos` si ya tiene 5 borradores. `403` con `correo_sin_confirmar`. `429` si supera 10 subidas por minuto |
 | `DELETE /mis/adjuntos/{id}` | `cliente` | `204`, solo para un borrador suyo. Si no, `404` |
@@ -239,20 +242,78 @@ Los diseños y logos que el cliente adjunta a su solicitud son **privados**: no 
 - **Nombres:** el nombre original se guarda saneado (sin rutas ni caracteres de control, de hasta 120 caracteres) y solo se muestra. En disco, cada archivo tiene un nombre aleatorio de 128 bits, que nunca se muestra. Se guardan en `Adjuntos:Carpeta` (`almacen/adjuntos`, fuera del repositorio).
 - **Correos:** los archivos no viajan en los correos. El aviso al taller dice cuantos hay, y se ven en el panel.
 
-### Cotizaciones y pedidos
+### Cotizaciones y pedidos (fase 8)
 
-Flujo: se crea la cotizacion, se aprueba con `PUT`, se acepta la solicitud con `PATCH` y entonces se puede crear el pedido. Los estados de la solicitud no avanzan solos.
+Todo el personal cotiza, registra la respuesta del cliente, crea pedidos, los avanza y registra abonos (RFU12-RFU14). Las rutas antiguas `POST /cotizaciones` y `POST /pedidos`, el `DELETE` fisico y las respuestas con la entidad de EF **se retiraron**.
+
+**Montos.** Pesos chilenos con IVA incluido. Mano de obra, otros costos, costo unitario, costo de instalacion, monto base y abonos van **sin decimales** (`400` si no). La cantidad de un material admite 2 decimales, asi que su `subtotal` y el `total` de la cotizacion pueden tener centavos; `totalRedondeado` es el total al peso (mitad hacia arriba) y es el monto base del pedido. **Fechas** sin hora (`fechaEntregaEstimada`, `fechaEntregaReal`, `fechaPago`, `fecha` del calendario) van como `"aaaa-mm-dd"`; `fechaChile`, `fechaPedido`, `fechaRegistroChile` y `fechaAnulacionChile` van en hora de Chile, sin zona. «Hoy» es la fecha de Chile. Un monto obligatorio que **no viene** (`costoManoObra`, `otrosCostos`, `costoUnitario`, `cantidad`, `costoInstalacionAdicional`, `montoBaseTrabajo`) responde `400` con el error en su campo; nunca se toma como 0. Los ids de las rutas son numeros (`{id:int}`): otro texto responde `404`.
+
+**Estados del pedido** (independiente del pago, que calcula la base: `no_pagado`, `abonado`, `pagado_total`):
+
+| Desde | Hacia | Notas |
+| --- | --- | --- |
+| `aceptado` | `en_proceso` | |
+| `en_proceso` | `terminado` | |
+| `terminado` | `entregado` | `fechaEntregaReal` (por defecto hoy): no futura ni anterior a la fecha del pedido |
+| `en_proceso` | `aceptado` | vuelta atras |
+| `terminado` | `en_proceso` | vuelta atras |
+| `aceptado`, `en_proceso` o `terminado` | `anulado` | `motivo` de 10 a 500. Si el pedido tiene o tuvo abonos (vigentes **o anulados**), solo gestion (`403 solo_gestion`) |
+
+`entregado` y `anulado` no cambian mas. Otro cambio responde `409 transicion_invalida` con la explicacion. Cada cambio queda en el historial del pedido. `cicloCerrado` = `entregado` y `pagado_total` (se calcula).
+
+**Codigos de los 409:** `transicion_invalida`, `version_obsoleta`, `cotizacion_pendiente` (la solicitud ya tiene una pendiente), `cotizacion_con_pedido` (la cotizacion ya tiene pedido), `abono_excede_saldo` («El abono supera el saldo pendiente ($X).»), `pedido_anulado` («Un pedido anulado no recibe abonos.»), `monto_bajo_abonado` («El monto final no puede quedar bajo lo ya abonado ($X).»), `abono_anulado` (ya estaba anulado; tambien si se intenta reactivar uno en la base), `tiene_abonos` (eliminar un pedido con abonos vigentes), `factura_distinta` («El pedido ya tiene la factura N; cámbiala editando el pedido.»). Si la regla la hizo cumplir la base (indice unico o `ck_pedidos_monto_abonado`), el mismo codigo llega con `nivel: "base_de_datos"`. `403 solo_gestion` cuando la accion es de gestion por las reglas del negocio (no por la ruta).
+
+**Cotizacion (S06):**
+
+```
+{ idCotizacion, numero: "#45", idSolicitud, numeroSolicitud: "#123", fechaChile, estado: "pendiente" | "aprobada" | "rechazada",
+  cliente: { idCliente, nombre, apellido, telefono, correo },
+  items: [{ producto, descripcion, anchoMm, altoMm, cantidad, areaM2 }],
+  materiales: [{ idMaterial, material, unidad, medidaAplicada, cantidad, costoUnitario, subtotal }],
+  costoMaterialesTotal, costoManoObra, otrosCostos, total, totalRedondeado,
+  observaciones, elaboradaPor: { idEmpleado, nombre },
+  respuesta: null | { fechaChile, via: "cliente_web" | "telefono" | "whatsapp" | "presencial", motivo, registradaPor: { nombre } | null },
+  idPedido: null | number, pedidoEliminado, rowVersion }
+```
+
+`idPedido` es el pedido que dio la cotizacion, aunque despues se haya eliminado (`pedidoEliminado: true`): una cotizacion da a lo mas un pedido, asi que con `idPedido` la pantalla no ofrece «Crear pedido».
+
+**Ficha del pedido (S07):**
+
+```
+{ idPedido, numero, origen: "cotizacion" | "directo", solicitud: { idSolicitud, numero }, cotizacion: { idCotizacion, numero } | null,
+  cliente: { idCliente, nombre, apellido, telefono, correo }, responsable: { idEmpleado, nombre },
+  fechaPedido, fechaEntregaEstimada, fechaEntregaReal, modalidadEntrega, requiereInstalacion, direccionInstalacion,
+  montoBaseTrabajo, costoInstalacionAdicional, montoTotalFinal, estadoPedido, estadoPago, montoAbonado, saldoPendiente,
+  numeroFactura, cicloCerrado, motivoAnulacion, aFavorDelCliente, transicionesPosibles: ["en_proceso", "anulado", …],
+  historial: [{ fechaChile, estadoAnterior, estadoNuevo, nota, empleado }],
+  pagos: [{ idPago, monto, fechaPago, medioPago, observacion, registradoPor, fechaRegistroChile,
+            anulado, motivoAnulacion, anuladoPor, fechaAnulacionChile, puedeAnular }], rowVersion }
+```
+
+`transicionesPosibles` y `puedeAnular` dependen de quien mira: sin ser de gestion, un pedido que tiene o tuvo abonos no ofrece `anulado`, y solo se anulan los abonos propios de las ultimas 24 horas. `aFavorDelCliente` es lo abonado vigente de un pedido `anulado` (0 en los demas): se muestra como «A devolver o a favor del cliente: $X».
+
+**Datos del pedido (E08):** `idEmpleadoResponsable` (activo); `fechaEntregaEstimada` (desde hoy y hasta 2 años; al editar se acepta la que ya tenia); `modalidadEntrega` (`retiro_local`, `entrega_domicilio`, `instalacion_terreno`); `requiereInstalacion` (debe ser `true` con `instalacion_terreno`); `direccionInstalacion` (hasta 300, obligatoria salvo `retiro_local`, donde se guarda `null`); `costoInstalacionAdicional` (entero, 0 sin instalacion); `numeroFactura?` (hasta 30). **Abono (E25):** `{ monto, fechaPago?, medioPago, observacion?, numeroFactura? }`: monto entero mayor que 0; fecha no futura ni de hace mas de 365 dias (por defecto hoy); medio `efectivo`, `transferencia`, `tarjeta_debito`, `tarjeta_credito`, `cheque` u `otro`; observacion hasta 300; si trae `numeroFactura` y el pedido no tiene factura, se la asigna; si tiene la misma, nada; si tiene otra, `409 factura_distinta` (se cambia editando el pedido). Los errores del abono inicial van con el prefijo `abonoInicial.` (`abonoInicial.monto`...).
 
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
-| `GET /cotizaciones`, `GET /cotizaciones/{id}` | Personal | |
-| `POST /cotizaciones` | `dueño`, `administrador`, `diseñador` | `{ idSolicitud, observaciones?, costoManoObra, otrosCostos, materiales? }`. Material: `{ idMaterial, medidaAplicada?, cantidad, costoUnitario }` |
-| `PUT /cotizaciones/{id}` | `dueño`, `administrador`, `diseñador` | `{ observaciones?, costoManoObra, otrosCostos, estado, materiales? }`. Sin `materiales` se conservan; `[]` los quita. Estados: `pendiente`, `aprobada`, `rechazada`. Los totales los calcula la base |
-| `DELETE /cotizaciones/{id}` | Gestion | `409` si la usa un pedido |
-| `GET /pedidos`, `GET /pedidos/{id}` | Personal | Cada pedido trae `estadoPedido` y, calculados por la base, `estadoPago` (`no_pagado`, `abonado`, `pagado_total`), `montoAbonado` y `saldoPendiente`; además `origen` (`cotizacion` o `directo`) y `numeroFactura?` |
-| `POST /pedidos` | `dueño`, `administrador`, `operario` | `{ idSolicitud, idCotizacion?, idEmpleadoResponsable, fechaEntregaEstimada, modalidadEntrega?, requiereInstalacion?, direccionInstalacion?, costoInstalacionAdicional?, montoBaseTrabajo? }`. La solicitud debe estar `aceptado` y la cotizacion, ser suya y estar `aprobada`. Sin monto, usa el total de la cotizacion. Los montos van en pesos, sin decimales (400 si no) |
-| `PUT /pedidos/{id}` | `dueño`, `administrador`, `operario` | `{ estadoPedido, fechaEntregaEstimada, fechaEntregaReal?, modalidadEntrega, requiereInstalacion, direccionInstalacion?, costoInstalacionAdicional, montoBaseTrabajo, rowVersion }`. Estados del pedido: `aceptado`, `en_proceso`, `terminado`, `entregado`, `anulado` («cancelado» ya no existe: en Chile se entiende como «pagado»). El estado de pago no se envía: lo calcula la base. Modalidades: `retiro_local`, `entrega_domicilio`, `instalacion_terreno`. Montos en pesos sin decimales (400). 409 si el monto final quedaría bajo lo ya abonado; también 409 si un abono cambió el pedido después de abrirlo (`rowVersion` vencido) |
-| `DELETE /pedidos/{id}` | Gestion | 409 si el pedido tiene abonos registrados: se anula en vez de borrarse |
+| `POST /solicitudes/{id}/cotizaciones` | Personal | `{ materiales: [{ idMaterial, medidaAplicada?, cantidad, costoUnitario }], costoManoObra, otrosCostos, observaciones? }`. De 0 a 30 materiales activos; medida hasta 100; cantidad mayor que 0 y hasta 100 000 con 2 decimales; costos de 0 a 100 000 000; observaciones hasta 2000 (las ve el cliente); total mayor que 0 y hasta 2 000 000 000. Solo sobre una solicitud `solicitado`: `409 cotizacion_pendiente` si ya tiene una pendiente, `409 transicion_invalida` en otro estado, `404` si no existe o esta eliminada. En una transaccion: la cotizacion, la solicitud a `cotizado` con su historial y, si el cliente tiene el **correo confirmado**, el correo «Tu cotización #N está lista» en la cola (boton «Ver cotización» a `{Sitio:UrlPublica}/cuenta/solicitudes/{idSolicitud}`). Responde `201` con la cotizacion y su `ETag` |
+| `GET /cotizaciones` | Personal | Paginada. `?estado=`, `?desde=`, `?hasta=` (fechas de Chile, incluidas), `?idCliente=`, `?q=` (numero de cotizacion o de solicitud, nombre, telefono o RUT), `?orden=` (`fecha_desc` por defecto, `fecha_asc`, `total_desc`), `?pagina=`, `?tamano=`. Filas: `{ idCotizacion, numero, idSolicitud, fechaChile, cliente: { idCliente, nombre, apellido, telefono }, total, estado, elaboradaPor: { idEmpleado, nombre } }`. Sin las eliminadas. Un filtro desconocido responde `400` |
+| `GET /cotizaciones/{id}` | Personal | La cotizacion con su `ETag` |
+| `PUT /cotizaciones/{id}` | Personal | El mismo cuerpo que al emitir, con `If-Match`. Solo `pendiente` (`409 transicion_invalida` si no). Reemplaza las lineas: sin `materiales` (o con `[]`) quedan sin materiales |
+| `POST /cotizaciones/{id}/respuesta` | Personal | `{ decision: "aprobada" \| "rechazada", via: "telefono" \| "whatsapp" \| "presencial", motivo? }` con `If-Match`. Queda quien la marco. Aprobar deja la solicitud `aceptado`; rechazar la devuelve a `solicitado` con la nota «Cotización #N rechazada: motivo». Responde `200` con la cotizacion |
+| `DELETE /cotizaciones/{id}` | Gestion | Con `If-Match`. Borrado logico de una `pendiente` o `rechazada` sin pedido (`409` si no). Si estaba pendiente, la solicitud vuelve a `solicitado`. `204` |
+| `POST /cotizaciones/{id}/pedido` | Personal | Datos del pedido y `abonoInicial?`. Solo de una cotizacion `aprobada` cuya solicitud siga `aceptado` y no este eliminada (`409 transicion_invalida`), y sin pedido (`409 cotizacion_con_pedido`; si el que tuvo se elimino: «Esta cotización ya tuvo el pedido #N (eliminado).»). Nace `aceptado` con el total redondeado como monto base. El abono inicial no puede superar el monto final (`409 abono_excede_saldo`). Todo en una transaccion. `201` con la ficha |
+| `POST /pedidos/directo` | Personal | `{ idCliente, descripcionGeneral, detalles: [como en la fase 7], materiales, costoManoObra, otrosCostos, observaciones?, …datos del pedido…, abonoInicial? }`. El cliente se busca o se crea antes (`GET /clientes/buscar`, `POST /clientes`). En una transaccion: la solicitud presencial ya `aceptado` (nota «Pedido directo en el taller»), la cotizacion `aprobada` en el local por quien la registra, el pedido con origen `directo` y el abono. Si algo falla no se escribe nada. **No envia correos**. `201` con la ficha |
+| `GET /pedidos` | Personal | Paginada. `?estadoPedido=`, `?estadoPago=`, `?cobranza=true` (no anulado y con pago `no_pagado` o `abonado`), `?anio=` y `?mes=` (por la fecha del pedido, como rango de fechas; `mes` sin `anio` filtra ese mes de cualquier año, sin rango posible), `?idCliente=`, `?idResponsable=`, `?q=` (numero de pedido, nombre, telefono o RUT), `?orden=` (`fecha_desc` por defecto, `fecha_asc`, `entrega_asc`, `saldo_desc`), `?pagina=`, `?tamano=`. Responde `{ elementos, total, pagina, tamano, totalPaginas, resumen: { totalPorCobrar, cantidadPorCobrar } }`; el resumen suma el saldo de los pedidos **por cobrar de todo el filtro** (no solo de la pagina; los anulados nunca cuentan). Filas: `{ idPedido, numero, origen, fechaPedido, cliente: { idCliente, nombre, apellido, telefono }, responsable: { idEmpleado, nombre }, fechaEntregaEstimada, fechaEntregaReal, modalidadEntrega, estadoPedido, estadoPago, montoTotalFinal, montoAbonado, saldoPendiente, cicloCerrado }`. Sin los eliminados |
+| `GET /pedidos/{id}` | Personal | La ficha con su `ETag`. `404` si no existe o esta eliminado |
+| `PUT /pedidos/{id}` | Personal | El cuerpo completo: datos del pedido y `montoBaseTrabajo` (entero), con `If-Match`. Un pedido `anulado` no se edita (`409`); en uno `entregado` solo cuenta `numeroFactura` (lo demas se ignora, aunque no sea valido). La `fechaEntregaEstimada` que ya tenia se acepta aunque haya pasado. **Cambiar `montoBaseTrabajo` o `costoInstalacionAdicional` es de gestion** (`403 solo_gestion` si otro valor llega de alguien mas) y deja una fila en el historial con el mismo estado y la nota «Monto final: $100.000 → $90.000 (monto base $100.000 → $90.000).». `409 monto_bajo_abonado` si el monto final queda bajo lo abonado. `200` con la ficha |
+| `PATCH /pedidos/{id}/estado` | Personal | `{ estado, fechaEntregaReal?, motivo?, nota? }` con `If-Match` (nota hasta 500). `200` con la ficha |
+| `POST /pedidos/{id}/pagos` | Personal | El abono, sin version: bloquea la fila del pedido, asi dos abonos a la vez se registran uno tras otro. `409 abono_excede_saldo` o `409 pedido_anulado`. `201` con la ficha (y el `ETag` nuevo) |
+| `POST /pedidos/{id}/pagos/{idPago}/anular` | Personal | `{ motivo }` de 10 a 300. Gestion anula cualquiera; el resto, solo los que registro en las ultimas 24 horas (`403 solo_gestion`). `409 abono_anulado` si ya estaba anulado (no se reactiva). El abono deja de sumar y queda en el historial con quien y cuando. `200` con la ficha |
+| `DELETE /pedidos/{id}` | Gestion | Con `If-Match`. Borrado logico de un pedido `anulado` sin abonos vigentes (`409 transicion_invalida` o `409 tiene_abonos`). `204` |
+| `GET /pedidos/calendario` | Personal | `?desde=aaaa-mm-dd&hasta=aaaa-mm-dd`, como mucho 62 dias contando ambos (`400` si no, tambien con `hasta` = 9999-12-31). Pedidos no anulados ni eliminados: los pendientes en su fecha estimada y los entregados en su fecha real, ordenados por fecha. Cada uno: `{ idPedido, numero, fecha, cliente: { idCliente, nombre, apellido, telefono }, modalidadEntrega, estadoPedido, estadoPago, atrasado }` (`atrasado`: sin entregar y con la fecha estimada ya pasada) |
+| `GET /pedidos/alertas` | Gestion | `{ proximas: [de hoy a hoy + 3], atrasadas: [estimada antes de hoy, sin entregar ni anular], totalPorCobrar, cantidadPorCobrar }`. Las listas tienen la forma del calendario, como mucho 20 cada una; el total por cobrar es de todos los pedidos |
 
 ## 5. Cambios que necesita el frontend actual
 
