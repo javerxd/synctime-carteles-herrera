@@ -8,5 +8,9 @@ public class HorarioAtencion
     public TimeOnly? HoraInicio { get; set; }
     public TimeOnly? HoraFin { get; set; }
     public bool Abierto { get; set; } = true;
+
+    // Fase 9: quien hizo el ultimo cambio y cuando. La portada no lo muestra.
+    public int? IdEmpleadoModifica { get; set; }
+    public DateTimeOffset? FechaModificacion { get; set; }
 }
 

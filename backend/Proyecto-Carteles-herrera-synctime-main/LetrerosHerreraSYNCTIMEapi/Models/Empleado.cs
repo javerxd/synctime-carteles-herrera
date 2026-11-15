@@ -17,6 +17,10 @@ public class Empleado
     public string Rol { get; set; } = "administrador";
     public bool Activo { get; set; } = true;
 
+    // Fase 9 (RNFP10): version para que una edicion con datos viejos no pise la de otra persona.
+    [JsonIgnore]
+    public byte[] RowVersion { get; set; } = null!;
+
     [JsonIgnore]
     public virtual ICollection<Solicitud> SolicitudesRegistradas { get; set; } = new List<Solicitud>();
 

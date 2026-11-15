@@ -30,7 +30,9 @@ public sealed record TrabajoVitrina(
     DateTime FechaPublicacion,
     bool Visible,
     bool IncluyeLogoCliente,
-    bool LogoAutorizado)
+    bool LogoAutorizado,
+    int? IdImagen,
+    byte[] RowVersion) : IConVersion
 {
     // Para visitantes: sin los datos de gestion (si esta oculto o si lleva el logo de un cliente).
     public TrabajoPublico ParaPublico() =>
@@ -50,7 +52,7 @@ public sealed record TrabajoPublico(
     ImagenVitrina? Imagen,
     DateTime FechaPublicacion);
 
-public sealed record ResultadoAutorizacionLogo(TrabajoVitrina? Trabajo, string? Error);
+public sealed record ResultadoAutorizacionLogo(TrabajoVitrina? Trabajo, string? Error, bool VersionObsoleta = false);
 
 public sealed class ServicioVitrina(LetrerosHerreradbContext db, TimeProvider reloj)
 {
@@ -85,13 +87,21 @@ public sealed class ServicioVitrina(LetrerosHerreradbContext db, TimeProvider re
             c.FechaPublicacion,
             c.Visible,
             c.IncluyeLogoCliente,
-            c.FechaAutorizacionLogo != null));
+            c.FechaAutorizacionLogo != null,
+            c.IdImagen,
+            c.RowVersion));
 
-    public async Task<ResultadoPaginado<TrabajoVitrina>> ListarAsync(int? idCategoria, ParametrosListado parametros, bool incluirOcultos, CancellationToken ct)
+    // Fase 9: gestion ademas busca (q: titulo o tipo de letrero) y filtra por visible u oculta.
+    public async Task<ResultadoPaginado<TrabajoVitrina>> ListarAsync(int? idCategoria, ParametrosListado parametros, bool incluirOcultos, CancellationToken ct,
+        bool? visible = null)
     {
         var consulta = Base(incluirOcultos);
         if (idCategoria is int categoria)
             consulta = consulta.Where(c => c.Producto!.IdCategoria == categoria);
+        if (incluirOcultos && visible is bool v)
+            consulta = consulta.Where(c => c.Visible == v);
+        if (incluirOcultos && parametros.Buscar is { } q)
+            consulta = consulta.Where(c => c.Titulo.Contains(q) || c.Producto!.Nombre.Contains(q));
 
         var total = await consulta.CountAsync(ct);
         var elementos = await Proyectar(consulta
@@ -109,8 +119,9 @@ public sealed class ServicioVitrina(LetrerosHerreradbContext db, TimeProvider re
     public const int LargoImagenUrl = 500;
 
     // null si la publicacion se puede guardar asi; si no, el motivo en español. Revisa lo mismo que las
-    // restricciones de la tabla, para responder 400 con el motivo en vez de un error de la base.
-    public async Task<string?> RevisarAsync(DatosPublicacion datos, bool logoAutorizado, CancellationToken ct)
+    // restricciones de la tabla, para responder 400 con el motivo en vez de un error de la base. La regla del
+    // logo va aparte (409 logo_sin_autorizacion, fase 9).
+    public async Task<string?> RevisarAsync(DatosPublicacion datos, CancellationToken ct)
     {
         var titulo = datos.Titulo?.Trim() ?? "";
         if (titulo.Length == 0 || titulo.Length > LargoTitulo)
@@ -126,21 +137,138 @@ public sealed class ServicioVitrina(LetrerosHerreradbContext db, TimeProvider re
         if (!await db.Productos.AnyAsync(p => p.IdProducto == datos.IdProducto, ct))
             return "El tipo de letrero indicado no existe.";
 
-        var (idImagen, visible, incluyeLogoCliente) = (datos.IdImagen, datos.Visible, datos.IncluyeLogoCliente);
-        if (idImagen is int imagen && !await db.Imagenes.AnyAsync(i => i.IdImagen == imagen, ct))
+        if (datos.IdImagen is int imagen && !await db.Imagenes.AnyAsync(i => i.IdImagen == imagen, ct))
             return "La imagen indicada no existe. Súbela primero en /api/v1/imagenes.";
-        if (visible && incluyeLogoCliente && !logoAutorizado)
-            return MensajeLogo;
         return null;
+    }
+
+    // ── Fase 9: administrar la vitrina (E12). Editar y cambiar la visibilidad exigen la version vista. ──
+
+    public async Task<ResultadoGestion<TrabajoVitrina>> CrearAsync(DatosPublicacion datos, int idEmpleado, CancellationToken ct)
+    {
+        if (await RevisarAsync(datos, ct) is { } error)
+            return Invalida(error);
+        // Recien creada no tiene autorizacion: con logo, solo puede nacer oculta.
+        if (datos.Visible && datos.IncluyeLogoCliente)
+            return LogoSinAutorizacion();
+        var item = new Catalogo
+        {
+            IdProducto = datos.IdProducto,
+            IdEmpleadoCreador = idEmpleado,
+            Titulo = datos.Titulo!.Trim(),
+            Descripcion = datos.Descripcion ?? "",
+            ImagenUrl = datos.ImagenUrl,
+            IdImagen = datos.IdImagen,
+            AnchoMm = datos.AnchoMm,
+            AltoMm = datos.AltoMm,
+            PrecioReferencial = datos.PrecioReferencial,
+            Visible = datos.Visible,
+            IncluyeLogoCliente = datos.IncluyeLogoCliente
+        };
+        db.Catalogos.Add(item);
+        if (await GuardarAsync(ct) is { } conflicto)
+            return conflicto;
+        return new ResultadoGestion<TrabajoVitrina>.Correcto((await ObtenerAsync(item.IdCatalogo, incluirOcultos: true, CancellationToken.None))!);
+    }
+
+    public async Task<ResultadoGestion<TrabajoVitrina>> EditarAsync(int id, DatosPublicacion datos, byte[]? version, CancellationToken ct)
+    {
+        if (version is not { Length: > 0 })
+            return new ResultadoGestion<TrabajoVitrina>.SinVersion();
+        if (await RevisarAsync(datos, ct) is { } error)
+            return Invalida(error);
+        var existente = await db.Catalogos.FirstOrDefaultAsync(c => c.IdCatalogo == id, ct);
+        if (existente is null)
+            return new ResultadoGestion<TrabajoVitrina>.NoEncontrado();
+        if (!Versiones.Iguales(version, existente.RowVersion))
+            return new ResultadoGestion<TrabajoVitrina>.VersionObsoleta();
+        // La autorizacion del logo vale para la pieza que el cliente vio: si cambia la imagen, o la
+        // publicacion pasa a llevar un logo, hay que volver a registrarla (RNFO17).
+        var mismaPieza = datos.IdImagen == existente.IdImagen
+            && datos.ImagenUrl == existente.ImagenUrl
+            && datos.IncluyeLogoCliente == existente.IncluyeLogoCliente;
+        var logoAutorizado = mismaPieza && existente.FechaAutorizacionLogo is not null;
+        if (datos.Visible && datos.IncluyeLogoCliente && !logoAutorizado)
+            return LogoSinAutorizacion();
+
+        if (!logoAutorizado)
+        {
+            existente.IdEmpleadoAutorizaLogo = null;
+            existente.FechaAutorizacionLogo = null;
+        }
+        existente.IdProducto = datos.IdProducto;
+        existente.Titulo = datos.Titulo!.Trim();
+        existente.Descripcion = datos.Descripcion ?? "";
+        existente.ImagenUrl = datos.ImagenUrl;
+        existente.IdImagen = datos.IdImagen;
+        existente.AnchoMm = datos.AnchoMm;
+        existente.AltoMm = datos.AltoMm;
+        existente.PrecioReferencial = datos.PrecioReferencial;
+        existente.Visible = datos.Visible;
+        existente.IncluyeLogoCliente = datos.IncluyeLogoCliente;
+        db.Entry(existente).Property(c => c.Visible).IsModified = true;
+        db.Entry(existente).Property(c => c.RowVersion).OriginalValue = version;
+        if (await GuardarAsync(ct) is { } conflicto)
+            return conflicto;
+        return new ResultadoGestion<TrabajoVitrina>.Correcto((await ObtenerAsync(id, incluirOcultos: true, CancellationToken.None))!);
+    }
+
+    public async Task<ResultadoGestion<TrabajoVitrina>> CambiarVisibleAsync(int id, bool visible, byte[]? version, CancellationToken ct)
+    {
+        if (version is not { Length: > 0 })
+            return new ResultadoGestion<TrabajoVitrina>.SinVersion();
+        var existente = await db.Catalogos.FirstOrDefaultAsync(c => c.IdCatalogo == id, ct);
+        if (existente is null)
+            return new ResultadoGestion<TrabajoVitrina>.NoEncontrado();
+        if (!Versiones.Iguales(version, existente.RowVersion))
+            return new ResultadoGestion<TrabajoVitrina>.VersionObsoleta();
+        if (visible && existente.IncluyeLogoCliente && existente.FechaAutorizacionLogo is null)
+            return LogoSinAutorizacion();
+        existente.Visible = visible;
+        db.Entry(existente).Property(c => c.Visible).IsModified = true;
+        db.Entry(existente).Property(c => c.RowVersion).OriginalValue = version;
+        if (await GuardarAsync(ct) is { } conflicto)
+            return conflicto;
+        return new ResultadoGestion<TrabajoVitrina>.Correcto((await ObtenerAsync(id, incluirOcultos: true, CancellationToken.None))!);
+    }
+
+    public const string MensajeVersionObsoleta = "Otra persona modificó esta publicación mientras la veías. Vuelve a cargarla para ver los cambios.";
+    private const string ReglaLogo = "ck_catalogo_logo";
+
+    private static ResultadoGestion<TrabajoVitrina> Invalida(string mensaje) =>
+        new ResultadoGestion<TrabajoVitrina>.Invalido(new Dictionary<string, string[]>(), mensaje);
+
+    private static ResultadoGestion<TrabajoVitrina> LogoSinAutorizacion(bool desdeLaBase = false) =>
+        new ResultadoGestion<TrabajoVitrina>.Conflicto(Negocio.Mantenedores.CodigosMantenedores.LogoSinAutorizacion, MensajeLogo, desdeLaBase);
+
+    private async Task<ResultadoGestion<TrabajoVitrina>?> GuardarAsync(CancellationToken ct)
+    {
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return null;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ResultadoGestion<TrabajoVitrina>.VersionObsoleta();
+        }
+        catch (DbUpdateException e) when (ErroresSql.EsRegla(e, ReglaLogo))
+        {
+            // La base lo impide aunque la revision de arriba se saltara (ck_catalogo_logo).
+            return LogoSinAutorizacion(desdeLaBase: true);
+        }
     }
 
     // Registra (o retira) la autorizacion del cliente para mostrar su logo. Al retirarla, una publicacion
     // con logo deja de verse en el mismo paso. Registrarla de nuevo no cambia quien la dio ni cuando.
-    public async Task<ResultadoAutorizacionLogo> AutorizarLogoAsync(int id, int idEmpleado, bool autorizado, CancellationToken ct)
+    // Fase 9: si viene la version vista (If-Match), se comprueba; sin ella se acepta, como en la fase 5.
+    public async Task<ResultadoAutorizacionLogo> AutorizarLogoAsync(int id, int idEmpleado, bool autorizado, CancellationToken ct, byte[]? version = null)
     {
         var item = await db.Catalogos.FirstOrDefaultAsync(c => c.IdCatalogo == id, ct);
         if (item is null)
             return new(null, null);
+        if (version is { Length: > 0 } && !Versiones.Iguales(version, item.RowVersion))
+            return new(null, null, VersionObsoleta: true);
 
         if (autorizado && !item.IncluyeLogoCliente)
             return new(null, "Esta publicación no está marcada con el logotipo de un cliente: no necesita autorización.");

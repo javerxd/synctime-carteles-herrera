@@ -192,7 +192,8 @@ public sealed class ServicioConsentimientos(LetrerosHerreradbContext db, TimePro
 
 // ── Imagenes (RNFP22) ──
 
-public sealed record ImagenSubida(string Clave, int Ancho, int Alto, string UrlGrande, string UrlMiniatura);
+// Fase 9: con su id, para enlazarla a una publicacion de la vitrina (idImagen).
+public sealed record ImagenSubida(int IdImagen, string Clave, int Ancho, int Alto, string UrlGrande, string UrlMiniatura);
 
 public sealed class ServicioImagenes(LetrerosHerreradbContext db, AlmacenImagenes almacen, TimeProvider reloj)
 {
@@ -215,10 +216,11 @@ public sealed class ServicioImagenes(LetrerosHerreradbContext db, AlmacenImagene
         }
 
         var clave = AlmacenImagenes.NuevaClave();
+        Imagen registro;
         try
         {
             await almacen.GuardarAsync(clave, imagen, ct);
-            db.Imagenes.Add(new Imagen
+            registro = new Imagen
             {
                 Clave = clave,
                 Ancho = imagen.Ancho,
@@ -227,7 +229,8 @@ public sealed class ServicioImagenes(LetrerosHerreradbContext db, AlmacenImagene
                 BytesMiniatura = imagen.Miniatura.Length,
                 IdEmpleadoSube = idEmpleado,
                 FechaSubida = reloj.GetUtcNow()
-            });
+            };
+            db.Imagenes.Add(registro);
             await db.SaveChangesAsync(ct);
         }
         catch
@@ -237,7 +240,7 @@ public sealed class ServicioImagenes(LetrerosHerreradbContext db, AlmacenImagene
             throw;
         }
 
-        return new ImagenSubida(clave, imagen.Ancho, imagen.Alto,
+        return new ImagenSubida(registro.IdImagen, clave, imagen.Ancho, imagen.Alto,
             $"{RutaBase}/{AlmacenImagenes.NombreGrande(clave)}",
             $"{RutaBase}/{AlmacenImagenes.NombreMiniatura(clave)}");
     }

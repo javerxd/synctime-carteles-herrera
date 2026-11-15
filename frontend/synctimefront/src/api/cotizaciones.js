@@ -1,4 +1,5 @@
 import { api } from './cliente';
+import { todasLasPaginas } from './mantenedores';
 import { comoPaginado, siVersion } from './solicitudes';
 
 // Cotizaciones (fase 8). Contrato: docs/plan/fase-08-especificacion.md, «Rutas».
@@ -42,5 +43,7 @@ export const misCotizaciones = {
  * costoUnitarioAprox, activo }. Solo los activos se pueden cotizar.
  */
 export const materiales = {
-  listar: () => api.get('/materiales').then((r) => (Array.isArray(r) ? r : r?.elementos ?? [])),
+  // Desde la fase 9 el listado es paginado: se traen todas las páginas (también los inactivos, que una
+  // cotización ya emitida puede tener).
+  listar: () => todasLasPaginas('/materiales'),
 };

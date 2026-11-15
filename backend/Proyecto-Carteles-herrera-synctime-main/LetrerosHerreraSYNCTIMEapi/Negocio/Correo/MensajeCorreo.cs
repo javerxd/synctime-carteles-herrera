@@ -22,6 +22,16 @@ public static class TiposCorreo
     public const string ConfirmacionSolicitud = "confirmacion_solicitud";
     public const string CotizacionLista = "cotizacion_lista";
     public const string Prueba = "prueba";
+
+    // Fase 9: destinos de los avisos del taller. La prueba desde el perfil tiene su propio tipo: no cuenta
+    // para el tope de avisos por hora (que suma solo solicitudes y consultas).
+    public const string PruebaAvisos = "prueba_avisos";
+    public const string ConfirmacionDestinoAvisos = "confirmacion_destino_avisos";
+    public const string DestinoAvisosCambiado = "destino_avisos_cambiado";
+    public const string DestinoAvisosAgregado = "destino_avisos_agregado";
+    public const string DestinoAvisosQuitado = "destino_avisos_quitado";
+    public const string AvisoCambioCorreoPersonal = "aviso_cambio_correo_personal";
+    public const string AvisoAccesoReasignado = "aviso_acceso_reasignado";
 }
 
 // Deja un correo en la cola de salida. Nunca espera al servidor de correo.
@@ -34,8 +44,14 @@ public interface IServicioCorreo
 }
 
 // A quien le llegan los avisos del taller (por ejemplo, el de solicitud nueva). Es el unico lugar que lo
-// sabe: hoy lo lee de la configuracion y en la fase 9 leera primero el valor que guarde el dueño.
+// sabe. Fase 9: primero los destinos activos que guardaron el dueño o el administrador desde su perfil; si
+// no hay ninguno, el respaldo de la configuracion del servidor.
 public interface IDestinatariosAvisos
 {
     Task<IReadOnlyList<string>> ObtenerAsync(CancellationToken ct);
+
+    // Lo mismo, diciendo ademas si vienen del respaldo de la configuracion.
+    Task<DestinatariosVigentes> LeerAsync(CancellationToken ct);
 }
+
+public sealed record DestinatariosVigentes(IReadOnlyList<string> Correos, bool DesdeRespaldo);

@@ -17,6 +17,11 @@ vi.mock('../api/authService', () => ({
   },
 }));
 
+// La sección «Avisos del taller» (fase 9) se dibuja para el dueño: aquí no importa, solo no debe ir a la red.
+vi.mock('../api/avisosTaller', () => ({
+  avisosTaller: { obtener: vi.fn(() => Promise.resolve({ destinos: [], usaRespaldo: false, historial: [] })) },
+}));
+
 vi.mock('../rostro/motorFacial', async (original) => ({
   ...(await original()),
   capturarDescriptores: vi.fn(),

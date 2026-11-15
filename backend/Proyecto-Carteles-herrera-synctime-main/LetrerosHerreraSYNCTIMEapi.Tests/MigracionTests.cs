@@ -103,8 +103,8 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task CotizacionesYPedidos_SoloAgrega()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_CotizacionesYPedidos", ultima);
+        const string ultima = Fase8;
+        Assert.Contains(ultima, await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().ToList())));
         var script = await api.ConsultarAsync(db => Task.FromResult(
             db.GetService<IMigrator>().GenerateScript("20261114035839_SolicitudesYAdjuntos", ultima)));
 
@@ -126,7 +126,7 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task RevertirCotizacionesYPedidos_SeDetieneAntesDePerderDatos()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        const string ultima = Fase8;
         var abajo = await api.ConsultarAsync(db => Task.FromResult(
             db.GetService<IMigrator>().GenerateScript(ultima, "20261114035839_SolicitudesYAdjuntos")));
 
@@ -136,6 +136,43 @@ public sealed class MigracionTests(ApiFixture api)
         Assert.Equal(["DELETE FROM [__EFMigrationsHistory]"],
             System.Text.RegularExpressions.Regex.Matches(abajo, @"DELETE FROM \S+").Select(m => m.Value));
         Assert.True(abajo.IndexOf("THROW 50082", StringComparison.Ordinal) < abajo.IndexOf("DROP COLUMN", StringComparison.Ordinal));
+    }
+
+    private const string Fase8 = "20261114220104_CotizacionesYPedidos";
+
+    // Fase 9: la migracion MantenedoresYAvisos solo agrega (columnas de version, tablas nuevas, indices y
+    // reglas) y amplia textos. No borra tablas, columnas ni filas.
+    [Fact]
+    public async Task MantenedoresYAvisos_SoloAgrega()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_MantenedoresYAvisos", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase8, ultima)));
+
+        Assert.Contains("CREATE TABLE [destinatarios_avisos]", script);
+        Assert.Contains("CREATE TABLE [destinatarios_avisos_historial]", script);
+        Assert.Contains("CREATE TABLE [disponibilidad_empleados]", script);
+        Assert.Contains("CREATE UNIQUE INDEX [uq_destinatarios_avisos_vigente]", script);
+        Assert.Contains("ck_horarios_cerrado", script);
+        foreach (var tabla in new[] { "categorias", "productos", "catalogo", "materiales", "empleados", "clientes" })
+            Assert.Contains($"ALTER TABLE [{tabla}] ADD [row_version] rowversion NOT NULL", script);
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM" })
+            Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
+    }
+
+    // Revertir la fase 9 se detiene (THROW) si ya hay destinos de avisos, historial o franjas guardados, o
+    // textos que no caben en las columnas anteriores. No borra filas.
+    [Fact]
+    public async Task RevertirMantenedoresYAvisos_SeDetieneAntesDePerderDatos()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        var abajo = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(ultima, Fase8)));
+
+        Assert.Contains("THROW 50090", abajo, StringComparison.Ordinal);
+        Assert.Contains("THROW 50091", abajo, StringComparison.Ordinal);
+        Assert.Equal(["DELETE FROM [__EFMigrationsHistory]"],
+            System.Text.RegularExpressions.Regex.Matches(abajo, @"DELETE FROM \S+").Select(m => m.Value));
+        Assert.True(abajo.IndexOf("THROW 50090", StringComparison.Ordinal) < abajo.IndexOf("DROP TABLE", StringComparison.Ordinal));
     }
 
     // Fase 8: un abono anulado deja de sumar, y la base no deja reactivarlo.
@@ -179,7 +216,11 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(52, restricciones.Count);
+        Assert.Equal(59, restricciones.Count);
+        // Fase 9: un dia cerrado no guarda horas; franjas validas; destinos de avisos con estado, enlace y correo.
+        foreach (var nombre in new[] { "ck_horarios_cerrado", "ck_disponibilidad_dia", "ck_disponibilidad_rango", "ck_destinatarios_avisos_estado",
+                     "ck_destinatarios_avisos_enlace", "ck_destinatarios_avisos_correo", "ck_destinatarios_avisos_historial_accion" })
+            Assert.Contains(nombre, restricciones);
         // Fase 8: montos enteros en la cotizacion, respuesta con fecha y via, anulacion de pedidos y abonos con
         // sus datos, y estados validos en el historial del pedido.
         foreach (var nombre in new[] { "ck_cotizaciones_montos_enteros", "ck_cotizaciones_respuesta", "ck_cotizaciones_via", "ck_cot_mat_costo_entero",
@@ -253,11 +294,11 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task SeedData_KeepsAccentsAndClosedSunday()
     {
-        var categorias = await api.Cliente().GetAsync("/api/v1/categorias/").EsperarAsync(HttpStatusCode.OK);
+        var categorias = await api.Cliente().GetAsync("/api/v1/categorias/?tamano=100").EsperarAsync(HttpStatusCode.OK);
         var horarios = await api.Cliente().GetAsync("/api/v1/horarios").EsperarAsync(HttpStatusCode.OK);
         var idCartel = await api.ConsultarAsync(db => db.CartelDigital.AsNoTracking().Select(c => c.IdCartel).SingleAsync());
 
-        Assert.Contains(categorias.EnumerateArray(), c => c.GetProperty("nombre").GetString() == "Vehículos");
+        Assert.Contains(categorias.GetProperty("elementos").EnumerateArray(), c => c.GetProperty("nombre").GetString() == "Vehículos");
         Assert.Equal(7, horarios.GetArrayLength());
         Assert.Equal("Miércoles", DiaSemana(horarios, 3).GetProperty("nombreDia").GetString());
         Assert.Equal("Sábado", DiaSemana(horarios, 6).GetProperty("nombreDia").GetString());

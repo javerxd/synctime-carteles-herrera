@@ -11,6 +11,10 @@ public class Producto
     public decimal? PrecioBaseRef { get; set; }
     public bool Activo { get; set; } = true;
 
+    // Fase 9 (RNFP10): version para que una edicion con datos viejos no pise la de otra persona.
+    [JsonIgnore]
+    public byte[] RowVersion { get; set; } = null!;
+
     public virtual Categoria? Categoria { get; set; }
 
     [JsonIgnore]

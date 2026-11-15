@@ -65,8 +65,9 @@ public sealed class PortadaApiTests(ApiFixture api)
     {
         var (idCategoria, idProducto) = await CrearTipoAsync();
 
-        var rechazo = await PublicarAsync(idProducto, visible: true, incluyeLogoCliente: true).EsperarAsync(HttpStatusCode.BadRequest);
+        var rechazo = await PublicarAsync(idProducto, visible: true, incluyeLogoCliente: true).EsperarAsync(HttpStatusCode.Conflict);
         Assert.Contains("autorización", rechazo.GetProperty("error").GetString());
+        Assert.Equal("logo_sin_autorizacion", rechazo.GetProperty("codigo").GetString());
 
         var oculta = await PublicarAsync(idProducto, visible: false, incluyeLogoCliente: true).EsperarAsync(HttpStatusCode.Created);
         var id = oculta.GetProperty("idCatalogo").GetInt32();
@@ -112,9 +113,13 @@ public sealed class PortadaApiTests(ApiFixture api)
             .PostAsync("/api/v1/imagenes", new MultipartFormDataContent { { archivo, "archivo", "foto.png" } })
             .EsperarAsync(HttpStatusCode.Created);
         var clave = subida.GetProperty("clave").GetString();
-        var idImagen = await api.ConsultarAsync(db => db.Imagenes.Where(i => i.Clave == clave).Select(i => i.IdImagen).SingleAsync());
+        // Fase 9: la subida devuelve el id con que se enlaza a la publicacion.
+        var idImagen = subida.GetProperty("idImagen").GetInt32();
+        Assert.Equal(await api.ConsultarAsync(db => db.Imagenes.Where(i => i.Clave == clave).Select(i => i.IdImagen).SingleAsync()), idImagen);
 
-        await PublicarAsync(idProducto, idImagen: idImagen).EsperarAsync(HttpStatusCode.Created);
+        var creada = await PublicarAsync(idProducto, idImagen: idImagen).EsperarAsync(HttpStatusCode.Created);
+        Assert.Equal(idImagen, creada.GetProperty("idImagen").GetInt32());
+        Assert.Equal(subida.GetProperty("urlMiniatura").GetString(), creada.GetProperty("imagen").GetProperty("urlMiniatura").GetString());
 
         var pagina = await api.Cliente().GetAsync($"/api/v1/catalogo?categoria={idCategoria}").EsperarAsync(HttpStatusCode.OK);
         var imagen = pagina.GetProperty("elementos")[0].GetProperty("imagen");
@@ -287,15 +292,21 @@ public sealed class PortadaApiTests(ApiFixture api)
             anchoMm = 1200, altoMm = 600, precioReferencial = 85000, visible, incluyeLogoCliente = true
         };
 
+        async Task<string> VersionAsync() =>
+            (await admin.GetAsync($"/api/v1/catalogo/{id}").EsperarAsync(HttpStatusCode.OK)).GetProperty("rowVersion").GetString()!;
+
         // Misma pieza: la autorizacion sigue valiendo y se puede mostrar.
-        await admin.PutAsJsonAsync($"/api/v1/catalogo/{id}", Edicion(visible: true, imagenUrl: null)).EsperarAsync(HttpStatusCode.OK);
+        await admin.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, $"/api/v1/catalogo/{id}", await VersionAsync(), Edicion(visible: true, imagenUrl: null)))
+            .EsperarAsync(HttpStatusCode.OK);
 
         // Otra imagen: ya no se puede mostrar con la autorizacion anterior...
-        var rechazo = await admin.PutAsJsonAsync($"/api/v1/catalogo/{id}", Edicion(visible: true, imagenUrl: "/otra-foto.webp")).EsperarAsync(HttpStatusCode.BadRequest);
+        var rechazo = await admin.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, $"/api/v1/catalogo/{id}", await VersionAsync(),
+            Edicion(visible: true, imagenUrl: "/otra-foto.webp"))).EsperarAsync(HttpStatusCode.Conflict);
         Assert.Contains("autorización", rechazo.GetProperty("error").GetString());
 
         // ...y si se guarda oculta, la autorizacion anterior se borra.
-        var oculta = await admin.PutAsJsonAsync($"/api/v1/catalogo/{id}", Edicion(visible: false, imagenUrl: "/otra-foto.webp")).EsperarAsync(HttpStatusCode.OK);
+        var oculta = await admin.SendAsync(ApiFixture.ConVersion(HttpMethod.Put, $"/api/v1/catalogo/{id}", await VersionAsync(),
+            Edicion(visible: false, imagenUrl: "/otra-foto.webp"))).EsperarAsync(HttpStatusCode.OK);
         Assert.False(oculta.GetProperty("logoAutorizado").GetBoolean());
         var registro = await api.ConsultarAsync(db => db.Catalogos.AsNoTracking().SingleAsync(c => c.IdCatalogo == id));
         Assert.Null(registro.IdEmpleadoAutorizaLogo);

@@ -1,8 +1,8 @@
 # Modelo entidad-relación — LetreriaLosHerreraDB
 
-Estado del esquema: migración `CotizacionesYPedidos` (14-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
+Estado del esquema: migración `MantenedoresYAvisos` (14-11-2026). Fuente única del esquema: el modelo de EF Core (`LetrerosHerreradbContext.cs`) y sus migraciones. El script completo para crear la base está en [`LetreriaLosHerreraDB.sql`](LetreriaLosHerreraDB.sql) y el detalle de cada columna en el [diccionario de datos](diccionario-de-datos.md).
 
-24 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
+27 tablas, 1 vista, 2 triggers y 1 procedimiento almacenado.
 
 ## Diagrama
 
@@ -54,11 +54,19 @@ erDiagram
     clientes |o--o{ codigos_cuenta : "recibe enlace o código"
     empleados |o--o{ codigos_cuenta : "recibe código de recuperación"
 
+    empleados |o--o{ horarios_atencion : "modifica (fase 9)"
+    empleados ||--o{ disponibilidad_empleados : "tiene sus franjas"
+    empleados ||--o{ destinatarios_avisos : "pide el destino"
+    destinatarios_avisos |o--o{ destinatarios_avisos : "reemplazado por"
+    destinatarios_avisos ||--o{ destinatarios_avisos_historial : "registra cada acción"
+    empleados |o--o{ destinatarios_avisos_historial : "hace la acción (nulo si confirma el enlace)"
+
     categorias {
         int id_categoria PK
         nvarchar nombre UK
         nvarchar descripcion
         bit activo
+        rowversion row_version "fase 9"
     }
     productos {
         int id_producto PK
@@ -67,6 +75,7 @@ erDiagram
         nvarchar descripcion
         decimal precio_base_ref
         bit activo
+        rowversion row_version "fase 9"
     }
     catalogo {
         int id_catalogo PK
@@ -84,6 +93,7 @@ erDiagram
         bit incluye_logo_cliente "fase 5"
         int id_empleado_autoriza_logo FK "fase 5"
         datetimeoffset fecha_autorizacion_logo "fase 5"
+        rowversion row_version "fase 9"
     }
     clientes {
         int id_cliente PK
@@ -98,6 +108,7 @@ erDiagram
         datetime2 fecha_registro
         bit activo "0 = cuenta inhabilitada"
         datetimeoffset fecha_verificacion_correo "nulo = sin confirmar"
+        rowversion row_version "fase 9"
     }
     empleados {
         int id_empleado PK
@@ -109,6 +120,7 @@ erDiagram
         varchar password_hash
         nvarchar rol "administrador, dueño, diseñador, operario"
         bit activo
+        rowversion row_version "fase 9"
     }
     solicitudes {
         int id_solicitud PK
@@ -164,6 +176,7 @@ erDiagram
         nvarchar unidad_medida
         decimal costo_unitario_aprox
         bit activo
+        rowversion row_version "fase 9"
     }
     cotizaciones {
         int id_cotizacion PK
@@ -246,6 +259,8 @@ erDiagram
         time hora_inicio
         time hora_fin
         bit abierto
+        int id_empleado_modifica FK "fase 9"
+        datetimeoffset fecha_modificacion "fase 9"
     }
     cartel_digital {
         int id_cartel PK "siempre 1"
@@ -332,15 +347,45 @@ erDiagram
         datetimeoffset proximo_intento
         nvarchar ultimo_error
     }
+    disponibilidad_empleados {
+        int id_disponibilidad PK
+        int id_empleado FK
+        tinyint dia_semana "1 lunes a 7 domingo"
+        time hora_inicio
+        time hora_fin
+    }
+    destinatarios_avisos {
+        int id_destinatario PK
+        nvarchar correo "UK filtrado: activo o pendiente"
+        varchar estado "pendiente, activo, retirado, cancelado"
+        int id_reemplaza FK "nulo si se agregó"
+        char token_hash UK "SHA-256 del enlace; solo pendiente"
+        datetimeoffset vence "solo pendiente"
+        int id_empleado_solicita FK
+        datetimeoffset fecha_solicitud
+        datetimeoffset fecha_confirmacion
+        datetimeoffset fecha_retiro
+    }
+    destinatarios_avisos_historial {
+        int id_historial PK
+        varchar accion "agregar, reemplazar, confirmar, cancelar, quitar, reenviar, probar"
+        nvarchar correo_enmascarado
+        int id_destinatario FK "nulo en las pruebas"
+        int id_empleado FK "nulo si confirma el enlace"
+        datetimeoffset fecha
+        nvarchar detalle
+    }
 ```
 
-`horarios_atencion` no se relaciona con otras tablas: guarda el horario semanal publicado. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
+`horarios_atencion` se relaciona solo con `empleados`, por quién lo cambió por última vez. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
 
 `adjuntos_solicitud` guarda los logos y diseños que acompañan a una solicitud. Mientras no tiene solicitud es un borrador del cliente, y se vincula al enviarla. Sus archivos son privados (carpeta `Adjuntos:Carpeta`, fuera del repositorio). `solicitudes_historial` guarda cada cambio de estado de una solicitud, con quién lo hizo: un empleado, el cliente o, si ninguno, el sistema.
 
 `tokens_renovacion` y `codigos_cuenta` son de la cuenta: cada fila pertenece a un cliente o a un empleado, nunca a los dos, y se borran con su titular. `clientes.fecha_verificacion_correo` dice si el correo del cliente está confirmado.
 
 `pedidos_historial` guarda cada cambio de estado de un pedido, con quién lo hizo (fase 8). Una cotización o un pedido eliminados no se borran: se marcan con `eliminado_logico`, y el pedido eliminado sigue ocupando su cotización (`uq_pedidos_cotizacion`). Un abono anulado tampoco se borra: queda en `pagos` con `anulado = 1`.
+
+`disponibilidad_empleados` guarda las franjas semanales de cada empleado (RFU20). La API impide que se crucen, y la base solo exige que cada franja empiece antes de terminar. `destinatarios_avisos` guarda los correos que reciben los avisos de solicitudes nuevas, con su estado y el hash de su enlace de confirmación; `destinatarios_avisos_historial` registra cada acción sobre ellos, con la dirección enmascarada. El diagrama de sus estados está al final de este documento.
 
 ## Flujo de negocio que expresa el modelo
 
@@ -446,3 +491,29 @@ stateDiagram-v2
 - **Cuándo queda rechazada una pendiente:** también al rechazar o devolver la solicitud, además de cuando el cliente la rechaza o la solicitud se edita. La API ya lo hace en esos casos.
 - **Edición:** una cotización aprobada o rechazada ya no se edita.
 - **Pedido y pago:** implementados en la fase 8, como se describe en la sección «Estados del pedido». Un pedido nace de una cotización aprobada, y `uq_pedidos_cotizacion` da a lo más un pedido por cotización.
+
+## Destinos de los avisos del taller (fase 9)
+
+Diagrama del plan de la fase 9 (`docs/plan/fase-09-plan.md`, sección 1). La API aplica estas transiciones en `Services/ServicioDestinosAvisos.cs`. La base impide dos destinos vigentes con el mismo correo (índice filtrado `uq_destinatarios_avisos_vigente`) y un enlace que no corresponda a un pendiente (`ck_destinatarios_avisos_enlace`).
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> pendiente : se pide un correo (agregar o reemplazar)
+    pendiente --> activo : confirma desde el enlace (un solo uso, 24 horas)
+    pendiente --> cancelado : el personal lo cancela
+    pendiente --> cancelado : vence sin confirmarse
+    activo --> retirado : se quita (queda al menos otro activo)
+    activo --> retirado : el destino nuevo que lo reemplaza se confirma
+    retirado --> [*]
+    cancelado --> [*]
+```
+
+- **Quién cambia cada estado.** El dueño o el administrador pide un destino, reenvía su enlace, cancela un cambio pendiente o quita un destino activo. Quien recibe el correo confirma sin sesión, desde `/avisos/confirmar`.
+- **Reenviar no cambia el estado.** Un enlace nuevo deja sin efecto al anterior, y el destino sigue `pendiente`. Mientras esté `pendiente`, la dirección no recibe avisos.
+- **Reemplazar no corta el aviso.** La dirección anterior sigue `activo` hasta que la nueva se confirma. Si nunca se confirma, no cambia nada, y un error de tipeo no deja sin avisos.
+- **Vencimiento.** Un pendiente vencido ya no sirve su enlace y no cuenta para el tope de pendientes. Pasa a `cancelado` cuando alguien vuelve a pedir ese mismo correo o un reemplazo de ese destino. No hay un proceso en segundo plano que lo haga solo.
+- **Último activo.** Quitar el último destino activo responde `409 ultimo_destino`. Para cambiarlo se reemplaza (decisión 3 del 14-11-2026).
+- **Quién recibe los avisos.** `IDestinatariosAvisos` (`Datos/Correo/DestinatariosAvisos.cs`) devuelve los activos de esta tabla. Si no hay ninguno, usa `Correo:AvisosTaller`. No tiene caché.
+- **Enlace.** Se genera al pedir o reenviar, se guarda solo su SHA-256 (`token_hash`) y vence en 24 horas. Al confirmar, `token_hash` y `vence` quedan nulos, así que el enlace sirve una sola vez.
+- **Límites.** Tres pendientes a la vez como máximo, y un envío de enlace por minuto y cinco por hora por dirección (agregar, reemplazar o reenviar).

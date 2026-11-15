@@ -156,6 +156,22 @@ public sealed class ApiFixture : IAsyncLifetime
         return client;
     }
 
+    // Fase 9: otra API sobre la misma base con el reloj adelantado (por ejemplo, para que venza un enlace).
+    public HttpClient ClienteConReloj(TimeSpan adelanto, string? token = null)
+    {
+        var conReloj = factory.WithWebHostBuilder(host => host.ConfigureServices(services =>
+            services.AddSingleton<TimeProvider>(new RelojAdelantado(adelanto))));
+        var client = conReloj.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        if (token is not null)
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    private sealed class RelojAdelantado(TimeSpan adelanto) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => System.GetUtcNow() + adelanto;
+    }
+
     public async Task<T> ConsultarAsync<T>(Func<LetrerosHerreradbContext, Task<T>> consulta)
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -164,7 +180,12 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public int Siguiente() => Interlocked.Increment(ref secuencia);
     public string Telefono() => $"9{Siguiente():D8}";
-    public string Rut() => $"{Siguiente():D7}-K";
+    // Fase 9: el alta de personal exige un RUT valido (con su digito verificador).
+    public string Rut()
+    {
+        var cuerpo = (20_000_000 + Siguiente()).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return $"{cuerpo}-{Negocio.Rut.DigitoVerificador(cuerpo)}";
+    }
 
     public Task<int> IdAdminAsync() =>
         ConsultarAsync(db => db.Empleados.Where(e => e.Email == AdminEmail).Select(e => e.IdEmpleado).SingleAsync());
@@ -182,7 +203,7 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         var email = $"empleado{Siguiente()}@test.local";
         await Cliente(await TokenAdminAsync())
-            .PostAsJsonAsync("/api/v1/auth/empleados", new { rut = Rut(), nombre = "Emp", apellido = "Prueba", telefono = Telefono(), email, password = AdminPassword, rol, passwordActual = AdminPassword })
+            .PostAsJsonAsync("/api/v1/empleados", new { rut = Rut(), nombre = "Emp", apellido = "Prueba", telefono = Telefono(), email, password = AdminPassword, rol, passwordActual = AdminPassword })
             .EsperarAsync(HttpStatusCode.Created);
         return await LoginEmpleadoAsync(email, AdminPassword);
     }
@@ -192,7 +213,7 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         var email = $"empleado{Siguiente()}@test.local";
         var creado = await Cliente(await TokenAdminAsync())
-            .PostAsJsonAsync("/api/v1/auth/empleados", new { rut = Rut(), nombre = "Emp", apellido = "Prueba", telefono = Telefono(), email, password = AdminPassword, rol, passwordActual = AdminPassword })
+            .PostAsJsonAsync("/api/v1/empleados", new { rut = Rut(), nombre = "Emp", apellido = "Prueba", telefono = Telefono(), email, password = AdminPassword, rol, passwordActual = AdminPassword })
             .EsperarAsync(HttpStatusCode.Created);
         return (creado.GetProperty("idEmpleado").GetInt32(), email, await LoginEmpleadoAsync(email, AdminPassword));
     }

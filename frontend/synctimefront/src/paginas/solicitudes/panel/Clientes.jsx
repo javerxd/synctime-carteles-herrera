@@ -132,11 +132,13 @@ function FormularioCliente({ cliente, alGuardar }) {
     if (!comprobar()) return;
     setEstado({ guardando: true, error: null, exito: null });
     try {
-      const actualizado = await clientes.actualizar(cliente.idCliente, { ...clienteParaApi(datos), activo: cliente.activo ?? true });
+      const actualizado = await clientes.actualizar(cliente.idCliente, { ...clienteParaApi(datos), activo: cliente.activo ?? true }, cliente.rowVersion);
       setEstado({ guardando: false, error: null, exito: 'Guardamos los datos del cliente.' });
       alGuardar(actualizado);
     } catch (error) {
-      if (aplicarErroresApi(error)) setEstado({ guardando: false, error: null, exito: null });
+      if (error?.codigo === 'version_obsoleta') {
+        setEstado({ guardando: false, error: 'Otra persona modificó este cliente mientras lo editabas. Tus cambios siguen aquí: recarga la página para ver la versión actual antes de guardar.', exito: null });
+      } else if (aplicarErroresApi(error)) setEstado({ guardando: false, error: null, exito: null });
       else setEstado({ guardando: false, error: error?.message || 'No pudimos guardar. Inténtalo de nuevo.', exito: null });
     }
   }

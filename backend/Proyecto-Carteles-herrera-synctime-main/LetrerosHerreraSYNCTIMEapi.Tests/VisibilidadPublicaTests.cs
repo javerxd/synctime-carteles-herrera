@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace LetrerosHerreraSYNCTIMEapi.Tests;
@@ -15,16 +16,18 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
         var idCategoria = await CrearCategoriaAsync();
         var id = await CrearProductoAsync(idCategoria, activo: false);
 
-        await VerificarOcultoAsync("/api/v1/productos", "idProducto", id, "incluirInactivos");
+        await VerificarOcultoAsync("/api/v1/productos", "idProducto", id, "activo=todos");
     }
 
     [Fact]
     public async Task Producto_OfInactiveCategory_IsHiddenExceptWhenStaffAsksForIt()
     {
-        var idCategoria = await CrearCategoriaAsync(activa: false);
+        // Fase 9: no se crea un tipo de letrero en una categoria desactivada; se desactiva despues.
+        var idCategoria = await CrearCategoriaAsync();
         var id = await CrearProductoAsync(idCategoria);
+        await DesactivarCategoriaAsync(idCategoria);
 
-        await VerificarOcultoAsync("/api/v1/productos", "idProducto", id, "incluirInactivos");
+        await VerificarOcultoAsync("/api/v1/productos", "idProducto", id, "activo=todos");
     }
 
     [Fact]
@@ -32,7 +35,7 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
     {
         var id = await CrearCategoriaAsync(activa: false);
 
-        await VerificarOcultoAsync("/api/v1/categorias", "idCategoria", id, "incluirInactivos");
+        await VerificarOcultoAsync("/api/v1/categorias", "idCategoria", id, "activo=todos");
     }
 
     [Fact]
@@ -41,7 +44,7 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
         var idProducto = await CrearProductoAsync(await CrearCategoriaAsync());
         var id = await CrearCatalogoAsync(idProducto, visible: false);
 
-        await VerificarOcultoAsync("/api/v1/catalogo", "idCatalogo", id, "incluirOcultos");
+        await VerificarOcultoAsync("/api/v1/catalogo", "idCatalogo", id, "incluirOcultos=true");
     }
 
     [Fact]
@@ -50,7 +53,7 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
         var idProducto = await CrearProductoAsync(await CrearCategoriaAsync(), activo: false);
         var id = await CrearCatalogoAsync(idProducto);
 
-        await VerificarOcultoAsync("/api/v1/catalogo", "idCatalogo", id, "incluirOcultos");
+        await VerificarOcultoAsync("/api/v1/catalogo", "idCatalogo", id, "incluirOcultos=true");
     }
 
     [Fact]
@@ -73,7 +76,9 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
         var idCategoria = await CrearCategoriaAsync();
         var disponible = await CrearProductoAsync(idCategoria);
         var inactivo = await CrearProductoAsync(idCategoria, activo: false);
-        var enCategoriaInactiva = await CrearProductoAsync(await CrearCategoriaAsync(activa: false));
+        var categoriaQueSeDesactiva = await CrearCategoriaAsync();
+        var enCategoriaInactiva = await CrearProductoAsync(categoriaQueSeDesactiva);
+        await DesactivarCategoriaAsync(categoriaQueSeDesactiva);
 
         foreach (var idProducto in new[] { inactivo, enCategoriaInactiva })
         {
@@ -100,32 +105,32 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
         ];
     }
 
-    // El parametro solo tiene efecto para el personal, y por defecto todos reciben lo mismo.
+    // Fase 9: el parametro solo tiene efecto para gestion (dueño y administrador). Visitantes, clientes y el
+    // resto del personal (que usa estas listas en las solicitudes) ven solo lo que se ofrece.
     private async Task VerificarOcultoAsync(string ruta, string campoId, int id, string parametro)
     {
         var (_, _, tokenCliente) = await api.RegistrarClienteAsync();
         var anonimo = api.Cliente();
         var cliente = api.Cliente(tokenCliente);
-        var personal = api.Cliente(await api.TokenEmpleadoAsync("operario"));
+        var operario = api.Cliente(await api.TokenEmpleadoAsync("operario"));
+        var gestion = api.Cliente(await api.TokenAdminAsync());
 
-        foreach (var sinPermiso in new[] { anonimo, cliente })
+        foreach (var sinPermiso in new[] { anonimo, cliente, operario })
         {
             Assert.DoesNotContain(id, await IdsAsync(sinPermiso, $"{ruta}/", campoId));
-            Assert.DoesNotContain(id, await IdsAsync(sinPermiso, $"{ruta}/?{parametro}=true", campoId));
+            Assert.DoesNotContain(id, await IdsAsync(sinPermiso, $"{ruta}/?{parametro}", campoId));
             await sinPermiso.GetAsync($"{ruta}/{id}").EsperarAsync(HttpStatusCode.NotFound);
         }
 
-        Assert.DoesNotContain(id, await IdsAsync(personal, $"{ruta}/", campoId));
-        Assert.Contains(id, await IdsAsync(personal, $"{ruta}/?{parametro}=true", campoId));
-        await personal.GetAsync($"{ruta}/{id}").EsperarAsync(HttpStatusCode.OK);
+        Assert.Contains(id, await IdsAsync(gestion, $"{ruta}/?{parametro}", campoId));
+        await gestion.GetAsync($"{ruta}/{id}").EsperarAsync(HttpStatusCode.OK);
     }
 
     private static async Task<List<int>> IdsAsync(HttpClient cliente, string url, string campoId)
     {
-        // La vitrina responde paginada desde la fase 5 ({ elementos, total, ... }); los demas listados, como lista.
-        var paginada = url.Contains("/catalogo");
-        var respuesta = await cliente.GetAsync(paginada ? $"{url}{(url.Contains('?') ? '&' : '?')}tamano=100" : url).EsperarAsync(HttpStatusCode.OK);
-        var lista = paginada ? respuesta.GetProperty("elementos") : respuesta;
+        // Todos los listados responden paginados ({ elementos, total, ... }): la vitrina desde la fase 5, el resto desde la 9.
+        var respuesta = await cliente.GetAsync($"{url}{(url.Contains('?') ? '&' : '?')}tamano=100&orden=-id").EsperarAsync(HttpStatusCode.OK);
+        var lista = respuesta.GetProperty("elementos");
         return lista.EnumerateArray().Select(e => e.GetProperty(campoId).GetInt32()).ToList();
     }
 
@@ -136,6 +141,9 @@ public sealed class VisibilidadPublicaTests(ApiFixture api)
             .EsperarAsync(HttpStatusCode.Created);
         return creada.GetProperty("idCategoria").GetInt32();
     }
+
+    private Task<int> DesactivarCategoriaAsync(int idCategoria) =>
+        api.ConsultarAsync(db => db.Categorias.Where(c => c.IdCategoria == idCategoria).ExecuteUpdateAsync(s => s.SetProperty(c => c.Activo, false)));
 
     private async Task<int> CrearProductoAsync(int idCategoria, bool activo = true)
     {

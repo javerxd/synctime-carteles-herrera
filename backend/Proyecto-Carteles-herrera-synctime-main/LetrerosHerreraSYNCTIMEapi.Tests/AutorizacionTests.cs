@@ -15,7 +15,7 @@ public sealed class AutorizacionTests(ApiFixture api)
     public static TheoryData<string> RutasDePersonal =>
     [
         "/api/v1/clientes/",
-        "/api/v1/empleados",
+        "/api/v1/empleados/activos",
         "/api/v1/materiales",
         "/api/v1/solicitudes/",
         "/api/v1/cotizaciones/",
@@ -78,14 +78,16 @@ public sealed class AutorizacionTests(ApiFixture api)
         object Empleado(string rol, string password) => new { rut = api.Rut(), nombre = "A", apellido = "B", telefono = api.Telefono(), email = $"e{api.Siguiente()}@test.local", password, rol, passwordActual = ApiFixture.AdminPassword };
 
         // Se comprueba el motivo: un 400 por falta de contraseña actual haria pasar estas lineas sin validar nada.
-        var rolInvalido = await api.Cliente(token).PostAsJsonAsync("/api/v1/auth/empleados", Empleado("jefe", ApiFixture.AdminPassword)).EsperarAsync(HttpStatusCode.BadRequest);
+        var rolInvalido = await api.Cliente(token).PostAsJsonAsync("/api/v1/empleados", Empleado("jefe", ApiFixture.AdminPassword)).EsperarAsync(HttpStatusCode.BadRequest);
         Assert.Contains("Rol", rolInvalido.GetProperty("error").GetString());
-        var corta = await api.Cliente(token).PostAsJsonAsync("/api/v1/auth/empleados", Empleado(Roles.Operario, "corta")).EsperarAsync(HttpStatusCode.BadRequest);
+        var corta = await api.Cliente(token).PostAsJsonAsync("/api/v1/empleados", Empleado(Roles.Operario, "corta")).EsperarAsync(HttpStatusCode.BadRequest);
         Assert.Equal(AuthService.MensajePasswordInvalida, corta.GetProperty("error").GetString());
-        var vacios = await api.Cliente(token).PostAsJsonAsync("/api/v1/auth/empleados", new { rut = "", nombre = "", apellido = "", telefono = "", email = "", password = ApiFixture.AdminPassword, rol = Roles.Operario, passwordActual = ApiFixture.AdminPassword })
+        var vacios = await api.Cliente(token).PostAsJsonAsync("/api/v1/empleados", new { rut = "", nombre = "", apellido = "", telefono = "", email = "", password = ApiFixture.AdminPassword, rol = Roles.Operario, passwordActual = ApiFixture.AdminPassword })
             .EsperarAsync(HttpStatusCode.BadRequest);
-        Assert.Contains("requeridos", vacios.GetProperty("error").GetString());
-        await api.Cliente().PostAsJsonAsync("/api/v1/auth/empleados", Empleado(Roles.Operario, ApiFixture.AdminPassword)).EsperarAsync(HttpStatusCode.Unauthorized);
+        // Fase 9: un error por campo vacio.
+        foreach (var campo in new[] { "rut", "nombre", "apellido", "telefono", "email" })
+            Assert.True(vacios.GetProperty("errores").TryGetProperty(campo, out _), campo);
+        await api.Cliente().PostAsJsonAsync("/api/v1/empleados", Empleado(Roles.Operario, ApiFixture.AdminPassword)).EsperarAsync(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -96,8 +98,8 @@ public sealed class AutorizacionTests(ApiFixture api)
         var sinPassword = $"e{api.Siguiente()}@test.local";
         var conErronea = $"e{api.Siguiente()}@test.local";
 
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/auth/empleados", Empleado(sinPassword, null)).EsperarAsync(HttpStatusCode.BadRequest);
-        await api.Cliente(token).PostAsJsonAsync("/api/v1/auth/empleados", Empleado(conErronea, "no-es-mi-password")).EsperarAsync(HttpStatusCode.BadRequest);
+        await api.Cliente(token).PostAsJsonAsync("/api/v1/empleados", Empleado(sinPassword, null)).EsperarAsync(HttpStatusCode.BadRequest);
+        await api.Cliente(token).PostAsJsonAsync("/api/v1/empleados", Empleado(conErronea, "no-es-mi-password")).EsperarAsync(HttpStatusCode.BadRequest);
 
         Assert.False(await api.ConsultarAsync(db => db.Empleados.AnyAsync(e => e.Email == sinPassword || e.Email == conErronea)));
     }

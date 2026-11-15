@@ -79,7 +79,8 @@ builder.Services.AddOptions<OpcionesCorreo>()
 builder.Services.AddSingleton<RegistroFallosAvisos>();
 builder.Services.AddSingleton<SenalColaCorreo>();
 builder.Services.AddSingleton<IServicioCorreo, ServicioCorreoEnCola>();
-builder.Services.AddScoped<IDestinatariosAvisos, DestinatariosAvisosDesdeConfiguracion>();
+builder.Services.AddSingleton<TablaDestinosAusente>();
+builder.Services.AddScoped<IDestinatariosAvisos, DestinatariosAvisosDesdeBaseYConfiguracion>();
 builder.Services.AddSingleton<EnviadorSmtp>();
 builder.Services.AddSingleton<EnviadorBandejaLocal>();
 builder.Services.AddSingleton<IEnviadorCorreo>(sp => sp.GetRequiredService<IOptions<OpcionesCorreo>>().Value.EsBandeja
@@ -112,6 +113,15 @@ builder.Services.AddScoped<ServicioClientes>();
 // Fase 8: cotizaciones, pedidos y abonos. El aviso «cotizacion lista» usa la misma cola en la transaccion.
 builder.Services.AddScoped<ServicioCotizaciones>();
 builder.Services.AddScoped<ServicioPedidos>();
+// Fase 9: mantenedores, estado del local y disponibilidad, y los destinos de los avisos del taller.
+builder.Services.AddScoped<ServicioCategorias>();
+builder.Services.AddScoped<ServicioProductos>();
+builder.Services.AddScoped<ServicioMateriales>();
+builder.Services.AddScoped<ServicioEmpleados>();
+builder.Services.AddScoped<ServicioReautenticacion>();
+builder.Services.AddScoped<ServicioFichaClientes>();
+builder.Services.AddScoped<ServicioLocal>();
+builder.Services.AddScoped<ServicioDestinosAvisos>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
@@ -305,6 +315,10 @@ app.MapSalud();
 app.MapAuthApi();
 app.MapRostroApi();
 app.MapCatalogoApi();
+app.MapClienteApi();
+app.MapPersonalApi();
+app.MapLocalApi();
+app.MapDestinosAvisosApi();
 app.MapSolicitudApi();
 app.MapPortalClienteApi();
 app.MapMisSolicitudesApi();

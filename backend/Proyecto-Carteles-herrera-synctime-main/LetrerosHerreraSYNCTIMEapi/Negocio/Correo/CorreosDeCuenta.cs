@@ -26,6 +26,27 @@ public static class CorreosDeCuenta
             "Si no fuiste tú, avísanos", cuerpo, correoContacto);
     }
 
+    // Fase 9 (revision de seguridad): al correo anterior de una persona del personal cuando gestion lo cambia.
+    // La direccion nueva va enmascarada.
+    public static MensajeCorreo AvisoCambioCorreoPersonal(string para, string nombre, string nuevaEnmascarada, string correoContacto)
+    {
+        var cuerpo = new CuerpoCorreo()
+            .Parrafo($"Hola, {AvisoSolicitudNueva.Linea(nombre)}. El correo con que ingresas a SyncTime se cambió por {nuevaEnmascarada}. Desde ahora ingresas y recuperas tu contraseña con esa dirección, y se cerraron tus sesiones abiertas.")
+            .Nota("Si no lo pediste, avisa de inmediato al dueño o al administrador del taller.");
+        return CorreoParaCliente.Componer(TiposCorreo.AvisoCambioCorreoPersonal, para, "Tu correo de ingreso a SyncTime cambió",
+            "Tu correo de ingreso cambió", "Si no lo pediste, avisa en el taller", cuerpo, correoContacto);
+    }
+
+    // Fase 9 (revision de seguridad): el personal le asigno una contraseña nueva a una cuenta que ya tenia una.
+    public static MensajeCorreo AvisoAccesoReasignado(string para, string nombre, string correoContacto)
+    {
+        var cuerpo = new CuerpoCorreo()
+            .Parrafo($"Hola, {AvisoSolicitudNueva.Linea(nombre)}. El personal de Letreros Herrera asignó una contraseña nueva a tu cuenta y cerró tus sesiones abiertas.")
+            .Nota($"Si no lo pediste tú, escríbenos a {correoContacto} o pasa por el local.");
+        return CorreoParaCliente.Componer(TiposCorreo.AvisoAccesoReasignado, para, "El acceso a tu cuenta de Letreros Herrera cambió",
+            "El acceso a tu cuenta cambió", "Si no fuiste tú, avísanos", cuerpo, correoContacto);
+    }
+
     public static MensajeCorreo Recuperacion(string para, string nombre, string codigo, int minutos, string correoContacto)
     {
         var cuerpo = new CuerpoCorreo()

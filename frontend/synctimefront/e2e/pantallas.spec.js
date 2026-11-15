@@ -198,6 +198,46 @@ Object.assign(RESPUESTAS, {
     total: 2, pagina: 1, tamano: 10, totalPaginas: 1,
   },
 });
+// ── Fase 9: mantenedores, estado del local y avisos del taller ──
+const PERSONAL = [
+  { idEmpleado: 1, rut: '12.345.678-5', nombre: 'Marta', apellido: 'Fuentes', telefono: '912345678', email: 'dueno@letreria.test', rol: 'dueño', activo: true, rowVersion: 'AAAAAAAAEM1=' },
+  { idEmpleado: 2, rut: '11.111.111-1', nombre: 'Hugo', apellido: 'Vera', telefono: '987654321', email: 'hugo@letreria.test', rol: 'operario', activo: true, rowVersion: 'AAAAAAAAEM2=' },
+];
+const PUBLICACION = {
+  ...RESPUESTAS['/api/v1/catalogo'].elementos[0], visible: true, incluyeLogoCliente: false, logoAutorizado: false, idImagen: 4, rowVersion: 'AAAAAAAACAT=',
+};
+const PUBLICACION_LOGO = {
+  ...RESPUESTAS['/api/v1/catalogo'].elementos[1], visible: false, incluyeLogoCliente: true, logoAutorizado: false, rowVersion: 'AAAAAAAACA2=',
+};
+const DESTINO_ACTIVO = {
+  idDestinatario: 1, correo: 'contacto.letrerosherrera@gmail.com', estado: 'activo', reemplazaA: null,
+  fechaSolicitudChile: `${HOY_CHILE}T08:00:00`, fechaConfirmacionChile: `${HOY_CHILE}T08:05:00`, venceChile: null,
+};
+const AVISOS_TALLER = {
+  destinos: [DESTINO_ACTIVO], usaRespaldo: false,
+  historial: [{ fechaChile: `${HOY_CHILE}T08:05:00`, accion: 'confirmar', correo: 'c•••a@gmail.com', empleado: null, detalle: null }],
+};
+const FRANJAS_ATENCION = [{ desde: '09:00:00', hasta: '13:00:00' }, { desde: '15:00:00', hasta: '18:00:00' }];
+const DIAS_ATENCION = RESPUESTAS['/api/v1/horarios'].map((d) => ({
+  diaSemana: d.diaSemana, nombreDia: d.nombreDia, franjas: d.abierto ? FRANJAS_ATENCION.slice(0, d.diaSemana === 6 ? 1 : 2) : [],
+}));
+Object.assign(RESPUESTAS, {
+  '/api/v1/empleados/activos': EMPLEADOS,
+  '/api/v1/empleados': paginaDe(PERSONAL),
+  '/api/v1/empleados/2': PERSONAL[1],
+  '/api/v1/categorias/1': { idCategoria: 1, nombre: 'Luminosos', descripcion: 'Cajas de luz y letras corpóreas', activo: true, rowVersion: 'AAAAAAAACA1=' },
+  '/api/v1/catalogo/1': PUBLICACION,
+  '/api/v1/catalogo/2': PUBLICACION_LOGO,
+  '/api/v1/avisos-taller': AVISOS_TALLER,
+  '/api/v1/avisos-taller/confirmar': { correo: 'n•••o@taller.cl' },
+  '/api/v1/mi-disponibilidad': [{ diaSemana: 1, horaInicio: '09:00:00', horaFin: '13:00:00' }],
+  '/api/v1/disponibilidad': [
+    { idEmpleado: 1, nombre: 'Marta Fuentes', franjas: [{ diaSemana: 1, horaInicio: '09:00:00', horaFin: '13:00:00' }] },
+    { idEmpleado: 2, nombre: 'Hugo Vera', franjas: [{ diaSemana: 2, horaInicio: '15:00:00', horaFin: '18:00:00' }] },
+  ],
+  '/api/v1/local/atencion': DIAS_ATENCION,
+  '/api/v1/auth/rostro': { disponible: false },
+});
 const IMAGEN_PRUEBA = 'public/marca/logo-lh-256.webp';
 
 function tokenDePrueba() {
@@ -271,6 +311,15 @@ const PANTALLAS = [
   ['/panel/pedidos/1', 'Pedido #1'],
   ['/panel/pedidos/directo', 'Pedido directo en el taller'],
   ['/panel/calendario', 'Calendario de entregas'],
+  ['/panel/perfil', 'Mi perfil'],
+  ['/panel/mantenedores/categorias', 'Catálogo y mantenedores'],
+  ['/panel/mantenedores/vitrina', 'Catálogo y mantenedores'],
+  ['/panel/mantenedores/personal', 'Catálogo y mantenedores'],
+  ['/panel/mantenedores/categorias/1', 'Luminosos'],
+  ['/panel/mantenedores/vitrina/2', 'Vinilo para vitrina de ferretería'],
+  ['/panel/mantenedores/personal/2', 'Hugo Vera'],
+  ['/panel/mantenedores/personal/nuevo', 'Agregar persona'],
+  ['/avisos/confirmar?token=abc123', 'Correo confirmado'],
 ];
 
 for (const ancho of [360, 768, 1440]) {
@@ -1140,4 +1189,148 @@ test('un operario no ve las alertas de gestión en el inicio', async ({ page }) 
   await page.goto('/panel');
   await expect(page.getByRole('heading', { level: 1, name: 'Hola, Marta' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Entregas y cobranza' })).toHaveCount(0);
+});
+
+// ── Fase 9 ──
+
+test('avisos del taller: reemplazar el correo deja el anterior activo hasta que el nuevo confirma desde el enlace', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  let pedido = null;
+  await page.route('**/api/v1/avisos-taller', (ruta) => ruta.fulfill({
+    json: pedido
+      ? {
+        ...AVISOS_TALLER,
+        destinos: [DESTINO_ACTIVO, {
+          idDestinatario: 2, correo: pedido.correo, estado: 'pendiente', reemplazaA: { idDestinatario: 1, correo: DESTINO_ACTIVO.correo },
+          fechaSolicitudChile: `${HOY_CHILE}T10:00:00`, fechaConfirmacionChile: null, venceChile: `${diaChile(1)}T10:00:00`,
+        }],
+      }
+      : AVISOS_TALLER,
+  }));
+  await page.route('**/api/v1/avisos-taller/destinos', (ruta) => {
+    pedido = ruta.request().postDataJSON();
+    return ruta.fulfill({ status: 201, json: {} });
+  });
+  await page.goto('/panel/perfil');
+  const seccion = page.getByRole('region', { name: 'Avisos del taller' });
+  await expect(seccion.getByText('Configuración del taller', { exact: true })).toBeVisible();
+  await expect(seccion.getByRole('button', { name: `Quitar ${DESTINO_ACTIVO.correo}` })).toHaveAttribute('aria-disabled', 'true');
+  await seccion.getByRole('button', { name: `Reemplazar ${DESTINO_ACTIVO.correo}` }).click();
+  const campo = seccion.getByRole('textbox', { name: /Correo que reemplaza/ });
+  await expect(campo).toBeFocused();
+  await campo.fill('nuevo@taller.cl');
+  await seccion.getByLabel(/Tu contraseña, para confirmar el cambio/).fill('mi-clave');
+  await seccion.getByRole('button', { name: 'Enviar enlace de confirmación' }).click();
+  await expect(seccion.getByText('Pendiente de confirmar')).toBeVisible();
+  await expect(seccion.getByText(/Sigue recibiendo los avisos hasta que se confirme el cambio/)).toBeVisible();
+  expect(pedido).toEqual({ correo: 'nuevo@taller.cl', idReemplaza: 1, passwordActual: 'mi-clave' });
+  await expect(seccion.getByRole('button', { name: 'Agregar correo' })).toBeFocused();
+  await sinFallasGraves(page);
+
+  // Quien recibe el correo abre el enlace, sin sesión.
+  const confirmacion = page.waitForRequest((r) => r.url().endsWith('/api/v1/avisos-taller/confirmar') && r.method() === 'POST');
+  await page.goto('/avisos/confirmar?token=un-solo-uso');
+  expect((await confirmacion).postDataJSON()).toEqual({ token: 'un-solo-uso' });
+  await expect(page.getByRole('heading', { level: 1, name: 'Correo confirmado' })).toBeVisible();
+  await expect(page).toHaveURL(/\/avisos\/confirmar$/);
+});
+
+test('avisos del taller: el correo de prueba consulta el estado hasta «Salió bien»', async ({ page }) => {
+  await entrarComo(page, 'administrador');
+  let consultas = 0;
+  await page.route('**/api/v1/avisos-taller/prueba', (ruta) => ruta.fulfill({
+    status: 202, json: { idsCorreos: [41], destinatarios: [DESTINO_ACTIVO.correo], usaRespaldo: false },
+  }));
+  await page.route('**/api/v1/avisos-taller/prueba/estado?**', (ruta) => {
+    consultas += 1;
+    return ruta.fulfill({ json: [{ idCorreo: 41, destinatario: DESTINO_ACTIVO.correo, estado: consultas > 1 ? 'enviado' : 'pendiente', intentos: consultas - 1, error: null }] });
+  });
+  await page.goto('/panel/perfil');
+  await page.getByRole('button', { name: 'Enviar correo de prueba' }).click();
+  const resultado = page.getByRole('list', { name: 'Resultado del correo de prueba' });
+  await expect(resultado.getByText('Salió bien')).toBeVisible({ timeout: 10000 });
+  expect(consultas).toBe(2);
+});
+
+test('un operario no ve los avisos del taller en su perfil', async ({ page }) => {
+  await entrarComo(page, 'operario');
+  const pedidas = [];
+  page.on('request', (r) => r.url().includes('/avisos-taller') && pedidas.push(r.url()));
+  await page.goto('/panel/perfil');
+  await expect(page.getByRole('heading', { level: 1, name: 'Mi perfil' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Avisos del taller' })).toHaveCount(0);
+  expect(pedidas).toEqual([]);
+});
+
+test('un operario da vuelta el cartel y edita su disponibilidad, pero no el horario', async ({ page }) => {
+  await entrarComo(page, 'operario');
+  let cartel = null;
+  let franjas = null;
+  await page.route('**/api/v1/cartel-digital', (ruta) => {
+    if (ruta.request().method() === 'PUT') {
+      cartel = ruta.request().postDataJSON();
+      return ruta.fulfill({ status: 204 });
+    }
+    return ruta.fulfill({ json: RESPUESTAS['/api/v1/cartel-digital'] });
+  });
+  await page.route('**/api/v1/mi-disponibilidad', (ruta) => {
+    if (ruta.request().method() === 'PUT') {
+      franjas = ruta.request().postDataJSON();
+      return ruta.fulfill({ status: 204 });
+    }
+    return ruta.fulfill({ json: RESPUESTAS['/api/v1/mi-disponibilidad'] });
+  });
+  await page.goto('/panel/local');
+  await page.getByRole('combobox', { name: 'Estado' }).selectOption('abierto');
+  await page.getByRole('button', { name: 'Dar vuelta el cartel' }).click();
+  await expect(page.getByText('El cartel dice Abierto').first()).toBeVisible();
+  expect(cartel).toEqual({ abiertoEnLocal: true, mensajeEstado: 'Local abierto y atendiendo', tiempoEstimadoRegreso: null });
+  await expect(page.getByRole('button', { name: 'Guardar horario' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Disponibilidad del equipo' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Agregar franja el martes' }).click();
+  await page.getByRole('button', { name: 'Guardar mi disponibilidad' }).click();
+  await expect(page.getByText('Disponibilidad guardada').first()).toBeVisible();
+  expect(franjas).toEqual({ franjas: [
+    { diaSemana: 1, horaInicio: '09:00:00', horaFin: '13:00:00' }, { diaSemana: 2, horaInicio: '09:00:00', horaFin: '18:30:00' },
+  ] });
+  await sinFallasGraves(page);
+});
+
+test('desactivar a una persona pide confirmar y envía la versión vista', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  let cambio = null;
+  await page.route('**/api/v1/empleados/2/activo', (ruta) => {
+    cambio = { cuerpo: ruta.request().postDataJSON(), version: ruta.request().headers()['if-match'] };
+    return ruta.fulfill({ json: { ...PERSONAL[1], activo: false } });
+  });
+  await page.goto('/panel/mantenedores/personal');
+  await page.getByRole('link', { name: 'Hugo Vera' }).click();
+  await page.getByRole('button', { name: 'Desactivar a esta persona' }).click();
+  const dialogo = page.getByRole('dialog', { name: 'Desactivar a Hugo Vera' });
+  await expect(dialogo.getByText('Se borrará su acceso con rostro y se cerrarán sus sesiones.')).toBeVisible();
+  await expect(dialogo.getByRole('button', { name: 'Cancelar' })).toBeFocused();
+  await sinFallasGraves(page);
+  await dialogo.getByRole('button', { name: 'Desactivar' }).click();
+  await expect(dialogo).toBeHidden();
+  expect(cambio).toEqual({ cuerpo: { activo: false }, version: '"AAAAAAAAEM2="' });
+});
+
+test('la vitrina bloquea mostrar una publicación con logo sin autorización y lo explica', async ({ page }) => {
+  await entrarComo(page, 'administrador');
+  await page.route('**/api/v1/catalogo?**', (ruta) => ruta.fulfill({ json: paginaDe([PUBLICACION, PUBLICACION_LOGO]) }));
+  await page.goto('/panel/mantenedores/vitrina');
+  const interruptor = page.getByRole('switch', { name: `Mostrar «${PUBLICACION_LOGO.titulo}» en la vitrina` });
+  await expect(interruptor).toHaveAttribute('aria-disabled', 'true');
+  await expect(interruptor).toHaveAccessibleDescription(/registra su autorización/);
+  await expect(page.getByRole('switch', { name: `Mostrar «${PUBLICACION.titulo}» en la vitrina` })).toHaveAttribute('aria-checked', 'true');
+  await sinFallasGraves(page);
+});
+
+test('la portada muestra las franjas de atención junto al horario, sin nombres', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.goto('/#horario');
+  const horario = page.locator('#horario');
+  await expect(horario.getByText('Atención: 9:00 a 13:00 · 15:00 a 18:00').first()).toBeVisible();
+  await expect(horario.getByText(/Marta|Hugo/)).toHaveCount(0);
 });

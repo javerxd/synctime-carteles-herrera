@@ -12,7 +12,25 @@ public static class AvisoSolicitudNueva
 {
     // Fase 7: el aviso se arma con el mismo comprobante que ve el cliente. registradaPor solo en las
     // presenciales (hoy no avisan al taller, pero el aviso sabe decirlo si se vuelve a activar).
-    public static MensajeCorreo Componer(ComprobanteSolicitud solicitud, string? registradaPorNombre, IReadOnlyList<string> para, string? urlPublica)
+    public static MensajeCorreo Componer(ComprobanteSolicitud solicitud, string? registradaPorNombre, IReadOnlyList<string> para, string? urlPublica) =>
+        Componer(solicitud, registradaPorNombre, para, urlPublica, prueba: false);
+
+    // Fase 9: el aviso de ejemplo de «Enviar correo de prueba», con la misma plantilla que uno real. Lleva
+    // una franja «Esto es una prueba», datos ficticios marcados como tales y su propio tipo (prueba_avisos),
+    // que no cuenta para el tope de avisos por hora. Sin boton al panel: la solicitud #0 no existe.
+    public const string AsuntoPrueba = "Nueva solicitud #0 - Prueba del taller";
+
+    public static MensajeCorreo ComponerPrueba(string para, DateTime ahoraChile, string? urlPublica)
+    {
+        var ficticia = new ComprobanteSolicitud(0, "#0", ahoraChile, "online", "solicitado", null,
+            new ClienteComprobante("Cliente de ejemplo", "(ficticio)", "900000000", null),
+            [new DetalleComprobante(0, "Letrero de ejemplo (ficticio)", "Solo para probar el aviso", 1000, 500, 1, 0.5m)],
+            0.5m, "Datos de ejemplo: esta solicitud no existe.", [], []);
+        return Componer(ficticia, null, [para], urlPublica, prueba: true);
+    }
+
+    private static MensajeCorreo Componer(ComprobanteSolicitud solicitud, string? registradaPorNombre, IReadOnlyList<string> para, string? urlPublica,
+        bool prueba)
     {
         var enLinea = solicitud.Origen != "presencial";
         var origen = enLinea ? "en línea" : "presencial";
@@ -28,7 +46,10 @@ public static class AvisoSolicitudNueva
             ? $"{nombre} envió una solicitud en línea el {fecha} a las {hora}."
             : $"{registradaPor ?? "El personal"} registró una solicitud presencial el {fecha} a las {hora}.";
 
-        var cuerpo = new CuerpoCorreo().Parrafo(entrada);
+        var cuerpo = new CuerpoCorreo();
+        if (prueba)
+            cuerpo.Cita("Esto es una prueba", "Lo pidió el taller desde SyncTime para comprobar que los avisos llegan a esta casilla. Los datos de abajo son ficticios.");
+        cuerpo.Parrafo(entrada);
 
         var datos = new List<DatoCorreo>
         {
@@ -66,17 +87,20 @@ public static class AvisoSolicitudNueva
         // Los archivos no viajan en el correo: se ven en el panel, con sesion.
         cuerpo.Parrafo(Adjuntos(solicitud.Adjuntos.Count));
 
-        if (UrlSolicitud(urlPublica, solicitud.IdSolicitud) is { } ficha)
+        if (!prueba && UrlSolicitud(urlPublica, solicitud.IdSolicitud) is { } ficha)
             cuerpo.Boton("Ver solicitud", ficha);
 
         if (enLinea)
             cuerpo.Nota("Los datos de contacto los escribió quien envió la solicitud: confírmalos antes de compartir información.");
 
         var (html, texto) = PlantillaCorreo.Componer(
-            titulo: $"Nueva solicitud {origen}",
-            preencabezado: $"{nombre} · {telefono?.Legible ?? telefonoEscrito}",
+            titulo: prueba ? "Prueba: nueva solicitud en línea" : $"Nueva solicitud {origen}",
+            preencabezado: prueba ? "Esto es una prueba de los avisos del taller." : $"{nombre} · {telefono?.Legible ?? telefonoEscrito}",
             cuerpo,
             pie: "Recibes este aviso porque tu correo está configurado para los avisos del taller en SyncTime.");
+
+        if (prueba)
+            return new MensajeCorreo(TiposCorreo.PruebaAvisos, para, AsuntoPrueba, html, texto, Referencia: "prueba_avisos");
 
         return new MensajeCorreo(
             TiposCorreo.AvisoSolicitudNueva,

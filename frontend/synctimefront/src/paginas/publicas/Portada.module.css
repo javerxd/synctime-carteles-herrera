@@ -258,6 +258,14 @@
   text-align: end;
 }
 
+.atencion {
+  display: block;
+  margin-top: var(--espacio-0-5);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-normal);
+}
+
 .hoy th,
 .hoy td {
   color: var(--color-texto);

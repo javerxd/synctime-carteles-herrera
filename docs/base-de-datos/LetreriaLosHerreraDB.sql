@@ -1,8 +1,8 @@
 ﻿-- =====================================================================================
 -- SyncTime - Letreros Herrera (la base conserva el nombre LetreriaLosHerreraDB)
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
--- triggers, vista y procedimiento almacenado. Estado: migración CotizacionesYPedidos.
--- Generado el 14-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
+-- triggers, vista y procedimiento almacenado. Estado: migración MantenedoresYAvisos.
+-- Generado el 15-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
 --
 -- Cambios de la revisión del 12-11-2026 (tabla pedidos):
 --   * estado        -> estado_pedido: aceptado, en_proceso, terminado, entregado, anulado.
@@ -30,6 +30,13 @@
 --   * pedidos_historial: (tabla nueva) cada cambio de estado del pedido, con quién y cuándo.
 --   * pagos:             un abono mal ingresado se anula con motivo; el trigger suma solo los no
 --                        anulados y no deja reactivar uno anulado.
+--
+-- Fase 9 (15-11-2026), migración MantenedoresYAvisos (sección 2b):
+--   * row_version en categorias, productos, catalogo, materiales, empleados y clientes.
+--   * horarios_atencion: quién y cuándo, y un día cerrado no guarda horas (ck_horarios_cerrado).
+--   * disponibilidad_empleados: (tabla nueva) franjas semanales de atención del personal.
+--   * destinatarios_avisos e historial: (tablas nuevas) a qué correos llegan los avisos del taller.
+--   * Descripciones de categorías (300) y productos (500), y regreso estimado del cartel (100), más largos.
 --
 -- Cómo ejecutarlo. Crea una base NUEVA y se detiene sin hacer nada si ya existe:
 --   sqlcmd -S localhost\SQLEXPRESS -E -C -I -f 65001 -i LetreriaLosHerreraDB.sql
@@ -969,6 +976,117 @@ END
 GO
 
 -- -------------------------------------------------------------------------------------
+-- 2b. Fase 9: mantenedores y avisos del taller (migración MantenedoresYAvisos)
+-- -------------------------------------------------------------------------------------
+DECLARE @var nvarchar(max);
+SELECT @var = QUOTENAME([d].[name])
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[cartel_digital]') AND [c].[name] = N'tiempo_estimado_regreso');
+IF @var IS NOT NULL EXEC(N'ALTER TABLE [cartel_digital] DROP CONSTRAINT ' + @var + ';');
+ALTER TABLE [cartel_digital] ALTER COLUMN [tiempo_estimado_regreso] nvarchar(100) NULL;
+
+DECLARE @var1 nvarchar(max);
+SELECT @var1 = QUOTENAME([d].[name])
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[productos]') AND [c].[name] = N'descripcion');
+IF @var1 IS NOT NULL EXEC(N'ALTER TABLE [productos] DROP CONSTRAINT ' + @var1 + ';');
+ALTER TABLE [productos] ALTER COLUMN [descripcion] nvarchar(500) NULL;
+
+ALTER TABLE [productos] ADD [row_version] rowversion NOT NULL;
+
+ALTER TABLE [materiales] ADD [row_version] rowversion NOT NULL;
+
+ALTER TABLE [horarios_atencion] ADD [fecha_modificacion] datetimeoffset(0) NULL;
+
+ALTER TABLE [horarios_atencion] ADD [id_empleado_modifica] int NULL;
+
+ALTER TABLE [empleados] ADD [row_version] rowversion NOT NULL;
+
+ALTER TABLE [clientes] ADD [row_version] rowversion NOT NULL;
+
+DECLARE @var2 nvarchar(max);
+SELECT @var2 = QUOTENAME([d].[name])
+FROM [sys].[default_constraints] [d]
+INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+WHERE ([d].[parent_object_id] = OBJECT_ID(N'[categorias]') AND [c].[name] = N'descripcion');
+IF @var2 IS NOT NULL EXEC(N'ALTER TABLE [categorias] DROP CONSTRAINT ' + @var2 + ';');
+ALTER TABLE [categorias] ALTER COLUMN [descripcion] nvarchar(300) NULL;
+
+ALTER TABLE [categorias] ADD [row_version] rowversion NOT NULL;
+
+ALTER TABLE [catalogo] ADD [row_version] rowversion NOT NULL;
+
+CREATE TABLE [destinatarios_avisos] (
+    [id_destinatario] int NOT NULL IDENTITY,
+    [correo] nvarchar(254) NOT NULL,
+    [estado] varchar(10) NOT NULL,
+    [id_reemplaza] int NULL,
+    [token_hash] char(64) NULL,
+    [vence] datetimeoffset(0) NULL,
+    [id_empleado_solicita] int NOT NULL,
+    [fecha_solicitud] datetimeoffset(0) NOT NULL,
+    [fecha_confirmacion] datetimeoffset(0) NULL,
+    [fecha_retiro] datetimeoffset(0) NULL,
+    CONSTRAINT [pk_destinatarios_avisos] PRIMARY KEY ([id_destinatario]),
+    CONSTRAINT [ck_destinatarios_avisos_correo] CHECK (correo COLLATE Latin1_General_100_BIN2 = LOWER(correo) COLLATE Latin1_General_100_BIN2 AND correo LIKE N'%_@_%._%' AND correo NOT LIKE N'% %'),
+    CONSTRAINT [ck_destinatarios_avisos_enlace] CHECK ((estado = 'pendiente' AND token_hash IS NOT NULL AND vence IS NOT NULL) OR (estado <> 'pendiente' AND token_hash IS NULL AND vence IS NULL)),
+    CONSTRAINT [ck_destinatarios_avisos_estado] CHECK (estado IN ('pendiente', 'activo', 'retirado', 'cancelado')),
+    CONSTRAINT [fk_destinatarios_avisos_empleado] FOREIGN KEY ([id_empleado_solicita]) REFERENCES [empleados] ([id_empleado]),
+    CONSTRAINT [fk_destinatarios_avisos_reemplaza] FOREIGN KEY ([id_reemplaza]) REFERENCES [destinatarios_avisos] ([id_destinatario])
+);
+
+CREATE TABLE [disponibilidad_empleados] (
+    [id_disponibilidad] int NOT NULL IDENTITY,
+    [id_empleado] int NOT NULL,
+    [dia_semana] tinyint NOT NULL,
+    [hora_inicio] time(0) NOT NULL,
+    [hora_fin] time(0) NOT NULL,
+    CONSTRAINT [pk_disponibilidad_empleados] PRIMARY KEY ([id_disponibilidad]),
+    CONSTRAINT [ck_disponibilidad_dia] CHECK (dia_semana BETWEEN 1 AND 7),
+    CONSTRAINT [ck_disponibilidad_rango] CHECK (hora_inicio < hora_fin),
+    CONSTRAINT [fk_disponibilidad_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado])
+);
+
+CREATE TABLE [destinatarios_avisos_historial] (
+    [id_historial] int NOT NULL IDENTITY,
+    [accion] varchar(12) NOT NULL,
+    [correo_enmascarado] nvarchar(254) NOT NULL,
+    [id_destinatario] int NULL,
+    [id_empleado] int NULL,
+    [fecha] datetimeoffset(0) NOT NULL,
+    [detalle] nvarchar(300) NULL,
+    CONSTRAINT [pk_destinatarios_avisos_historial] PRIMARY KEY ([id_historial]),
+    CONSTRAINT [ck_destinatarios_avisos_historial_accion] CHECK (accion IN ('agregar', 'reemplazar', 'confirmar', 'cancelar', 'quitar', 'reenviar', 'probar')),
+    CONSTRAINT [fk_destinatarios_avisos_historial_destino] FOREIGN KEY ([id_destinatario]) REFERENCES [destinatarios_avisos] ([id_destinatario]),
+    CONSTRAINT [fk_destinatarios_avisos_historial_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado])
+);
+
+CREATE INDEX [ix_horarios_empleado_modifica] ON [horarios_atencion] ([id_empleado_modifica]);
+
+ALTER TABLE [horarios_atencion] ADD CONSTRAINT [ck_horarios_cerrado] CHECK (abierto = 1 OR (hora_inicio IS NULL AND hora_fin IS NULL));
+
+CREATE INDEX [ix_destinatarios_avisos_empleado] ON [destinatarios_avisos] ([id_empleado_solicita]);
+
+CREATE INDEX [ix_destinatarios_avisos_reemplaza] ON [destinatarios_avisos] ([id_reemplaza]);
+
+CREATE UNIQUE INDEX [uq_destinatarios_avisos_token] ON [destinatarios_avisos] ([token_hash]) WHERE [token_hash] IS NOT NULL;
+
+CREATE UNIQUE INDEX [uq_destinatarios_avisos_vigente] ON [destinatarios_avisos] ([correo]) WHERE [estado] IN ('activo', 'pendiente');
+
+CREATE INDEX [ix_destinatarios_avisos_historial_destino] ON [destinatarios_avisos_historial] ([id_destinatario], [accion], [fecha]);
+
+CREATE INDEX [ix_destinatarios_avisos_historial_empleado] ON [destinatarios_avisos_historial] ([id_empleado]);
+
+CREATE INDEX [ix_destinatarios_avisos_historial_fecha] ON [destinatarios_avisos_historial] ([fecha]);
+
+CREATE INDEX [ix_disponibilidad_empleado_dia] ON [disponibilidad_empleados] ([id_empleado], [dia_semana]);
+
+ALTER TABLE [horarios_atencion] ADD CONSTRAINT [fk_horarios_empleado_modifica] FOREIGN KEY ([id_empleado_modifica]) REFERENCES [empleados] ([id_empleado]);
+GO
+
+-- -------------------------------------------------------------------------------------
 -- 3. Historial de migraciones: la API reconoce la base como actualizada.
 -- -------------------------------------------------------------------------------------
 CREATE TABLE [__EFMigrationsHistory] (
@@ -988,7 +1106,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261113154234_PortadaPublica', N'10.0.11'),
     (N'20261114002321_CuentasYSesion', N'10.0.11'),
     (N'20261114035839_SolicitudesYAdjuntos', N'10.0.11'),
-    (N'20261114220104_CotizacionesYPedidos', N'10.0.11');
+    (N'20261114220104_CotizacionesYPedidos', N'10.0.11'),
+    (N'20261115021638_MantenedoresYAvisos', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

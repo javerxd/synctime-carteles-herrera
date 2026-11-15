@@ -209,46 +209,7 @@ public static class AuthApi
         .RequireRateLimiting("Login")
         .WithMetadata(new RequestSizeLimitAttribute(TamanoMaximoLogin));
 
-        // ── Alta de empleado (gestion) ──
-        group.MapPost("/empleados", async (CrearEmpleadoRequest req, ClaimsPrincipal user, LetrerosHerreradbContext db, AuthService auth) =>
-        {
-            if (await Reautenticacion.ConfirmarAsync(user, req.PasswordActual, db, auth) is null)
-                return Reautenticacion.Rechazo();
-
-            if (!Roles.Empleados.Contains(req.Rol))
-                return ErrorApi.Invalido($"Rol inválido. Valores válidos: {string.Join(", ", Roles.Empleados)}");
-
-            if (string.IsNullOrWhiteSpace(req.Rut) || string.IsNullOrWhiteSpace(req.Nombre) || string.IsNullOrWhiteSpace(req.Apellido)
-                || string.IsNullOrWhiteSpace(req.Telefono) || string.IsNullOrWhiteSpace(req.Email))
-                return ErrorApi.Invalido("RUT, nombre, apellido, telefono y email son requeridos.");
-
-            if (!AuthService.EsPasswordValida(req.Password))
-                return ErrorApi.Invalido(AuthService.MensajePasswordInvalida);
-
-            if (await db.Empleados.AnyAsync(e => e.Email == req.Email))
-                return ErrorApi.Conflicto("Ya existe un empleado con ese email.");
-
-            if (await db.Empleados.AnyAsync(e => e.Rut == req.Rut))
-                return ErrorApi.Conflicto("Ya existe un empleado con ese RUT.");
-
-            var empleado = new Empleado
-            {
-                Rut = req.Rut,
-                Nombre = req.Nombre,
-                Apellido = req.Apellido,
-                Telefono = req.Telefono,
-                Email = req.Email,
-                PasswordHash = auth.HashPassword(req.Password),
-                Rol = req.Rol
-            };
-
-            db.Empleados.Add(empleado);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/v1/auth/empleados/{empleado.IdEmpleado}",
-                new { empleado.IdEmpleado, empleado.Nombre, empleado.Apellido, empleado.Email, empleado.Rol });
-        })
-        .RequireAuthorization(Politicas.Gestion)
-        .RequireRateLimiting("Reautenticacion");
+        // El alta de empleado paso a POST /api/v1/empleados (fase 9).
 
         // ── Who am I? ──
         group.MapGet("/me", (HttpContext ctx) =>
@@ -305,4 +266,3 @@ public record RegistroClienteRequest(
 public record VerificarCorreoRequest(string? Token);
 public record RecuperarRequest(string? Tipo, string? Correo);
 public record RestablecerRequest(string? Tipo, string? Correo, string? Codigo, string? Password);
-public record CrearEmpleadoRequest(string Rut, string Nombre, string Apellido, string Telefono, string Email, string Password, string Rol, string? PasswordActual);

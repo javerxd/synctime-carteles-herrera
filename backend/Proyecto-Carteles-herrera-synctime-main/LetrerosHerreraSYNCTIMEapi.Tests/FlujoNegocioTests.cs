@@ -353,9 +353,12 @@ public sealed class FlujoNegocioTests(ApiFixture api)
         var idCliente = await api.CrearClienteAsync();
         await api.CrearSolicitudAsync(idCliente, idProducto);
 
-        await api.Cliente(token).DeleteAsync($"/api/v1/categorias/{idCategoria}").EsperarAsync(HttpStatusCode.Conflict);
-        await api.Cliente(token).DeleteAsync($"/api/v1/productos/{idProducto}").EsperarAsync(HttpStatusCode.Conflict);
-        await api.Cliente(token).DeleteAsync($"/api/v1/clientes/{idCliente}").EsperarAsync(HttpStatusCode.Conflict);
+        // Fase 9: no hay borrado fisico (se desactiva): las rutas DELETE se retiraron.
+        await api.Cliente(token).DeleteAsync($"/api/v1/categorias/{idCategoria}").EsperarAsync(HttpStatusCode.MethodNotAllowed);
+        await api.Cliente(token).DeleteAsync($"/api/v1/productos/{idProducto}").EsperarAsync(HttpStatusCode.MethodNotAllowed);
+        await api.Cliente(token).DeleteAsync($"/api/v1/clientes/{idCliente}").EsperarAsync(HttpStatusCode.MethodNotAllowed);
+        // Y la base sigue impidiendo borrar lo que tiene registros asociados.
+        await Assert.ThrowsAnyAsync<Exception>(() => api.ConsultarAsync(db => db.Productos.Where(p => p.IdProducto == idProducto).ExecuteDeleteAsync()));
 
         await api.Cliente().GetAsync($"/api/v1/productos/{idProducto}").EsperarAsync(HttpStatusCode.OK);
         await api.Cliente(token).GetAsync($"/api/v1/clientes/{idCliente}").EsperarAsync(HttpStatusCode.OK);

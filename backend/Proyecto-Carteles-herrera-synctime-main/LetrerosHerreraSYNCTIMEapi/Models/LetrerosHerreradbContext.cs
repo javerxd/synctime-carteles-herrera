@@ -34,6 +34,9 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<AdjuntoSolicitud> AdjuntosSolicitud { get; set; } = null!;
     public DbSet<SolicitudHistorial> SolicitudesHistorial { get; set; } = null!;
     public DbSet<PedidoHistorial> PedidosHistorial { get; set; } = null!;
+    public DbSet<DisponibilidadEmpleado> DisponibilidadEmpleados { get; set; } = null!;
+    public DbSet<DestinatarioAviso> DestinatariosAvisos { get; set; } = null!;
+    public DbSet<DestinatarioAvisoHistorial> DestinatariosAvisosHistorial { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,6 +69,8 @@ public class LetrerosHerreradbContext : DbContext
                 .HasDefaultValueSql("SYSDATETIME()");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
             entity.Property(e => e.FechaVerificacionCorreo).HasColumnName("fecha_verificacion_correo").HasColumnType("datetimeoffset(0)");
+            // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => e.Telefono).IsUnique().HasDatabaseName("uq_clientes_telefono");
             entity.HasIndex(e => e.Rut).IsUnique().HasFilter("[rut] IS NOT NULL").HasDatabaseName("uq_clientes_rut");
@@ -90,6 +95,8 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.PasswordHash).HasColumnName("password_hash").HasMaxLength(100).IsUnicode(false);
             entity.Property(e => e.Rol).HasColumnName("rol").HasMaxLength(20).HasDefaultValue("administrador");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
+            // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => e.Rut).IsUnique().HasDatabaseName("uq_empleados_rut");
             entity.HasIndex(e => e.Email).IsUnique().HasDatabaseName("uq_empleados_email");
@@ -102,8 +109,11 @@ public class LetrerosHerreradbContext : DbContext
             entity.HasKey(e => e.IdCategoria).HasName("pk_categorias");
             entity.Property(e => e.IdCategoria).HasColumnName("id_categoria");
             entity.Property(e => e.Nombre).HasColumnName("nombre").HasMaxLength(80);
-            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(250);
+            // Fase 9: hasta 300 caracteres (antes 250); ampliar una columna no pierde datos.
+            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(300);
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
+            // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => e.Nombre).IsUnique().HasDatabaseName("uq_categorias_nombre");
 
@@ -124,9 +134,12 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdProducto).HasColumnName("id_producto");
             entity.Property(e => e.IdCategoria).HasColumnName("id_categoria");
             entity.Property(e => e.Nombre).HasColumnName("nombre").HasMaxLength(100);
-            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(250);
+            // Fase 9: hasta 500 caracteres (antes 250).
+            entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(500);
             entity.Property(e => e.PrecioBaseRef).HasColumnName("precio_base_ref").HasColumnType("decimal(12,2)");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
+            // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => e.Nombre).IsUnique().HasDatabaseName("uq_productos_nombre");
             entity.HasIndex(e => new { e.IdCategoria, e.Activo }).HasDatabaseName("ix_productos_categoria");
@@ -173,6 +186,8 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IncluyeLogoCliente).HasColumnName("incluye_logo_cliente").HasDefaultValue(false);
             entity.Property(e => e.IdEmpleadoAutorizaLogo).HasColumnName("id_empleado_autoriza_logo");
             entity.Property(e => e.FechaAutorizacionLogo).HasColumnName("fecha_autorizacion_logo").HasColumnType("datetimeoffset(0)");
+            // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => new { e.Visible, e.IdProducto }).HasDatabaseName("ix_catalogo_visible_producto");
             entity.HasIndex(e => e.IdImagen).HasDatabaseName("ix_catalogo_imagen");
@@ -290,6 +305,8 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.UnidadMedida).HasColumnName("unidad_medida").HasMaxLength(30);
             entity.Property(e => e.CostoUnitarioAprox).HasColumnName("costo_unitario_aprox").HasColumnType("decimal(12,2)");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
+            // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => e.Nombre).IsUnique().HasDatabaseName("uq_materiales_nombre");
 
@@ -593,6 +610,8 @@ public class LetrerosHerreradbContext : DbContext
             {
                 t.HasCheckConstraint("ck_horarios_dia", "dia_semana BETWEEN 1 AND 7");
                 t.HasCheckConstraint("ck_horarios_rango", "abierto = 0 OR (hora_inicio IS NOT NULL AND hora_fin IS NOT NULL AND hora_fin > hora_inicio)");
+                // Fase 9: un dia cerrado no guarda horas.
+                t.HasCheckConstraint("ck_horarios_cerrado", "abierto = 1 OR (hora_inicio IS NULL AND hora_fin IS NULL)");
             });
             entity.HasKey(e => e.IdHorario).HasName("pk_horarios_atencion");
             entity.Property(e => e.IdHorario).HasColumnName("id_horario");
@@ -601,8 +620,16 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.HoraInicio).HasColumnName("hora_inicio").HasColumnType("time(0)");
             entity.Property(e => e.HoraFin).HasColumnName("hora_fin").HasColumnType("time(0)");
             entity.Property(e => e.Abierto).HasColumnName("abierto").HasDefaultValue(true).HasSentinel(true);
+            // Fase 9: quien hizo el ultimo cambio y cuando.
+            entity.Property(e => e.IdEmpleadoModifica).HasColumnName("id_empleado_modifica");
+            entity.Property(e => e.FechaModificacion).HasColumnName("fecha_modificacion").HasColumnType("datetimeoffset(0)");
 
             entity.HasIndex(e => e.DiaSemana).IsUnique().HasDatabaseName("uq_horarios_dia");
+            entity.HasIndex(e => e.IdEmpleadoModifica).HasDatabaseName("ix_horarios_empleado_modifica");
+            entity.HasOne<Empleado>().WithMany()
+                .HasForeignKey(e => e.IdEmpleadoModifica)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_horarios_empleado_modifica");
 
             var apertura = new TimeOnly(9, 0);
             var cierre = new TimeOnly(18, 30);
@@ -626,7 +653,8 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.AbiertoEnLocal).HasColumnName("abierto_en_local").HasDefaultValue(true).HasSentinel(true);
             entity.Property(e => e.MensajeEstado).HasColumnName("mensaje_estado").HasMaxLength(250)
                 .HasDefaultValue("Local abierto y atendiendo");
-            entity.Property(e => e.TiempoEstimadoRegreso).HasColumnName("tiempo_estimado_regreso").HasMaxLength(80);
+            // Fase 9: hasta 100 caracteres (antes 80).
+            entity.Property(e => e.TiempoEstimadoRegreso).HasColumnName("tiempo_estimado_regreso").HasMaxLength(100);
             entity.Property(e => e.FechaUltimaModificacion).HasColumnName("fecha_ultima_modificacion").HasColumnType("datetime2(0)")
                 .HasDefaultValueSql("SYSDATETIME()");
             entity.Property(e => e.IdEmpleadoModifica).HasColumnName("id_empleado_modifica");
@@ -932,6 +960,101 @@ public class LetrerosHerreradbContext : DbContext
 
             // La bandeja de consultas del panel (fase 9): las no revisadas, de la mas reciente a la mas antigua.
             entity.HasIndex(e => new { e.Revisada, e.FechaRecepcion }).HasDatabaseName("ix_consultas_contacto_bandeja");
+        });
+
+        // ── disponibilidad_empleados (fase 9, RFU20) ──
+        // Franjas semanales de atencion de cada empleado. Que no se crucen lo revisa la API.
+        modelBuilder.Entity<DisponibilidadEmpleado>(entity =>
+        {
+            entity.ToTable("disponibilidad_empleados", t =>
+            {
+                t.HasCheckConstraint("ck_disponibilidad_dia", "dia_semana BETWEEN 1 AND 7");
+                t.HasCheckConstraint("ck_disponibilidad_rango", "hora_inicio < hora_fin");
+            });
+            entity.HasKey(e => e.IdDisponibilidad).HasName("pk_disponibilidad_empleados");
+            entity.Property(e => e.IdDisponibilidad).HasColumnName("id_disponibilidad");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.DiaSemana).HasColumnName("dia_semana");
+            entity.Property(e => e.HoraInicio).HasColumnName("hora_inicio").HasColumnType("time(0)");
+            entity.Property(e => e.HoraFin).HasColumnName("hora_fin").HasColumnType("time(0)");
+
+            entity.HasIndex(e => new { e.IdEmpleado, e.DiaSemana }).HasDatabaseName("ix_disponibilidad_empleado_dia");
+
+            entity.HasOne(e => e.Empleado).WithMany()
+                .HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_disponibilidad_empleado");
+        });
+
+        // ── destinatarios_avisos (fase 9) ──
+        // Los correos que reciben los avisos del taller. Un mismo correo no puede estar dos veces activo o
+        // pendiente, y el enlace de confirmacion (su hash y su vencimiento) existe solo mientras esta pendiente.
+        modelBuilder.Entity<DestinatarioAviso>(entity =>
+        {
+            entity.ToTable("destinatarios_avisos", t =>
+            {
+                t.HasCheckConstraint("ck_destinatarios_avisos_estado", "estado IN ('pendiente', 'activo', 'retirado', 'cancelado')");
+                t.HasCheckConstraint("ck_destinatarios_avisos_enlace",
+                    "(estado = 'pendiente' AND token_hash IS NOT NULL AND vence IS NOT NULL) OR (estado <> 'pendiente' AND token_hash IS NULL AND vence IS NULL)");
+                t.HasCheckConstraint("ck_destinatarios_avisos_correo", "correo COLLATE Latin1_General_100_BIN2 = LOWER(correo) COLLATE Latin1_General_100_BIN2 AND correo LIKE N'%_@_%._%' AND correo NOT LIKE N'% %'");
+            });
+            entity.HasKey(e => e.IdDestinatario).HasName("pk_destinatarios_avisos");
+            entity.Property(e => e.IdDestinatario).HasColumnName("id_destinatario");
+            entity.Property(e => e.Correo).HasColumnName("correo").HasMaxLength(254);
+            entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(10).IsUnicode(false);
+            entity.Property(e => e.IdReemplaza).HasColumnName("id_reemplaza");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash").HasMaxLength(64).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.Vence).HasColumnName("vence").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.IdEmpleadoSolicita).HasColumnName("id_empleado_solicita");
+            entity.Property(e => e.FechaSolicitud).HasColumnName("fecha_solicitud").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaConfirmacion).HasColumnName("fecha_confirmacion").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaRetiro).HasColumnName("fecha_retiro").HasColumnType("datetimeoffset(0)");
+
+            entity.HasIndex(e => e.Correo).IsUnique().HasFilter("[estado] IN ('activo', 'pendiente')")
+                .HasDatabaseName("uq_destinatarios_avisos_vigente");
+            entity.HasIndex(e => e.TokenHash).IsUnique().HasFilter("[token_hash] IS NOT NULL")
+                .HasDatabaseName("uq_destinatarios_avisos_token");
+            entity.HasIndex(e => e.IdReemplaza).HasDatabaseName("ix_destinatarios_avisos_reemplaza");
+            entity.HasIndex(e => e.IdEmpleadoSolicita).HasDatabaseName("ix_destinatarios_avisos_empleado");
+
+            entity.HasOne(e => e.Reemplaza).WithMany()
+                .HasForeignKey(e => e.IdReemplaza)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_destinatarios_avisos_reemplaza");
+            entity.HasOne(e => e.EmpleadoSolicita).WithMany()
+                .HasForeignKey(e => e.IdEmpleadoSolicita)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_destinatarios_avisos_empleado");
+        });
+
+        // ── destinatarios_avisos_historial (fase 9) ──
+        modelBuilder.Entity<DestinatarioAvisoHistorial>(entity =>
+        {
+            entity.ToTable("destinatarios_avisos_historial", t =>
+                t.HasCheckConstraint("ck_destinatarios_avisos_historial_accion",
+                    "accion IN ('agregar', 'reemplazar', 'confirmar', 'cancelar', 'quitar', 'reenviar', 'probar')"));
+            entity.HasKey(e => e.IdHistorial).HasName("pk_destinatarios_avisos_historial");
+            entity.Property(e => e.IdHistorial).HasColumnName("id_historial");
+            entity.Property(e => e.Accion).HasColumnName("accion").HasMaxLength(12).IsUnicode(false);
+            entity.Property(e => e.CorreoEnmascarado).HasColumnName("correo_enmascarado").HasMaxLength(254);
+            entity.Property(e => e.IdDestinatario).HasColumnName("id_destinatario");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.Fecha).HasColumnName("fecha").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.Detalle).HasColumnName("detalle").HasMaxLength(300);
+
+            // La seccion del perfil muestra los ultimos; los limites de reenvio y de prueba cuentan por accion.
+            entity.HasIndex(e => e.Fecha).HasDatabaseName("ix_destinatarios_avisos_historial_fecha");
+            entity.HasIndex(e => new { e.IdDestinatario, e.Accion, e.Fecha }).HasDatabaseName("ix_destinatarios_avisos_historial_destino");
+            entity.HasIndex(e => e.IdEmpleado).HasDatabaseName("ix_destinatarios_avisos_historial_empleado");
+
+            entity.HasOne<DestinatarioAviso>().WithMany()
+                .HasForeignKey(e => e.IdDestinatario)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_destinatarios_avisos_historial_destino");
+            entity.HasOne(e => e.Empleado).WithMany()
+                .HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_destinatarios_avisos_historial_empleado");
         });
 
         // ── vw_metricas_conversion_online (la crea la migracion ObjetosProgramablesV6) ──

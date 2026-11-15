@@ -7,7 +7,9 @@ import CapturaFacial from '../../componentes/CapturaFacial';
 import { mensajeDeError } from '../../rostro/motorFacial';
 import { borrarTokenEquipo, guardarTokenEquipo, leerTokenEquipo } from '../../rostro/tokenEquipo';
 import { useDevolverFoco } from '../../rostro/useDevolverFoco';
+import { GESTION } from '../../estructuras/navegacion';
 import { useSesion } from '../../sesion/sesion';
+import { SeccionAvisosTaller } from '../avisosTaller/SeccionAvisosTaller';
 import estilos from './Panel.module.css';
 
 const CAPTURAS_PARA_ACTIVAR = 5;
@@ -16,9 +18,10 @@ const fechaLegible = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CL', {
 /**
  * Mi perfil: datos de la cuenta y acceso con rostro (activar con consentimiento, autorizar el
  * equipo cuando el rol lo exige y desactivar borrando los datos). La lógica es la de la fase 1.
+ * Gestión ve además «Avisos del taller» (fase 9), que es configuración del taller y no de su cuenta.
  */
 export default function Perfil() {
-  const { usuario } = useSesion();
+  const { usuario, tieneRol } = useSesion();
   const { anunciar } = useAvisos();
   const [estado, setEstado] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -184,6 +187,9 @@ export default function Perfil() {
           </>
         )}
       </Tarjeta>
+
+      {/* Configuración del taller (fase 9): solo dueño y administrador. Para los demás no se dibuja. */}
+      {tieneRol(GESTION) && <SeccionAvisosTaller />}
 
       <Dialogo
         abierto={confirmando}

@@ -307,6 +307,10 @@ function TarjetaTrabajo({ trabajo }) {
 function HorarioYUbicacion({ estado }) {
   const datos = estado.datos;
   const hoy = datos?.hoy?.diaSemana;
+  // Franjas de atención del equipo (RFU20): la unión de todo el personal, sin nombres. Si no cargan, el horario igual se ve.
+  const atencion = useConsulta('atencion', publico.atencion);
+  const franjasDe = (dia) => (atencion.datos ?? []).find((a) => Number(a.diaSemana) === dia)?.franjas ?? [];
+  const hayFranjas = (atencion.datos ?? []).some((a) => a.franjas?.length);
   return (
     <section className={estilos.seccion} aria-label="Horario y ubicación">
       <div className={estilos.contenedorDoble}>
@@ -325,11 +329,21 @@ function HorarioYUbicacion({ estado }) {
                         {dia.nombreDia}
                         {dia.diaSemana === hoy && <Insignia tono="neutro" className={estilos.marcaHoy}>Hoy</Insignia>}
                       </th>
-                      <td className="cifras">{franja(dia)}</td>
+                      <td className="cifras">
+                        {franja(dia)}
+                        {dia.abierto && franjasDe(dia.diaSemana).length > 0 && (
+                          <span className={estilos.atencion}>
+                            Atención: {franjasDe(dia.diaSemana).map((f) => `${hora(f.desde)} a ${hora(f.hasta)}`).join(' · ')}
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              {hayFranjas && (
+                <p className={estilos.descripcion}>«Atención» son las franjas en que el equipo está para atenderte en el local.</p>
+              )}
               <p className={estilos.descripcion}>Hora de Chile. Ahora son las <span className="cifras">{hora(datos.horaChile?.slice(11, 16))}</span>.</p>
             </>
           )}

@@ -3,7 +3,7 @@
   "info": {
     "title": "API de SyncTime — Letreros Herrera",
     "version": "1.0.0",
-    "description": "Contrato de la API. Se edita ANTES de implementar o cambiar una ruta: una prueba automática falla mientras el contrato y la API no coincidan.\n\n**x-acceso** indica quién puede usar cada operación: `publico` (sin sesión), `sesion` (cualquier sesión), `cliente`, `personal` (los cuatro roles de empleado) o `gestion` (dueño y administrador). Si solo algunos roles del personal pueden usarla, **x-roles** los enumera.\n\n**Errores.** Toda respuesta de error usa el esquema `Error`: un ProblemDetails (RFC 9457) con `error`, `codigo`, `nivel` y, en validaciones, `errores` por campo.\n\n**Listados.** Los listados paginados aceptan `pagina`, `tamano` (máximo 100), `orden` (`campo` o `-campo`) y `buscar`, y responden con el esquema `ResultadoPaginado`. Las rutas anteriores al plan aún devuelven la lista completa y se adaptan en la fase que rehace cada módulo."
+    "description": "Contrato de la API. Se edita ANTES de implementar o cambiar una ruta: una prueba automática falla mientras el contrato y la API no coincidan.\n\n**x-acceso** indica quién puede usar cada operación: `publico` (sin sesión), `sesion` (cualquier sesión), `cliente`, `personal` (los cuatro roles de empleado) o `gestion` (dueño y administrador). Si solo algunos roles del personal pueden usarla, **x-roles** los enumera.\n\n**Errores.** Toda respuesta de error usa el esquema `Error`: un ProblemDetails (RFC 9457) con `error`, `codigo`, `nivel` y, en validaciones, `errores` por campo.\n\n**Listados.** Los listados paginados aceptan `pagina`, `tamano` (máximo 100), `orden` (`campo` o `-campo`) y `buscar`, y responden con el esquema `ResultadoPaginado`. Desde la fase 9, los mantenedores filtran además por `q` y `activo` (true, false o todos)."
   },
   "tags": [
     {
@@ -48,6 +48,10 @@
     },
     {
       "name": "Adjuntos"
+    },
+    {
+      "name": "Avisos del taller",
+      "description": "Destinos de los avisos de solicitudes nuevas (fase 9)"
     }
   ],
   "paths": {
@@ -85,15 +89,6 @@
         ],
         "summary": "Crea la cuenta del cliente con sus consentimientos (términos y privacidad obligatorios, marketing aparte), envía el enlace para confirmar el correo e inicia la sesión",
         "x-acceso": "publico"
-      }
-    },
-    "/api/v1/auth/empleados": {
-      "post": {
-        "tags": [
-          "Autenticación"
-        ],
-        "summary": "Crea un empleado; exige la contraseña de quien lo crea",
-        "x-acceso": "gestion"
       }
     },
     "/api/v1/auth/me": {
@@ -142,14 +137,14 @@
         "tags": [
           "Catálogo"
         ],
-        "summary": "Lista las categorías",
+        "summary": "Lista paginada de categorías. El público y el personal ven solo las activas; gestión, todas (o ?activo=). Paginado: q, activo (true, false o todos), orden, pagina y tamano.",
         "x-acceso": "publico"
       },
       "post": {
         "tags": [
           "Catálogo"
         ],
-        "summary": "Crea una categoría",
+        "summary": "Crea una categoría { nombre (2–80, único), descripcion? (≤300) }. 409 ya_existe",
         "x-acceso": "gestion"
       }
     },
@@ -158,21 +153,14 @@
         "tags": [
           "Catálogo"
         ],
-        "summary": "Devuelve una categoría",
+        "summary": "Devuelve una categoría con su ETag; el público solo ve las activas",
         "x-acceso": "publico"
       },
       "put": {
         "tags": [
           "Catálogo"
         ],
-        "summary": "Modifica una categoría",
-        "x-acceso": "gestion"
-      },
-      "delete": {
-        "tags": [
-          "Catálogo"
-        ],
-        "summary": "Elimina una categoría",
+        "summary": "Modifica una categoría. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta.",
         "x-acceso": "gestion"
       }
     },
@@ -181,14 +169,14 @@
         "tags": [
           "Catálogo"
         ],
-        "summary": "Lista los productos",
+        "summary": "Lista paginada de tipos de letrero. Quien no es de gestión ve solo los que se ofrecen (activos y de categoría activa); gestión, todos (o ?activo=). Filtro ?categoria=. Paginado: q, activo (true, false o todos), orden, pagina y tamano.",
         "x-acceso": "publico"
       },
       "post": {
         "tags": [
           "Catálogo"
         ],
-        "summary": "Crea un producto",
+        "summary": "Crea un tipo de letrero { idCategoria (activa), nombre (2–100, único), descripcion? (≤500), precioBaseRef? (entero ≥ 0) }. 409 ya_existe",
         "x-acceso": "gestion"
       }
     },
@@ -197,21 +185,14 @@
         "tags": [
           "Catálogo"
         ],
-        "summary": "Devuelve un producto",
+        "summary": "Devuelve un tipo de letrero con su ETag; quien no es de gestión solo ve los que se ofrecen",
         "x-acceso": "publico"
       },
       "put": {
         "tags": [
           "Catálogo"
         ],
-        "summary": "Modifica un producto",
-        "x-acceso": "gestion"
-      },
-      "delete": {
-        "tags": [
-          "Catálogo"
-        ],
-        "summary": "Elimina un producto",
+        "summary": "Modifica un tipo de letrero. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta.",
         "x-acceso": "gestion"
       }
     },
@@ -220,14 +201,14 @@
         "tags": [
           "Catálogo"
         ],
-        "summary": "Lista las publicaciones de la vitrina",
+        "summary": "Vitrina paginada (filtro ?categoria=). Gestión puede pedir también las ocultas (?incluirOcultos=true), buscar (?q=) y filtrar (?visible=true|false), y recibe la versión de cada una",
         "x-acceso": "publico"
       },
       "post": {
         "tags": [
           "Catálogo"
         ],
-        "summary": "Crea una publicación de la vitrina",
+        "summary": "Crea una publicación { idProducto, titulo, descripcion, idImagen?, anchoMm?, altoMm?, precioReferencial?, incluyeLogoCliente, visible }. Visible con logo sin autorización: 409 logo_sin_autorizacion",
         "x-acceso": "gestion"
       }
     },
@@ -236,21 +217,14 @@
         "tags": [
           "Catálogo"
         ],
-        "summary": "Devuelve una publicación de la vitrina",
+        "summary": "Devuelve una publicación; gestión la recibe con su ETag y también si está oculta",
         "x-acceso": "publico"
       },
       "put": {
         "tags": [
           "Catálogo"
         ],
-        "summary": "Modifica una publicación de la vitrina",
-        "x-acceso": "gestion"
-      },
-      "delete": {
-        "tags": [
-          "Catálogo"
-        ],
-        "summary": "Elimina una publicación de la vitrina",
+        "summary": "Modifica una publicación. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta. Visible con logo sin autorización vigente: 409 logo_sin_autorizacion (también si lo rechaza ck_catalogo_logo en la base)",
         "x-acceso": "gestion"
       }
     },
@@ -259,8 +233,15 @@
         "tags": [
           "Catálogo"
         ],
-        "summary": "Lista los materiales para cotizar",
+        "summary": "Lista paginada de materiales. El personal que no es de gestión ve solo los activos (editor de cotizaciones); gestión, todos (o ?activo=). Paginado: q, activo (true, false o todos), orden, pagina y tamano.",
         "x-acceso": "personal"
+      },
+      "post": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Crea un material { nombre (2–100, único), unidadMedida (1–20), costoUnitarioAprox (entero ≥ 0) }. 409 ya_existe",
+        "x-acceso": "gestion"
       }
     },
     "/api/v1/horarios": {
@@ -268,8 +249,15 @@
         "tags": [
           "Local"
         ],
-        "summary": "Devuelve el horario semanal de atención",
+        "summary": "Devuelve los 7 días del horario semanal: [{ diaSemana, nombreDia, abierto, horaInicio, horaFin }] con horas «HH:mm», sin quién lo cambió",
         "x-acceso": "publico"
+      },
+      "put": {
+        "tags": [
+          "Local"
+        ],
+        "summary": "Guarda el horario semanal { dias: [{ diaSemana, abierto, horaInicio?, horaFin? }] } con los 7 días, en una transacción y con quién y cuándo; el cierre debe ser posterior a la apertura (errores por «{dia}.horaFin»). Responde los 7 días",
+        "x-acceso": "gestion"
       }
     },
     "/api/v1/cartel-digital": {
@@ -284,8 +272,8 @@
         "tags": [
           "Local"
         ],
-        "summary": "Cambia el estado del local",
-        "x-acceso": "gestion"
+        "summary": "Da vuelta el cartel { abiertoEnLocal, mensajeEstado (1–200), tiempoEstimadoRegreso? (≤100) }; guarda quién y cuándo (decisión 1: todo el personal)",
+        "x-acceso": "personal"
       }
     },
     "/api/v1/empleados": {
@@ -293,8 +281,15 @@
         "tags": [
           "Personal"
         ],
-        "summary": "Lista los empleados",
-        "x-acceso": "personal"
+        "summary": "Lista paginada del personal, sin la contraseña ni datos del rostro. Paginado: q, activo (true, false o todos), orden, pagina y tamano.",
+        "x-acceso": "gestion"
+      },
+      "post": {
+        "tags": [
+          "Personal"
+        ],
+        "summary": "Da de alta a una persona { rut, nombre, apellido, telefono, email, rol, password } con la contraseña de quien la da (passwordActual). 409 ya_existe (RUT o correo)",
+        "x-acceso": "gestion"
       }
     },
     "/api/v1/clientes": {
@@ -323,27 +318,20 @@
         "tags": [
           "Clientes"
         ],
-        "summary": "Devuelve un cliente",
+        "summary": "Devuelve la ficha de un cliente con su ETag",
         "x-acceso": "personal"
       },
       "put": {
         "tags": [
           "Clientes"
         ],
-        "summary": "Modifica un cliente",
+        "summary": "Modifica un cliente. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta. Sin «activo» se conserva el valor actual; nombre, apellido y teléfono se validan por campo",
         "x-acceso": "personal",
         "x-roles": [
           "dueño",
           "administrador",
           "operario"
         ]
-      },
-      "delete": {
-        "tags": [
-          "Clientes"
-        ],
-        "summary": "Elimina un cliente",
-        "x-acceso": "gestion"
       }
     },
     "/api/v1/clientes/{id}/credenciales": {
@@ -351,7 +339,7 @@
         "tags": [
           "Clientes"
         ],
-        "summary": "Asigna una contraseña a un cliente; exige la contraseña de quien la asigna",
+        "summary": "Asigna una contraseña a un cliente; exige la contraseña de quien la asigna; si la cuenta ya tenía contraseña, avisa al correo anterior",
         "x-acceso": "personal",
         "x-roles": [
           "dueño",
@@ -520,7 +508,7 @@
         "tags": [
           "Imágenes"
         ],
-        "summary": "Sube una imagen JPG, PNG o WebP de hasta 10 MB y la guarda en WebP en dos tamaños (1600 y 640 px)",
+        "summary": "Sube una imagen JPG, PNG o WebP de hasta 10 MB y la guarda en WebP en dos tamaños (1600 y 640 px); responde 201 { idImagen, clave, ancho, alto, urlGrande, urlMiniatura }",
         "x-acceso": "gestion"
       }
     },
@@ -574,7 +562,7 @@
         "tags": [
           "Catálogo"
         ],
-        "summary": "Registra quién autorizó y cuándo el uso del logotipo del cliente en una publicación",
+        "summary": "Registra (o retira) quién autorizó y cuándo el uso del logotipo del cliente en una publicación; si viene If-Match, se comprueba la versión",
         "x-acceso": "gestion"
       }
     },
@@ -851,6 +839,198 @@
         ],
         "summary": "El cliente aprueba o rechaza su cotización pendiente (If-Match): { decision, motivo? }",
         "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/categorias/{id}/activo": {
+      "patch": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Activa o desactiva una categoría { activo } (no hay borrado físico). Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta.",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/productos/{id}/activo": {
+      "patch": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Activa o desactiva un tipo de letrero { activo }. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta.",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/catalogo/{id}/visible": {
+      "patch": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Muestra u oculta una publicación { visible }. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta. 409 logo_sin_autorizacion",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/materiales/{id}": {
+      "get": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Devuelve un material con su ETag",
+        "x-acceso": "personal"
+      },
+      "put": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Modifica un material; las cotizaciones ya emitidas no cambian. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta.",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/materiales/{id}/activo": {
+      "patch": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Activa o desactiva un material { activo }. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta.",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/mi-disponibilidad": {
+      "get": {
+        "tags": [
+          "Local"
+        ],
+        "summary": "Las franjas propias de atención (RFU20): { franjas: [{ diaSemana, horaInicio, horaFin }] }",
+        "x-acceso": "personal"
+      },
+      "put": {
+        "tags": [
+          "Local"
+        ],
+        "summary": "Reemplaza las franjas propias { franjas: [...] }: inicio antes que fin, sin cruces en el mismo día y dentro del horario de ese día (un día cerrado no admite franjas). Errores por «franjas[i].campo»",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/disponibilidad": {
+      "get": {
+        "tags": [
+          "Local"
+        ],
+        "summary": "Las franjas de todo el personal activo: [{ idEmpleado, nombre, rol, franjas }]",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/local/atencion": {
+      "get": {
+        "tags": [
+          "Portada"
+        ],
+        "summary": "Franjas de atención de la semana: [{ diaSemana, nombreDia, franjas: [{ desde, hasta }] }], la unión de las franjas del personal activo dentro del horario, sin nombres ni identificadores",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/empleados/activos": {
+      "get": {
+        "tags": [
+          "Personal"
+        ],
+        "summary": "Lista corta del personal activo { idEmpleado, nombre, rol }, para elegir al responsable de un pedido",
+        "x-acceso": "personal"
+      }
+    },
+    "/api/v1/empleados/{id}": {
+      "get": {
+        "tags": [
+          "Personal"
+        ],
+        "summary": "Devuelve una persona del personal con su ETag",
+        "x-acceso": "gestion"
+      },
+      "put": {
+        "tags": [
+          "Personal"
+        ],
+        "summary": "Modifica sus datos y su rol (cambiar el rol cierra sus sesiones). Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta. 409 propio (su propio rol) o ultimo_dueno. Cambiar el correo o el rol exige passwordActual (400 datos_invalidos, errores.passwordActual); cambiar el correo cierra sus sesiones, anula sus códigos de recuperación y avisa al correo anterior",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/empleados/{id}/activo": {
+      "patch": {
+        "tags": [
+          "Personal"
+        ],
+        "summary": "Activa o desactiva { activo }. Desactivar, en una transacción, borra su rostro y cierra sus sesiones. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta. 409 propio o ultimo_dueno",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/avisos-taller": {
+      "get": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Los destinos activos y pendientes (correos completos), si se usa el respaldo de la configuración y los últimos 20 cambios con los correos enmascarados",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/avisos-taller/destinos": {
+      "post": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Agrega { correo, passwordActual } o reemplaza { correo, idReemplaza, passwordActual } un destino: queda pendiente y recibe un enlace de un solo uso que vence en 24 horas. 201. 409 ya_existe, reemplazo_pendiente o demasiados_pendientes (máximo 3); 429 si ya se envió un enlace a ese correo hace menos de un minuto o 5 veces en la hora. Exige passwordActual de quien lo hace: si falta o no es correcta, 400 datos_invalidos con errores.passwordActual.",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/avisos-taller/destinos/{id}/reenviar": {
+      "post": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Envía un enlace nuevo a un pendiente (el anterior deja de servir). 1 por minuto y 5 por hora: 429",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/avisos-taller/destinos/{id}/cancelar": {
+      "post": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Cancela un cambio pendiente",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/avisos-taller/destinos/{id}": {
+      "delete": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Quita un destino activo con el cuerpo { passwordActual } y le avisa. 204. 409 ultimo_destino si es el último, o reemplazo_pendiente si otro espera confirmación para reemplazarlo. Exige passwordActual de quien lo hace: si falta o no es correcta, 400 datos_invalidos con errores.passwordActual.",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/avisos-taller/confirmar": {
+      "post": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Confirma un destino con { token } del correo; responde { correo } enmascarado. 400 si el enlace no es válido, venció o ya se usó",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/avisos-taller/prueba": {
+      "post": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Encola un aviso de ejemplo a los destinatarios actuales (tipo prueba_avisos, no cuenta para el tope por hora). 202 { idsCorreos, destinatarios, usaRespaldo }; 3 cada 10 minutos (429)",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/avisos-taller/prueba/estado": {
+      "get": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Estado de los correos de prueba ?ids=1,2: [{ idCorreo, destinatario, estado: pendiente|enviado|fallido, intentos, error }]",
+        "x-acceso": "gestion"
       }
     }
   },

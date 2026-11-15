@@ -21,7 +21,7 @@ public static class PruebaDeCorreo
         var destinatarios = await ambito.ServiceProvider.GetRequiredService<IDestinatariosAvisos>().ObtenerAsync(CancellationToken.None);
         if (destinatarios.Count == 0)
         {
-            Console.Error.WriteLine($"No hay a quien enviarlo: escriba el correo de destino en User Secrets (clave {DestinatariosAvisosDesdeConfiguracion.Clave}).");
+            Console.Error.WriteLine($"No hay a quien enviarlo: escriba el correo de destino en User Secrets (clave {DestinatariosAvisosDesdeBaseYConfiguracion.Clave}) o agréguelo desde el perfil del panel.");
             return 2;
         }
 

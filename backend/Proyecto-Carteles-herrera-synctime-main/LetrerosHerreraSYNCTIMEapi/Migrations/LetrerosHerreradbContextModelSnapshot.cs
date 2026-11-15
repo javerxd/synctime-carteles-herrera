@@ -147,8 +147,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("mensaje_estado");
 
                     b.Property<string>("TiempoEstimadoRegreso")
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
                         .HasColumnName("tiempo_estimado_regreso");
 
                     b.HasKey("IdCartel")
@@ -235,6 +235,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("decimal(12,2)")
                         .HasColumnName("precio_referencial");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
+
                     b.Property<string>("Titulo")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -291,8 +298,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("activo");
 
                     b.Property<string>("Descripcion")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
                         .HasColumnName("descripcion");
 
                     b.Property<string>("Nombre")
@@ -300,6 +307,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)")
                         .HasColumnName("nombre");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
 
                     b.HasKey("IdCategoria")
                         .HasName("pk_categorias");
@@ -406,6 +420,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("registrado")
                         .HasComputedColumnSql("CONVERT(BIT, CASE WHEN password_hash IS NOT NULL THEN 1 ELSE 0 END)", true);
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
 
                     b.Property<string>("Rut")
                         .HasMaxLength(12)
@@ -968,6 +989,184 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.DestinatarioAviso", b =>
+                {
+                    b.Property<int>("IdDestinatario")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_destinatario");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdDestinatario"));
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)")
+                        .HasColumnName("correo");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("estado");
+
+                    b.Property<DateTimeOffset?>("FechaConfirmacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_confirmacion");
+
+                    b.Property<DateTimeOffset?>("FechaRetiro")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_retiro");
+
+                    b.Property<DateTimeOffset>("FechaSolicitud")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_solicitud");
+
+                    b.Property<int>("IdEmpleadoSolicita")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_solicita");
+
+                    b.Property<int?>("IdReemplaza")
+                        .HasColumnType("int")
+                        .HasColumnName("id_reemplaza");
+
+                    b.Property<string>("TokenHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("token_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset?>("Vence")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("vence");
+
+                    b.HasKey("IdDestinatario")
+                        .HasName("pk_destinatarios_avisos");
+
+                    b.HasIndex("Correo")
+                        .IsUnique()
+                        .HasDatabaseName("uq_destinatarios_avisos_vigente")
+                        .HasFilter("[estado] IN ('activo', 'pendiente')");
+
+                    b.HasIndex("IdEmpleadoSolicita")
+                        .HasDatabaseName("ix_destinatarios_avisos_empleado");
+
+                    b.HasIndex("IdReemplaza")
+                        .HasDatabaseName("ix_destinatarios_avisos_reemplaza");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("uq_destinatarios_avisos_token")
+                        .HasFilter("[token_hash] IS NOT NULL");
+
+                    b.ToTable("destinatarios_avisos", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_destinatarios_avisos_correo", "correo COLLATE Latin1_General_100_BIN2 = LOWER(correo) COLLATE Latin1_General_100_BIN2 AND correo LIKE N'%_@_%._%' AND correo NOT LIKE N'% %'");
+
+                            t.HasCheckConstraint("ck_destinatarios_avisos_enlace", "(estado = 'pendiente' AND token_hash IS NOT NULL AND vence IS NOT NULL) OR (estado <> 'pendiente' AND token_hash IS NULL AND vence IS NULL)");
+
+                            t.HasCheckConstraint("ck_destinatarios_avisos_estado", "estado IN ('pendiente', 'activo', 'retirado', 'cancelado')");
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.DestinatarioAvisoHistorial", b =>
+                {
+                    b.Property<int>("IdHistorial")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_historial");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdHistorial"));
+
+                    b.Property<string>("Accion")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(12)")
+                        .HasColumnName("accion");
+
+                    b.Property<string>("CorreoEnmascarado")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)")
+                        .HasColumnName("correo_enmascarado");
+
+                    b.Property<string>("Detalle")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("detalle");
+
+                    b.Property<DateTimeOffset>("Fecha")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha");
+
+                    b.Property<int?>("IdDestinatario")
+                        .HasColumnType("int")
+                        .HasColumnName("id_destinatario");
+
+                    b.Property<int?>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.HasKey("IdHistorial")
+                        .HasName("pk_destinatarios_avisos_historial");
+
+                    b.HasIndex("Fecha")
+                        .HasDatabaseName("ix_destinatarios_avisos_historial_fecha");
+
+                    b.HasIndex("IdEmpleado")
+                        .HasDatabaseName("ix_destinatarios_avisos_historial_empleado");
+
+                    b.HasIndex("IdDestinatario", "Accion", "Fecha")
+                        .HasDatabaseName("ix_destinatarios_avisos_historial_destino");
+
+                    b.ToTable("destinatarios_avisos_historial", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_destinatarios_avisos_historial_accion", "accion IN ('agregar', 'reemplazar', 'confirmar', 'cancelar', 'quitar', 'reenviar', 'probar')");
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.DisponibilidadEmpleado", b =>
+                {
+                    b.Property<int>("IdDisponibilidad")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_disponibilidad");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdDisponibilidad"));
+
+                    b.Property<byte>("DiaSemana")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("dia_semana");
+
+                    b.Property<TimeOnly>("HoraFin")
+                        .HasColumnType("time(0)")
+                        .HasColumnName("hora_fin");
+
+                    b.Property<TimeOnly>("HoraInicio")
+                        .HasColumnType("time(0)")
+                        .HasColumnName("hora_inicio");
+
+                    b.Property<int>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.HasKey("IdDisponibilidad")
+                        .HasName("pk_disponibilidad_empleados");
+
+                    b.HasIndex("IdEmpleado", "DiaSemana")
+                        .HasDatabaseName("ix_disponibilidad_empleado_dia");
+
+                    b.ToTable("disponibilidad_empleados", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_disponibilidad_dia", "dia_semana BETWEEN 1 AND 7");
+
+                            t.HasCheckConstraint("ck_disponibilidad_rango", "hora_inicio < hora_fin");
+                        });
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Empleado", b =>
                 {
                     b.Property<int>("IdEmpleado")
@@ -1015,6 +1214,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("administrador")
                         .HasColumnName("rol");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
 
                     b.Property<string>("Rut")
                         .IsRequired()
@@ -1068,6 +1274,10 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("tinyint")
                         .HasColumnName("dia_semana");
 
+                    b.Property<DateTimeOffset?>("FechaModificacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_modificacion");
+
                     b.Property<TimeOnly?>("HoraFin")
                         .HasColumnType("time(0)")
                         .HasColumnName("hora_fin");
@@ -1075,6 +1285,10 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Property<TimeOnly?>("HoraInicio")
                         .HasColumnType("time(0)")
                         .HasColumnName("hora_inicio");
+
+                    b.Property<int?>("IdEmpleadoModifica")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_modifica");
 
                     b.Property<string>("NombreDia")
                         .IsRequired()
@@ -1089,8 +1303,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .IsUnique()
                         .HasDatabaseName("uq_horarios_dia");
 
+                    b.HasIndex("IdEmpleadoModifica")
+                        .HasDatabaseName("ix_horarios_empleado_modifica");
+
                     b.ToTable("horarios_atencion", null, t =>
                         {
+                            t.HasCheckConstraint("ck_horarios_cerrado", "abierto = 1 OR (hora_inicio IS NULL AND hora_fin IS NULL)");
+
                             t.HasCheckConstraint("ck_horarios_dia", "dia_semana BETWEEN 1 AND 7");
 
                             t.HasCheckConstraint("ck_horarios_rango", "abierto = 0 OR (hora_inicio IS NOT NULL AND hora_fin IS NOT NULL AND hora_fin > hora_inicio)");
@@ -1242,6 +1461,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("nombre");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
 
                     b.Property<string>("UnidadMedida")
                         .IsRequired()
@@ -1669,8 +1895,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnName("activo");
 
                     b.Property<string>("Descripcion")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
                         .HasColumnName("descripcion");
 
                     b.Property<int>("IdCategoria")
@@ -1686,6 +1912,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Property<decimal?>("PrecioBaseRef")
                         .HasColumnType("decimal(12,2)")
                         .HasColumnName("precio_base_ref");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
 
                     b.HasKey("IdProducto")
                         .HasName("pk_productos");
@@ -2244,6 +2477,64 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("Cotizacion");
 
                     b.Navigation("Material");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.DestinatarioAviso", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoSolicita")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleadoSolicita")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_destinatarios_avisos_empleado");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.DestinatarioAviso", "Reemplaza")
+                        .WithMany()
+                        .HasForeignKey("IdReemplaza")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_destinatarios_avisos_reemplaza");
+
+                    b.Navigation("EmpleadoSolicita");
+
+                    b.Navigation("Reemplaza");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.DestinatarioAvisoHistorial", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.DestinatarioAviso", null)
+                        .WithMany()
+                        .HasForeignKey("IdDestinatario")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_destinatarios_avisos_historial_destino");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_destinatarios_avisos_historial_empleado");
+
+                    b.Navigation("Empleado");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.DisponibilidadEmpleado", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_disponibilidad_empleado");
+
+                    b.Navigation("Empleado");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.HorarioAtencion", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", null)
+                        .WithMany()
+                        .HasForeignKey("IdEmpleadoModifica")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_horarios_empleado_modifica");
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Imagen", b =>

@@ -36,7 +36,7 @@ export const pedidos = {
   cambiarEstado: (id, cambio, rowVersion) => api.patch(`/pedidos/${id}/estado`, cambio, siVersion(rowVersion)),
   /** Registrar un abono no exige versión (solo suma; la base protege el tope). 409 abono_excede_saldo → 201 ficha. */
   registrarAbono: (id, abono) => api.post(`/pedidos/${id}/pagos`, abono),
-  /** { motivo } → 200 ficha. 403 solo_gestion si no es de quien lo registró en las últimas 24 horas. */
+  /** { motivo } → 200 ficha. 403 solo_gestion (o sin_permiso) si no es de quien lo registró en las últimas 24 horas. */
   anularAbono: (id, idPago, motivo) => api.post(`/pedidos/${id}/pagos/${idPago}/anular`, { motivo }),
   /** Gestión: borrado lógico de un pedido anulado sin abonos vigentes → 204. */
   async eliminar(id, rowVersion) {
@@ -48,7 +48,10 @@ export const pedidos = {
   alertas: () => api.get('/pedidos/alertas'),
 };
 
-/** El personal activo, para elegir el responsable del pedido (GET /empleados). */
+/**
+ * El personal activo, para elegir el responsable del pedido. Desde la fase 9, GET /empleados es el mantenedor
+ * (solo gestión): el editor usa la lista corta { idEmpleado, nombre, rol }, que ve todo el personal.
+ */
 export const empleados = {
-  listar: () => api.get('/empleados').then(lista),
+  listar: () => api.get('/empleados/activos').then(lista),
 };

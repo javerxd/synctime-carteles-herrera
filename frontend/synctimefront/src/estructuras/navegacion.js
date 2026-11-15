@@ -27,7 +27,7 @@ export const MENU_PANEL = [
     entradas: [
       { ruta: '/panel/indicadores', etiqueta: 'Indicadores', icono: BarChart3, roles: GESTION },
       { ruta: '/panel/reportes', etiqueta: 'Reportes', icono: FileSpreadsheet, roles: GESTION },
-      { ruta: '/panel/mantenedores', etiqueta: 'Catálogo y mantenedores', icono: Settings2, roles: GESTION, fase: 9 },
+      { ruta: '/panel/mantenedores', etiqueta: 'Catálogo y mantenedores', icono: Settings2, roles: GESTION },
     ],
   },
   {

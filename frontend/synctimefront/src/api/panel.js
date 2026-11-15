@@ -20,8 +20,16 @@ export const panel = {
     }
     return todos;
   },
-  /** Solo dueño y administrador: { abiertoEnLocal, mensajeEstado, tiempoEstimadoRegreso } */
+  /** Todo el personal (fase 9): { abiertoEnLocal, mensajeEstado (máx. 200), tiempoEstimadoRegreso? (máx. 100) } */
   actualizarCartel: (cartel) => api.put('/cartel-digital', cartel),
+  /** Gestión: { dias: [{ diaSemana, abierto, horaInicio?, horaFin? }] } con los 7 días → los 7 días guardados. */
+  guardarHorario: (dias) => api.put('/horarios', { dias }),
+  /** Las franjas propias: [{ diaSemana, horaInicio, horaFin }] (o { franjas }). */
+  miDisponibilidad: () => api.get('/mi-disponibilidad').then((r) => (Array.isArray(r) ? r : r?.franjas ?? [])),
+  /** Reemplaza todas las franjas propias. */
+  guardarMiDisponibilidad: (franjas) => api.put('/mi-disponibilidad', { franjas }),
+  /** Gestión: las franjas de todo el personal, con su nombre. */
+  disponibilidadEquipo: () => api.get('/disponibilidad').then((r) => (Array.isArray(r) ? r : r?.elementos ?? [])),
   /** Solo dueño y administrador: conversión en línea por año y mes. */
   conversionEnLinea: () => api.get('/metricas/conversion-online'),
 };

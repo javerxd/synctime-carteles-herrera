@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 14-11-2026 (fase 8 aprobada; fase 9 en curso).
+Última actualización: 14-11-2026 (fase 8 aprobada; fase 9 en revisión).
 
 ## Hecho
 
@@ -19,11 +19,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · incluye los avisos del taller pedidos por el usuario · plan: `fase-09-plan.md`, especificación: `fase-09-especificacion.md` · informe: `informes/fase-09.md` · pendiente del usuario: su visto bueno y decidir si solo un dueño puede dar o quitar el rol de dueño
 
 ## En curso
 
-- **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · incluye, por pedido del usuario (14-11-2026), cambiar desde el perfil el correo que recibe los avisos de solicitudes nuevas · plan aprobado el 14-11-2026: `fase-09-plan.md`, especificación: `fase-09-especificacion.md`
+_(ninguna)_
 
 ## Por hacer
 

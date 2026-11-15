@@ -11,7 +11,6 @@ public class ArquitecturaTests
     private static readonly string[] EndpointsPendientesDeMigrar =
     [
         "AuthApi.cs",          // fase 6
-        "CatalogoApi.cs",      // fases 5 y 9
         "Reautenticacion.cs",  // fase 6
         "RostroApi.cs"         // fase 10
     ];
@@ -85,9 +84,9 @@ public class ArquitecturaTests
         Assert.Empty(infractores);
     }
 
-    // Los destinatarios de los avisos del taller salen de un solo servicio (IDestinatariosAvisos): hoy lo lee
-    // de Correo:AvisosTaller y en la fase 9 leera primero el valor guardado en la base. Si otro archivo
-    // leyera esa configuracion, ese cambio no le llegaria.
+    // Los destinatarios de los avisos del taller salen de un solo servicio (IDestinatariosAvisos): desde la
+    // fase 9 lee primero los destinos activos de la base y, si no hay, Correo:AvisosTaller. Si otro archivo
+    // leyera esa configuracion, se saltaria los destinos que el dueño guardo desde su perfil.
     [Fact]
     public void SoloUnArchivo_ConoceLaConfiguracionDeLosAvisosDelTaller()
     {

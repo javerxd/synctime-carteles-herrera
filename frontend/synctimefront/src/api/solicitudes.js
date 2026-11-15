@@ -93,6 +93,6 @@ export const clientes = {
   },
   /** { rut?, nombre, apellido, telefono, email?, direccion? } → cliente. 409 si el teléfono ya existe. */
   crear: (cliente) => api.post('/clientes', { activo: true, ...cliente }),
-  /** Sin control de concurrencia: la tabla de clientes no tiene versión. */
-  actualizar: (id, cliente) => api.put(`/clientes/${id}`, cliente),
+  /** Con la versión vista (If-Match, fase 9, RNFP10): 409 version_obsoleta si otra persona cambió la ficha. */
+  actualizar: (id, cliente, rowVersion) => api.put(`/clientes/${id}`, cliente, siVersion(rowVersion)),
 };

@@ -22,6 +22,10 @@ public class Cliente
     // Fase 6: cuando confirmo que el correo es suyo (enlace o codigo de recuperacion). Null = sin verificar.
     public DateTimeOffset? FechaVerificacionCorreo { get; set; }
 
+    // Fase 9 (RNFP10): version para que una edicion con datos viejos no pise la de otra persona.
+    [JsonIgnore]
+    public byte[] RowVersion { get; set; } = null!;
+
     [JsonIgnore]
     public virtual ICollection<Solicitud> Solicitudes { get; set; } = new List<Solicitud>();
 }

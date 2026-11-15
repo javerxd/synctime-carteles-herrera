@@ -263,3 +263,9 @@
   outline: var(--foco-ancho) solid var(--color-foco);
   outline-offset: var(--foco-separacion);
 }
+
+/* Bajada de una sección, entre su título y su contenido */
+.bajadaSeccion {
+  margin-top: calc(var(--espacio-3) * -1);
+  margin-bottom: var(--espacio-4);
+}

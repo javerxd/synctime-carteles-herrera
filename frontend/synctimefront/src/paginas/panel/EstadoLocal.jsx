@@ -9,15 +9,23 @@ import { GESTION } from '../../estructuras/navegacion';
 import { useSesion } from '../../sesion/sesion';
 import { formatearFechaHora } from '../../utilidades/formato';
 import { useConsulta } from '../../utilidades/useConsulta';
-import { diaDeHoy, franja } from '../publicas/horario';
+import { DisponibilidadEquipo } from '../local/DisponibilidadEquipo';
+import { EditorHorario, HorarioLectura } from '../local/HorarioSemanal';
+import { MiDisponibilidad } from '../local/MiDisponibilidad';
+import { LIMITES_CARTEL } from '../local/reglasLocal';
+import { diaDeHoy } from '../publicas/horario';
 import { CodigoQr, descargarPng, descargarSvg } from './CodigoQr';
 import estilos from './Panel.module.css';
 
 const ID_QR = 'qr-portal';
 
-/** Estado del local (RFS02): cartel electrónico, horario semanal y código QR del portal. */
+/**
+ * Estado del local (RFS02, fase 9): el cartel electrónico (lo da vuelta todo el personal), el horario semanal
+ * (lo edita gestión), la disponibilidad propia de cada persona (RFU20) y, para gestión, la de todo el equipo.
+ */
 export default function EstadoLocal() {
   const { tieneRol } = useSesion();
+  const esGestion = tieneRol(GESTION);
   const cartel = useConsulta('cartel', publico.cartel);
   const horarios = useConsulta('horarios', publico.horarios);
   const urlPortal = TALLER.urlPortal;
@@ -43,9 +51,7 @@ export default function EstadoLocal() {
               <p>{cartel.datos.mensajeEstado}</p>
               {cartel.datos.tiempoEstimadoRegreso && <p className={estilos.bajada}>Regreso estimado: {cartel.datos.tiempoEstimadoRegreso}</p>}
               <p className={estilos.indicadorFormula}>Actualizado el {formatearFechaHora(cartel.datos.fechaUltimaModificacion)}</p>
-              {tieneRol(GESTION)
-                ? <DarVuelta actual={cartel.datos} alGuardar={cartel.recargar} />
-                : <Aviso tono="info" titulo="Solo el dueño o el administrador pueden dar vuelta el cartel" />}
+              <DarVuelta actual={cartel.datos} alGuardar={cartel.recargar} />
             </>
           )}
         </Tarjeta>
@@ -67,18 +73,32 @@ export default function EstadoLocal() {
       <Tarjeta como="section" aria-labelledby="titulo-horario" className={estilos.noImprimir}>
         <h2 id="titulo-horario" className={estilos.subtitulo}>Horario semanal</h2>
         {horarios.cargando && <Esqueleto lineas={7} />}
-        {horarios.datos && (
-          <dl className={estilos.datos}>
-            {horarios.datos.map((dia) => (
-              <div key={dia.diaSemana} className={estilos.dato}>
-                <dt>{dia.nombreDia}{dia.diaSemana === hoy ? ' (hoy)' : ''}</dt>
-                <dd>{franja(dia)}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        <p className={estilos.indicadorFormula}>La edición del horario llega en la fase 9.</p>
+        {horarios.error && <Aviso tono="peligro" titulo="No pudimos cargar el horario">{horarios.error.message}</Aviso>}
+        {horarios.datos && (esGestion
+          ? <EditorHorario key={JSON.stringify(horarios.datos)} dias={horarios.datos} alGuardar={horarios.recargar} />
+          : (
+            <>
+              <HorarioLectura dias={horarios.datos} hoy={hoy} />
+              <p className={estilos.indicadorFormula}>Lo cambian el dueño o el administrador.</p>
+            </>
+          ))}
       </Tarjeta>
+
+      <Tarjeta como="section" aria-labelledby="titulo-disponibilidad" className={estilos.noImprimir}>
+        <h2 id="titulo-disponibilidad" className={estilos.subtitulo}>Mi disponibilidad</h2>
+        <p className={`${estilos.bajada} ${estilos.bajadaSeccion}`}>
+          Las franjas en que atiendes cada semana. La portada muestra las del equipo juntas, sin nombres.
+        </p>
+        {horarios.datos && <MiDisponibilidad horario={horarios.datos} />}
+        {horarios.cargando && <Esqueleto lineas={4} />}
+      </Tarjeta>
+
+      {esGestion && (
+        <Tarjeta como="section" aria-labelledby="titulo-equipo" className={estilos.noImprimir}>
+          <h2 id="titulo-equipo" className={estilos.subtitulo}>Disponibilidad del equipo</h2>
+          <DisponibilidadEquipo />
+        </Tarjeta>
+      )}
     </div>
   );
 }
@@ -129,9 +149,9 @@ function DarVuelta({ actual, alGuardar }) {
         <option value="abierto">Abierto / Disponible</option>
         <option value="cerrado">Cerrado / Ausente</option>
       </Campo>
-      <Campo name="mensaje" etiqueta="Mensaje para los clientes" maxLength={250} value={mensaje} onChange={(e) => setMensaje(e.target.value)} error={errorMensaje} />
+      <Campo name="mensaje" etiqueta="Mensaje para los clientes" maxLength={LIMITES_CARTEL.mensaje} value={mensaje} onChange={(e) => setMensaje(e.target.value)} error={errorMensaje} />
       {abierto === 'cerrado' && (
-        <Campo etiqueta="Regreso estimado" ayuda="Por ejemplo: 16:30, o mañana a las 9:00" maxLength={80}
+        <Campo etiqueta="Regreso estimado" ayuda="Por ejemplo: 16:30, o mañana a las 9:00" maxLength={LIMITES_CARTEL.regreso}
           value={regreso} onChange={(e) => setRegreso(e.target.value)} />
       )}
       {errorGuardado && <Aviso tono="peligro" titulo="No pudimos dar vuelta el cartel">{errorGuardado}</Aviso>}

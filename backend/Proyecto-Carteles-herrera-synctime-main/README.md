@@ -38,6 +38,7 @@ dotnet ef database update --project .\LetrerosHerreraSYNCTIMEapi
 - `CuentasYSesion` (generada por EF): tablas `tokens_renovacion` (sesiones con renovacion) y `codigos_cuenta` (enlaces de verificacion y codigos de recuperacion), la columna `clientes.fecha_verificacion_correo` y la restriccion `ck_clientes_cuenta_con_correo`. Solo agrega. Aplicada en la base demo; la base real espera la autorizacion del usuario.
 - `SolicitudesYAdjuntos` (generada por EF y completada a mano): tablas `adjuntos_solicitud` (logos y diseños de cada solicitud, privados) y `solicitudes_historial` (cada cambio de estado); la columna `solicitudes.huella_ip` con su índice; y las columnas ampliadas `solicitudes.descripcion_general` (2000), `solicitudes.motivo_rechazo` (500) y `solicitud_detalles.descripcion` (500). Solo agrega y amplía: no borra nada. Aplicada en la base demo; la base real espera la autorización del usuario.
 - `CotizacionesYPedidos` (generada por EF y completada a mano): cotizaciones con `row_version`, respuesta (`fecha_respuesta`, `via_respuesta`, `id_empleado_respuesta`, `motivo_rechazo`) y borrado lógico, con el índice único `uq_cotizaciones_una_pendiente` (una sola pendiente por solicitud); pedidos con motivo y fecha de anulación, borrado lógico y el índice único `uq_pedidos_cotizacion` (un pedido por cotización); la tabla `pedidos_historial`; y en `pagos`, la anulación de abonos, con el trigger `trg_pagos_recalcular_monto_abonado` reescrito para sumar solo los vigentes. Amplía `cotizaciones.observaciones` (2000), `cotizacion_materiales.medida_aplicada` (100) y `pedidos.direccion_instalacion` (300). Solo agrega y amplía. Revertirla se detiene si hay abonos anulados o textos que no caben en las columnas anteriores. La API la aplica en la base demo al arrancar; la base real espera la autorización del usuario.
+- `MantenedoresYAvisos` (generada por EF y completada a mano): `row_version` en categorías, productos, publicaciones, materiales, empleados y clientes; horarios con quién y cuándo y la regla `ck_horarios_cerrado`; las tablas `disponibilidad_empleados`, `destinatarios_avisos` y `destinatarios_avisos_historial`; y las descripciones ampliadas. Solo agrega, y `Down()` se detiene si hay datos. Aplicada en la base demo; la base real espera a que terminen todas las fases.
 
 El script SQL completo de la base, el diagrama entidad-relacion y el diccionario de datos estan en `docs/base-de-datos/` de la raiz del repositorio.
 
@@ -132,7 +133,7 @@ Remove-Variable clave
 dotnet user-secrets set "Correo:AvisosTaller" "destino.de.los.avisos@gmail.com" --project .\LetrerosHerreraSYNCTIMEapi
 ```
 
-   `Correo:AvisosTaller` admite varios correos separados por `;`. Ningun otro archivo lee ese valor: todo pasa por `IDestinatariosAvisos`, que en la fase 9 leera primero el correo que el dueño guarde desde el panel.
+   `Correo:AvisosTaller` admite varios correos separados por `;`. Ningun otro archivo lee ese valor: todo pasa por `IDestinatariosAvisos`, que desde la fase 9 lee primero los destinos activos que el dueño o el administrador guardan desde su perfil.
 
 3. Probar el envio real. No pasa por la cola ni toca la base de datos. Dice a cuantos destinatarios llego y, si falla, por que, sin mostrar credenciales:
 
@@ -225,11 +226,26 @@ No hay configuración nueva en esta fase.
 
 Pruebas: `LetrerosHerreraSYNCTIMEapi.Tests/CotizacionesYPedidosFase8Tests.cs` (integración, con base temporal), `LetrerosHerreraSYNCTIMEapi.UnitTests/CotizacionesYPedidosTests.cs` (reglas puras) y `LetrerosHerreraSYNCTIMEapi.Tests/MigracionTests.cs` (la migración y el trigger de abonos).
 
+## Mantenedores, local y avisos del taller (fase 9)
+
+Los endpoints del personal están en `Endpoints/PersonalApi.cs` (empleados y materiales), `Endpoints/LocalApi.cs` (horario, cartel y disponibilidad), `Endpoints/DestinosAvisosApi.cs` (avisos del taller) y `Endpoints/ClienteApi.cs` (clientes). Las categorías, los tipos de letrero y la vitrina están en `Endpoints/CatalogoApi.cs`. La lógica está en `Services/ServiciosMantenedores.cs`, `Services/ServiciosLocalYClientes.cs` y `Services/ServicioDestinosAvisos.cs`; las reglas, en `Negocio/Mantenedores/ReglasMantenedores.cs` y `Negocio/Local/ReglasDisponibilidad.cs`.
+
+- **Versión:** los mantenedores y la ficha de clientes usan `row_version`. Editar o desactivar exige `If-Match` con el ETag del GET (o `rowVersion` en el cuerpo): sin versión responde `400 sin_version`, y con una versión vieja, `409 version_obsoleta`. El horario y el cartel no tienen versión: gana la última escritura.
+- **Sin borrado físico:** un mantenedor se desactiva (`activo = false`) y deja de ofrecerse en los formularios. Los `DELETE` de categorías, productos, publicaciones y clientes responden `405`, y `/auth/empleados` responde `404`.
+- **Personal:** el alta está en `POST /api/v1/empleados`. El alta y el cambio de correo o de rol piden `passwordActual` de quien lo hace. `PATCH /api/v1/empleados/{id}/activo` desactiva en una transacción: borra el rostro y sus descriptores, y cierra las sesiones. Nadie se desactiva ni cambia su propio rol, y siempre queda un dueño activo.
+- **Avisos del taller:** `IDestinatariosAvisos` lee los destinos activos de `destinatarios_avisos` y, si no hay ninguno, usa `Correo:AvisosTaller`. No tiene caché. La confirmación (`POST /api/v1/avisos-taller/confirmar`) es pública y tiene límite por IP; un enlace inválido, vencido o ya usado responde 400 sin decir a qué correo correspondía. El enlace se guarda solo como hash SHA-256 y vence en 24 horas.
+- **Correo de prueba:** `POST /api/v1/avisos-taller/prueba` responde 202 con los ids de la cola y no espera el envío. `GET /api/v1/avisos-taller/prueba/estado?ids=` consulta su estado. Tiene su propio límite (3 cada 10 minutos) y no gasta el tope de avisos por hora.
+- **Configuración:** no hay claves nuevas. `Sitio:UrlPublica` es necesaria: sin ella no se arma el enlace de confirmación, y no se puede pedir ni reenviar un destino.
+
+Pruebas: `LetrerosHerreraSYNCTIMEapi.Tests/MantenedoresYAvisosFase9Tests.cs` (integración, con base temporal) y `LetrerosHerreraSYNCTIMEapi.UnitTests/MantenedoresYAvisosTests.cs` (reglas puras). La migración se prueba en `LetrerosHerreraSYNCTIMEapi.Tests/MigracionTests.cs`.
+
 ## Validacion
 
 ```powershell
 dotnet test .\LetrerosHerreraSYNCTIMEapi.slnx -c Release
 ```
+
+Al cerrar la fase 9, la suite tiene 354 pruebas unitarias y 368 de integración.
 
 Las pruebas de integracion crean una base temporal con las migraciones y la eliminan al terminar: nunca usan la base real ni la de demostracion. Usan `localhost\SQLEXPRESS`; con la variable de entorno `TEST_SQL_SERVER` se puede indicar otro servidor. El codigo de pruebas solo elimina bases cuyo nombre empiece por `SyncTime_Pruebas_`.
 
@@ -248,7 +264,7 @@ Una revision de seguridad dejo estos puntos, que no afectan al desarrollo pero d
 - **Limites en memoria:** el limite por cuenta vive en la memoria del proceso. Con mas de una instancia de la API se multiplica, y se pierde al reiniciar.
 - **Sesiones:** el token de acceso sigue valido hasta 15 minutos despues de desactivar al usuario, cambiar su contraseña o cerrar su sesion. La renovacion se corta de inmediato (fase 6).
 - **HTTPS y sondas:** HSTS y la redireccion a HTTPS ya estan activos fuera de desarrollo. Una sonda de salud por HTTP recibira una redireccion: hay que sondear por HTTPS o desde la red interna.
-- **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`, ni quien cambio el correo de un cliente con `PUT /api/v1/clientes/{id}`. Desde la fase 7, las solicitudes tienen historial de cambios (`solicitudes_historial`), y desde la fase 8, los pedidos (`pedidos_historial`). Los abonos anulados guardan quién y cuándo, pero no hay todavía una bitácora general.
+- **Auditoria:** nada registra quien asigno credenciales a un cliente con `PUT /api/v1/clientes/{id}/credenciales`, ni quien cambio el correo de un cliente con `PUT /api/v1/clientes/{id}`. Desde la fase 7, las solicitudes tienen historial de cambios (`solicitudes_historial`), desde la fase 8, los pedidos (`pedidos_historial`), y desde la fase 9, los destinos de avisos (`destinatarios_avisos_historial`). Los abonos anulados guardan quién y cuándo, pero no hay todavía una bitácora general.
 - **Portada:** `frame-ancestors` (contra clickjacking) no funciona en la etiqueta `meta` de `index.html`: la cabecera la debe enviar el servidor. Las consultas de contacto y los consentimientos de cookies no tienen plazo de borrado todavia.
 - **Migraciones:** la API solo las aplica sola en Development. En produccion hay que ejecutarlas como un paso del despliegue.
 - **Sesion y sitio:** la cookie de renovacion es `SameSite=Strict`, así que la web y la API deben servirse en el mismo sitio, y `Sitio:UrlPublica` debe ser la direccion publica de la web. Ver `docs/plan/desviaciones.md`.
@@ -257,4 +273,4 @@ Una revision de seguridad dejo estos puntos, que no afectan al desarrollo pero d
   - Revisar con un asesor legal el consentimiento y las preguntas de la seccion 7 de `docs/api/contrato.md`.
   - La camara exige HTTPS, y la API debe agregarse a `connect-src` en `index.html`.
   - Detras de un proxy, los limites por IP del login facial y de la confirmacion de contraseña tienen el problema descrito arriba.
-  - Crear una ruta para desactivar empleados que borre sus datos biometricos en el mismo paso.
+  - Hecho en la fase 9: `PATCH /api/v1/empleados/{id}/activo` borra el rostro y cierra las sesiones en el mismo paso.

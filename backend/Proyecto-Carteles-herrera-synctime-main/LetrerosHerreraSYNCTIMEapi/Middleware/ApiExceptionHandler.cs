@@ -47,6 +47,9 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetails) :
     {
         2601 or 2627 => DeLaBase(StatusCodes.Status409Conflict, "registro_duplicado", "Ya existe un registro con esos datos."),
         2628 or 8152 => DeLaBase(StatusCodes.Status400BadRequest, "texto_muy_largo", "Un texto supera el largo permitido."),
+        // Fase 9: una publicacion con logo no se muestra sin la autorizacion del cliente (ck_catalogo_logo).
+        547 when mensaje.Contains("\"ck_catalogo_logo\"") => DeLaBase(StatusCodes.Status409Conflict, "logo_sin_autorizacion",
+            "Una publicación con el logotipo de un cliente necesita su autorización registrada antes de mostrarse."),
         547 when mensaje.Contains("\"ck_") => DeLaBase(StatusCodes.Status400BadRequest, "regla_de_datos", "Los datos no cumplen las reglas de negocio."),
         547 when mensaje.Contains("DELETE") => DeLaBase(StatusCodes.Status409Conflict, "tiene_registros_asociados", "No se puede eliminar porque tiene registros asociados."),
         547 => DeLaBase(StatusCodes.Status400BadRequest, "referencia_inexistente", "Hace referencia a un registro que no existe."),

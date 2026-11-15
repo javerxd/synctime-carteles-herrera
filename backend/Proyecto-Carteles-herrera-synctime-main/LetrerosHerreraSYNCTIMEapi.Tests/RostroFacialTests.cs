@@ -599,7 +599,7 @@ public sealed class RostroFacialTests(ApiFixture api)
         var idCliente = await api.CrearClienteAsync();
 
         var nuevoEmail = $"e{api.Siguiente()}@test.local";
-        await conRostro.PostAsJsonAsync("/api/v1/auth/empleados", new { rut = api.Rut(), nombre = "A", apellido = "B", telefono = api.Telefono(), email = nuevoEmail, password = ApiFixture.AdminPassword, rol = Roles.Dueno })
+        await conRostro.PostAsJsonAsync("/api/v1/empleados", new { rut = api.Rut(), nombre = "A", apellido = "B", telefono = api.Telefono(), email = nuevoEmail, password = ApiFixture.AdminPassword, rol = Roles.Dueno })
             .EsperarAsync(HttpStatusCode.BadRequest);
         await conRostro.PutAsJsonAsync($"/api/v1/clientes/{idCliente}/credenciales", new { password = ApiFixture.AdminPassword })
             .EsperarAsync(HttpStatusCode.BadRequest);

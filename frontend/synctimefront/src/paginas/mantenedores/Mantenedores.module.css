@@ -1,0 +1,350 @@
+/* Catálogo y mantenedores (fase 9): navegación entre mantenedores, listados y fichas. */
+
+/* Navegación entre mantenedores: una fila de pestañas que se desplaza en pantallas angostas sin ensanchar la página. */
+.secciones {
+  margin-top: calc(var(--espacio-2) * -1);
+  border-bottom: 1px solid var(--color-borde);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.secciones ul {
+  display: flex;
+  gap: var(--espacio-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.seccion {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tamano-control);
+  padding: 0 var(--espacio-3);
+  border-bottom: 2px solid transparent;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--duracion-estado) var(--curva-estandar), border-color var(--duracion-estado) var(--curva-estandar);
+}
+
+.seccion:hover {
+  color: var(--color-texto);
+}
+
+.seccion[aria-current='page'] {
+  border-bottom-color: var(--color-acento);
+  color: var(--color-texto);
+}
+
+.seccion:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: calc(var(--foco-ancho) * -1);
+}
+
+.listado {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-5);
+}
+
+.tituloSeccion {
+  font-size: var(--tamano-xl);
+}
+
+.tituloSeccion:focus {
+  outline: none;
+}
+
+.enlaceFila {
+  font-weight: var(--peso-seminegrita);
+  overflow-wrap: anywhere;
+}
+
+.tenue {
+  color: var(--color-texto-secundario);
+}
+
+.correo {
+  overflow-wrap: anywhere;
+}
+
+.celdaPublicacion {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  min-width: 0;
+}
+
+.miniatura,
+.sinImagen {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radio-sm);
+  object-fit: cover;
+  background: var(--color-fondo-hundido);
+}
+
+/* Interruptor de visibilidad de una fila de la vitrina */
+.celdaInterruptor {
+  display: grid;
+  justify-items: start;
+  gap: var(--espacio-1);
+}
+
+.filaInterruptor {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.estadoInterruptor {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.interruptor {
+  display: inline-flex;
+  min-width: var(--tamano-control);
+  align-items: center;
+  gap: var(--espacio-2);
+  min-height: var(--tamano-control);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-texto);
+  font: inherit;
+  font-size: var(--tamano-sm);
+  cursor: pointer;
+}
+
+.riel {
+  position: relative;
+  width: 2.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--color-borde-control);
+  border-radius: var(--radio-pildora);
+  background: var(--color-fondo-hundido);
+  transition: background-color var(--duracion-estado) var(--curva-estandar), border-color var(--duracion-estado) var(--curva-estandar);
+}
+
+.perilla {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: var(--color-superficie);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.25);
+  transition: transform var(--duracion-estado) var(--curva-resorte);
+}
+
+.interruptor[aria-checked='true'] .riel {
+  border-color: var(--tono-exito-solido);
+  background: var(--tono-exito-solido);
+}
+
+.interruptor[aria-checked='true'] .perilla {
+  transform: translateX(1rem);
+}
+
+.interruptor[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+.interruptor[aria-disabled='true'] .riel {
+  border-style: dashed;
+}
+
+.interruptor:focus-visible {
+  outline: none;
+}
+
+.interruptor:focus-visible .riel {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+.motivoFila,
+.errorFila {
+  max-width: 16rem;
+  font-size: var(--tamano-xs);
+  line-height: var(--interlineado-compacto);
+}
+
+.motivoFila {
+  color: var(--color-texto-secundario);
+}
+
+.errorFila {
+  color: var(--tono-peligro-texto);
+}
+
+/* Ficha */
+.volver {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  min-height: 1.5rem;
+  margin-bottom: var(--espacio-2);
+  font-size: var(--tamano-sm);
+}
+
+.formulario {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-5);
+  max-width: 48rem;
+}
+
+.dosColumnas,
+.tresColumnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--espacio-4);
+}
+
+.tresColumnas {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+}
+
+.campoCorto {
+  max-width: 18rem;
+}
+
+.grupo {
+  display: grid;
+  gap: var(--espacio-4);
+  min-width: 0;
+  margin: 0;
+  padding: var(--espacio-4) 0 0;
+  border: none;
+  border-top: 1px solid var(--color-borde);
+}
+
+.grupo legend {
+  padding: 0 var(--espacio-2) 0 0;
+  font-weight: var(--peso-seminegrita);
+}
+
+.motivo {
+  max-width: var(--medida-lectura);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.errorLista {
+  color: var(--tono-peligro-texto);
+  font-size: var(--tamano-sm);
+}
+
+.inactivo {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Imagen de la publicación */
+.imagen {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.etiquetaGrupo {
+  color: var(--campo-etiqueta);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.filaImagen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-4);
+}
+
+.vistaPrevia,
+.vistaPreviaVacia {
+  flex: none;
+  width: 6rem;
+  height: 6rem;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  object-fit: cover;
+}
+
+.vistaPreviaVacia {
+  display: grid;
+  place-items: center;
+  background: var(--color-fondo-alterno);
+  color: var(--color-texto-secundario);
+}
+
+.accionesImagen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.ayudaImagen {
+  flex-basis: 100%;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.errorImagen {
+  min-height: 0;
+  color: var(--tono-peligro-texto);
+  font-size: var(--tamano-sm);
+}
+
+.errorImagen:empty {
+  display: none;
+}
+
+/* Zona de estado de la ficha */
+.zona {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.zona .lineaEstado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2) var(--espacio-3);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.bloqueZona {
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+.bloqueZona + .bloqueZona {
+  padding-top: var(--espacio-4);
+  border-top: 1px solid var(--color-borde);
+}
+
+.accionZona {
+  display: grid;
+  justify-items: start;
+  gap: var(--espacio-2);
+}
+
+.textoDialogo {
+  color: var(--color-texto-secundario);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seccion,
+  .riel,
+  .perilla {
+    transition: none;
+  }
+}

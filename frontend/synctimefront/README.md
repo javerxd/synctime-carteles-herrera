@@ -196,9 +196,20 @@ synctimefront/
 
 ---
 
+## Mantenedores, local y avisos del taller (fase 9)
+
+- **Pantallas del personal:** `/panel/local` (el cartel lo da vuelta todo el personal; el horario lo edita gestión y los demás lo ven en solo lectura; «Mi disponibilidad» y, para gestión, la disponibilidad de todo el equipo); `/panel/mantenedores` (categorías, tipos de letrero, vitrina, materiales y personal, con listado, búsqueda, filtro de activos y paginación; subrutas `/panel/mantenedores/:tipo`, `/:tipo/nuevo` y `/:tipo/:id`); y `/panel/perfil`, con la sección «Avisos del taller» solo para dueño y administrador.
+- **Pública:** `/avisos/confirmar?token=` confirma un correo de avisos sin sesión. La portada muestra las franjas de atención junto al horario, sin nombres.
+- **Código:** `src/paginas/mantenedores/` (listado, editor y campos de cada mantenedor, con sus reglas en `reglasMantenedores.js`), `src/paginas/local/` (horario, disponibilidad y `reglasLocal.js`), `src/paginas/avisosTaller/` (la sección, la confirmación y la prueba) y `src/paginas/compartidos/reautenticacion.js`. Las llamadas a la API están en `src/api/mantenedores.js` y `src/api/avisosTaller.js`.
+- **Versión:** los mantenedores usan `useConflictoDeVersion` (fase 8): ante un `409 version_obsoleta`, lo escrito se conserva y se puede guardar sobre la versión actual. La ficha de clientes todavía no lo usa (ver `desviaciones.md`).
+- **Contraseña para los cambios delicados:** el alta de personal, el cambio de correo o de rol de otra persona, y agregar o quitar un destino de avisos piden la contraseña de quien lo hace.
+- **Pruebas:** `src/test/mantenedores.test.jsx`, `src/test/localFase9.test.jsx` y `src/test/avisosTaller.test.jsx`. En `e2e/pantallas.spec.js`: los avisos del taller (reemplazo y correo de prueba), el cartel y la disponibilidad de un operario, la desactivación de personal, y la vitrina con logo sin autorización.
+
+---
+
 ## 🧪 Ejecución de Pruebas Automatizadas
 
-Al cerrar la fase 8, la suite tiene 348 pruebas de Vitest y 141 de Playwright:
+Al cerrar la fase 9, la suite tiene 403 pruebas de Vitest y 175 de Playwright:
 ```bash
 # Pruebas unitarias y de componentes (Vitest)
 npm test

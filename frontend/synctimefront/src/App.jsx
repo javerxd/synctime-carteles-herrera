@@ -6,7 +6,6 @@ import { Esqueleto } from './componentes/ui';
 import { EstructuraPanel } from './estructuras/EstructuraPanel';
 import { EstructuraPublica } from './estructuras/EstructuraPublica';
 import { GESTION } from './estructuras/navegacion';
-import { SeccionPendiente } from './paginas/Pendientes';
 import { Pagina404 } from './paginas/errores/PaginasDeError';
 import { RequiereCliente, RequierePersonal } from './sesion/Guardas';
 
@@ -40,6 +39,11 @@ const EstadoLocal = lazy(() => import('./paginas/panel/EstadoLocal'));
 const Indicadores = lazy(() => import('./paginas/panel/Indicadores'));
 const Reportes = lazy(() => import('./paginas/panel/Reportes'));
 const Perfil = lazy(() => import('./paginas/panel/Perfil'));
+const ConfirmarDestino = lazy(() => import('./paginas/avisosTaller/ConfirmarDestino'));
+const Mantenedores = lazy(() => import('./paginas/mantenedores/Mantenedores'));
+const InicioMantenedores = lazy(() => import('./paginas/mantenedores/Mantenedores').then((m) => ({ default: m.InicioMantenedores })));
+const ListaMantenedor = lazy(() => import('./paginas/mantenedores/ListaMantenedor'));
+const EditorMantenedor = lazy(() => import('./paginas/mantenedores/EditorMantenedor'));
 
 function Cargando() {
   return (
@@ -71,6 +75,8 @@ export default function App() {
               <Route path="personal/ingresar" element={enCarga(<IngresoPersonal />)} />
               <Route path="privacidad" element={enCarga(<DocumentoLegal tipo="privacidad" />)} />
               <Route path="terminos" element={enCarga(<DocumentoLegal tipo="terminos" />)} />
+              {/* Enlace del correo que confirma el destino de los avisos del taller (fase 9): público, sin sesión. */}
+              <Route path="avisos/confirmar" element={enCarga(<ConfirmarDestino />)} />
               {/* Direcciones antiguas del panel */}
               <Route path="login" element={<Navigate to="/personal/ingresar" replace />} />
               <Route path="dashboard" element={<Navigate to="/panel" replace />} />
@@ -98,7 +104,12 @@ export default function App() {
               <Route element={<RequierePersonal roles={GESTION} />}>
                 <Route path="indicadores" element={enCarga(<Indicadores />)} />
                 <Route path="reportes" element={enCarga(<Reportes />)} />
-                <Route path="mantenedores" element={<SeccionPendiente titulo="Catálogo y mantenedores" fase={9} descripcion="Catálogo, categorías, materiales y el horario de atención." />} />
+                <Route path="mantenedores" element={enCarga(<Mantenedores />)}>
+                  <Route index element={enCarga(<InicioMantenedores />)} />
+                  <Route path=":tipo" element={enCarga(<ListaMantenedor />)} />
+                </Route>
+                <Route path="mantenedores/:tipo/nuevo" element={enCarga(<EditorMantenedor />)} />
+                <Route path="mantenedores/:tipo/:id" element={enCarga(<EditorMantenedor />)} />
               </Route>
               <Route path="*" element={<Pagina404 />} />
             </Route>

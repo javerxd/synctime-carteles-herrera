@@ -12,7 +12,7 @@ Registro de todo requisito que **no** se cumple al pie de la letra, o que no se 
 | E17 | Tres capturas de cámara | Cinco capturas; el servidor exige un mínimo de tres | Propuesta de Claude, aceptada al aprobar el plan | 12-11-2026 |
 | Reglas de diseño (bordes) | Bordes sutiles de 1 px translúcidos (`border-slate-200/80`, `border-black/5`) | Se usan en tarjetas y separadores. Los **campos de formulario** y el botón secundario llevan un borde más oscuro (`#828DA0`), porque con el gris claro el campo no alcanza el contraste mínimo de 3:1 que exige WCAG 2.2 (1.4.11) | Claude, fase 2 (por WCAG, que el documento también exige) | 12-11-2026 |
 | Reglas de diseño (barra) | Barra superior flotante de cristal | Flotante desde 768 px de ancho. En el teléfono y con poca altura (zoom), la barra es más alta y deja de ser fija, para no tapar el elemento con foco (WCAG 2.4.11) | Claude, fase 2, por la revisión de accesibilidad de ECC | 12-11-2026 |
-| RFS02 (cartel) | El dueño o un trabajador da vuelta el cartel | Hoy la API (`PUT /cartel-digital`) solo lo permite a dueño y administrador, y la pantalla respeta ese permiso. **Decidir en la fase 9** si se amplía a diseñador y operario | Pendiente de tu decisión | 13-11-2026 |
+| RFS02 (cartel) | El dueño o un trabajador da vuelta el cartel | **Resuelto en la fase 9** (decisión 1 del usuario, 14-11-2026): todo el personal (dueño, administrador, diseñador y operario) da vuelta el cartel, como piden RFU16 y RNFO03. Antes solo lo podían dueño y administrador | Usuario, decisión 1 del plan de la fase 9 | 14-11-2026 |
 | Logotipo | Logotipo del taller (versiones gris y roja) | Se usa la versión de anillo y letras en tinta `#0F172A`, derivada del original sin redibujarlo, porque combina con el modo claro y no compite con el ámbar de las acciones. Originales en `docs/marca/originales/` | Claude, a pedido del usuario («el logo que mejor le quede») | 13-11-2026 |
 | RFS01 (fotos de la vitrina) | Imagen en alta definición de cada trabajo | La semilla demo apuntaba a fotos que no existen. Desde el cierre de la fase 5 usa 22 fotos reales entregadas por el taller (ver «Cambios y pendientes de la fase 5») | Claude | 13-11-2026 |
 | Reglas de diseño (foco) | Acento solo en llamadas a la acción y estados activos | El anillo de foco también es ámbar: el foco es un estado activo y así se ve sobre los tres fondos (≥4,5:1) | Claude, fase 2 | 12-11-2026 |
@@ -39,7 +39,7 @@ No son desviaciones: el usuario los agregó a los requisitos.
 |---|---|---|
 | Objetivo principal | El dueño recibe en su Gmail un aviso por cada solicitud nueva, presencial o en línea. RFS08 solo pedía correos al administrador por el formulario de contacto y al cliente por los cambios de estado | Fase 4: `AvisosDelTaller`, `AvisoSolicitudNueva` |
 | Cuenta SMTP | Se necesita en la fase 4, no en la 11. Gmail por SMTP (587, STARTTLS) con contraseña de aplicación en User Secrets | Plan, fases 4 y 11 |
-| Destinatarios | Uno o más correos en `Correo:AvisosTaller`, leídos solo por `IDestinatariosAvisos`. En la fase 9 el servicio leerá primero el valor que guarde el dueño en la base | Fase 4 y fase 9 |
+| Destinatarios | Uno o más correos en `Correo:AvisosTaller`, leídos solo por `IDestinatariosAvisos`. Desde la fase 9 el servicio lee primero los destinos activos que el dueño o el administrador guardan desde su perfil (tabla `destinatarios_avisos`) | Fase 4 y fase 9 |
 
 Decisiones del usuario al revisar la fase 4 (13-11-2026):
 - **Sin aviso para las solicitudes presenciales:** las registra el personal en el taller y serían ruido. El correo queda para las solicitudes en línea y el formulario de contacto (fase 5).
@@ -195,6 +195,43 @@ Pendientes que quedan para las fases siguientes:
 | RFS12, RNFP10 | Bitácora general de quién creó, modificó o anuló cada registro | Los pedidos guardan su historial y los abonos anulados guardan quién y cuándo, pero no hay una bitácora común | Fase 11 |
 | E06, E08, E25 | Clave de idempotencia en la API para cotizaciones, pedidos y abonos | Hoy la pantalla revisa antes de reintentar, pero no evita un doble envío desde otra pestaña ni de otra persona | Usuario, decidir si se agrega |
 | Base real | Aplicar las migraciones pendientes (de `SepararEstadoPedidoYPago` a `CotizacionesYPedidos`), con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario, plan de la fase 8) | Usuario |
+
+## Cambios y pendientes de la fase 9 (15-11-2026)
+
+Recoge lo que se decidió en el plan y en la especificación de la fase 9 (aprobados el 14-11-2026, con cuatro decisiones del usuario y su pedido «Avisos del taller»), las decisiones de construcción y lo que queda pendiente. Solo la primera tabla son cambios respecto de un requisito; el resto son decisiones y pendientes.
+
+Resueltas en esta fase: la fila «RFS02 (cartel)» de la tabla de desviaciones decididas, y la fila de la fase 7 sobre RNFP10 (control de concurrencia en la ficha de clientes): `clientes` tiene `row_version` desde la migración `MantenedoresYAvisos`.
+
+| Requisito | Qué pide | Qué se hace | Quién lo decidió | Fecha |
+|---|---|---|---|---|
+| RFS08 | Cambiar desde el perfil el correo que recibe los avisos de solicitudes nuevas («Avisos del taller») | Un destino nuevo se confirma con un enlace de un solo uso que vence en 24 horas. Hasta confirmarlo, la dirección anterior sigue recibiendo avisos, y al confirmarlo recibe el aviso del cambio. Solo dueño y administrador lo administran | Pedido del usuario | 14-11-2026 |
+| RFS02, RNFO03, RFU16 | Dar vuelta el cartel | Lo da vuelta todo el personal. El horario sigue siendo de gestión | Usuario, decisión 1 del plan | 14-11-2026 |
+| RFU20 | Disponibilidad del personal | Franjas semanales que se repiten, sin excepciones por fecha. La portada muestra la unión de todas, sin nombres | Usuario, decisión 2 del plan | 14-11-2026 |
+| RFS08 | Quitar un destino de avisos | No se puede quitar el último activo: para cambiarlo se reemplaza. `Correo:AvisosTaller` solo se usa si nunca se configuró ninguno en la base | Usuario, decisión 3 del plan | 14-11-2026 |
+| RFS08 | Agregar un destino adicional | Los destinos activos reciben «Se agregó un destino a los avisos del taller» | Usuario, decisión 4 del plan | 14-11-2026 |
+
+Decisiones de Claude en la fase 9 (objetables):
+- **Reautenticación.** Piden la contraseña de quien lo hace: el alta de personal, el cambio de correo o de rol de otra persona, y agregar o quitar un destino de avisos. Reenviar o cancelar un cambio pendiente no la piden (`AgregarOQuitarUnDestino_PideLaContrasenaDeQuienLoHace`, `CambiarElCorreoOElRolDeOtraPersona_PideLaContrasena_YAvisaAlCorreoAnterior`).
+- **Avisos a las direcciones anteriores.** Al cambiar el correo de una persona, la anterior recibe un aviso con la nueva enmascarada. Al reemplazar, quitar o agregar un destino, las direcciones afectadas también reciben aviso.
+- **Dueño y administrador siguen siendo lo mismo.** Un administrador puede dar y quitar el rol de dueño. Solo lo frenan la reautenticación, el aviso a la persona afectada y la regla del último dueño. **Pregunta para el usuario:** ¿deben distinguirse sus permisos?
+- **Nombres de tipos de letrero únicos en todo el taller**, no por categoría, porque la base tiene `uq_productos_nombre` sobre el nombre. El plan y la especificación decían «único por categoría».
+- **Respaldo mientras la base real no tenga la tabla.** Si falta `destinatarios_avisos` (error 208), `IDestinatariosAvisos` usa `Correo:AvisosTaller` y registra el aviso una vez cada 5 minutos (`TablaDestinosAusente`). Se quita al aplicar la migración.
+- **Vencimiento sin proceso automático.** Un pendiente vencido pasa a `cancelado` solo cuando se vuelve a pedir ese correo o un reemplazo de ese destino. Mientras tanto su enlace ya no sirve y no cuenta para el tope de pendientes.
+- **Límites de los avisos.** Tres cambios pendientes a la vez como máximo, y un envío de enlace por minuto y cinco por hora por dirección.
+- **Tokens de acceso.** Siguen válidos hasta 15 minutos después de desactivar a alguien, y la renovación se corta de inmediato (como en la fase 6).
+- **Ficha de clientes sin guardar sobre la versión actual.** Ante un conflicto de versión, la ficha dice que «tus cambios siguen aquí», pero pide recargar la página, lo que obliga a escribirlos otra vez. Los mantenedores y las cotizaciones sí permiten guardar sobre la versión actual (`useConflictoDeVersion`). Pendiente de unificar.
+- **Sin selector de orden en los mantenedores.** La API ordena (`orden`), la pantalla no.
+- **Horario y cartel sin versión.** No tienen `row_version`: si dos personas los editan a la vez, gana la última escritura. La especificación no lo pedía.
+
+Pendientes que quedan para después de la fase 9:
+
+| Requisito | Qué falta | Por qué queda para después | Responsable |
+|---|---|---|---|
+| RNFO06 | Validar el RUT en la API de clientes: `POST /clientes` y `PUT /clientes/{id}` lo guardan sin validar (la pantalla sí valida) | No estaba en la especificación de la fase 9, que valida el RUT del personal | Claude, en la siguiente tarea de código, si el usuario lo confirma |
+| RFS08, E22 | Bandeja para revisar las consultas del formulario de contacto (`consultas_contacto.revisada`) | El plan de la fase 9 no la incluye; el diccionario decía que llegaba aquí. Hoy nadie marca una consulta como revisada | Usuario: decidir en qué fase va |
+| Administrador y dueño | Si el administrador puede dar o quitar el rol de dueño | Hoy son iguales (ver decisiones de esta fase) | Usuario |
+| Horario y cartel | Versión (`row_version`) para que no gane la última escritura | La especificación no lo pedía | Usuario: decidir si se agrega |
+| Base real | Aplicar las migraciones pendientes, incluida `MantenedoresYAvisos`, con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario, plan de la fase 8) | Usuario |
 
 ## Restricciones del equipo de desarrollo
 

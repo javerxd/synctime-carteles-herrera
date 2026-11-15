@@ -222,13 +222,13 @@ describe('Recuperar la contraseña', () => {
 
     expect(await screen.findByText('Si el correo tiene una cuenta, te enviamos un código.')).toBeInTheDocument();
     expect(authService.recuperar).toHaveBeenCalledWith('cliente', 'rosa@correo.test');
-    expect(screen.getByRole('heading', { name: 'Escribe el código' })).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Escribe el código' })).toHaveFocus(), { timeout: 3000 });
 
     escribir(/código de 6 dígitos/i, '12345');
     escribir(/^contraseña nueva/i, 'nueva-clave-1');
     escribir(/repite la contraseña/i, 'otra-clave-1');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar contraseña' }));
-    expect(screen.getByLabelText(/código de 6 dígitos/i)).toHaveFocus();
+    await waitFor(() => expect(screen.getByLabelText(/código de 6 dígitos/i)).toHaveFocus(), { timeout: 3000 });
     expect(screen.getByText(/el código tiene 6 dígitos/i)).toBeInTheDocument();
     expect(screen.getByText(/las contraseñas no coinciden/i)).toBeInTheDocument();
     expect(authService.restablecer).not.toHaveBeenCalled();

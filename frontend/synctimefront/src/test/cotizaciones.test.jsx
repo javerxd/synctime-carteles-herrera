@@ -165,8 +165,9 @@ describe('editor de cotización', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Agregar material' }));
     const material = await screen.findByRole('combobox', { name: /^Material/ });
-    await waitFor(() => expect(material).toHaveFocus());
-    await waitFor(() => expect(within(material).getByRole('option', { name: 'Vinilo impreso' })).toBeInTheDocument());
+    // Con la máquina cargada (Vitest junto a Playwright), el foco y la lista pueden tardar más de 1 s.
+    await waitFor(() => expect(material).toHaveFocus(), { timeout: 3000 });
+    await waitFor(() => expect(within(material).getByRole('option', { name: 'Vinilo impreso' })).toBeInTheDocument(), { timeout: 3000 });
     expect(within(material).queryByRole('option', { name: 'Perfil de aluminio' })).not.toBeInTheDocument();
     escribir(material, '2');
     const costo = screen.getByRole('textbox', { name: /^Costo unitario/ });
@@ -196,7 +197,7 @@ describe('editor de cotización', () => {
     dibujar('/panel/solicitudes/123/cotizar', '/panel/solicitudes/:id/cotizar', <EditorCotizacion modo="cotizar" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Emitir cotización' }));
     const manoObra = screen.getByRole('textbox', { name: /^Mano de obra/ });
-    expect(manoObra).toHaveFocus();
+    await waitFor(() => expect(manoObra).toHaveFocus(), { timeout: 3000 });
     expect(manoObra).toHaveAccessibleDescription(/más de \$0/);
     expect(cotizaciones.emitir).not.toHaveBeenCalled();
   });

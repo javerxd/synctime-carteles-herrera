@@ -22,6 +22,10 @@ public class Catalogo
     public int? IdEmpleadoAutorizaLogo { get; set; }
     public DateTimeOffset? FechaAutorizacionLogo { get; set; }
 
+    // Fase 9 (RNFP10): version para que una edicion con datos viejos no pise la de otra persona.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public byte[] RowVersion { get; set; } = null!;
+
     [System.Text.Json.Serialization.JsonIgnore]
     public virtual Imagen? Imagen { get; set; }
 

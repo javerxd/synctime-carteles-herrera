@@ -1,6 +1,6 @@
 # Diccionario de datos — LetreriaLosHerreraDB
 
-Estado del esquema: migración `CotizacionesYPedidos` (14-11-2026), 24 tablas. Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
+Estado del esquema: migración `MantenedoresYAvisos` (14-11-2026), 27 tablas. Aplicada en la base demo; la base real todavía no tiene las migraciones nuevas (se aplican todas juntas al terminar las fases, con respaldo). Diagrama en [modelo-entidad-relacion.md](modelo-entidad-relacion.md); script de creación en [LetreriaLosHerreraDB.sql](LetreriaLosHerreraDB.sql).
 
 **Convenciones**
 - Motor SQL Server 2025 Express, intercalación `Modern_Spanish_CI_AS` (ordena y compara en español, sin distinguir mayúsculas).
@@ -8,10 +8,10 @@ Estado del esquema: migración `CotizacionesYPedidos` (14-11-2026), 24 tablas. D
 - **PK** clave primaria (entera, autoincremental salvo que se diga otra cosa). **FK** clave foránea. **UQ** valor único.
 - **Calculada**: columna que calcula SQL Server y guarda (`PERSISTED`); no se escribe a mano.
 - **Montos en pesos chilenos sin decimales** (RNFO05). Las columnas nuevas usan `int`. Las anteriores son `decimal(12,2)` y siempre guardan valores enteros: la API y la interfaz validan que no tengan decimales.
-- Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`) y las de la fase 5 (`consultas_contacto` y la autorización del logo en `catalogo`) y la fase 6 (`tokens_renovacion`, `codigos_cuenta` y `clientes.fecha_verificacion_correo`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local.
+- Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`) y las de la fase 5 (`consultas_contacto` y la autorización del logo en `catalogo`) y la fase 6 (`tokens_renovacion`, `codigos_cuenta` y `clientes.fecha_verificacion_correo`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local. Desde la fase 9 también lo usan `destinatarios_avisos`, `destinatarios_avisos_historial` y `horarios_atencion.fecha_modificacion`; `disponibilidad_empleados` usa `time(0)`.
 - `row_version` es un `rowversion`: cambia en cada modificación y permite rechazar el cambio de un registro que otra persona modificó después de abrirlo (RNFP10).
 
-Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026). Las de la fase 8 (14-11-2026) se marcan **NUEVA (fase 8)** o **CAMBIA (fase 8)**, y la tabla `pedidos_historial` también es de esa fecha.
+Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026). Las de la fase 8 (14-11-2026) se marcan **NUEVA (fase 8)** o **CAMBIA (fase 8)**, y la tabla `pedidos_historial` también es de esa fecha. Las de la fase 9 (14-11-2026) se marcan **NUEVA (fase 9)** o **CAMBIA (fase 9)**: `row_version` en los seis mantenedores, las columnas nuevas de `horarios_atencion` y las tablas `disponibilidad_empleados`, `destinatarios_avisos` y `destinatarios_avisos_historial`.
 
 ---
 
@@ -33,6 +33,7 @@ Personas que piden trabajos. Un cliente puede existir sin cuenta: lo registra el
 | `fecha_registro` | datetime2(0) | No | `SYSDATETIME()` | Fecha de alta |
 | `activo` | bit | No | 1 | **0 = cuenta inhabilitada** (borrado lógico). Cuando un cliente da de baja su cuenta no se borran sus pedidos: se conserva la integridad histórica y contable |
 | `fecha_verificacion_correo` | datetimeoffset(0) | Sí | | **NUEVA (fase 6).** Cuándo confirmó el correo, con el enlace o con el código de recuperación. Nulo = sin confirmar. Cambiar el correo la vuelve a dejar nula |
+| `row_version` | rowversion | No | automática | **NUEVA (fase 9).** Control de concurrencia (RNFP10): la API la recibe en `If-Match` al editar o desactivar y la compara. Cambia en cada modificación |
 
 Restricciones: `pk_clientes`, `uq_clientes_telefono`, `uq_clientes_rut` (filtrado: RUT no nulo), `uq_clientes_email` (filtrado: correo no nulo), `ck_clientes_email`, `ck_clientes_cuenta_con_correo` (fase 6).
 
@@ -51,6 +52,7 @@ Personal del taller con acceso al panel interno.
 | `password_hash` | varchar(100) | No | | Hash BCrypt de la contraseña |
 | `rol` | nvarchar(20) | No | `administrador` | `administrador`, `dueño`, `diseñador` u `operario` (RNFO08). Dueño y administrador pueden lo mismo; diseñador y operario también (decisión del 12-11-2026) |
 | `activo` | bit | No | 1 | 0 = no puede ingresar |
+| `row_version` | rowversion | No | automática | **NUEVA (fase 9).** Control de concurrencia (RNFP10): la API la recibe en `If-Match` al editar o desactivar y la compara. Cambia en cada modificación |
 
 Restricciones: `pk_empleados`, `uq_empleados_rut`, `uq_empleados_email`, `ck_empleados_rol`, `ck_empleados_email`.
 
@@ -62,8 +64,9 @@ Grandes grupos de trabajos (letreros, vehículos, estampados, muros, personaliza
 |---|---|---|---|---|
 | `id_categoria` | int | No | autoincremental | PK |
 | `nombre` | nvarchar(80) | No | | Nombre. UQ |
-| `descripcion` | nvarchar(250) | Sí | | Descripción |
+| `descripcion` | nvarchar(300) | Sí | | **CAMBIA (fase 9).** Ampliada de 250 a 300 caracteres |
 | `activo` | bit | No | 1 | 0 = no se ofrece |
+| `row_version` | rowversion | No | automática | **NUEVA (fase 9).** Control de concurrencia (RNFP10): la API la recibe en `If-Match` al editar o desactivar y la compara. Cambia en cada modificación |
 
 Datos iniciales: 5 categorías. Restricciones: `pk_categorias`, `uq_categorias_nombre`.
 
@@ -75,10 +78,11 @@ Datos iniciales: 5 categorías. Restricciones: `pk_categorias`, `uq_categorias_n
 |---|---|---|---|---|
 | `id_producto` | int | No | autoincremental | PK |
 | `id_categoria` | int | No | | FK a `categorias` |
-| `nombre` | nvarchar(100) | No | | Nombre del tipo de letrero. UQ |
-| `descripcion` | nvarchar(250) | Sí | | Descripción |
+| `nombre` | nvarchar(100) | No | | Nombre del tipo de letrero. UQ en todo el taller, no por categoría (`uq_productos_nombre`; decisión de Claude, fase 9) |
+| `descripcion` | nvarchar(500) | Sí | | **CAMBIA (fase 9).** Ampliada de 250 a 500 caracteres |
 | `precio_base_ref` | decimal(12,2) | Sí | | Precio referencial en pesos. CHECK ≥ 0 |
 | `activo` | bit | No | 1 | 0 = no se ofrece |
+| `row_version` | rowversion | No | automática | **NUEVA (fase 9).** Control de concurrencia (RNFP10): la API la recibe en `If-Match` al editar o desactivar y la compara. Cambia en cada modificación |
 
 Datos iniciales: 4 tipos. Restricciones: `pk_productos`, `fk_productos_categoria`, `uq_productos_nombre`, `ck_productos_precio`. Índice `ix_productos_categoria` (`id_categoria`, `activo`): lista los tipos activos de una categoría.
 
@@ -102,6 +106,7 @@ Vitrina pública de trabajos realizados o destacados (RFS01).
 | `incluye_logo_cliente` | bit | No | 0 | **NUEVA (fase 5).** 1 = la foto muestra el logotipo de un cliente |
 | `id_empleado_autoriza_logo` | int | Sí | | **NUEVA (fase 5).** FK a `empleados`: quién registró la autorización del cliente |
 | `fecha_autorizacion_logo` | datetimeoffset(0) | Sí | | **NUEVA (fase 5).** Cuándo se registró la autorización. Volver a autorizarla no la cambia |
+| `row_version` | rowversion | No | automática | **NUEVA (fase 9).** Control de concurrencia (RNFP10): la API la recibe en `If-Match` al editar o desactivar y la compara. Cambia en cada modificación |
 
 Restricciones: `pk_catalogo`, `fk_catalogo_producto`, `fk_catalogo_empleado`, `fk_catalogo_imagen`, `fk_catalogo_empleado_autoriza_logo` (sin borrado en cascada), `ck_catalogo_precio`, `ck_catalogo_medidas`, `ck_catalogo_logo` (un logo de cliente no se muestra sin autorización) y `ck_catalogo_autorizacion_logo` (quién y cuándo van juntos: ambos nulos o ambos con valor). Índices: `ix_catalogo_visible_producto` (`visible`, `id_producto`), la consulta pública de la vitrina; `ix_catalogo_imagen` (`id_imagen`) e `ix_catalogo_autoriza_logo` (`id_empleado_autoriza_logo`), para las claves foráneas de la fase 5. Razón del cambio de `imagen_url`: la vitrina ya no exige una dirección de archivo, porque las fotos se suben con `POST /imagenes`.
 
@@ -200,6 +205,7 @@ Materiales base (madera, vidrio, cholguán, vinilo, plancha metálica…) con su
 | `unidad_medida` | nvarchar(30) | No | | `m2`, `litro`, etc. |
 | `costo_unitario_aprox` | decimal(12,2) | No | | Costo por unidad en pesos. CHECK ≥ 0 |
 | `activo` | bit | No | 1 | 0 = no se ofrece |
+| `row_version` | rowversion | No | automática | **NUEVA (fase 9).** Control de concurrencia (RNFP10): la API la recibe en `If-Match` al editar o desactivar y la compara. Cambia en cada modificación |
 
 Datos iniciales: 5 materiales. Restricciones: `pk_materiales`, `uq_materiales_nombre`, `ck_materiales_costo`.
 
@@ -341,7 +347,7 @@ Restricciones: `pk_pedidos_historial`, `fk_pedidos_historial_pedido`, `fk_pedido
 
 ## horarios_atencion
 
-Horario semanal publicado (RFS02). Una fila por día.
+Horario semanal publicado (RFS02). Una fila por día. Lo cambian el dueño y el administrador (`PUT /api/v1/horarios`), los siete días en una sola transacción. No tiene `row_version`: si dos personas lo editan a la vez, gana la última escritura (decisión de Claude, fase 9; ver `desviaciones.md`).
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
@@ -350,19 +356,23 @@ Horario semanal publicado (RFS02). Una fila por día.
 | `nombre_dia` | nvarchar(15) | No | | Nombre del día |
 | `hora_inicio`, `hora_fin` | time(0) | Sí | | Franja de atención. CHECK: si abre, ambas existen y el fin es posterior al inicio |
 | `abierto` | bit | No | 1 | Si se atiende ese día |
+| `id_empleado_modifica` | int | Sí | | **NUEVA (fase 9).** FK a `empleados`: quién cambió el día por última vez |
+| `fecha_modificacion` | datetimeoffset(0) | Sí | | **NUEVA (fase 9).** Cuándo se cambió por última vez |
 
-Datos iniciales: lunes a viernes de 9:00 a 18:30, sábado de 9:00 a 14:00, domingo cerrado. Restricciones: `pk_horarios_atencion`, `uq_horarios_dia`, `ck_horarios_dia`, `ck_horarios_rango`.
+Un día cerrado no guarda horas (`ck_horarios_cerrado`, fase 9): si `abierto` es 0, `hora_inicio` y `hora_fin` son nulas.
+
+Datos iniciales: lunes a viernes de 9:00 a 18:30, sábado de 9:00 a 14:00, domingo cerrado. Restricciones: `pk_horarios_atencion`, `uq_horarios_dia`, `ck_horarios_dia`, `ck_horarios_rango`, `ck_horarios_cerrado` (fase 9), `fk_horarios_empleado_modifica` e `ix_horarios_empleado_modifica` (fase 9).
 
 ## cartel_digital
 
-**Cartel electrónico** del local (RFS02): el dueño o un trabajador lo «da vuelta» al salir a terreno o a una entrega. Tiene una sola fila.
+**Cartel electrónico** del local (RFS02): todo el personal (dueño, administrador, diseñador y operario, decisión 1 del 14-11-2026) lo «da vuelta» al salir a terreno o a una entrega. Tiene una sola fila y guarda quién y cuándo lo cambió por última vez. No tiene `row_version`: gana la última escritura (decisión de Claude, fase 9).
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
 | `id_cartel` | int | No | 1 | PK. CHECK: siempre 1 |
 | `abierto_en_local` | bit | No | 1 | 1 = «Abierto / Disponible» (verde); 0 = «Cerrado / Ausente» (rojo). La interfaz muestra además el texto, no solo el color |
 | `mensaje_estado` | nvarchar(250) | No | `Local abierto y atendiendo` | Mensaje personalizado |
-| `tiempo_estimado_regreso` | nvarchar(80) | Sí | | Hora estimada de regreso |
+| `tiempo_estimado_regreso` | nvarchar(100) | Sí | | Hora estimada de regreso. **CAMBIA (fase 9).** Ampliada de 80 a 100 caracteres |
 | `fecha_ultima_modificacion` | datetime2(0) | No | `SYSDATETIME()` | Última actualización |
 | `id_empleado_modifica` | int | Sí | | FK a `empleados`: quién lo cambió |
 
@@ -461,7 +471,7 @@ Restricciones: `pk_imagenes`, `fk_imagenes_empleado`, `uq_imagenes_clave`, `ck_i
 
 ## consultas_contacto
 
-**Tabla nueva (13-11-2026, fase 5).** Consultas del formulario de contacto de la portada (RFS08, E22). Cada una deja un aviso por correo al taller, y la bandeja para revisarlas llega en la fase 9. Su consentimiento de privacidad queda en `consentimientos`, con la referencia `contacto:{id}`.
+**Tabla nueva (13-11-2026, fase 5).** Consultas del formulario de contacto de la portada (RFS08, E22). Cada una deja un aviso por correo al taller, y la bandeja para revisarlas no está en el plan de la fase 9: queda pendiente (ver `desviaciones.md`). Su consentimiento de privacidad queda en `consentimientos`, con la referencia `contacto:{id}`.
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
@@ -472,7 +482,7 @@ Restricciones: `pk_imagenes`, `fk_imagenes_empleado`, `uq_imagenes_clave`, `ck_i
 | `asunto` | nvarchar(150) | No | | Asunto de la consulta |
 | `mensaje` | nvarchar(2000) | No | | Texto de la consulta, sin espacios sobrantes al inicio ni al final |
 | `fecha_recepcion` | datetimeoffset(0) | No | `SYSDATETIMEOFFSET()` | Cuándo llegó |
-| `revisada` | bit | No | 0 | 1 = el taller ya la revisó (lo marca la bandeja de la fase 9) |
+| `revisada` | bit | No | 0 | 1 = el taller ya la revisó. Hoy nadie lo marca: la bandeja está pendiente (ver `desviaciones.md`) |
 | `fecha_revision` | datetimeoffset(0) | Sí | | Cuándo se marcó como revisada |
 
 Restricciones: `pk_consultas_contacto`. No tiene `CHECK` ni claves foráneas: las reglas de largo y de formato están en la API (`ValidacionContacto`) y en el formulario.
@@ -534,6 +544,57 @@ Límites de envío, en la API y no en la base: como máximo 1 código por minuto
 
 **Retención:** las filas vencidas hace más de un día se borran con `PurgaDatosPersonales`, una vez al día.
 
+
+## disponibilidad_empleados
+
+**Tabla nueva (14-11-2026, fase 9).** Franjas de atención de cada empleado por día de la semana (RFU20). Al guardar, la API reemplaza todas las franjas propias. La portada muestra la unión de las franjas de los empleados activos, sin nombres.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_disponibilidad` | int | No | autoincremental | PK |
+| `id_empleado` | int | No | | FK a `empleados` |
+| `dia_semana` | tinyint | No | | 1 = lunes … 7 = domingo. CHECK entre 1 y 7 |
+| `hora_inicio`, `hora_fin` | time(0) | No | | Franja. CHECK: el inicio es anterior al fin |
+
+Restricciones: `pk_disponibilidad_empleados`, `fk_disponibilidad_empleado`, `ck_disponibilidad_dia`, `ck_disponibilidad_rango`. Índice `ix_disponibilidad_empleado_dia` (`id_empleado`, `dia_semana`). La base no impide que dos franjas del mismo empleado se crucen, ni que una franja salga del horario del taller: lo valida la API. Las franjas se repiten cada semana y no hay excepciones por fecha (decisión 2 del 14-11-2026).
+
+## destinatarios_avisos
+
+**Tabla nueva (14-11-2026, fase 9).** Correos que reciben los avisos de solicitudes nuevas. Los administran el dueño y el administrador desde su perfil («Avisos del taller», pedido del usuario el 14-11-2026). Estados: `pendiente`, `activo`, `retirado` y `cancelado`; el diagrama está en [modelo-entidad-relacion.md](modelo-entidad-relacion.md#destinos-de-los-avisos-del-taller-fase-9).
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_destinatario` | int | No | autoincremental | PK |
+| `correo` | nvarchar(254) | No | | En minúsculas (`ck_destinatarios_avisos_correo`). Un mismo correo no puede estar dos veces `activo` o `pendiente` (índice único filtrado `uq_destinatarios_avisos_vigente`) |
+| `estado` | varchar(10) | No | | `pendiente`, `activo`, `retirado` o `cancelado` (`ck_destinatarios_avisos_estado`) |
+| `id_reemplaza` | int | Sí | | FK a `destinatarios_avisos`: el destino que este reemplaza. Nulo si se agregó |
+| `token_hash` | char(64) | Sí | | SHA-256 del enlace de confirmación, en hexadecimal. Nunca se guarda el enlace. Solo en `pendiente` (índice único filtrado `uq_destinatarios_avisos_token`) |
+| `vence` | datetimeoffset(0) | Sí | | Vencimiento del enlace: 24 horas desde que se pidió o se reenvió. Solo en `pendiente` |
+| `id_empleado_solicita` | int | No | | FK a `empleados`: quién lo pidió |
+| `fecha_solicitud` | datetimeoffset(0) | No | | Cuándo se pidió |
+| `fecha_confirmacion` | datetimeoffset(0) | Sí | | Cuándo se confirmó (pasó a `activo`) |
+| `fecha_retiro` | datetimeoffset(0) | Sí | | Cuándo pasó a `retirado` o a `cancelado` |
+
+Restricciones: `pk_destinatarios_avisos`, `fk_destinatarios_avisos_empleado`, `fk_destinatarios_avisos_reemplaza`, `ck_destinatarios_avisos_correo`, `ck_destinatarios_avisos_estado` y `ck_destinatarios_avisos_enlace` (`token_hash` y `vence` están si y solo si el estado es `pendiente`). Índices: `ix_destinatarios_avisos_empleado` y `ix_destinatarios_avisos_reemplaza`.
+
+Un pendiente vencido sigue en `pendiente` hasta que alguien vuelve a pedir ese correo o un reemplazo de ese destino: entonces pasa a `cancelado` (`CancelarVencidosAsync`, con historial «Venció sin confirmarse.»). No hay un proceso que lo haga solo.
+
+## destinatarios_avisos_historial
+
+**Tabla nueva (14-11-2026, fase 9).** Cada acción sobre los destinos de avisos, con quién, cuándo y la dirección enmascarada. Es la bitácora de los avisos del taller; la bitácora general de la fase 11 podrá leer esta tabla.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_historial` | int | No | autoincremental | PK |
+| `accion` | varchar(12) | No | | `agregar`, `reemplazar`, `confirmar`, `cancelar`, `quitar`, `reenviar` o `probar` (`ck_destinatarios_avisos_historial_accion`) |
+| `correo_enmascarado` | nvarchar(254) | No | | Por ejemplo `c•••o@gmail.com`. En `probar` puede ser una lista de direcciones enmascaradas |
+| `id_destinatario` | int | Sí | | FK a `destinatarios_avisos`. Nulo en `probar` |
+| `id_empleado` | int | Sí | | FK a `empleados`: quién hizo la acción. Nulo si confirmó alguien desde el enlace, sin sesión |
+| `fecha` | datetimeoffset(0) | No | | Cuándo ocurrió |
+| `detalle` | nvarchar(300) | Sí | | Texto corto, por ejemplo «Reemplaza a …» |
+
+Restricciones: `pk_destinatarios_avisos_historial`, `fk_destinatarios_avisos_historial_destino`, `fk_destinatarios_avisos_historial_empleado` y `ck_destinatarios_avisos_historial_accion`. Índices: `ix_destinatarios_avisos_historial_destino` (`id_destinatario`, `accion`, `fecha`), `ix_destinatarios_avisos_historial_empleado` e `ix_destinatarios_avisos_historial_fecha`. El límite de correos de prueba (3 cada 10 minutos) cuenta las filas `probar` de esta tabla.
+
 ---
 
 ## Vista, triggers y procedimiento
@@ -559,3 +620,4 @@ Límites de envío, en la API y no en la base: como máximo 1 código por minuto
 | `CuentasYSesion` | 13-11-2026 | Tablas nuevas `tokens_renovacion` (sesiones; solo se guarda el hash del token) y `codigos_cuenta` (enlaces de verificación y códigos de recuperación; solo el hash). En `clientes`, la columna `fecha_verificacion_correo` y la restricción `ck_clientes_cuenta_con_correo`, que impide una contraseña sin correo: si algún cliente tuviera contraseña sin correo, la migración se detiene. En la base real no hay clientes (consultado el 13-11-2026). Solo agrega (prueba `CuentasYSesion_SoloAgrega`). Aplicada en la base demo; no en la real |
 | `SolicitudesYAdjuntos` | 14-11-2026 | Tablas nuevas `adjuntos_solicitud` (archivos de las solicitudes, privados) y `solicitudes_historial` (cambios de estado). En `solicitudes`, la columna nueva `huella_ip` con su índice `ix_solicitudes_huella_ip`, y se amplían `descripcion_general` (2000), `motivo_rechazo` (500) y `solicitud_detalles.descripcion` (500). No borra tablas, columnas ni filas (prueba `SolicitudesYAdjuntos_SoloAgrega`). Aplicada en la base demo; no en la real |
 | `CotizacionesYPedidos` | 14-11-2026 | Cotizaciones con `row_version`, respuesta (fecha, vía, quién y motivo de rechazo), borrado lógico y el índice único filtrado `uq_cotizaciones_una_pendiente`. Pedidos con motivo y fecha de anulación, borrado lógico y `uq_pedidos_cotizacion`. Tabla nueva `pedidos_historial`. En `pagos`, la anulación de abonos y el trigger `trg_pagos_recalcular_monto_abonado` reescrito (solo suma los vigentes). Amplía `cotizaciones.observaciones` (2000), `cotizacion_materiales.medida_aplicada` (100) y `pedidos.direccion_instalacion` (300). Antes de cada regla nueva completa los datos existentes: respuesta «presencial» de las cotizaciones ya respondidas, motivo «Anulado antes de la fase 8» de los pedidos anulados y una fila de creación en el historial de cada pedido. Revertirla se detiene (`THROW` 50081 o 50082) si hay abonos anulados o textos que no caben en las columnas anteriores, sin tocar nada. Solo agrega y amplía (prueba `CotizacionesYPedidos_SoloAgrega`). La API la aplica en la base demo al arrancar; la base real espera la autorización del usuario |
+| `MantenedoresYAvisos` | 14-11-2026 | Solo agrega. `row_version` en `categorias`, `productos`, `catalogo`, `materiales`, `empleados` y `clientes`. En `horarios_atencion`, `id_empleado_modifica` (FK), `fecha_modificacion` y la restricción `ck_horarios_cerrado`. Tablas nuevas `disponibilidad_empleados`, `destinatarios_avisos` y `destinatarios_avisos_historial`. Amplía `categorias.descripcion` (300), `productos.descripcion` (500) y `cartel_digital.tiempo_estimado_regreso` (100). `Down()` se detiene con `THROW 50090` o `50091` si hay datos en las tablas nuevas o textos que no caben en las columnas anteriores. Aplicada en la base demo; no en la real. Pruebas: `MigracionTests.MantenedoresYAvisos_SoloAgrega` y `RevertirMantenedoresYAvisos_SeDetieneAntesDePerderDatos` |

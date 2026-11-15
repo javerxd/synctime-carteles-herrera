@@ -44,7 +44,7 @@ public class CimientosTests(ApiFixture api)
     public async Task SinPermiso_Responde403ConElFormatoEstandar()
     {
         var operario = await api.TokenEmpleadoAsync(Roles.Operario);
-        var cuerpo = await api.Cliente(operario).DeleteAsync("/api/v1/clientes/999999").EsperarAsync(HttpStatusCode.Forbidden);
+        var cuerpo = await api.Cliente(operario).GetAsync("/api/v1/empleados").EsperarAsync(HttpStatusCode.Forbidden);
         EsErrorEstandar(cuerpo, 403, "sin_permiso");
     }
 
