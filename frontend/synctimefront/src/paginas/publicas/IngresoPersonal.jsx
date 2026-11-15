@@ -1,23 +1,33 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ScanFace } from 'lucide-react';
 import { Aviso, Boton, Campo, Enlace, Tarjeta } from '../../componentes/ui';
-import CapturaFacial from '../../componentes/CapturaFacial';
+import authService from '../../api/authService';
+import { useAvisos } from '../../avisos/Avisos';
+import FlujoFacial from '../../rostro/FlujoFacial';
+import { pasosDelDesafio } from '../../rostro/desafio';
 import { mensajeDeError } from '../../rostro/motorFacial';
 import { useDevolverFoco } from '../../rostro/useDevolverFoco';
 import { rutaInterna } from '../../sesion/rutas';
 import { useSesion } from '../../sesion/sesion';
 import estilos from './IngresoPersonal.module.css';
 
-// El mismo mensaje para todo fallo: no debe revelar si el correo existe, su rol ni si tiene el rostro activado.
-const ROSTRO_NO_VERIFICADO =
-  'No pudimos verificar tu rostro. Entra con tu contraseña. Si eres dueño o administrador, este equipo debe estar autorizado desde Mi perfil.';
+// El mismo mensaje para todo rechazo del servidor: no revela si el correo existe, su rol, si tiene rostro,
+// si el equipo está autorizado ni qué comprobación de la prueba de vida falló.
+const ROSTRO_NO_VERIFICADO = 'No pudimos confirmar que eres tú. Inténtalo de nuevo o entra con tu contraseña.';
+const DEMASIADOS_CON_ROSTRO = 'Demasiados intentos con rostro. Espera un momento o entra con tu contraseña.';
+// Tras estos rechazos seguidos, la pantalla lleva a la contraseña.
+const RECHAZOS_PARA_CONTRASENA = 3;
 
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Acceso del personal del taller: correo y contraseña, o rostro (solo dueño y administrador). */
+/**
+ * Acceso del personal del taller: correo y contraseña, o rostro con prueba de vida (solo dueño y administrador).
+ * La contraseña está siempre a la vista; tras 3 rechazos seguidos del rostro, el foco va a ella.
+ */
 export default function IngresoPersonal() {
   const { ingresarPersonal, ingresarPersonalConRostro } = useSesion();
+  const { anunciar } = useAvisos();
   const navegar = useNavigate();
   const ubicacion = useLocation();
 
@@ -27,7 +37,18 @@ export default function IngresoPersonal() {
   const [errores, setErrores] = useState({});
   const [capturando, setCapturando] = useState(false);
   const [verificando, setVerificando] = useState(false);
-  const botonRostro = useDevolverFoco(capturando || verificando);
+  const [rechazos, setRechazos] = useState(0);
+  const [llevarAContrasena, setLlevarAContrasena] = useState(0);
+  const refDesafio = useRef(null);
+  const refPassword = useRef(null);
+  const refEmail = useRef(null);
+  const botonRostro = useDevolverFoco(capturando);
+  const sugerirContrasena = rechazos >= RECHAZOS_PARA_CONTRASENA;
+
+  // Va después de useDevolverFoco: si ambos actúan en el mismo cambio, gana la contraseña.
+  useEffect(() => {
+    if (llevarAContrasena > 0) refPassword.current?.focus();
+  }, [llevarAContrasena]);
 
   // Tras salir no se vuelve a la pantalla del usuario anterior: quien entre después parte en el inicio.
   const destino = rutaInterna(ubicacion.state?.motivo !== 'salida' ? ubicacion.state?.desde?.pathname : null, '/panel');
@@ -51,13 +72,9 @@ export default function IngresoPersonal() {
     return encontrados;
   }
 
-  function mensajeDeFallo(error, { conRostro }) {
-    if (error?.estado === 401) return conRostro ? ROSTRO_NO_VERIFICADO : 'Correo o contraseña incorrectos.';
-    if (error?.estado === 429) {
-      return conRostro
-        ? 'Demasiados intentos con rostro. Espera un momento o entra con tu contraseña.'
-        : 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.';
-    }
+  function mensajeDeFallo(error) {
+    if (error?.estado === 401) return 'Correo o contraseña incorrectos.';
+    if (error?.estado === 429) return 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.';
     return error?.message || 'No pudimos conectar con el servidor.';
   }
 
@@ -71,7 +88,8 @@ export default function IngresoPersonal() {
       await ingresarPersonal(email.trim(), password);
       navegar(destino, { replace: true });
     } catch (error) {
-      setErrores({ formulario: mensajeDeFallo(error, { conRostro: false }) });
+      setRechazos(0);
+      setErrores({ formulario: mensajeDeFallo(error) });
     } finally {
       setCargando(false);
     }
@@ -80,27 +98,60 @@ export default function IngresoPersonal() {
   function alEntrarConRostro() {
     const errorCorreo = validarCorreo();
     setErrores(errorCorreo ? { email: errorCorreo } : {});
-    if (!errorCorreo) setCapturando(true);
+    if (errorCorreo) refEmail.current?.focus();
+    else setCapturando(true);
   }
 
-  async function alCapturar([descriptor]) {
-    setCapturando(false);
+  // Se pide con la cámara ya encendida, para que el desafío (unos 30 s) no se gaste esperando el permiso.
+  // Con la señal, la respuesta tardía de un intento cancelado no pisa el desafío del intento nuevo.
+  async function prepararPasos(senal) {
+    refDesafio.current = null;
+    const respuesta = await authService.desafioFacial(email.trim(), senal);
+    const pasos = pasosDelDesafio(respuesta);
+    if (!senal?.aborted) refDesafio.current = respuesta.desafio;
+    return pasos;
+  }
+
+  async function alTerminarFlujo(capturas) {
     setVerificando(true);
     setCargando(true);
     try {
-      await ingresarPersonalConRostro(email.trim(), descriptor);
+      const respuesta = await ingresarPersonalConRostro(email.trim(), { desafio: refDesafio.current, capturas });
+      const nombre = respuesta?.nombre ?? respuesta?.usuario?.nombre;
+      const rol = respuesta?.rol ?? respuesta?.usuario?.rol;
+      anunciar({ tono: 'exito', titulo: nombre && rol ? `Entraste como ${nombre} (${rol})` : 'Entraste con tu rostro' });
       navegar(destino, { replace: true });
     } catch (error) {
-      setErrores({ formulario: mensajeDeFallo(error, { conRostro: true }) });
+      if (error?.estado === 401) {
+        const siguientes = rechazos + 1;
+        setRechazos(siguientes);
+        setErrores({ formulario: ROSTRO_NO_VERIFICADO });
+        if (siguientes >= RECHAZOS_PARA_CONTRASENA) setLlevarAContrasena((n) => n + 1);
+      } else if (error?.estado === 429) {
+        setRechazos((n) => Math.max(n, RECHAZOS_PARA_CONTRASENA));
+        setErrores({ formulario: DEMASIADOS_CON_ROSTRO });
+        setLlevarAContrasena((n) => n + 1);
+      } else {
+        // Un error de red no es un rechazo: no suma ni reinicia los rechazos seguidos.
+        setErrores({ formulario: mensajeDeError(error) });
+      }
+      setCapturando(false);
     } finally {
+      refDesafio.current = null;
       setCargando(false);
       setVerificando(false);
     }
   }
 
-  function alFallarCaptura(error) {
+  function alFallarFlujo(error) {
+    refDesafio.current = null;
     setCapturando(false);
     setErrores({ formulario: mensajeDeError(error) });
+  }
+
+  function alCancelarFlujo() {
+    refDesafio.current = null;
+    setCapturando(false);
   }
 
   const bloqueado = cargando || capturando;
@@ -121,6 +172,7 @@ export default function IngresoPersonal() {
 
         <form className={estilos.formulario} onSubmit={alEnviar} noValidate>
           <Campo
+            ref={refEmail}
             etiqueta="Correo electrónico"
             type="email"
             maxLength={100}
@@ -132,6 +184,7 @@ export default function IngresoPersonal() {
             error={errores.email}
           />
           <Campo
+            ref={refPassword}
             etiqueta="Contraseña"
             type="password"
             maxLength={100}
@@ -140,6 +193,8 @@ export default function IngresoPersonal() {
             autoComplete="current-password"
             disabled={bloqueado}
             error={errores.password}
+            ayuda={sugerirContrasena ? 'Entra con tu contraseña: siempre funciona, aunque el rostro no se confirme.' : undefined}
+            className={sugerirContrasena ? estilos.resaltado : undefined}
           />
           <p className={estilos.olvido}>
             <Enlace como={Link} to="/cuenta/recuperar?tipo=personal">¿Olvidaste tu contraseña?</Enlace>
@@ -156,7 +211,12 @@ export default function IngresoPersonal() {
         </form>
 
         {capturando && (
-          <CapturaFacial onCaptura={alCapturar} onError={alFallarCaptura} onCancelar={() => setCapturando(false)} />
+          <FlujoFacial
+            prepararPasos={prepararPasos}
+            alTerminar={alTerminarFlujo}
+            alError={alFallarFlujo}
+            alCancelar={alCancelarFlujo}
+          />
         )}
 
         <p className={estilos.nota}>

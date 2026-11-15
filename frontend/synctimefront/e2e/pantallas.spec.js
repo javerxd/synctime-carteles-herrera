@@ -221,6 +221,40 @@ const FRANJAS_ATENCION = [{ desde: '09:00:00', hasta: '13:00:00' }, { desde: '15
 const DIAS_ATENCION = RESPUESTAS['/api/v1/horarios'].map((d) => ({
   diaSemana: d.diaSemana, nombreDia: d.nombreDia, franjas: d.abierto ? FRANJAS_ATENCION.slice(0, d.diaSemana === 6 ? 1 : 2) : [],
 }));
+// ── Fase 10: rostro con prueba de vida ──
+const ROSTRO_PROPIO = {
+  disponible: true, activo: false, puedeUsarRostro: true, debeRegistrarseDeNuevo: false, requiereEquipo: true, equipoVigente: false,
+  consentimiento: { version: '2026-11', texto: ['Sistema biométrico: tres muestras cifradas de tu rostro.', 'Finalidad: entrar al panel sin escribir la contraseña.'] },
+};
+const ROSTROS = [
+  {
+    idEmpleado: 1, nombre: 'Marta Fuentes', rol: 'dueño', estado: 'activo', fechaRegistro: fecha(0, 2), fechaConsentimiento: fecha(0, 2),
+    registradoPor: 'Marta Fuentes', fechaDesactivacion: null, historial: [],
+  },
+  {
+    idEmpleado: 3, nombre: 'Javiera Herrera Contreras', rol: 'administrador', estado: 'debe_registrarse', fechaRegistro: fecha(2, 3),
+    fechaConsentimiento: fecha(2, 3), registradoPor: 'Marta Fuentes', fechaDesactivacion: null,
+    historial: [{ fechaConsentimiento: fecha(3, 1), fechaDesactivacion: fecha(2, 2) }],
+  },
+  {
+    idEmpleado: 4, nombre: 'Pedro Soto', rol: 'administrador', estado: 'sin_registro', fechaRegistro: null, fechaConsentimiento: null,
+    registradoPor: null, fechaDesactivacion: null, historial: [],
+  },
+];
+const medicion = (id, etiqueta, base) => ({
+  idMedicion: id, idEmpleado: 1, empleado: 'Marta Fuentes', etiqueta, distanciaFrente: base, distanciaPrimerGiro: base + 0.03,
+  distanciaSegundoGiro: base + 0.05, distanciaMaxEntreCapturas: base + 0.08, giroFrente: 0.02, giroPrimero: 0.44, giroSegundo: -0.46,
+  umbralVigente: 0.5, fecha: fecha(0, 4),
+});
+const CALIBRACION = {
+  activa: true, umbralVigente: 0.5, rangos: { frenteMaximo: 0.15, giroMinimo: 0.3, giroMaximo: 0.75 },
+  mediciones: [medicion(1, 'propio', 0.31), medicion(2, 'propio', 0.34), medicion(3, 'otra_persona', 0.62)],
+  resumen: {
+    propio: { n: 2, min: 0.36, max: 0.39, promedio: 0.375 }, otra: { n: 1, min: 0.67, max: 0.67, promedio: 0.67 },
+    umbralSugerido: 0.53, margen: 0.14,
+  },
+};
+
 Object.assign(RESPUESTAS, {
   '/api/v1/empleados/activos': EMPLEADOS,
   '/api/v1/empleados': paginaDe(PERSONAL),
@@ -236,7 +270,10 @@ Object.assign(RESPUESTAS, {
     { idEmpleado: 2, nombre: 'Hugo Vera', franjas: [{ diaSemana: 2, horaInicio: '15:00:00', horaFin: '18:00:00' }] },
   ],
   '/api/v1/local/atencion': DIAS_ATENCION,
-  '/api/v1/auth/rostro': { disponible: false },
+  // Fase 10: el dueño ve el registro con tres muestras; «Rostros registrados» y la calibración encendida.
+  '/api/v1/auth/rostro': ROSTRO_PROPIO,
+  '/api/v1/rostros': ROSTROS,
+  '/api/v1/rostros/calibracion': CALIBRACION,
 });
 const IMAGEN_PRUEBA = 'public/marca/logo-lh-256.webp';
 
@@ -312,6 +349,8 @@ const PANTALLAS = [
   ['/panel/pedidos/directo', 'Pedido directo en el taller'],
   ['/panel/calendario', 'Calendario de entregas'],
   ['/panel/perfil', 'Mi perfil'],
+  ['/panel/rostros', 'Rostros registrados'],
+  ['/panel/rostros/calibrar', 'Calibrar el rostro'],
   ['/panel/mantenedores/categorias', 'Catálogo y mantenedores'],
   ['/panel/mantenedores/vitrina', 'Catálogo y mantenedores'],
   ['/panel/mantenedores/personal', 'Catálogo y mantenedores'],

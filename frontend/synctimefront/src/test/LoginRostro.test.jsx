@@ -1,97 +1,191 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import IngresoPersonal from '../paginas/publicas/IngresoPersonal';
+import { ProveedorAvisos } from '../avisos/Avisos';
 import { almacenSesion } from '../sesion/sesion';
 import authService from '../api/authService';
-import { capturarDescriptores } from '../rostro/motorFacial';
-import { crearCamara, errorDeCamara, simularNavegador } from './rostroAuxiliares';
+import { detectarCuadro, prepararMotor } from '../rostro/motorFacial';
+import {
+  avanzar, crearCamara, errorDeCamara, personaQueSigue, simularMovimientoReducido, simularNavegador,
+} from './rostroAuxiliares';
 
 vi.mock('../api/authService', () => ({
-  default: { login: vi.fn(), loginFacial: vi.fn() },
+  default: { login: vi.fn(), loginFacial: vi.fn(), desafioFacial: vi.fn() },
 }));
 
 vi.mock('../rostro/motorFacial', async (original) => ({
   ...(await original()),
-  capturarDescriptores: vi.fn(),
+  prepararMotor: vi.fn(),
+  detectarCuadro: vi.fn(),
 }));
+
+const EMAIL = 'admin@letrerosherrera.cl';
+const RECHAZO = 'No pudimos confirmar que eres tú. Inténtalo de nuevo o entra con tu contraseña.';
+const EXITO = { token: 't', tipo: 'empleado', usuario: { nombre: 'Ana', rol: 'administrador' }, nombre: 'Ana Díaz', rol: 'administrador' };
 
 function renderLogin() {
   return render(
-    <MemoryRouter initialEntries={['/personal/ingresar']}>
-      <IngresoPersonal />
-    </MemoryRouter>
+    <ProveedorAvisos>
+      <MemoryRouter initialEntries={['/personal/ingresar']}>
+        <Routes>
+          <Route path="/personal/ingresar" element={<IngresoPersonal />} />
+          <Route path="/panel" element={<h1>Panel</h1>} />
+        </Routes>
+      </MemoryRouter>
+    </ProveedorAvisos>
   );
 }
 
-const escribirEmail = (valor = 'empleado@letrerosherrera.cl') =>
+const escribirEmail = (valor = EMAIL) =>
   fireEvent.change(screen.getByLabelText(/correo electrónico/i), { target: { value: valor } });
-
 const pulsarRostro = () => fireEvent.click(screen.getByRole('button', { name: /entrar con rostro/i }));
+const campoPassword = () => screen.getByLabelText(/^contraseña/i);
 
-describe('Acceso del personal: entrar con rostro', () => {
+/** Pulsa «Entrar con rostro» y deja correr el flujo guiado completo (unos segundos simulados). */
+async function intentarConRostro() {
+  // Una persona nueva en cada intento: vuelve a empezar de frente.
+  detectarCuadro.mockImplementation(personaQueSigue(['derecha', 'izquierda']));
+  pulsarRostro();
+  await avanzar(6000);
+}
+
+describe('Acceso del personal: entrar con rostro y prueba de vida', () => {
   let getUserMedia;
   let pista;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     sessionStorage.clear();
     almacenSesion.cerrar();
+    simularMovimientoReducido(false);
     const simulada = crearCamara();
     pista = simulada.pista;
     getUserMedia = vi.fn().mockResolvedValue(simulada.camara);
     simularNavegador(getUserMedia);
-    capturarDescriptores.mockResolvedValue([[0.1, 0.2]]);
+    prepararMotor.mockResolvedValue();
+    authService.desafioFacial.mockResolvedValue({ desafio: 'desafio-1', orden: ['derecha', 'izquierda'], venceEnSegundos: 30 });
   });
 
-  it('no abre la cámara ni carga la captura hasta pulsar el botón', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('no abre la cámara ni pide el desafío hasta pulsar el botón; la contraseña está a la vista', () => {
     renderLogin();
     escribirEmail();
 
     expect(screen.getByRole('button', { name: /entrar con rostro/i })).toBeInTheDocument();
+    expect(campoPassword()).toBeVisible();
     expect(getUserMedia).not.toHaveBeenCalled();
-    expect(capturarDescriptores).not.toHaveBeenCalled();
+    expect(authService.desafioFacial).not.toHaveBeenCalled();
   });
 
   it('exige primero el email, sin abrir la cámara', async () => {
     renderLogin();
-
     pulsarRostro();
+    await avanzar(10);
 
-    expect(await screen.findByText(/el correo es obligatorio/i)).toBeInTheDocument();
+    expect(screen.getByText(/el correo es obligatorio/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/correo electrónico/i)).toHaveFocus();
     expect(getUserMedia).not.toHaveBeenCalled();
   });
 
-  it('no pide la contraseña para entrar con rostro', async () => {
-    authService.loginFacial.mockResolvedValue({ token: 't', usuario: { nombre: 'Ana', rol: 'operario' } });
+  it('pide el desafío, sigue sus giros y entra mostrando el nombre y el rol', async () => {
+    authService.loginFacial.mockResolvedValue(EXITO);
     renderLogin();
     escribirEmail();
 
-    pulsarRostro();
+    await intentarConRostro();
 
-    await waitFor(() => expect(authService.loginFacial).toHaveBeenCalledWith('empleado@letrerosherrera.cl', [0.1, 0.2]));
-    expect(screen.queryByText(/la contraseña es obligatoria/i)).not.toBeInTheDocument();
-    await waitFor(() => expect(almacenSesion.obtenerToken()).toBe('t'));
-    expect(JSON.stringify({ ...sessionStorage })).not.toContain('"t"');
+    expect(authService.desafioFacial).toHaveBeenCalledWith(EMAIL, expect.any(AbortSignal));
+    expect(authService.loginFacial).toHaveBeenCalledTimes(1);
+    const [email, { desafio, capturas }] = authService.loginFacial.mock.calls[0];
+    expect(email).toBe(EMAIL);
+    expect(desafio).toBe('desafio-1');
+    expect(capturas.map((c) => c.paso)).toEqual(['frente', 'derecha', 'izquierda']);
     expect(pista.stop).toHaveBeenCalled();
+    expect(almacenSesion.obtenerToken()).toBe('t');
+    expect(screen.getAllByText('Entraste como Ana Díaz (administrador)').length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Panel' })).toBeInTheDocument();
   });
 
-  it('ante un rechazo muestra un mensaje genérico y deja usar la contraseña', async () => {
-    authService.loginFacial.mockRejectedValue({ estado: 401 });
-    authService.login.mockResolvedValue({ token: 'con-password', usuario: { nombre: 'Ana', rol: 'operario' } });
+  it('un rechazo del servidor muestra siempre el mismo mensaje y deja usar la contraseña', async () => {
+    authService.loginFacial.mockRejectedValue({ estado: 401, codigo: 'no_autorizado' });
+    authService.login.mockResolvedValue({ token: 'con-password', tipo: 'empleado', usuario: { nombre: 'Ana', rol: 'administrador' } });
     renderLogin();
     escribirEmail();
 
-    pulsarRostro();
+    await intentarConRostro();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/no pudimos verificar tu rostro.*contraseña/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(RECHAZO);
     expect(pista.stop).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /entrar con rostro/i })).toHaveFocus();
 
-    fireEvent.change(screen.getByLabelText(/^contraseña/i), { target: { value: 'una-password' } });
+    fireEvent.change(campoPassword(), { target: { value: 'una-password' } });
     fireEvent.click(screen.getByRole('button', { name: /iniciar sesión/i }));
+    await avanzar(10);
+    expect(almacenSesion.obtenerToken()).toBe('con-password');
+  });
 
-    await waitFor(() => expect(almacenSesion.obtenerToken()).toBe('con-password'));
-    expect(JSON.stringify({ ...sessionStorage })).not.toContain('con-password');
+  it('tras 3 rechazos seguidos el foco va a la contraseña y se resalta', async () => {
+    authService.loginFacial.mockRejectedValue({ estado: 401 });
+    renderLogin();
+    escribirEmail();
+
+    await intentarConRostro();
+    await intentarConRostro();
+    expect(campoPassword()).not.toHaveFocus();
+    await intentarConRostro();
+
+    expect(authService.desafioFacial).toHaveBeenCalledTimes(3);
+    expect(campoPassword()).toHaveFocus();
+    expect(campoPassword()).toHaveAccessibleDescription(/entra con tu contraseña/i);
+  });
+
+  it('demasiados intentos: lo explica y lleva a la contraseña', async () => {
+    authService.loginFacial.mockRejectedValue({ estado: 429 });
+    renderLogin();
+    escribirEmail();
+
+    await intentarConRostro();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/demasiados intentos.*contraseña/i);
+    expect(campoPassword()).toHaveFocus();
+  });
+
+  it('un error de red al pedir el desafío se explica y apaga la cámara', async () => {
+    authService.desafioFacial.mockRejectedValue({ estado: 0, codigo: 'sin_conexion', message: 'x' });
+    renderLogin();
+    escribirEmail();
+
+    await intentarConRostro();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/no pudimos conectar/i);
+    expect(pista.stop).toHaveBeenCalled();
+    expect(authService.loginFacial).not.toHaveBeenCalled();
+  });
+
+  it('un error de red al enviar las capturas se explica con su texto', async () => {
+    authService.loginFacial.mockRejectedValue({ estado: 0, codigo: 'sin_conexion', message: 'x' });
+    renderLogin();
+    escribirEmail();
+
+    await intentarConRostro();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/no pudimos conectar/i);
+  });
+
+  it('un desafío con un orden extraño no se usa', async () => {
+    authService.desafioFacial.mockResolvedValue({ desafio: 'd', orden: ['izquierda', 'izquierda'] });
+    renderLogin();
+    escribirEmail();
+
+    await intentarConRostro();
+
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(authService.loginFacial).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -102,85 +196,30 @@ describe('Acceso del personal: entrar con rostro', () => {
     renderLogin();
     escribirEmail();
 
-    pulsarRostro();
+    await intentarConRostro();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(mensaje);
-    expect(screen.getByLabelText(/^contraseña/i)).toBeEnabled();
-    expect(screen.getByRole('button', { name: /entrar con rostro/i })).toBeEnabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(mensaje);
+    expect(campoPassword()).toBeEnabled();
     expect(authService.loginFacial).not.toHaveBeenCalled();
   });
 
-  it('explica un error de red', async () => {
-    authService.loginFacial.mockRejectedValue({ estado: 0, message: 'No se pudo conectar con el servidor.' });
+  it('bloquea el email durante el flujo y «Cancelar» apaga la cámara y devuelve el foco', async () => {
+    detectarCuadro.mockImplementation(async () => ({ ancho: 640, alto: 480, brillo: 120, rostros: [] }));
     renderLogin();
     escribirEmail();
-
     pulsarRostro();
+    await avanzar(100);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/no se pudo conectar/i);
-  });
-
-  it('explica cuando se supera el límite de intentos', async () => {
-    authService.loginFacial.mockRejectedValue({ estado: 429 });
-    renderLogin();
-    escribirEmail();
-
-    pulsarRostro();
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/demasiados intentos.*contraseña/i);
-  });
-
-  it('cancelar apaga la cámara', async () => {
-    capturarDescriptores.mockReturnValue(new Promise(() => {}));
-    renderLogin();
-    escribirEmail();
-
-    pulsarRostro();
-    await waitFor(() => expect(getUserMedia).toHaveBeenCalled());
-    await waitFor(() => expect(capturarDescriptores).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
-
-    await waitFor(() => expect(pista.stop).toHaveBeenCalled());
-    expect(screen.getByRole('button', { name: /entrar con rostro/i })).toBeInTheDocument();
-  });
-
-  it('bloquea el email durante la captura: el rostro no puede enviarse con otro correo', async () => {
-    capturarDescriptores.mockReturnValue(new Promise(() => {}));
-    renderLogin();
-    escribirEmail();
-
-    pulsarRostro();
-
-    await waitFor(() => expect(screen.getByLabelText(/correo electrónico/i)).toBeDisabled());
-    expect(screen.getByLabelText(/^contraseña/i)).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
-    await waitFor(() => expect(screen.getByLabelText(/correo electrónico/i)).toBeEnabled());
-    expect(screen.getByLabelText(/^contraseña/i)).toBeEnabled();
-  });
-
-  it('el foco pasa a Cancelar y vuelve al botón al terminar', async () => {
-    capturarDescriptores.mockReturnValue(new Promise(() => {}));
-    renderLogin();
-    escribirEmail();
-
-    pulsarRostro();
-
-    const cancelar = await screen.findByRole('button', { name: /cancelar/i });
+    expect(screen.getByLabelText(/correo electrónico/i)).toBeDisabled();
+    expect(screen.getByText('Cámara activa')).toBeInTheDocument();
+    const cancelar = screen.getByRole('button', { name: 'Cancelar' });
     expect(cancelar).toHaveFocus();
 
     fireEvent.click(cancelar);
+    await avanzar(10);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /entrar con rostro/i })).toHaveFocus());
-  });
-
-  it('tras un rechazo del servidor el foco vuelve al botón', async () => {
-    authService.loginFacial.mockRejectedValue({ estado: 401 });
-    renderLogin();
-    escribirEmail();
-
-    pulsarRostro();
-
-    await screen.findByRole('alert');
-    await waitFor(() => expect(screen.getByRole('button', { name: /entrar con rostro/i })).toHaveFocus());
+    expect(pista.stop).toHaveBeenCalled();
+    expect(screen.getByLabelText(/correo electrónico/i)).toBeEnabled();
+    expect(screen.getByRole('button', { name: /entrar con rostro/i })).toHaveFocus();
   });
 });

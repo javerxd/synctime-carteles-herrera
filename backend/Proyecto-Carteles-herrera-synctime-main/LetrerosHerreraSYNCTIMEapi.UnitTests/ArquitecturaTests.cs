@@ -10,9 +10,7 @@ public class ArquitecturaTests
     // Esta lista solo puede achicarse: al terminar la fase 17 debe estar vacia.
     private static readonly string[] EndpointsPendientesDeMigrar =
     [
-        "AuthApi.cs",          // fase 6
-        "Reautenticacion.cs",  // fase 6
-        "RostroApi.cs"         // fase 10
+        "AuthApi.cs"           // fase 6 (RostroApi.cs y Reautenticacion.cs salieron de la lista en la fase 10)
     ];
 
     private static readonly string Proyecto = UbicarProyecto();

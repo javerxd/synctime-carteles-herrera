@@ -416,6 +416,10 @@ public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, AlmacenAdj
         var limiteTecnico = ahora.AddDays(-1);
         await db.TokensRenovacion.Where(t => t.FechaExpiracion < limiteTecnico).ExecuteDeleteAsync(ct);
         await db.CodigosCuenta.Where(c => c.FechaExpiracion < limiteTecnico).ExecuteDeleteAsync(ct);
+        // Fase 10: los desafios del rostro duran segundos; los de mas de un dia ya no sirven.
+        while (await db.DesafiosRostro.Where(d => d.Emitido < limiteTecnico).OrderBy(d => d.IdDesafio).Take(5000).ExecuteDeleteAsync(ct) > 0)
+        {
+        }
         return new ResultadoPurga(consultas, consentimientos, await PurgarAdjuntosAsync(ahora, ct));
     }
 

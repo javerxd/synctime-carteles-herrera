@@ -48,7 +48,10 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Ver una imagen subida (`GET /imagenes/{archivo}`) | Sí | Sí | Sí | Sí | Sí |
 | Cambiar el estado del local (dar vuelta el cartel, `PUT /cartel-digital`) | No | No | Sí | Sí | Sí |
 | Ver la métrica de conversión | No | No | No | No | Sí |
-| Activar y desactivar su propio acceso con rostro | No | No | Sí | Sí | Sí |
+| Activar su propio acceso con rostro (`PUT /auth/rostro`, `POST /auth/rostro/equipo`; los demás reciben `403 solo_gestion`) | No | No | No | No | Sí |
+| Desactivar su propio acceso con rostro (`DELETE /auth/rostro`) | No | No | Sí | Sí | Sí |
+| Ver los rostros registrados y registrar o desactivar el de otro empleado de gestión (`/rostros`) | No | No | No | No | Sí |
+| Calibrar el umbral del rostro (`/rostros/calibracion`, solo con `RostroFacial:Calibracion:Activa`) | No | No | No | No | Sí |
 
 ## Diferencias con los requisitos
 
@@ -60,8 +63,8 @@ Lo que hoy permite la API y lo que piden los requisitos no coincide en estos pun
 | 2 | RFU11: el trabajador consulta, modifica, **rechaza y elimina** solicitudes | Resuelto en la fase 7: todo el personal rechaza, devuelve y elimina de forma lógica (`PATCH`). `DELETE /solicitudes/{id}` sigue siendo solo de gestión | Todo el personal (el `DELETE`, solo gestión) | 7 |
 | 3 | RFU12: el trabajador cotiza | Resuelto en la fase 8: todo el personal emite, edita y registra la respuesta del cliente. Eliminar sigue siendo de gestión | Todo el personal | 8 |
 | 4 | RFU13, RFU14: el trabajador confirma el pago, crea el pedido y registra su avance | Resuelto en la fase 8: todo el personal crea pedidos, los avanza y registra abonos. Cambiar los montos de un pedido, anular un pedido con abonos (aunque estén anulados), anular abonos ajenos o de más de 24 horas y eliminar son de gestión (decisiones 2 y 4 del 14-11-2026 y revisión de seguridad); el resto del personal recibe `403 solo_gestion` | Todo el personal | 8 |
-| 5 | Decisión del 12-11-2026: el rostro es solo para dueño y administrador | Lo puede activar todo el personal | Solo gestión | 10 |
-| 6 | `POST /auth/rostro/equipo` | La ruta admite a todo el personal y rechaza a los demás roles con un 400 de su lógica interna | Rechazo con 403 en la propia ruta | 10 |
+| 5 | Decisión del 12-11-2026: el rostro es solo para dueño y administrador | Resuelto en la fase 10: solo gestión lo activa; los demás roles reciben el `401` genérico al ingresar y `403 solo_gestion` al activar | Solo gestión | 10 |
+| 6 | `POST /auth/rostro/equipo` | Resuelto en la fase 10: responde `403 solo_gestion` a los roles que no son de gestión | Rechazo con 403 en la propia ruta | 10 |
 
 ## Tres decisiones confirmadas
 

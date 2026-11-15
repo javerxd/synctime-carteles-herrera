@@ -1,7 +1,7 @@
 ﻿-- =====================================================================================
 -- SyncTime - Letreros Herrera (la base conserva el nombre LetreriaLosHerreraDB)
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
--- triggers, vista y procedimiento almacenado. Estado: migración MantenedoresYAvisos.
+-- triggers, vista y procedimiento almacenado. Estado: migración RostroConPruebaDeVida.
 -- Generado el 15-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
 --
 -- Cambios de la revisión del 12-11-2026 (tabla pedidos):
@@ -37,6 +37,15 @@
 --   * disponibilidad_empleados: (tabla nueva) franjas semanales de atención del personal.
 --   * destinatarios_avisos e historial: (tablas nuevas) a qué correos llegan los avisos del taller.
 --   * Descripciones de categorías (300) y productos (500), y regreso estimado del cartel (100), más largos.
+--
+-- Fase 10 (15-11-2026), migración RostroConPruebaDeVida (sección 2c):
+--   * rostros_empleado: tres muestras cifradas (descriptor_frente, descriptor_izquierda y
+--                       descriptor_derecha), quién inició el registro y el formato de las muestras (2 =
+--                       tres muestras). descriptor_cifrado, el promedio antiguo, deja de usarse.
+--   * desafios_rostro:  (tabla nueva) desafíos de la prueba de vida: solo hashes del token y del email,
+--                       el orden de los giros y su vigencia. La purga diaria borra los de más de un día.
+--   * calibracion_rostro: (tabla nueva) mediciones de la calibración del umbral: solo distancias y giros,
+--                       sin datos biométricos.
 --
 -- Cómo ejecutarlo. Crea una base NUEVA y se detiene sin hacer nada si ya existe:
 --   sqlcmd -S localhost\SQLEXPRESS -E -C -I -f 65001 -i LetreriaLosHerreraDB.sql
@@ -1087,6 +1096,69 @@ ALTER TABLE [horarios_atencion] ADD CONSTRAINT [fk_horarios_empleado_modifica] F
 GO
 
 -- -------------------------------------------------------------------------------------
+-- 2c. Fase 10: rostro con prueba de vida (migración RostroConPruebaDeVida)
+-- -------------------------------------------------------------------------------------
+ALTER TABLE [rostros_empleado] ADD [descriptor_derecha] varbinary(1024) NULL;
+
+ALTER TABLE [rostros_empleado] ADD [descriptor_frente] varbinary(1024) NULL;
+
+ALTER TABLE [rostros_empleado] ADD [descriptor_izquierda] varbinary(1024) NULL;
+
+ALTER TABLE [rostros_empleado] ADD [formato_muestras] tinyint NULL;
+
+ALTER TABLE [rostros_empleado] ADD [id_empleado_registra] int NULL;
+GO
+
+-- Las columnas nuevas ya existen: lo que sigue puede usarlas.
+CREATE TABLE [calibracion_rostro] (
+    [id_medicion] int NOT NULL IDENTITY,
+    [id_empleado] int NOT NULL,
+    [etiqueta] varchar(12) NOT NULL,
+    [distancia_frente] float NOT NULL,
+    [distancia_primer_giro] float NOT NULL,
+    [distancia_segundo_giro] float NOT NULL,
+    [distancia_max_entre_capturas] float NOT NULL,
+    [giro_frente] float NOT NULL,
+    [giro_primero] float NOT NULL,
+    [giro_segundo] float NOT NULL,
+    [umbral_vigente] float NOT NULL,
+    [id_empleado_registra] int NOT NULL,
+    [fecha] datetimeoffset(0) NOT NULL,
+    CONSTRAINT [pk_calibracion_rostro] PRIMARY KEY ([id_medicion]),
+    CONSTRAINT [ck_calibracion_rostro_etiqueta] CHECK (etiqueta IN ('propio', 'otra_persona')),
+    CONSTRAINT [fk_calibracion_rostro_empleado] FOREIGN KEY ([id_empleado]) REFERENCES [empleados] ([id_empleado]),
+    CONSTRAINT [fk_calibracion_rostro_registra] FOREIGN KEY ([id_empleado_registra]) REFERENCES [empleados] ([id_empleado])
+);
+
+CREATE TABLE [desafios_rostro] (
+    [id_desafio] int NOT NULL IDENTITY,
+    [token_hash] char(64) NOT NULL,
+    [correo_hash] char(64) NOT NULL,
+    [orden] varchar(17) NOT NULL,
+    [emitido] datetimeoffset(0) NOT NULL,
+    [vence] datetimeoffset(0) NOT NULL,
+    [usado] datetimeoffset(0) NULL,
+    CONSTRAINT [pk_desafios_rostro] PRIMARY KEY ([id_desafio]),
+    CONSTRAINT [ck_desafios_rostro_orden] CHECK (orden IN ('izquierda_derecha', 'derecha_izquierda')),
+    CONSTRAINT [ck_desafios_rostro_vigencia] CHECK (vence > emitido AND (usado IS NULL OR usado >= emitido))
+);
+
+CREATE INDEX [ix_rostros_empleado_registra] ON [rostros_empleado] ([id_empleado_registra]);
+
+ALTER TABLE [rostros_empleado] ADD CONSTRAINT [ck_rostros_empleado_muestras] CHECK ((formato_muestras IS NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL) OR (formato_muestras = 2 AND ((fecha_revocacion IS NULL AND descriptor_frente IS NOT NULL AND descriptor_izquierda IS NOT NULL AND descriptor_derecha IS NOT NULL) OR (fecha_revocacion IS NOT NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL))));
+
+CREATE INDEX [ix_calibracion_rostro_empleado] ON [calibracion_rostro] ([id_empleado]);
+
+CREATE INDEX [ix_calibracion_rostro_registra] ON [calibracion_rostro] ([id_empleado_registra]);
+
+CREATE INDEX [ix_desafios_rostro_emitido] ON [desafios_rostro] ([emitido]);
+
+CREATE UNIQUE INDEX [uq_desafios_rostro_token] ON [desafios_rostro] ([token_hash]);
+
+ALTER TABLE [rostros_empleado] ADD CONSTRAINT [fk_rostros_empleado_registra] FOREIGN KEY ([id_empleado_registra]) REFERENCES [empleados] ([id_empleado]);
+GO
+
+-- -------------------------------------------------------------------------------------
 -- 3. Historial de migraciones: la API reconoce la base como actualizada.
 -- -------------------------------------------------------------------------------------
 CREATE TABLE [__EFMigrationsHistory] (
@@ -1107,7 +1179,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261114002321_CuentasYSesion', N'10.0.11'),
     (N'20261114035839_SolicitudesYAdjuntos', N'10.0.11'),
     (N'20261114220104_CotizacionesYPedidos', N'10.0.11'),
-    (N'20261115021638_MantenedoresYAvisos', N'10.0.11');
+    (N'20261115021638_MantenedoresYAvisos', N'10.0.11'),
+    (N'20261115131307_RostroConPruebaDeVida', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

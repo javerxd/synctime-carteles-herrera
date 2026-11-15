@@ -221,13 +221,16 @@ public static class AuthApi
     }
 
     // Misma respuesta para el ingreso con contraseña, con rostro y la renovacion.
-    internal static async Task<IResult> SesionEmpleadoAsync(HttpContext contexto, Empleado empleado, AuthService auth, ServicioSesiones sesiones, CancellationToken ct)
+    // conNombreYRol (fase 10, S15): el ingreso con rostro dice ademas quien entro, con su nombre y su rol.
+    internal static async Task<IResult> SesionEmpleadoAsync(HttpContext contexto, Empleado empleado, AuthService auth, ServicioSesiones sesiones, CancellationToken ct,
+        bool conNombreYRol = false)
     {
         // Si este equipo tenia otra sesion abierta (por ejemplo, alguien que no salio), se cierra.
         await sesiones.CerrarAsync(CookiesSesion.Leer(contexto), ct);
         var sesion = await sesiones.IniciarAsync(TitularSesion.DeEmpleado(empleado.IdEmpleado), ct);
         CookiesSesion.Escribir(contexto, sesion.TokenRenovacion, sesion.Expira);
-        return Results.Ok(RespuestaEmpleado(auth.CreateTokenEmpleado(empleado), empleado));
+        var token = auth.CreateTokenEmpleado(empleado);
+        return Results.Ok(conNombreYRol ? RespuestaEmpleadoConNombreYRol(token, empleado) : RespuestaEmpleado(token, empleado));
     }
 
     internal static async Task<IResult> SesionClienteAsync(HttpContext contexto, Cliente cliente, AuthService auth, ServicioSesiones sesiones, int estado, CancellationToken ct)
@@ -244,6 +247,15 @@ public static class AuthApi
         token,
         tipo = "empleado",
         usuario = new { empleado.IdEmpleado, empleado.Nombre, empleado.Apellido, empleado.Email, empleado.Rol }
+    };
+
+    private static object RespuestaEmpleadoConNombreYRol(string token, Empleado empleado) => new
+    {
+        token,
+        tipo = "empleado",
+        usuario = new { empleado.IdEmpleado, empleado.Nombre, empleado.Apellido, empleado.Email, empleado.Rol },
+        nombre = $"{empleado.Nombre} {empleado.Apellido}",
+        rol = empleado.Rol
     };
 
     private static object RespuestaCliente(string token, Cliente cliente) => new

@@ -37,6 +37,8 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<DisponibilidadEmpleado> DisponibilidadEmpleados { get; set; } = null!;
     public DbSet<DestinatarioAviso> DestinatariosAvisos { get; set; } = null!;
     public DbSet<DestinatarioAvisoHistorial> DestinatariosAvisosHistorial { get; set; } = null!;
+    public DbSet<DesafioRostro> DesafiosRostro { get; set; } = null!;
+    public DbSet<MedicionCalibracionRostro> CalibracionRostro { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -672,7 +674,11 @@ public class LetrerosHerreradbContext : DbContext
         // datetimeoffset porque estas fechas deciden bloqueos y caducidades, que no deben depender de la hora local.
         modelBuilder.Entity<RostroEmpleado>(entity =>
         {
-            entity.ToTable("rostros_empleado");
+            // Fase 10: sin formato no hay muestras; con formato 2, la fila vigente tiene las tres y la revocada ninguna.
+            entity.ToTable("rostros_empleado", t => t.HasCheckConstraint("ck_rostros_empleado_muestras",
+                "(formato_muestras IS NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL) OR "
+                + "(formato_muestras = 2 AND ((fecha_revocacion IS NULL AND descriptor_frente IS NOT NULL AND descriptor_izquierda IS NOT NULL AND descriptor_derecha IS NOT NULL) OR "
+                + "(fecha_revocacion IS NOT NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL)))"));
             entity.HasKey(e => e.IdRostro).HasName("pk_rostros_empleado");
             entity.Property(e => e.IdRostro).HasColumnName("id_rostro");
             entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
@@ -684,12 +690,24 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.BloqueadoHasta).HasColumnName("bloqueado_hasta").HasColumnType("datetimeoffset(0)");
             entity.Property(e => e.TokenEquipoHash).HasColumnName("token_equipo_hash").HasMaxLength(32);
             entity.Property(e => e.FechaAutorizacionEquipo).HasColumnName("fecha_autorizacion_equipo").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.DescriptorFrente).HasColumnName("descriptor_frente").HasMaxLength(1024);
+            entity.Property(e => e.DescriptorIzquierda).HasColumnName("descriptor_izquierda").HasMaxLength(1024);
+            entity.Property(e => e.DescriptorDerecha).HasColumnName("descriptor_derecha").HasMaxLength(1024);
+            entity.Property(e => e.IdEmpleadoRegistra).HasColumnName("id_empleado_registra");
+            entity.Property(e => e.FormatoMuestras).HasColumnName("formato_muestras");
+            entity.Ignore(e => e.TieneTresMuestras);
 
             entity.HasOne(e => e.Empleado)
                 .WithMany()
                 .HasForeignKey(e => e.IdEmpleado)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("fk_rostros_empleado_empleado");
+            entity.HasOne(e => e.EmpleadoRegistra)
+                .WithMany()
+                .HasForeignKey(e => e.IdEmpleadoRegistra)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_rostros_empleado_registra");
+            entity.HasIndex(e => e.IdEmpleadoRegistra).HasDatabaseName("ix_rostros_empleado_registra");
 
             entity.HasIndex(e => e.IdEmpleado).IsUnique().HasFilter("[fecha_revocacion] IS NULL").HasDatabaseName("uq_rostros_empleado_vigente");
         });
@@ -1055,6 +1073,62 @@ public class LetrerosHerreradbContext : DbContext
                 .HasForeignKey(e => e.IdEmpleado)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("fk_destinatarios_avisos_historial_empleado");
+        });
+
+        // ── desafios_rostro (fase 10) ──
+        // Desafios de la prueba de vida: solo hashes, un solo uso y vida corta. El indice de emitido sirve a la purga.
+        modelBuilder.Entity<DesafioRostro>(entity =>
+        {
+            entity.ToTable("desafios_rostro", t =>
+            {
+                t.HasCheckConstraint("ck_desafios_rostro_orden", "orden IN ('izquierda_derecha', 'derecha_izquierda')");
+                t.HasCheckConstraint("ck_desafios_rostro_vigencia", "vence > emitido AND (usado IS NULL OR usado >= emitido)");
+            });
+            entity.HasKey(e => e.IdDesafio).HasName("pk_desafios_rostro");
+            entity.Property(e => e.IdDesafio).HasColumnName("id_desafio");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash").HasMaxLength(64).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.CorreoHash).HasColumnName("correo_hash").HasMaxLength(64).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.Orden).HasColumnName("orden").HasMaxLength(17).IsUnicode(false);
+            entity.Property(e => e.Emitido).HasColumnName("emitido").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.Vence).HasColumnName("vence").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.Usado).HasColumnName("usado").HasColumnType("datetimeoffset(0)");
+
+            entity.HasIndex(e => e.TokenHash).IsUnique().HasDatabaseName("uq_desafios_rostro_token");
+            entity.HasIndex(e => e.Emitido).HasDatabaseName("ix_desafios_rostro_emitido");
+        });
+
+        // ── calibracion_rostro (fase 10) ──
+        // Mediciones de la calibracion: solo numeros, sin datos biometricos.
+        modelBuilder.Entity<MedicionCalibracionRostro>(entity =>
+        {
+            entity.ToTable("calibracion_rostro", t =>
+                t.HasCheckConstraint("ck_calibracion_rostro_etiqueta", "etiqueta IN ('propio', 'otra_persona')"));
+            entity.HasKey(e => e.IdMedicion).HasName("pk_calibracion_rostro");
+            entity.Property(e => e.IdMedicion).HasColumnName("id_medicion");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.Etiqueta).HasColumnName("etiqueta").HasMaxLength(12).IsUnicode(false);
+            entity.Property(e => e.DistanciaFrente).HasColumnName("distancia_frente");
+            entity.Property(e => e.DistanciaPrimerGiro).HasColumnName("distancia_primer_giro");
+            entity.Property(e => e.DistanciaSegundoGiro).HasColumnName("distancia_segundo_giro");
+            entity.Property(e => e.DistanciaMaxEntreCapturas).HasColumnName("distancia_max_entre_capturas");
+            entity.Property(e => e.GiroFrente).HasColumnName("giro_frente");
+            entity.Property(e => e.GiroPrimero).HasColumnName("giro_primero");
+            entity.Property(e => e.GiroSegundo).HasColumnName("giro_segundo");
+            entity.Property(e => e.UmbralVigente).HasColumnName("umbral_vigente");
+            entity.Property(e => e.IdEmpleadoRegistra).HasColumnName("id_empleado_registra");
+            entity.Property(e => e.Fecha).HasColumnName("fecha").HasColumnType("datetimeoffset(0)");
+
+            entity.HasIndex(e => e.IdEmpleado).HasDatabaseName("ix_calibracion_rostro_empleado");
+            entity.HasIndex(e => e.IdEmpleadoRegistra).HasDatabaseName("ix_calibracion_rostro_registra");
+
+            entity.HasOne(e => e.Empleado).WithMany()
+                .HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_calibracion_rostro_empleado");
+            entity.HasOne(e => e.EmpleadoRegistra).WithMany()
+                .HasForeignKey(e => e.IdEmpleadoRegistra)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_calibracion_rostro_registra");
         });
 
         // ── vw_metricas_conversion_online (la crea la migracion ObjetosProgramablesV6) ──

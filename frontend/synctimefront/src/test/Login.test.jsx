@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import IngresoPersonal from '../paginas/publicas/IngresoPersonal';
 import { almacenSesion } from '../sesion/sesion';
 import authService from '../api/authService';
+import { ProveedorAvisos } from '../avisos/Avisos';
 
 vi.mock('../api/authService', () => ({
   default: {
@@ -13,9 +14,11 @@ vi.mock('../api/authService', () => ({
 
 function renderLogin() {
   return render(
-    <MemoryRouter initialEntries={['/personal/ingresar']}>
-      <IngresoPersonal />
-    </MemoryRouter>
+    <ProveedorAvisos>
+      <MemoryRouter initialEntries={['/personal/ingresar']}>
+        <IngresoPersonal />
+      </MemoryRouter>
+    </ProveedorAvisos>
   );
 }
 

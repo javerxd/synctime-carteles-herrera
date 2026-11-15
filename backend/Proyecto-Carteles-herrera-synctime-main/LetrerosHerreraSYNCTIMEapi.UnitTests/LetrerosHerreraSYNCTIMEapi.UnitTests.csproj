@@ -25,4 +25,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Fase 10: casos fijos del giro, compartidos con el frontend (src/rostro/giro.js). -->
+  <ItemGroup>
+    <None Update="CasosGiro.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

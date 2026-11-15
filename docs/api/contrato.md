@@ -23,7 +23,7 @@ El token de acceso va en la cabecera `Authorization: Bearer <token>` y dura 15 m
 | --- | --- | --- |
 | `POST /auth/login` (personal) | `{ email, password }` | `{ token, tipo: "empleado", usuario: { idEmpleado, nombre, apellido, email, rol } }` |
 | `POST /auth/login-cliente` | `{ correo, password }` | `{ token, tipo: "cliente", usuario: { idCliente, nombre, apellido, telefono, email, correoVerificado } }`. El cliente entra con su correo, no con su telefono |
-| `POST /auth/login-facial` (personal) | `{ email, descriptor, tokenEquipo? }` | Lo mismo que `/auth/login`. Ver seccion 7 |
+| `POST /auth/login-facial` (personal) | `{ email, desafio, tokenEquipo, capturas }`, despues de pedir el desafio | Lo mismo que `/auth/login`, mas `nombre` y `rol`. Ver seccion 7 |
 
 Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administrador`, `diseñador`, `operario` y `cliente`. En la tabla de rutas:
 
@@ -42,7 +42,7 @@ Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administra
 | `403` | El rol no tiene permiso |
 | `404` | No existe, o no es visible para quien lo pide |
 | `409` | Duplicado, tiene registros asociados, o lo modifico otra persona |
-| `413` | El cuerpo supera el tope de su ruta: 8 KB en el login de rostro, 64 KB al activar el rostro, y 16 KB en `POST /contacto` y `POST /consentimientos/cookies`. Una subida de adjunto que pasa de 10 MB responde `400` con `archivo_muy_grande`, no `413` |
+| `413` | El cuerpo supera el tope de su ruta: 1 KB al pedir el desafio de rostro, 32 KB en el login de rostro, 64 KB al registrar un rostro, y 16 KB en `POST /contacto` y `POST /consentimientos/cookies`. Una subida de adjunto que pasa de 10 MB responde `400` con `archivo_muy_grande`, no `413` |
 | `429` | Limite por IP por minuto: 10 logins con contraseña, 10 logins con rostro, 10 confirmaciones de contraseña, 10 envios publicos o 100 peticiones generales. Cada uno tiene su contador. `POST /contacto` y `POST /consentimientos/cookies` tienen además 5 envíos por hora por IP cada uno (`RateLimiting:ContactoPorHora` y `CookiesPorHora`). Ademas, 10 fallos por cuenta por minuto en el ingreso, la recuperacion y los cambios de correo o contraseña (`RateLimiting:PorCuenta`). Las subidas de adjuntos tienen 10 por minuto por usuario (`RateLimiting:Adjuntos`) |
 | `503` | El login facial no esta disponible porque falta su clave de cifrado. Tambien `503` con `servicio_ocupado` y la cabecera `Retry-After: 5` si el servidor no consigue el turno de la regla contra solicitudes falsas o de una subida de adjunto en el plazo de `Solicitudes:EsperaBloqueoMs` (15 segundos por defecto) |
 
@@ -78,11 +78,17 @@ Todas llevan el prefijo `/api/v1`. Un `?` indica un campo opcional.
 | --- | --- | --- |
 | `POST /auth/registro-cliente` | Publico | `{ rut?, nombre, apellido, telefono, correo, direccion?, password, aceptaTerminosYPrivacidad, aceptaMarketing, versionTerminos, versionPrivacidad, versionMarketing? }`. `201` con la sesion iniciada (`{ token, tipo, usuario }`), la cookie de renovacion y el envio del enlace para confirmar el correo. Terminos y privacidad son obligatorios; el marketing es otra casilla, sin marcar por defecto. Password de 8 a 72 caracteres. `400` con los errores por campo; `409` si el correo ya tiene cuenta, si el telefono o el RUT ya estan en el taller, o si cambiaron las versiones de los textos; `413` si supera 16 KB |
 | `GET /auth/me` | Con sesion | Lista de claims del token |
-| `POST /auth/login-facial` | Publico | `{ email, descriptor, tokenEquipo? }`. Todo fallo responde el mismo `401` vacio |
-| `GET /auth/rostro` | Personal | `{ disponible, activo, fechaConsentimiento, requiereEquipo, equipoVence, equipoVigente, consentimiento: { version, texto } }` |
-| `PUT /auth/rostro` | Personal | `{ password, consentimiento: true, versionConsentimiento, descriptores }`, con 3 a 10 capturas. Devuelve `{ activo, fechaConsentimiento, tokenEquipo, equipoVence }` |
-| `POST /auth/rostro/equipo` | `dueño`, `administrador` | `{ password }`. Autoriza este equipo y anula el anterior. Devuelve `{ tokenEquipo, equipoVence }` |
-| `DELETE /auth/rostro` | Personal | Borra los datos biometricos sin pedir contraseña. Responde `204`, tambien si no estaba activo |
+| `POST /auth/login-facial/desafio` | Publico | `{ email }`. Responde `200` exista o no el email: `{ desafio, orden: ["izquierda","derecha"] o ["derecha","izquierda"], venceEnSegundos }`. `400` solo si falta el email o es demasiado largo. De un solo uso; vence a los 30 s |
+| `POST /auth/login-facial` | Publico | `{ email, desafio, tokenEquipo, capturas }`, con tres capturas `{ descriptor: float[128], puntos: [[x,y] x 68], ancho, alto }` (frente, primer giro, segundo giro). Todo fallo responde el mismo `401` vacio. Ver seccion 7 |
+| `GET /auth/rostro` | Personal | `{ disponible, activo, debeRegistrarseDeNuevo, puedeUsarRostro, fechaConsentimiento, requiereEquipo, equipoVence, equipoVigente, consentimiento: { version, texto } }` |
+| `PUT /auth/rostro` | Gestion (los demas, `403 solo_gestion`) | `{ password, consentimiento: true, versionConsentimiento, muestras: { frente, izquierda, derecha } }`. Devuelve `{ idEmpleado, activo, fechaConsentimiento, tokenEquipo, equipoVence }`. `400` con `errores["muestras.frente"]`, `["muestras.izquierda"]` o `["muestras.derecha"]` si una muestra no sirve |
+| `POST /auth/rostro/equipo` | Gestion (los demas, `403 solo_gestion`) | `{ password }`. Autoriza este equipo y anula el anterior. Devuelve `{ tokenEquipo, equipoVence }` |
+| `DELETE /auth/rostro` | Personal | Borra las muestras sin pedir contraseña. Responde `204`, tambien si no estaba activo |
+| `GET /rostros` | Gestion | Rostros registrados (S16): empleados activos de gestion con `{ idEmpleado, nombre, rol, estado (activo, debe_registrarse, sin_registro o desactivado), fechaRegistro, fechaConsentimiento, registradoPor, fechaDesactivacion, historial }` |
+| `PUT /rostros/{idEmpleado}` | Gestion | Registra el rostro de **otro** empleado de gestion, presente: `{ passwordTitular, consentimiento, versionConsentimiento, muestras }`. La contraseña es la del titular (`400 datos_invalidos` si no corresponde). No entrega token de equipo |
+| `DELETE /rostros/{idEmpleado}` | Gestion; el resto del personal solo el propio | Desactiva y borra las muestras. `204` |
+| `POST /rostros/calibracion` | Gestion, con `RostroFacial:Calibracion:Activa` (si no, `404`) | `{ idEmpleado, etiqueta: propio u otra_persona, desafio, capturas }`. `201` con las distancias (2 decimales), los giros, `peorDistancia` y `habriaEntrado`. Maximo 30 por empleado y hora |
+| `GET /rostros/calibracion`, `DELETE /rostros/calibracion` | Gestion, con la calibracion activa | `{ activa, umbralVigente, rangos, mediciones, resumen: { propio, otra, umbralSugerido, margen } }`; el `DELETE` borra todas las mediciones (`204`) |
 
 ### Cuenta y sesion (fase 6)
 
@@ -375,43 +381,44 @@ Si los productos reales necesitan campos nuevos, se agregan al modelo con su mig
 
 ## 7. Login con reconocimiento facial
 
-Implementado solo para empleados. Complementa a email y contraseña, que siguen igual y siempre disponibles. Los clientes no tienen rutas ni boton.
+Fase 10 (15-11-2026). Solo para `dueño` y `administrador`; los demas roles entran con contraseña. Email y contraseña siguen igual y siempre visibles. Los clientes no tienen rutas ni boton.
 
 ### Lo que protege y lo que no
 
-`face-api` corre en el navegador y produce un descriptor, una lista de 128 numeros. **El servidor no puede saber si salio de una persona presente.** Una foto puede suplantar a alguien: la prueba de navegador lo demuestra entrando con una imagen fija. Tampoco hay prueba de vida, porque tambien correria en el navegador y se salta enviando la peticion directamente.
+`face-api` corre en el navegador y produce, por cada captura, un descriptor (128 numeros) y 68 puntos del rostro. Desde la fase 10 hay **prueba de vida con giros de cabeza**: el servidor elige al azar el orden de los giros, y el navegador debe enviar tres capturas (de frente, girando hacia un lado y hacia el otro) en ese orden. Esto frena una foto o una pantalla sostenida frente a la camara y sube mucho el costo de suplantar a alguien.
 
-| Rol | Que necesita para entrar con rostro | Riesgo |
-| --- | --- | --- |
-| `dueño`, `administrador` | Rostro y un **equipo autorizado** | Frena una foto o un descriptor copiado usados desde otro equipo. No frena a alguien con una foto en el equipo autorizado, ni a un programa malicioso o a un script inyectado en la pagina, que puede pedir un token nuevo con la cookie de renovacion (desde la fase 6, el token ya no esta en `localStorage`) |
-| `diseñador`, `operario` | Solo el rostro | **Riesgo aceptado por decision del responsable del proyecto:** quien tenga su email y una foto, o un descriptor copiado, puede entrar desde cualquier lugar, y esa cuenta ve datos de clientes y de empleados |
+**No es infalible:** los descriptores y los puntos se calculan en el navegador, asi que un cliente modificado podria falsificarlos. Por eso se mantienen el **equipo autorizado** (dueño y administrador entran con rostro solo desde su equipo, 30 dias, `RostroFacial:DiasEquipo`), el bloqueo y la contraseña. Conviene autorizar solo equipos no compartidos.
 
-Conviene autorizar solo equipos no compartidos. Cada persona tiene un solo equipo autorizado, que vence a los 30 dias (`RostroFacial:DiasEquipo`).
-
-Una sesion iniciada con rostro es igual a una normal: dura lo que cualquier sesion del personal (12 horas, con renovacion, `Sesion:HorasPersonal`). Su token de acceso sigue valido hasta 15 minutos despues de desactivar al empleado, y la renovacion lo rechaza de inmediato. Lo unico que sigue exigiendo la contraseña es crear empleados, asignar credenciales, activar el rostro y autorizar un equipo.
+Una sesion iniciada con rostro es igual a una normal (12 horas, con renovacion, `Sesion:HorasPersonal`).
 
 ### Flujos
 
-**Activar**, desde Mi perfil: leer el consentimiento, aceptarlo, escribir la contraseña y mirar a la camara. Se toman 5 capturas y se guarda solo su promedio. Dueño y administrador reciben ademas `tokenEquipo`, que el navegador guarda como `synctime_equipo:<email>`. Volver a activar reemplaza el rostro.
+**Registrar**, desde Mi perfil: leer y aceptar el consentimiento, escribir la contraseña y seguir el flujo guiado. Se toman tres muestras (frente, izquierda y derecha), con vista previa local de cada una y opcion de repetirla; la imagen no sale del navegador. Devuelve `tokenEquipo`, que el navegador guarda como `synctime_equipo:<email>`. Volver a registrar reemplaza el rostro. Un rostro anterior a la fase 10 (un solo promedio) queda como «debe registrarse de nuevo» y no sirve para entrar.
 
-**Entrar:** escribir el email, pulsar "Entrar con rostro" y mirar a la camara. La comparacion se hace en el servidor y contra el rostro de esa persona. Si falla, el formulario de contraseña sigue disponible.
+**Registrar a otro** («Rostros registrados», `/panel/rostros`): gestion inicia el registro de otro empleado de gestion; el titular, presente, acepta el consentimiento y escribe **su propia** contraseña. No se entrega token de equipo: el titular autoriza su equipo desde su perfil.
 
-**Desactivar**, desde Mi perfil, sin contraseña: se borran el descriptor y el token del equipo. Solo quedan las fechas y la version del consentimiento, como constancia.
+**Entrar:** escribir el email y pulsar «Entrar con rostro». La camara se enciende recien ahi; el navegador pide el desafio y guia el encuadre y los giros (flecha, progreso, avance automatico, unos 4 s por giro con un reintento). El flujo completo dura de 6 a 9 s. Al entrar se muestra «Entraste como {nombre} ({rol})». Si el servidor rechaza, el mensaje es siempre el mismo; tras 3 rechazos seguidos el foco pasa a la contraseña.
+
+**Desactivar**, desde Mi perfil o desde «Rostros registrados»: se borran las muestras y el token del equipo. Quedan las fechas y la version del consentimiento, como constancia.
 
 ### Reglas del servidor
 
-- **Datos:** tabla `rostros_empleado`, una fila por activacion. El descriptor va cifrado con AES-256-GCM y atado al empleado, de modo que copiarlo a otra fila no sirve. La clave esta en `RostroFacial:ClaveCifrado`. No se guardan fotos, y el navegador nunca recibe descriptores guardados.
-- **Fallos:** el mismo `401` vacio, con un tiempo minimo de 400 ms, sea que el email no exista, no tenga rostro, este inactivo, bloqueado, sin equipo, o el rostro no coincida.
-- **Bloqueo:** 5 fallos bloquean el rostro de esa cuenta 15 minutos, sin avisarlo y sin afectar a la contraseña. Cualquiera que sepa el email de un operario o diseñador puede provocarlo. Sin un equipo valido el intento no se cuenta, asi que no se puede bloquear al dueño desde fuera.
-- **Umbral:** distancia maxima 0,5 (`RostroFacial:UmbralDistancia`). Es **provisional:** no se ha medido con personas reales. Hay que calibrarlo con pruebas consentidas, registrando distancias.
-- **Clave ausente o invalida:** la API arranca, el login con contraseña funciona y las rutas de rostro responden `503`. Si la clave cambia, cada empleado debe volver a activar su rostro; queda un error en el log.
-- **Empleados inactivos:** su rostro se rechaza de inmediato. Como hoy solo se pueden desactivar por SQL, sus datos se borran en el siguiente intento de login facial de cualquier persona. Si se reactiva a alguien antes de eso, su rostro seguiria activo: quien desactive por SQL debe borrar tambien sus datos (el comando esta en el `README.md`). La futura ruta para desactivar empleados debe borrarlos en el mismo paso.
+- **Desafio:** 32 bytes al azar; se guarda solo su hash (`desafios_rostro`), atado al hash del email. Vence a los `RostroFacial:SegundosDesafio` (30) y se marca usado en una sola sentencia antes de comparar, asi que no se puede usar dos veces, ni con envios simultaneos. La purga diaria borra los de mas de un dia.
+- **Giro:** se calcula en el servidor con los puntos, en coordenadas sin espejo: `r = (x[30] - x[0]) / (x[16] - x[0])`, `g = (r - 0.5) x 2`, limitado a [-1, 1]; `g > 0` es un giro hacia la izquierda de la persona. La captura de frente debe tener `|g| <= FrenteMaximo` (0.15), y cada giro, el signo que pide el orden y `|g|` entre `GiroMinimo` (0.30) y `GiroMaximo` (0.75). El mismo calculo esta en `Negocio/Rostro/Giro.cs` y en `src/rostro/giro.js`, probados con los mismos casos (`CasosGiro.json`).
+- **Comparacion:** cada captura contra la muestra de su lado, con distancia maxima `RostroFacial:UmbralDistancia`, y las tres entre si, con `UmbralEntreCapturas` (0.6). Las comparaciones se hacen siempre, tambien contra un señuelo, para que todo fallo cueste lo mismo.
+- **Umbral calibrado: 0.45**, fijado por el usuario el 15-11-2026 tras calibrar con su camara. En 7 intentos propios, la peor distancia fue de 0.24 a 0.31; en 10 de otra persona, de 0.62 a 0.70. Se puede recalibrar en `/panel/rostros/calibrar`, encendiendo `RostroFacial:Calibracion:Activa` solo mientras se mide (no en produccion). La pantalla sugiere un umbral, que se copia a mano a la configuracion.
+- **Datos:** `rostros_empleado` guarda las tres muestras en `descriptor_frente`, `descriptor_izquierda` y `descriptor_derecha`, cifradas con AES-256-GCM y atadas al empleado, con `formato_muestras = 2` y quien inicio el registro. La clave esta en `RostroFacial:ClaveCifrado`. No se guardan fotos ni puntos, y no se registran descriptores, puntos, tokens ni desafios en los logs. La calibracion (`calibracion_rostro`) guarda solo distancias y giros.
+- **Fallos:** el mismo `401` vacio, con un tiempo minimo de 400 ms, sea por el formato, el desafio, el rol, un empleado inactivo, un rostro sin las tres muestras, el equipo, el bloqueo, el giro o la coincidencia.
+- **Bloqueo y limites:** 5 fallos bloquean el rostro de esa cuenta 15 minutos, sin afectar a la contraseña; sin un equipo valido el intento no se cuenta. El desafio y el ingreso comparten el limitador `LoginFacial` (10 por minuto por IP), asi que salen unos 5 ingresos por minuto por IP. La contraseña del titular, al registrar a otro, tiene su propio contador.
+- **Clave ausente o invalida:** la API arranca, el login con contraseña funciona y las rutas de rostro responden `503`. Si la clave cambia, cada empleado debe registrar su rostro de nuevo.
+- **Empleados desactivados:** desactivar a un empleado (fase 9) borra su rostro y cierra sus sesiones en el mismo paso.
 
 ### Frontend
 
-- La libreria es `@vladmandic/face-api` 1.7.15, en version exacta. **Su repositorio esta archivado** y su README indica que `@vladmandic/human` la reemplaza; `face-api.js` lleva mas tiempo sin cambios. Queda aislada en `src/rostro/motorFacial.js`. Cambiarla exige tocar ese modulo y `RostroFacialService`, y que cada empleado active su rostro de nuevo.
+- La libreria es `@vladmandic/face-api` 1.7.15, en version exacta. **Su repositorio esta archivado** y su README indica que `@vladmandic/human` la reemplaza. Queda aislada en `src/rostro/motorFacial.js`; cambiarla exige tocar ese modulo y `RostroFacialService`, y que cada empleado registre su rostro de nuevo.
 - La libreria (1,3 MB) y 3 modelos (6,7 MB, en `public/models`) se descargan solo al usar la funcion.
-- La politica de seguridad de `index.html` no necesito cambios. La libreria intenta compilar un WebAssembly opcional dentro de un `try/catch`, y la politica lo bloquea: en la consola aparece esa violacion, y es esperada. Sin WebGL usa la CPU, mas lenta.
+- El flujo guiado esta en `src/rostro/FlujoFacial.jsx`, con la logica sin camara en `src/rostro/guiaFacial.js`. El video se ve espejado solo con CSS. Con `prefers-reduced-motion` no hay animaciones.
+- La politica de seguridad de `index.html` incluye `worker-src 'self' blob:` (fase 10), que el motor necesita para su *worker*. Sin WebGL usa la CPU, mas lenta.
 - En produccion, la camara exige HTTPS, y la API debe agregarse a `connect-src`, que hoy solo admite `localhost`.
 
 ### Datos personales
@@ -442,6 +449,6 @@ Son reglas que la API aplica hoy por decision tecnica, sin que las haya definido
 - Una solicitud admite de 1 a 10 ítems, y hasta 5 adjuntos. Los adjuntos son privados y no se aceptan SVG ni AI (`docs/plan/desviaciones.md`).
 - La regla contra solicitudes falsas cuenta como máximo 3 envíos en línea por IP en una hora (RNFP33), configurable con `Solicitudes:MaxEnLineaPorIp` y `Solicitudes:VentanaIpMinutos`. El 409 `contacto_directo` usa el texto de S25.
 - Solo se pueden pedir productos activos.
-- El login facial admite un solo equipo autorizado por persona, y `diseñador` y `operario` no lo necesitan (seccion 7).
+- El login facial es solo para `dueño` y `administrador`, con un solo equipo autorizado por persona (seccion 7).
 - Una cuenta web de cliente exige correo: el correo es el usuario para ingresar y para recuperar la contraseña. El RUT tambien es opcional en la cuenta (decision de la fase 6, en `docs/plan/desviaciones.md`).
 - Registrarse con un telefono o un RUT que ya estan en el taller da el mismo mensaje, sin decir cual de los dos coincide. El correo si se revela («Ya existe una cuenta con ese correo»).

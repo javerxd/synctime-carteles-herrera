@@ -145,8 +145,8 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task MantenedoresYAvisos_SoloAgrega()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_MantenedoresYAvisos", ultima);
+        const string ultima = Fase9;
+        Assert.Contains(ultima, await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().ToList())));
         var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase8, ultima)));
 
         Assert.Contains("CREATE TABLE [destinatarios_avisos]", script);
@@ -165,7 +165,7 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task RevertirMantenedoresYAvisos_SeDetieneAntesDePerderDatos()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        const string ultima = Fase9;
         var abajo = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(ultima, Fase8)));
 
         Assert.Contains("THROW 50090", abajo, StringComparison.Ordinal);
@@ -173,6 +173,42 @@ public sealed class MigracionTests(ApiFixture api)
         Assert.Equal(["DELETE FROM [__EFMigrationsHistory]"],
             System.Text.RegularExpressions.Regex.Matches(abajo, @"DELETE FROM \S+").Select(m => m.Value));
         Assert.True(abajo.IndexOf("THROW 50090", StringComparison.Ordinal) < abajo.IndexOf("DROP TABLE", StringComparison.Ordinal));
+    }
+
+    private const string Fase9 = "20261115021638_MantenedoresYAvisos";
+
+    // Fase 10: RostroConPruebaDeVida solo agrega columnas nulas a rostros_empleado, dos tablas, indices y reglas.
+    // No borra tablas, columnas ni filas, y no cambia las filas existentes.
+    [Fact]
+    public async Task RostroConPruebaDeVida_SoloAgrega()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_RostroConPruebaDeVida", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase9, ultima)));
+
+        Assert.Contains("CREATE TABLE [desafios_rostro]", script);
+        Assert.Contains("CREATE TABLE [calibracion_rostro]", script);
+        Assert.Contains("CREATE UNIQUE INDEX [uq_desafios_rostro_token]", script);
+        foreach (var columna in new[] { "descriptor_frente] varbinary(1024) NULL", "descriptor_izquierda] varbinary(1024) NULL", "descriptor_derecha] varbinary(1024) NULL",
+                     "id_empleado_registra] int NULL", "formato_muestras] tinyint NULL" })
+            Assert.Contains($"ALTER TABLE [rostros_empleado] ADD [{columna}", script);
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
+            Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
+    }
+
+    // Revertir la fase 10 se detiene (THROW) si hay desafios, mediciones o rostros con las columnas nuevas. No borra filas.
+    [Fact]
+    public async Task RevertirRostroConPruebaDeVida_SeDetieneAntesDePerderDatos()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        var abajo = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(ultima, Fase9)));
+
+        Assert.Contains("THROW 50100", abajo, StringComparison.Ordinal);
+        Assert.Contains("THROW 50101", abajo, StringComparison.Ordinal);
+        Assert.Equal(["DELETE FROM [__EFMigrationsHistory]"],
+            System.Text.RegularExpressions.Regex.Matches(abajo, @"DELETE FROM \S+").Select(m => m.Value));
+        Assert.True(abajo.IndexOf("THROW 50101", StringComparison.Ordinal) < abajo.IndexOf("DROP TABLE", StringComparison.Ordinal));
+        Assert.True(abajo.IndexOf("THROW 50101", StringComparison.Ordinal) < abajo.IndexOf("DROP COLUMN", StringComparison.Ordinal));
     }
 
     // Fase 8: un abono anulado deja de sumar, y la base no deja reactivarlo.
@@ -216,7 +252,10 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(59, restricciones.Count);
+        Assert.Equal(63, restricciones.Count);
+        // Fase 10: muestras completas mientras el rostro este vigente, orden y vigencia del desafio, etiqueta de la calibracion.
+        foreach (var nombre in new[] { "ck_rostros_empleado_muestras", "ck_desafios_rostro_orden", "ck_desafios_rostro_vigencia", "ck_calibracion_rostro_etiqueta" })
+            Assert.Contains(nombre, restricciones);
         // Fase 9: un dia cerrado no guarda horas; franjas validas; destinos de avisos con estado, enlace y correo.
         foreach (var nombre in new[] { "ck_horarios_cerrado", "ck_disponibilidad_dia", "ck_disponibilidad_rango", "ck_destinatarios_avisos_estado",
                      "ck_destinatarios_avisos_enlace", "ck_destinatarios_avisos_correo", "ck_destinatarios_avisos_historial_accion" })

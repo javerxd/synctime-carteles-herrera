@@ -989,6 +989,68 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.DesafioRostro", b =>
+                {
+                    b.Property<int>("IdDesafio")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_desafio");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdDesafio"));
+
+                    b.Property<string>("CorreoHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("correo_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("Emitido")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("emitido");
+
+                    b.Property<string>("Orden")
+                        .IsRequired()
+                        .HasMaxLength(17)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(17)")
+                        .HasColumnName("orden");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("token_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset?>("Usado")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("usado");
+
+                    b.Property<DateTimeOffset>("Vence")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("vence");
+
+                    b.HasKey("IdDesafio")
+                        .HasName("pk_desafios_rostro");
+
+                    b.HasIndex("Emitido")
+                        .HasDatabaseName("ix_desafios_rostro_emitido");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("uq_desafios_rostro_token");
+
+                    b.ToTable("desafios_rostro", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_desafios_rostro_orden", "orden IN ('izquierda_derecha', 'derecha_izquierda')");
+
+                            t.HasCheckConstraint("ck_desafios_rostro_vigencia", "vence > emitido AND (usado IS NULL OR usado >= emitido)");
+                        });
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.DestinatarioAviso", b =>
                 {
                     b.Property<int>("IdDestinatario")
@@ -1530,6 +1592,81 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.MedicionCalibracionRostro", b =>
+                {
+                    b.Property<int>("IdMedicion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_medicion");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdMedicion"));
+
+                    b.Property<double>("DistanciaFrente")
+                        .HasColumnType("float")
+                        .HasColumnName("distancia_frente");
+
+                    b.Property<double>("DistanciaMaxEntreCapturas")
+                        .HasColumnType("float")
+                        .HasColumnName("distancia_max_entre_capturas");
+
+                    b.Property<double>("DistanciaPrimerGiro")
+                        .HasColumnType("float")
+                        .HasColumnName("distancia_primer_giro");
+
+                    b.Property<double>("DistanciaSegundoGiro")
+                        .HasColumnType("float")
+                        .HasColumnName("distancia_segundo_giro");
+
+                    b.Property<string>("Etiqueta")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(12)")
+                        .HasColumnName("etiqueta");
+
+                    b.Property<DateTimeOffset>("Fecha")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha");
+
+                    b.Property<double>("GiroFrente")
+                        .HasColumnType("float")
+                        .HasColumnName("giro_frente");
+
+                    b.Property<double>("GiroPrimero")
+                        .HasColumnType("float")
+                        .HasColumnName("giro_primero");
+
+                    b.Property<double>("GiroSegundo")
+                        .HasColumnType("float")
+                        .HasColumnName("giro_segundo");
+
+                    b.Property<int>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.Property<int>("IdEmpleadoRegistra")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_registra");
+
+                    b.Property<double>("UmbralVigente")
+                        .HasColumnType("float")
+                        .HasColumnName("umbral_vigente");
+
+                    b.HasKey("IdMedicion")
+                        .HasName("pk_calibracion_rostro");
+
+                    b.HasIndex("IdEmpleado")
+                        .HasDatabaseName("ix_calibracion_rostro_empleado");
+
+                    b.HasIndex("IdEmpleadoRegistra")
+                        .HasDatabaseName("ix_calibracion_rostro_registra");
+
+                    b.ToTable("calibracion_rostro", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_calibracion_rostro_etiqueta", "etiqueta IN ('propio', 'otra_persona')");
+                        });
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.MetricaConversionOnline", b =>
                 {
                     b.Property<int>("Anio")
@@ -1991,6 +2128,21 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("varbinary(1024)")
                         .HasColumnName("descriptor_cifrado");
 
+                    b.Property<byte[]>("DescriptorDerecha")
+                        .HasMaxLength(1024)
+                        .HasColumnType("varbinary(1024)")
+                        .HasColumnName("descriptor_derecha");
+
+                    b.Property<byte[]>("DescriptorFrente")
+                        .HasMaxLength(1024)
+                        .HasColumnType("varbinary(1024)")
+                        .HasColumnName("descriptor_frente");
+
+                    b.Property<byte[]>("DescriptorIzquierda")
+                        .HasMaxLength(1024)
+                        .HasColumnType("varbinary(1024)")
+                        .HasColumnName("descriptor_izquierda");
+
                     b.Property<DateTimeOffset?>("FechaAutorizacionEquipo")
                         .HasColumnType("datetimeoffset(0)")
                         .HasColumnName("fecha_autorizacion_equipo");
@@ -2003,9 +2155,17 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("datetimeoffset(0)")
                         .HasColumnName("fecha_revocacion");
 
+                    b.Property<byte?>("FormatoMuestras")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("formato_muestras");
+
                     b.Property<int>("IdEmpleado")
                         .HasColumnType("int")
                         .HasColumnName("id_empleado");
+
+                    b.Property<int?>("IdEmpleadoRegistra")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado_registra");
 
                     b.Property<int>("IntentosFallidos")
                         .HasColumnType("int")
@@ -2031,7 +2191,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasDatabaseName("uq_rostros_empleado_vigente")
                         .HasFilter("[fecha_revocacion] IS NULL");
 
-                    b.ToTable("rostros_empleado", (string)null);
+                    b.HasIndex("IdEmpleadoRegistra")
+                        .HasDatabaseName("ix_rostros_empleado_registra");
+
+                    b.ToTable("rostros_empleado", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_rostros_empleado_muestras", "(formato_muestras IS NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL) OR (formato_muestras = 2 AND ((fecha_revocacion IS NULL AND descriptor_frente IS NOT NULL AND descriptor_izquierda IS NOT NULL AND descriptor_derecha IS NOT NULL) OR (fecha_revocacion IS NOT NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL)))");
+                        });
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Solicitud", b =>
@@ -2549,6 +2715,27 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("EmpleadoSube");
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.MedicionCalibracionRostro", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_calibracion_rostro_empleado");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoRegistra")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleadoRegistra")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_calibracion_rostro_registra");
+
+                    b.Navigation("Empleado");
+
+                    b.Navigation("EmpleadoRegistra");
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Pago", b =>
                 {
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoAnula")
@@ -2648,7 +2835,15 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_rostros_empleado_empleado");
 
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoRegistra")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleadoRegistra")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_rostros_empleado_registra");
+
                     b.Navigation("Empleado");
+
+                    b.Navigation("EmpleadoRegistra");
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Solicitud", b =>

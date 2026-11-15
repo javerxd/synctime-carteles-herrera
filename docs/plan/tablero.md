@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 15-11-2026 (fase 9 aprobada; plan de la fase 10 aprobado, construcción sin iniciar).
+Última actualización: 15-11-2026 (fase 10 construida y calibrada, en revisión).
 
 ## Hecho
 
@@ -20,11 +20,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 10 — Rostro según requisitos** · rama `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · informe: `informes/fase-10.md` · incluye la prueba de vida con giros de cabeza y la calibración (umbral 0.45, calibrado por el usuario el 15-11-2026)
 
 ## En curso
 
-- **Fase 10 — Rostro según requisitos** · rama `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · incluye, por pedido del usuario (15-11-2026), la prueba de vida con giros de cabeza y la calibración del umbral · plan aprobado el 15-11-2026: `fase-10-plan.md`, especificación: `fase-10-especificacion.md` · construcción sin iniciar, a la espera de que el usuario la pida
+_(ninguna)_
 
 ## Por hacer
 

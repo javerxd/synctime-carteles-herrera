@@ -44,6 +44,8 @@ const Mantenedores = lazy(() => import('./paginas/mantenedores/Mantenedores'));
 const InicioMantenedores = lazy(() => import('./paginas/mantenedores/Mantenedores').then((m) => ({ default: m.InicioMantenedores })));
 const ListaMantenedor = lazy(() => import('./paginas/mantenedores/ListaMantenedor'));
 const EditorMantenedor = lazy(() => import('./paginas/mantenedores/EditorMantenedor'));
+const RostrosRegistrados = lazy(() => import('./paginas/rostros/RostrosRegistrados'));
+const CalibrarRostro = lazy(() => import('./paginas/rostros/CalibrarRostro'));
 
 function Cargando() {
   return (
@@ -110,6 +112,8 @@ export default function App() {
                 </Route>
                 <Route path="mantenedores/:tipo/nuevo" element={enCarga(<EditorMantenedor />)} />
                 <Route path="mantenedores/:tipo/:id" element={enCarga(<EditorMantenedor />)} />
+                <Route path="rostros" element={enCarga(<RostrosRegistrados />)} />
+                <Route path="rostros/calibrar" element={enCarga(<CalibrarRostro />)} />
               </Route>
               <Route path="*" element={<Pagina404 />} />
             </Route>

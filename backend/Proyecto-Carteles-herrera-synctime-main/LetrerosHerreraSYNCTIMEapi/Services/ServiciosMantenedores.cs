@@ -569,13 +569,10 @@ public sealed class ServicioEmpleados(
         if (seDesactiva)
         {
             var ahora = reloj.GetUtcNow();
+            // Fase 10: tambien las tres muestras (DatosRostro.Borrado borra las cuatro columnas cifradas).
             await db.RostrosEmpleado
                 .Where(r => r.IdEmpleado == id && r.FechaRevocacion == null)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(r => r.DescriptorCifrado, (byte[]?)null)
-                    .SetProperty(r => r.TokenEquipoHash, (byte[]?)null)
-                    .SetProperty(r => r.FechaAutorizacionEquipo, (DateTimeOffset?)null)
-                    .SetProperty(r => r.FechaRevocacion, ahora), ct);
+                .ExecuteUpdateAsync(DatosRostro.Borrado(ahora), ct);
             await sesiones.RevocarTodasAsync(TitularSesion.DeEmpleado(id), ct);
         }
         await transaccion.CommitAsync(CancellationToken.None);

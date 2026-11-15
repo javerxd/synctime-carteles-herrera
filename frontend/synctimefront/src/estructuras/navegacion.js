@@ -1,5 +1,5 @@
 import {
-  BarChart3, CalendarDays, ClipboardList, FileSpreadsheet, FileText, House, Package, Settings2, Store, UserRound, Users,
+  BarChart3, CalendarDays, ClipboardList, FileSpreadsheet, FileText, House, Package, ScanFace, Settings2, Store, UserRound, Users,
 } from 'lucide-react';
 
 export const GESTION = ['dueño', 'administrador'];
@@ -28,6 +28,7 @@ export const MENU_PANEL = [
       { ruta: '/panel/indicadores', etiqueta: 'Indicadores', icono: BarChart3, roles: GESTION },
       { ruta: '/panel/reportes', etiqueta: 'Reportes', icono: FileSpreadsheet, roles: GESTION },
       { ruta: '/panel/mantenedores', etiqueta: 'Catálogo y mantenedores', icono: Settings2, roles: GESTION },
+      { ruta: '/panel/rostros', etiqueta: 'Rostros registrados', icono: ScanFace, roles: GESTION },
     ],
   },
   {

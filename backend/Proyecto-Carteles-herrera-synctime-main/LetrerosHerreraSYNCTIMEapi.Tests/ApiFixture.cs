@@ -80,6 +80,9 @@ public sealed class ApiFixture : IAsyncLifetime
             ["RateLimiting__Adjuntos"] = "100000",
             ["RostroFacial__ClaveCifrado"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
             ["RostroFacial__TiempoMinimoFalloMs"] = TiempoMinimoFalloMs.ToString(),
+            // Los vectores sinteticos de RostroFacialTests se arman alrededor de 0.5; el valor calibrado
+            // (appsettings.json) puede cambiar sin tocar estas pruebas.
+            ["RostroFacial__UmbralDistancia"] = "0.5",
             // Los correos van a una bandeja temporal y la cola no corre sola: cada prueba procesa cuando lo
             // necesita. Las variables de entorno pisan los User Secrets del equipo, asi que ni la cuenta real
             // ni su contraseña pueden llegar a estas pruebas: el SMTP apunta a un puerto local sin servidor.

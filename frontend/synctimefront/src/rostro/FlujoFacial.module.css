@@ -1,0 +1,159 @@
+/* Flujo guiado del rostro. La cámara solo existe mientras este bloque está visible. */
+.flujo {
+  display: grid;
+  gap: var(--espacio-4);
+  width: 100%;
+  max-width: 26rem;
+}
+
+.escena {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radio-lg);
+  background: var(--color-texto);
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Se ve como un espejo: es lo que la persona espera al mirarse. Los puntos se miden sin espejo. */
+  transform: scaleX(-1);
+}
+
+/* El óvalo de encuadre: lo de afuera queda en penumbra para que se note dónde poner el rostro. */
+.ovalo {
+  position: absolute;
+  inset: 12% 27%;
+  overflow: hidden;
+  border: 3px solid var(--color-superficie);
+  border-radius: 50%;
+  box-shadow: 0 0 0 100vmax rgb(15 23 42 / 0.45);
+  transition: border-color var(--duracion-estado) var(--curva-estandar);
+}
+
+/* Listo: el borde se engrosa además de cambiar de color; el texto también lo dice. */
+.ovalo[data-listo='true'] {
+  border-width: 6px;
+  border-color: var(--tono-exito-solido);
+}
+
+/* Escaneo: una banda de luz que recorre el óvalo durante todo el proceso. Es solo una ayuda visual
+   (no una medida de seguridad) y solo mueve transform, que no recalcula la página. */
+.escaneo {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 46%, rgb(255 255 255 / 0.75) 50%, transparent 54%);
+  animation: escanear 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes escanear {
+  from { transform: translateY(-50%); }
+  to { transform: translateY(50%); }
+}
+
+/* Flecha del giro. El video está espejado: el lado izquierdo de la persona es la izquierda de la pantalla. */
+.flecha {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  margin-top: -1.625rem;
+  border-radius: var(--radio-pildora);
+  background: var(--color-superficie);
+  color: var(--color-texto);
+  box-shadow: var(--sombra-elevada);
+}
+
+.flecha[data-lado='izquierda'] {
+  left: 4%;
+}
+
+.flecha[data-lado='derecha'] {
+  right: 4%;
+}
+
+.flecha[data-animada='true'][data-lado='izquierda'] {
+  animation: empujar-izquierda 0.9s var(--curva-estandar) infinite;
+}
+
+.flecha[data-animada='true'][data-lado='derecha'] {
+  animation: empujar-derecha 0.9s var(--curva-estandar) infinite;
+}
+
+@keyframes empujar-izquierda {
+  50% { transform: translateX(-0.5rem); }
+}
+
+@keyframes empujar-derecha {
+  50% { transform: translateX(0.5rem); }
+}
+
+.indicador {
+  position: absolute;
+  top: var(--espacio-2);
+  left: var(--espacio-2);
+}
+
+.textos {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.pasoActual {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.instruccion {
+  min-height: 1.6em;
+  font-size: var(--tamano-md);
+  font-weight: var(--peso-seminegrita);
+}
+
+.avance {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+}
+
+.barra {
+  flex: 1;
+  overflow: hidden;
+  height: 0.625rem;
+  border: 1px solid var(--color-borde-control);
+  border-radius: var(--radio-pildora);
+  background: var(--color-fondo-hundido);
+}
+
+.relleno {
+  display: block;
+  height: 100%;
+  background: var(--color-acento);
+  transition: inline-size var(--duracion-estado) var(--curva-estandar);
+}
+
+.porcentaje {
+  min-width: 3.5rem;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* Movimiento reducido: sin escaneo ni flecha animada; el avance queda como barra con texto. */
+@media (prefers-reduced-motion: reduce) {
+  .escaneo,
+  .flecha {
+    animation: none;
+  }
+
+  .ovalo,
+  .relleno {
+    transition: none;
+  }
+}

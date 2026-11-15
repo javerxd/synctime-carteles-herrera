@@ -270,8 +270,11 @@ async function ingresarPersonal(email, password) {
   aplicarIngreso(await authService.login(email, password));
 }
 
-async function ingresarPersonalConRostro(email, descriptor) {
-  aplicarIngreso(await authService.loginFacial(email, descriptor));
+/** Ingreso con rostro y prueba de vida (fase 10). Devuelve la respuesta: trae { nombre, rol } para mostrarlos (S15). */
+async function ingresarPersonalConRostro(email, { desafio, capturas }) {
+  const respuesta = await authService.loginFacial(email, { desafio, capturas });
+  aplicarIngreso(respuesta);
+  return respuesta;
 }
 
 async function ingresarCliente(correo, password) {

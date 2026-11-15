@@ -1,0 +1,86 @@
+.registro,
+.formulario {
+  display: grid;
+  gap: var(--espacio-4);
+  min-width: 0;
+}
+
+.consentimiento {
+  display: grid;
+  gap: var(--espacio-2);
+  padding-inline-start: var(--espacio-5);
+  max-width: var(--medida-lectura);
+}
+
+.nota {
+  max-width: var(--medida-lectura);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.revision {
+  display: grid;
+  gap: var(--espacio-4);
+  padding-top: var(--espacio-4);
+  border-top: 1px solid var(--color-borde);
+}
+
+.revision:focus {
+  outline: none;
+}
+
+.revision:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+.tituloRevision {
+  font-size: var(--tamano-md);
+}
+
+.muestras {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  gap: var(--espacio-4);
+}
+
+.muestra {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+}
+
+/* Una muestra que el servidor rechazó: borde y texto, no solo color. */
+.muestra[data-error='true'] {
+  border-width: 2px;
+  border-color: var(--tono-peligro-solido);
+}
+
+.lienzo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radio-sm);
+  background: var(--color-fondo-hundido);
+}
+
+.leyenda {
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.errorMuestra {
+  color: var(--tono-peligro-texto);
+  font-size: var(--tamano-sm);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--espacio-3);
+}

@@ -1,5 +1,6 @@
 import { api, leerCookie } from './cliente';
 import { leerTokenEquipo } from '../rostro/tokenEquipo';
+import { comoCaptura, comoMuestras } from './rostros';
 
 // Cookie legible que la API deja junto a la de renovación (httpOnly). Se repite en la cabecera
 // X-CSRF-Token al renovar y al salir: un sitio ajeno no puede leerla, así que no puede imitar esas peticiones.
@@ -20,11 +21,22 @@ const authService = {
   },
 
   /**
-   * POST /auth/login-facial: devuelve lo mismo que login.
+   * POST /auth/login-facial/desafio (fase 10): { desafio, orden: ['izquierda','derecha'] | ['derecha','izquierda'],
+   * venceEnSegundos }. Responde igual exista o no el email; el orden lo elige el servidor.
+   */
+  desafioFacial(email, senal) {
+    return api.post('/auth/login-facial/desafio', { email }, { ...SIN_RENOVAR, senal });
+  },
+
+  /**
+   * POST /auth/login-facial: devuelve lo mismo que login, más { nombre, rol } (S15). Cualquier fallo es un 401 genérico.
+   * capturas: frente, primer giro y segundo giro, cada una { descriptor, puntos, ancho, alto } (nunca la imagen).
    * Se envía el token de equipo si existe: el navegador no conoce el rol antes de iniciar sesión.
    */
-  loginFacial(email, descriptor) {
-    return api.post('/auth/login-facial', { email, descriptor, tokenEquipo: leerTokenEquipo(email) }, SIN_RENOVAR);
+  loginFacial(email, { desafio, capturas }) {
+    return api.post('/auth/login-facial', {
+      email, desafio, tokenEquipo: leerTokenEquipo(email), capturas: capturas.map(comoCaptura),
+    }, SIN_RENOVAR);
   },
 
   /** POST /auth/login-cliente: el cliente ingresa con su correo y su contraseña. */
@@ -71,14 +83,17 @@ const authService = {
     await api.post('/auth/restablecer', { tipo, correo, codigo, password }, SIN_RENOVAR);
   },
 
-  /** GET /auth/rostro: estado del acceso con rostro y texto del consentimiento. */
+  /** GET /auth/rostro: estado del acceso con rostro, consentimiento, debeRegistrarseDeNuevo y puedeUsarRostro. */
   estadoRostro() {
     return api.get('/auth/rostro');
   },
 
-  /** PUT /auth/rostro: activa el acceso; devuelve tokenEquipo si el rol lo necesita. */
-  activarRostro({ password, versionConsentimiento, descriptores }) {
-    return api.put('/auth/rostro', { password, consentimiento: true, versionConsentimiento, descriptores });
+  /**
+   * PUT /auth/rostro (solo gestión): registra las tres muestras { frente, izquierda, derecha } y devuelve
+   * tokenEquipo. 400 con errores.muestras.<lado> si una muestra no sirve; 403 solo_gestion para otros roles.
+   */
+  activarRostro({ password, versionConsentimiento, muestras }) {
+    return api.put('/auth/rostro', { password, consentimiento: true, versionConsentimiento, muestras: comoMuestras(muestras) });
   },
 
   /** POST /auth/rostro/equipo: autoriza este equipo y anula el anterior. */

@@ -122,6 +122,9 @@ builder.Services.AddScoped<ServicioReautenticacion>();
 builder.Services.AddScoped<ServicioFichaClientes>();
 builder.Services.AddScoped<ServicioLocal>();
 builder.Services.AddScoped<ServicioDestinosAvisos>();
+// Fase 10: rostro con prueba de vida, «Rostros registrados» y calibracion.
+builder.Services.AddScoped<ServicioRostros>();
+builder.Services.AddScoped<ServicioCalibracionRostro>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).

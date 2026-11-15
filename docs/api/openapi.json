@@ -78,7 +78,16 @@
         "tags": [
           "Autenticación"
         ],
-        "summary": "Inicia la sesión del personal con el rostro",
+        "summary": "Inicia la sesión de dueño o administración con el rostro: tres capturas con el desafío y el equipo autorizado. Devuelve además el nombre y el rol",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/login-facial/desafio": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Pide el desafío de la prueba de vida (orden de los giros) para entrar con rostro. Responde igual exista o no el email",
         "x-acceso": "publico"
       }
     },
@@ -112,14 +121,14 @@
         "tags": [
           "Autenticación"
         ],
-        "summary": "Activa el acceso con rostro del empleado en sesión",
+        "summary": "Registra el rostro del empleado en sesión con tres muestras (frente, izquierda y derecha). Solo dueño y administración; el resto recibe 403 solo_gestion",
         "x-acceso": "personal"
       },
       "delete": {
         "tags": [
           "Autenticación"
         ],
-        "summary": "Desactiva el acceso con rostro y borra sus datos",
+        "summary": "Desactiva el acceso con rostro y borra sus muestras cifradas",
         "x-acceso": "personal"
       }
     },
@@ -128,7 +137,7 @@
         "tags": [
           "Autenticación"
         ],
-        "summary": "Autoriza este equipo para entrar con rostro. La ruta admite a todo el personal, pero solo sirve a dueño y administrador: los demás roles reciben 400",
+        "summary": "Autoriza este equipo para entrar con rostro. La ruta admite a todo el personal, pero solo sirve a dueño y administrador: los demás roles reciben 403 solo_gestion",
         "x-acceso": "personal"
       }
     },
@@ -1031,6 +1040,54 @@
         ],
         "summary": "Estado de los correos de prueba ?ids=1,2: [{ idCorreo, destinatario, estado: pendiente|enviado|fallido, intentos, error }]",
         "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/rostros": {
+      "get": {
+        "tags": [
+          "Rostros registrados"
+        ],
+        "summary": "Lista los rostros registrados de dueño y administración, con su estado e historial de constancias",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/rostros/calibracion": {
+      "get": {
+        "tags": [
+          "Rostros registrados"
+        ],
+        "summary": "Mediciones de calibración del rostro, su resumen y el umbral sugerido. 404 si la calibración está apagada",
+        "x-acceso": "gestion"
+      },
+      "post": {
+        "tags": [
+          "Rostros registrados"
+        ],
+        "summary": "Guarda una medición de calibración (solo números) de un intento guiado. 404 si la calibración está apagada",
+        "x-acceso": "gestion"
+      },
+      "delete": {
+        "tags": [
+          "Rostros registrados"
+        ],
+        "summary": "Borra todas las mediciones de calibración. 404 si la calibración está apagada",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/rostros/{idEmpleado}": {
+      "put": {
+        "tags": [
+          "Rostros registrados"
+        ],
+        "summary": "Registra el rostro de otro empleado de gestión con el titular presente, que escribe su propia contraseña",
+        "x-acceso": "gestion"
+      },
+      "delete": {
+        "tags": [
+          "Rostros registrados"
+        ],
+        "summary": "Desactiva un rostro y borra sus muestras. Gestión puede con cualquiera; el resto del personal solo con el propio",
+        "x-acceso": "personal"
       }
     }
   },

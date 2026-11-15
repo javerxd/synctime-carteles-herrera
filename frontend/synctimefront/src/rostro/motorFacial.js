@@ -7,8 +7,6 @@
  * el modelo del servidor (RostroFacialService) y volver a activar cada rostro.
  */
 const RUTA_MODELOS = '/models';
-const TIEMPO_MAXIMO_MS = 20000;
-const PAUSA_ENTRE_INTENTOS_MS = 150;
 
 export class ErrorFacial extends Error {
   constructor(codigo, causa) {
@@ -23,13 +21,28 @@ const MENSAJES = {
   sin_camara: 'No encontramos una cámara en este equipo. Entra con tu contraseña.',
   camara_ocupada: 'Otro programa está usando la cámara. Ciérralo e inténtalo de nuevo, o entra con tu contraseña.',
   no_soportado: 'Este navegador no permite usar la cámara en esta página. Entra con tu contraseña.',
-  sin_rostro: 'No se detectó ningún rostro. Mira a la cámara con buena luz e inténtalo de nuevo, o entra con tu contraseña.',
-  varios_rostros: 'Se detectó más de un rostro. Debes aparecer solo tú en la imagen.',
+  sin_rostro: 'No se detectó ningún rostro. Ponlo dentro del óvalo, con buena luz, e inténtalo de nuevo, o entra con tu contraseña.',
+  varios_rostros: 'Se detectó más de un rostro. Debes aparecer solo tú en la imagen. Inténtalo de nuevo o entra con tu contraseña.',
+  poca_luz: 'Falta luz para ver bien tu rostro. Busca un lugar más iluminado e inténtalo de nuevo, o entra con tu contraseña.',
+  tiempo_agotado: 'Se acabó el tiempo para el giro. Inténtalo de nuevo siguiendo la flecha, o entra con tu contraseña.',
   carga: 'No pudimos cargar los archivos de reconocimiento. Revisa la conexión o entra con tu contraseña.',
+  desafio_invalido: 'No pudimos preparar la prueba del rostro. Inténtalo de nuevo o entra con tu contraseña.',
 };
 
+const RED = 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo, o entra con tu contraseña.';
+const DEMASIADOS = 'Demasiados intentos con rostro. Espera un momento o entra con tu contraseña.';
+const NO_DISPONIBLE = 'El acceso con rostro no está disponible en este momento. Entra con tu contraseña.';
+
+/**
+ * Texto para cualquier fallo del rostro: los de la cámara y la detección (ErrorFacial) y los de la API
+ * (ErrorApi: sin conexión, demasiados intentos, servicio no disponible). Nunca dice qué comprobó el servidor.
+ */
 export function mensajeDeError(error) {
-  return MENSAJES[error?.codigo] || 'No pudimos usar el reconocimiento facial. Entra con tu contraseña.';
+  if (MENSAJES[error?.codigo]) return MENSAJES[error.codigo];
+  if (error?.estado === 429) return DEMASIADOS;
+  if (error?.estado === 503) return NO_DISPONIBLE;
+  if (error?.estado === 0 || error?.codigo === 'sin_conexion') return RED;
+  return 'No pudimos usar el reconocimiento facial. Entra con tu contraseña.';
 }
 
 export async function abrirCamara() {
@@ -67,6 +80,7 @@ export function apagarCamara(camara) {
 }
 
 let cargaDelMotor = null;
+let opcionesDetector = null;
 
 function cargarMotor() {
   if (!cargaDelMotor) {
@@ -82,6 +96,7 @@ function cargarMotor() {
         faceapi.nets.faceLandmark68Net.loadFromUri(RUTA_MODELOS),
         faceapi.nets.faceRecognitionNet.loadFromUri(RUTA_MODELOS),
       ]);
+      opcionesDetector = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
       return faceapi;
     })().catch((error) => {
       // Sin esto, un corte de red dejaría la función rota hasta recargar la página.
@@ -92,39 +107,52 @@ function cargarMotor() {
   return cargaDelMotor;
 }
 
-const esperar = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
+/** Descarga la librería y los modelos (una sola vez). Falla con ErrorFacial('carga'). */
+export async function prepararMotor() {
+  await cargarMotor();
+}
 
 /**
- * Calcula descriptores desde el video. Solo acepta imágenes con exactamente un rostro.
- * Nunca guarda ni envía la imagen: solo devuelve los 128 números de cada captura.
+ * Detecta los rostros de UN cuadro del video. Nunca guarda ni envía la imagen.
+ * Devuelve { ancho, alto, brillo, rostros: [{ caja: { x, y, ancho, alto }, puntos: [[x, y] × 68], descriptor }] }
+ * en coordenadas del cuadro SIN espejo (videoWidth × videoHeight). El descriptor (128 números) solo se calcula
+ * con `conDescriptor`, porque es lo más lento: la guía en vivo no lo necesita, la captura sí.
  *
  * @param {HTMLVideoElement} video
- * @param {{ cantidad: number, senal: AbortSignal, alEstado?: Function }} opciones
- * @returns {Promise<number[][]>}
+ * @param {{ conDescriptor?: boolean }} opciones
  */
-export async function capturarDescriptores(video, { cantidad, senal, alEstado }) {
+export async function detectarCuadro(video, { conDescriptor = false } = {}) {
   const faceapi = await cargarMotor();
-  const detector = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
-  let limite = Date.now() + TIEMPO_MAXIMO_MS;
-  const descriptores = [];
-  let problema = 'sin_rostro';
+  const conPuntos = faceapi.detectAllFaces(video, opcionesDetector).withFaceLandmarks();
+  const resultados = await (conDescriptor ? conPuntos.withFaceDescriptors() : conPuntos);
+  return {
+    ancho: video.videoWidth,
+    alto: video.videoHeight,
+    brillo: medirBrillo(video),
+    rostros: resultados.map((r) => ({
+      caja: { x: r.detection.box.x, y: r.detection.box.y, ancho: r.detection.box.width, alto: r.detection.box.height },
+      puntos: r.landmarks.positions.map((p) => [p.x, p.y]),
+      descriptor: r.descriptor ? Array.from(r.descriptor) : null,
+    })),
+  };
+}
 
-  while (descriptores.length < cantidad) {
-    if (senal.aborted) throw new ErrorFacial('cancelado');
-    if (Date.now() > limite) throw new ErrorFacial(problema);
+// Un lienzo pequeño basta para el brillo medio; vive solo en memoria y nunca se muestra ni se envía.
+const LADO_BRILLO = { ancho: 32, alto: 24 };
+let lienzoBrillo = null;
 
-    const rostros = await faceapi.detectAllFaces(video, detector).withFaceLandmarks().withFaceDescriptors();
-
-    if (rostros.length === 1) {
-      descriptores.push(Array.from(rostros[0].descriptor));
-      // El plazo es para que aparezca un rostro: un equipo lento puede tardar en juntar varias capturas.
-      limite = Date.now() + TIEMPO_MAXIMO_MS;
-      alEstado?.({ tipo: 'capturando', avance: descriptores.length });
-    } else {
-      problema = rostros.length === 0 ? 'sin_rostro' : 'varios_rostros';
-      alEstado?.({ tipo: problema, avance: descriptores.length });
-    }
-    await esperar(PAUSA_ENTRE_INTENTOS_MS);
+/** Brillo medio del cuadro (0 a 255, luminancia), o null si el navegador no deja leer la imagen. */
+export function medirBrillo(video) {
+  try {
+    lienzoBrillo ??= Object.assign(document.createElement('canvas'), { width: LADO_BRILLO.ancho, height: LADO_BRILLO.alto });
+    const contexto = lienzoBrillo.getContext('2d', { willReadFrequently: true });
+    if (!contexto) return null;
+    contexto.drawImage(video, 0, 0, LADO_BRILLO.ancho, LADO_BRILLO.alto);
+    const { data } = contexto.getImageData(0, 0, LADO_BRILLO.ancho, LADO_BRILLO.alto);
+    let suma = 0;
+    for (let i = 0; i < data.length; i += 4) suma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    return suma / (data.length / 4);
+  } catch {
+    return null;
   }
-  return descriptores;
 }

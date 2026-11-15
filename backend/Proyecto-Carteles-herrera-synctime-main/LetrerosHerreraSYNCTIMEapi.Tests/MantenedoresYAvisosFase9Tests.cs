@@ -565,7 +565,9 @@ public sealed partial class MantenedoresYAvisosFase9Tests(ApiFixture api)
         var rostro = new RostroEmpleado
         {
             IdEmpleado = idEmpleado, DescriptorCifrado = [1, 2, 3], FechaConsentimiento = DateTimeOffset.UtcNow, VersionConsentimiento = "1.0",
-            TokenEquipoHash = new byte[32], FechaAutorizacionEquipo = DateTimeOffset.UtcNow
+            TokenEquipoHash = new byte[32], FechaAutorizacionEquipo = DateTimeOffset.UtcNow,
+            // Fase 10: las tres muestras tambien se borran al desactivar.
+            DescriptorFrente = [4], DescriptorIzquierda = [5], DescriptorDerecha = [6], FormatoMuestras = RostroEmpleado.FormatoTresMuestras
         };
         db.RostrosEmpleado.Add(rostro);
         await db.SaveChangesAsync();
@@ -589,6 +591,9 @@ public sealed partial class MantenedoresYAvisosFase9Tests(ApiFixture api)
         Assert.False(desactivado.GetProperty("activo").GetBoolean());
         var rostro = await api.ConsultarAsync(db => db.RostrosEmpleado.AsNoTracking().SingleAsync(r => r.IdRostro == idRostro));
         Assert.Null(rostro.DescriptorCifrado);
+        Assert.Null(rostro.DescriptorFrente);
+        Assert.Null(rostro.DescriptorIzquierda);
+        Assert.Null(rostro.DescriptorDerecha);
         Assert.Null(rostro.TokenEquipoHash);
         Assert.NotNull(rostro.FechaRevocacion);
         Assert.Equal(0, await SesionesVigentesAsync(id));

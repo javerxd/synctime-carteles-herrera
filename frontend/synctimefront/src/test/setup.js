@@ -13,3 +13,11 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
     this.dispatchEvent(new Event('close'));
   };
 }
+
+// jsdom no dibuja en <canvas>: sin este reemplazo, cada getContext escribe «Not implemented» en la consola.
+// Devuelve null, como un navegador sin el contexto pedido; el brillo y las vistas previas lo toleran.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = function getContext() {
+    return null;
+  };
+}

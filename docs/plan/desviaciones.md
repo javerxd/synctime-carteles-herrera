@@ -9,7 +9,6 @@ Registro de todo requisito que **no** se cumple al pie de la letra, o que no se 
 | RFS03 (antes RFS25), RFU22 | Identificar al empleado solo con la cámara, comparando contra todos los rostros registrados | Se pide primero el email y se compara solo contra el rostro de esa persona | El usuario, por seguridad | 12-11-2026 |
 | RFS03 (antes RFS24, RFS27), RFU21, RFU22, E17 | Ingreso facial para los empleados | Solo `dueño` y `administrador`. Diseñador y operario entran con contraseña | El usuario | 12-11-2026 |
 | RNFO12 | Al menos 500 registros sintéticos y 12 meses de historia | Datos mínimos de prueba en una base aparte, `LetreriaLosHerreraDB_Demo` | El usuario | 12-11-2026 |
-| E17 | Tres capturas de cámara | Cinco capturas; el servidor exige un mínimo de tres | Propuesta de Claude, aceptada al aprobar el plan | 12-11-2026 |
 | Reglas de diseño (bordes) | Bordes sutiles de 1 px translúcidos (`border-slate-200/80`, `border-black/5`) | Se usan en tarjetas y separadores. Los **campos de formulario** y el botón secundario llevan un borde más oscuro (`#828DA0`), porque con el gris claro el campo no alcanza el contraste mínimo de 3:1 que exige WCAG 2.2 (1.4.11) | Claude, fase 2 (por WCAG, que el documento también exige) | 12-11-2026 |
 | Reglas de diseño (barra) | Barra superior flotante de cristal | Flotante desde 768 px de ancho. En el teléfono y con poca altura (zoom), la barra es más alta y deja de ser fija, para no tapar el elemento con foco (WCAG 2.4.11) | Claude, fase 2, por la revisión de accesibilidad de ECC | 12-11-2026 |
 | RFS02 (cartel) | El dueño o un trabajador da vuelta el cartel | **Resuelto en la fase 9** (decisión 1 del usuario, 14-11-2026): todo el personal (dueño, administrador, diseñador y operario) da vuelta el cartel, como piden RFU16 y RNFO03. Antes solo lo podían dueño y administrador | Usuario, decisión 1 del plan de la fase 9 | 14-11-2026 |
@@ -231,6 +230,41 @@ Pendientes que quedan para después de la fase 9:
 | RFS08, E22 | Bandeja para revisar las consultas del formulario de contacto (`consultas_contacto.revisada`) | El plan de la fase 9 no la incluye; el diccionario decía que llegaba aquí. Hoy nadie marca una consulta como revisada | Usuario: decidir en qué fase va |
 | Horario y cartel | Versión (`row_version`) para que no gane la última escritura | La especificación no lo pedía | Usuario: decidir si se agrega |
 | Base real | Aplicar las migraciones pendientes, incluida `MantenedoresYAvisos`, con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario, plan de la fase 8) | Usuario |
+
+## Cambios y pendientes de la fase 10 (15-11-2026)
+
+Recoge lo que se decidió en el plan de la fase 10 (aprobado el 15-11-2026, con tres decisiones del usuario y su pedido de prueba de vida), las decisiones de construcción y lo que queda pendiente.
+
+Resuelta en esta fase: la fila «E17: cinco capturas» de la tabla de desviaciones decididas. El registro guarda ahora exactamente tres muestras (frente, izquierda y derecha).
+
+| Requisito | Qué pide | Qué se hace | Quién lo decidió | Fecha |
+|---|---|---|---|---|
+| RNFP34 (añadido), E18, RFS03 | Ingreso facial con una captura | Prueba de vida: tres capturas (frente y dos giros de unos 30 a 45 grados en un orden al azar que elige el servidor), validadas en el servidor | Pedido del usuario | 15-11-2026 |
+| RNFP12 | Resolver el ingreso facial en 3 s o menos | Se mide como la respuesta del servidor desde que llegan las capturas. El flujo guiado completo dura de 6 a 9 s por la prueba de vida | Usuario, decisión 1 del plan | 15-11-2026 |
+| RFS03 | Equipo autorizado para dueño y administrador | Se mantiene, además de la prueba de vida | Usuario, decisión 2 del plan | 15-11-2026 |
+| RNFP34 | Calibrar el umbral con rostros reales | Pantalla «Calibrar el rostro» en el panel, apagada por configuración, que guarda solo distancias. Con la calibración del usuario (7 intentos propios: 0.24 a 0.31; 10 de otra persona: 0.62 a 0.70) el umbral queda en **0.45** | Usuario, decisión 3 del plan y elección del umbral | 15-11-2026 |
+
+**Límite honesto de la prueba de vida.** Los descriptores y los 68 puntos se calculan en el navegador, así que **un cliente modificado podría falsificarlos**. La prueba de vida frena una foto o una pantalla sostenida frente a la cámara y sube mucho el costo de suplantar a alguien, **pero no es una protección infalible**. Por eso se mantienen la contraseña siempre visible, el equipo autorizado y el bloqueo tras 5 fallos.
+
+Decisiones de Claude en la fase 10 (objetables):
+- **Errores por muestra con clave plana:** `errores["muestras.frente"]`, igual que otros errores anidados de la API.
+- **El desafío responde 400 sin email** o con uno de más de 254 caracteres. Depende solo del formato, no de que la cuenta exista.
+- **Una sola fecha para registro y consentimiento:** `fechaRegistro` sale de la fecha del consentimiento, porque no hay otra columna.
+- **El consentimiento cambió de texto** (tres muestras, prueba de vida, solo gestión) y su versión pasó a `2026-11-15`.
+- **Calibración menos precisa a propósito:** distancias y giros con 2 decimales y un máximo de 30 mediciones por empleado y hora, para que no sirva de oráculo. No debe encenderse en producción.
+- **Umbrales de la guía en vivo** (no son de seguridad): brillo mínimo 50 de 255, rostro entre el 22 % y el 60 % del ancho, centrado a menos del 20 %.
+- **El desafío se pide con la cámara ya encendida** y los modelos cargados, para que sus 30 segundos no se gasten esperando el permiso.
+- **Las pruebas de integración fijan el umbral en 0.5**, porque sus vectores sintéticos se arman alrededor de ese valor; la configuración real usa 0.45.
+
+Pendientes que quedan para después de la fase 10:
+
+| Requisito | Qué falta | Por qué queda para después | Responsable |
+|---|---|---|---|
+| RNFP12, RFS03 | El desafío y el ingreso comparten el límite `LoginFacial` (10 por minuto por IP): salen unos 5 ingresos por minuto, y un anónimo puede agotar el cupo de la IP del taller | La especificación pide ese limitador; separarlo es una decisión | Usuario: decidir si se separan |
+| RNFE06 | Los datos asociados del cifrado no incluyen el lado de cada muestra (`modelo:idEmpleado`): con escritura directa en la base se podrían intercambiar las muestras de un mismo empleado | La especificación fija esos datos asociados; cambiarlos obliga a registrar los rostros de nuevo | Usuario: decidir si se cambia |
+| Despliegue | Configurar `ForwardedHeaders` detrás de un proxy inverso, para que el límite por IP sirva | Corresponde a la fase 16 | Claude, fase 16 |
+| RNFP34 | Volver a calibrar con más personas, otra luz u otra cámara | La calibración del 15-11-2026 tiene 7 intentos propios y una sola persona ajena | Usuario |
+| Base real | Aplicar las migraciones pendientes (ahora 9, incluida `RostroConPruebaDeVida`) con respaldo. Los rostros de la base real deberán registrarse de nuevo con las tres muestras | La base real recibe todas juntas al terminar las fases (decisión del usuario) | Usuario |
 
 ## Restricciones del equipo de desarrollo
 

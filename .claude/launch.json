@@ -38,6 +38,22 @@
         "--Correo:Modo=Bandeja"
       ],
       "port": 7112
+    },
+    {
+      "name": "api-demo-rostro",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerreraSYNCTIMEapi",
+        "--launch-profile",
+        "https",
+        "--",
+        "--Correo:AvisosTaller=avisos.demo@letreria.test",
+        "--Correo:Modo=Bandeja",
+        "--RostroFacial:Calibracion:Activa=true"
+      ],
+      "port": 7112
     }
   ]
 }
