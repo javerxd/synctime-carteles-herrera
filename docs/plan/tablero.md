@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 15-11-2026 (fase 9 aprobada; sigue la fase 10).
+Última actualización: 15-11-2026 (fase 9 aprobada; plan de la fase 10 propuesto).
 
 ## Hecho
 
@@ -24,13 +24,12 @@ _(ninguna)_
 
 ## En curso
 
-_(ninguna)_
+- **Fase 10 — Rostro según requisitos** · rama `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · incluye, por pedido del usuario (15-11-2026), la prueba de vida con giros de cabeza y la calibración del umbral · plan: `fase-10-plan.md`, esperando la aprobación del usuario y sus respuestas a tres preguntas
 
 ## Por hacer
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 10 | Rostro según requisitos | 6, 9 | — |
 | 11 | Notificaciones, auditoría y privacidad | 4, 8, 9 | — (la cuenta SMTP se pidió en la fase 4) |
 | 12 | Indicadores y dashboard | 8 | — |
 | 13 | Reportes y exportaciones | 11, 12 | — |
