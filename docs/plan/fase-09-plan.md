@@ -1,6 +1,6 @@
 # Plan de la fase 9 — Mantenedores y estado del local
 
-Fecha: 14-11-2026 · Rama: `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · Estado: **propuesta, esperando tu aprobación**
+Fecha: 14-11-2026 · Rama: `fase-09-mantenedores-y-local` (nace de `fase-08-cotizaciones-y-pedidos`) · Estado: **aprobado el 14-11-2026** · especificación: `fase-09-especificacion.md`
 
 Requisitos del plan general: RFS07, RFS02 (edición del horario y del cartel), RFS01 (autorización de logos), RNFP32, RNFO03, RNFO08, RNFP10, RFU16–RFU18, RFU20, E10–E15. Se suma tu pedido del 14-11-2026: **cambiar el correo que recibe los avisos de solicitudes nuevas**, desde el perfil.
 
