@@ -246,6 +246,10 @@ Resuelta en esta fase: la fila «E17: cinco capturas» de la tabla de desviacion
 
 **Límite honesto de la prueba de vida.** Los descriptores y los 68 puntos se calculan en el navegador, así que **un cliente modificado podría falsificarlos**. La prueba de vida frena una foto o una pantalla sostenida frente a la cámara y sube mucho el costo de suplantar a alguien, **pero no es una protección infalible**. Por eso se mantienen la contraseña siempre visible, el equipo autorizado y el bloqueo tras 5 fallos.
 
+Aprobadas por el usuario al cerrar la fase (15-11-2026), ya hechas:
+- **Límite propio para el desafío** (`DesafioFacial`, 10 por minuto por IP). El ingreso conserva `LoginFacial`; uno no gasta el otro. Una IP puede hacer ahora hasta 10 ingresos con rostro por minuto, acotados por el bloqueo y el equipo autorizado.
+- **El lado de cada muestra va en los datos asociados del cifrado** (`modelo:idEmpleado:lado`), con `formato_muestras = 3` (migración `RostroMuestrasPorLado`). Los rostros de formato 2 deben registrarse de nuevo; el del usuario en la demo ya se registró otra vez.
+
 Decisiones de Claude en la fase 10 (objetables):
 - **Errores por muestra con clave plana:** `errores["muestras.frente"]`, igual que otros errores anidados de la API.
 - **El desafío responde 400 sin email** o con uno de más de 254 caracteres. Depende solo del formato, no de que la cuenta exista.
@@ -260,11 +264,9 @@ Pendientes que quedan para después de la fase 10:
 
 | Requisito | Qué falta | Por qué queda para después | Responsable |
 |---|---|---|---|
-| RNFP12, RFS03 | El desafío y el ingreso comparten el límite `LoginFacial` (10 por minuto por IP): salen unos 5 ingresos por minuto, y un anónimo puede agotar el cupo de la IP del taller | La especificación pide ese limitador; separarlo es una decisión | Usuario: decidir si se separan |
-| RNFE06 | Los datos asociados del cifrado no incluyen el lado de cada muestra (`modelo:idEmpleado`): con escritura directa en la base se podrían intercambiar las muestras de un mismo empleado | La especificación fija esos datos asociados; cambiarlos obliga a registrar los rostros de nuevo | Usuario: decidir si se cambia |
 | Despliegue | Configurar `ForwardedHeaders` detrás de un proxy inverso, para que el límite por IP sirva | Corresponde a la fase 16 | Claude, fase 16 |
 | RNFP34 | Volver a calibrar con más personas, otra luz u otra cámara | La calibración del 15-11-2026 tiene 7 intentos propios y una sola persona ajena | Usuario |
-| Base real | Aplicar las migraciones pendientes (ahora 9, incluida `RostroConPruebaDeVida`) con respaldo. Los rostros de la base real deberán registrarse de nuevo con las tres muestras | La base real recibe todas juntas al terminar las fases (decisión del usuario) | Usuario |
+| Base real | Aplicar las migraciones pendientes (ahora 10, incluidas `RostroConPruebaDeVida` y `RostroMuestrasPorLado`) con respaldo. Los rostros de la base real deberán registrarse de nuevo con las tres muestras | La base real recibe todas juntas al terminar las fases (decisión del usuario) | Usuario |
 
 ## Restricciones del equipo de desarrollo
 

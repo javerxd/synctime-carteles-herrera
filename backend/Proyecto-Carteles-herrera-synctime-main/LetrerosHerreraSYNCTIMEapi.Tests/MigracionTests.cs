@@ -176,14 +176,54 @@ public sealed class MigracionTests(ApiFixture api)
     }
 
     private const string Fase9 = "20261115021638_MantenedoresYAvisos";
+    private const string Fase10 = "20261115131307_RostroConPruebaDeVida";
+
+    // Seguimiento de la fase 10: RostroMuestrasPorLado solo reemplaza la regla de las muestras para admitir el
+    // formato 3 (muestras atadas a su lado). No toca filas, tablas ni columnas.
+    [Fact]
+    public async Task RostroMuestrasPorLado_SoloCambiaLaRegla()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_RostroMuestrasPorLado", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase10, ultima)));
+
+        Assert.Contains("ADD CONSTRAINT [ck_rostros_empleado_muestras] CHECK", script);
+        Assert.Contains("formato_muestras IN (2, 3)", script);
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [", "ADD [" })
+            Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RevertirRostroMuestrasPorLado_SeDetieneSiHayRostrosDeFormato3()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        var abajo = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(ultima, Fase10)));
+
+        Assert.Contains("THROW 50110", abajo, StringComparison.Ordinal);
+        Assert.True(abajo.IndexOf("THROW 50110", StringComparison.Ordinal) < abajo.IndexOf("DROP CONSTRAINT [ck_rostros_empleado_muestras]", StringComparison.Ordinal));
+        Assert.Contains("formato_muestras = 2 AND", abajo);
+        Assert.Equal(["DELETE FROM [__EFMigrationsHistory]"],
+            System.Text.RegularExpressions.Regex.Matches(abajo, @"DELETE FROM \S+").Select(m => m.Value));
+    }
+
+    // La base admite los formatos 2 y 3, con las mismas reglas, y ningun otro.
+    [Fact]
+    public async Task LaRegla_AdmiteLosFormatos2Y3_YNingunOtro()
+    {
+        var definicion = Assert.Single(await Valores("SELECT definition AS Value FROM sys.check_constraints WHERE name = 'ck_rostros_empleado_muestras'"));
+
+        Assert.Contains("[formato_muestras]=(2)", definicion);
+        Assert.Contains("[formato_muestras]=(3)", definicion);
+        Assert.DoesNotContain("(4)", definicion);
+    }
 
     // Fase 10: RostroConPruebaDeVida solo agrega columnas nulas a rostros_empleado, dos tablas, indices y reglas.
     // No borra tablas, columnas ni filas, y no cambia las filas existentes.
     [Fact]
     public async Task RostroConPruebaDeVida_SoloAgrega()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_RostroConPruebaDeVida", ultima);
+        const string ultima = Fase10;
+        Assert.Contains(ultima, await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().ToList())));
         var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase9, ultima)));
 
         Assert.Contains("CREATE TABLE [desafios_rostro]", script);
@@ -200,7 +240,7 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task RevertirRostroConPruebaDeVida_SeDetieneAntesDePerderDatos()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        const string ultima = Fase10;
         var abajo = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(ultima, Fase9)));
 
         Assert.Contains("THROW 50100", abajo, StringComparison.Ordinal);

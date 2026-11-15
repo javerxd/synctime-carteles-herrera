@@ -1,7 +1,7 @@
 ﻿-- =====================================================================================
 -- SyncTime - Letreros Herrera (la base conserva el nombre LetreriaLosHerreraDB)
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
--- triggers, vista y procedimiento almacenado. Estado: migración RostroConPruebaDeVida.
+-- triggers, vista y procedimiento almacenado. Estado: migración RostroMuestrasPorLado.
 -- Generado el 15-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
 --
 -- Cambios de la revisión del 12-11-2026 (tabla pedidos):
@@ -41,11 +41,16 @@
 -- Fase 10 (15-11-2026), migración RostroConPruebaDeVida (sección 2c):
 --   * rostros_empleado: tres muestras cifradas (descriptor_frente, descriptor_izquierda y
 --                       descriptor_derecha), quién inició el registro y el formato de las muestras (2 =
---                       tres muestras). descriptor_cifrado, el promedio antiguo, deja de usarse.
+--                       tres muestras sin el lado; 3 = cada una atada a su lado, sección 2d). descriptor_cifrado, el promedio antiguo, deja de usarse.
 --   * desafios_rostro:  (tabla nueva) desafíos de la prueba de vida: solo hashes del token y del email,
 --                       el orden de los giros y su vigencia. La purga diaria borra los de más de un día.
 --   * calibracion_rostro: (tabla nueva) mediciones de la calibración del umbral: solo distancias y giros,
 --                       sin datos biométricos.
+--
+-- Fase 10, seguimiento (15-11-2026), migración RostroMuestrasPorLado (sección 2d):
+--   * ck_rostros_empleado_muestras admite formato_muestras 3: cada muestra cifrada con su lado (frente,
+--                       izquierda o derecha) en los datos asociados. Las filas de formato 2 se cifraron sin el
+--                       lado y la API las trata como «debe registrarse de nuevo».
 --
 -- Cómo ejecutarlo. Crea una base NUEVA y se detiene sin hacer nada si ya existe:
 --   sqlcmd -S localhost\SQLEXPRESS -E -C -I -f 65001 -i LetreriaLosHerreraDB.sql
@@ -1159,6 +1164,14 @@ ALTER TABLE [rostros_empleado] ADD CONSTRAINT [fk_rostros_empleado_registra] FOR
 GO
 
 -- -------------------------------------------------------------------------------------
+-- 2d. Fase 10, seguimiento: muestras atadas a su lado (migración RostroMuestrasPorLado)
+-- -------------------------------------------------------------------------------------
+ALTER TABLE [rostros_empleado] DROP CONSTRAINT [ck_rostros_empleado_muestras];
+
+ALTER TABLE [rostros_empleado] ADD CONSTRAINT [ck_rostros_empleado_muestras] CHECK ((formato_muestras IS NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL) OR (formato_muestras IN (2, 3) AND ((fecha_revocacion IS NULL AND descriptor_frente IS NOT NULL AND descriptor_izquierda IS NOT NULL AND descriptor_derecha IS NOT NULL) OR (fecha_revocacion IS NOT NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL))));
+GO
+
+-- -------------------------------------------------------------------------------------
 -- 3. Historial de migraciones: la API reconoce la base como actualizada.
 -- -------------------------------------------------------------------------------------
 CREATE TABLE [__EFMigrationsHistory] (
@@ -1180,7 +1193,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261114035839_SolicitudesYAdjuntos', N'10.0.11'),
     (N'20261114220104_CotizacionesYPedidos', N'10.0.11'),
     (N'20261115021638_MantenedoresYAvisos', N'10.0.11'),
-    (N'20261115131307_RostroConPruebaDeVida', N'10.0.11');
+    (N'20261115131307_RostroConPruebaDeVida', N'10.0.11'),
+    (N'20261115151730_RostroMuestrasPorLado', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

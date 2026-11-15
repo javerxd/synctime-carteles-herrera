@@ -674,10 +674,10 @@ public class LetrerosHerreradbContext : DbContext
         // datetimeoffset porque estas fechas deciden bloqueos y caducidades, que no deben depender de la hora local.
         modelBuilder.Entity<RostroEmpleado>(entity =>
         {
-            // Fase 10: sin formato no hay muestras; con formato 2, la fila vigente tiene las tres y la revocada ninguna.
+            // Fase 10: sin formato no hay muestras; con formato 2 o 3, la fila vigente tiene las tres y la revocada ninguna.
             entity.ToTable("rostros_empleado", t => t.HasCheckConstraint("ck_rostros_empleado_muestras",
                 "(formato_muestras IS NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL) OR "
-                + "(formato_muestras = 2 AND ((fecha_revocacion IS NULL AND descriptor_frente IS NOT NULL AND descriptor_izquierda IS NOT NULL AND descriptor_derecha IS NOT NULL) OR "
+                + "(formato_muestras IN (2, 3) AND ((fecha_revocacion IS NULL AND descriptor_frente IS NOT NULL AND descriptor_izquierda IS NOT NULL AND descriptor_derecha IS NOT NULL) OR "
                 + "(fecha_revocacion IS NOT NULL AND descriptor_frente IS NULL AND descriptor_izquierda IS NULL AND descriptor_derecha IS NULL)))"));
             entity.HasKey(e => e.IdRostro).HasName("pk_rostros_empleado");
             entity.Property(e => e.IdRostro).HasColumnName("id_rostro");

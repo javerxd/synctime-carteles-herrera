@@ -567,7 +567,7 @@ public sealed partial class MantenedoresYAvisosFase9Tests(ApiFixture api)
             IdEmpleado = idEmpleado, DescriptorCifrado = [1, 2, 3], FechaConsentimiento = DateTimeOffset.UtcNow, VersionConsentimiento = "1.0",
             TokenEquipoHash = new byte[32], FechaAutorizacionEquipo = DateTimeOffset.UtcNow,
             // Fase 10: las tres muestras tambien se borran al desactivar.
-            DescriptorFrente = [4], DescriptorIzquierda = [5], DescriptorDerecha = [6], FormatoMuestras = RostroEmpleado.FormatoTresMuestras
+            DescriptorFrente = [4], DescriptorIzquierda = [5], DescriptorDerecha = [6], FormatoMuestras = RostroEmpleado.FormatoMuestrasPorLado
         };
         db.RostrosEmpleado.Add(rostro);
         await db.SaveChangesAsync();

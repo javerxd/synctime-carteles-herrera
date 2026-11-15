@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 10: rostro según requisitos
 
-Fecha: 15-11-2026 · Rama: `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · Estado: **en revisión, esperando tu visto bueno**
+Fecha: 15-11-2026 · Rama: `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · Estado: **aprobada el 15-11-2026**
 
 Plan aprobado: `fase-10-plan.md`, con tus tres decisiones del 15-11-2026, y su especificación en `fase-10-especificacion.md`. Incluye tu pedido: la **prueba de vida con giros de cabeza** y la **calibración del umbral** con tu cámara.
 
@@ -71,8 +71,16 @@ Plan aprobado: `fase-10-plan.md`, con tus tres decisiones del 15-11-2026, y su e
 - **Comprobaciones:**
   - se probó subirla, revertirla y volver a subirla en una base temporal, que se borró después;
   - revertirla se detiene si eso borraría datos.
-- **Dónde está aplicada:** en la demo. **No en la real**, que sigue con 3 migraciones; ahora le faltan 9.
+- **Dónde está aplicada:** en la demo. **No en la real**, que sigue con 3 migraciones; con `RostroMuestrasPorLado` (abajo) le faltan 10.
 - **Script:** se regeneró `LetreriaLosHerreraDB.sql` y se comprobó contra una base creada con las migraciones.
+
+### Las dos decisiones que aprobaste al revisar
+- **Límite propio para el desafío:** `POST /auth/login-facial/desafio` usa `DesafioFacial` (10 por minuto por IP, `RateLimiting:DesafioFacial`) y el ingreso sigue con `LoginFacial`. Agotar uno no gasta el otro ni la contraseña.
+- **El lado de cada muestra en el cifrado:** los datos asociados pasan a `modelo:idEmpleado:lado`. Intercambiar las muestras de columna en la base ya no sirve para entrar. El señuelo se cifra por lado, así que todo intento sigue haciendo el mismo trabajo.
+  - Los rostros nuevos usan `formato_muestras = 3`; los de formato 2 deben registrarse de nuevo.
+  - Migración nueva `RostroMuestrasPorLado`: solo cambia la regla de la tabla. Se probó subir, revertir (se detiene si hay rostros de formato 3) y volver a subir en una base temporal, y se aplicó solo a la demo.
+  - **Volviste a registrar tu rostro en la demo** (formato 3) y entraste con él; el registro anterior quedó revocado.
+- **Pruebas:** 402 unitarias y 407 de integración, en verde. Hacen fallar su prueba: quitar el lado de los datos asociados (1) y devolver el desafío al límite del ingreso (3). La revisión de seguridad y la de base de datos no encontraron nada crítico, alto ni medio.
 
 ## Verificación
 
@@ -110,11 +118,8 @@ Ningún hallazgo crítico. Se corrigieron, entre otros:
 - **Tiempo en otros equipos:** RNFP12 y la duración del flujo (6 a 9 s) no se midieron en otros equipos. Tampoco si 4 s por giro alcanzan para todos.
 
 ## Pendiente (en `desviaciones.md`)
-- **Límite compartido:** el desafío y el ingreso usan el mismo límite por IP, así que salen unos 5 ingresos por minuto desde una IP. ¿Se separan?
-- **Lado de la muestra en el cifrado:** los datos asociados no incluyen el lado de cada muestra. Con escritura directa en la base se podrían intercambiar las muestras de un mismo empleado. ¿Se cambia? Obliga a registrar los rostros de nuevo.
 - **Límite de la prueba de vida:** un cliente modificado puede falsificar descriptores y puntos. Por eso se mantienen el equipo autorizado, el bloqueo y la contraseña.
-- **Base real:** las 9 migraciones pendientes esperan al final de las fases. Al aplicarlas, tu rostro de la base real deberá registrarse de nuevo con las tres muestras.
+- **Base real:** las 10 migraciones pendientes esperan al final de las fases. Al aplicarlas, tu rostro de la base real deberá registrarse de nuevo con las tres muestras.
 
-## Lo que necesito de ti
-1. **Tu visto bueno a esta fase**, o lo que quieras cambiar.
-2. Cuando quieras, las dos decisiones de arriba: separar el límite por IP y agregar el lado de la muestra al cifrado.
+## Cierre
+Aprobaste las dos decisiones y la fase el 15-11-2026, con la condición de terminarlas primero; quedaron hechas y verificadas.

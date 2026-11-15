@@ -9,7 +9,11 @@ namespace LetrerosHerreraSYNCTIMEapi.Models;
 // descriptor promedio, que deja de usarse. Una fila vigente sin las tres muestras debe registrarse de nuevo.
 public class RostroEmpleado
 {
-    public const byte FormatoTresMuestras = 2;
+    // 2: tres muestras cifradas sin el lado en los datos asociados (primera version de la fase 10). Ya no se
+    // escribe: cuenta como «debe registrarse de nuevo».
+    public const byte FormatoTresMuestrasSinLado = 2;
+    // 3: tres muestras, cada una cifrada con su lado (frente, izquierda o derecha) en los datos asociados.
+    public const byte FormatoMuestrasPorLado = 3;
 
     public int IdRostro { get; set; }
     public int IdEmpleado { get; set; }
@@ -29,11 +33,11 @@ public class RostroEmpleado
     public byte[]? DescriptorDerecha { get; set; }
     // Quien inicio el registro: el mismo titular, o el dueño o el administrador con el titular presente.
     public int? IdEmpleadoRegistra { get; set; }
-    // 2 = tres muestras. null en las filas anteriores a la fase 10.
+    // 3 = tres muestras atadas a su lado; 2 = la version anterior, sin el lado. null antes de la fase 10.
     public byte? FormatoMuestras { get; set; }
 
     public bool TieneTresMuestras =>
-        FormatoMuestras == FormatoTresMuestras && DescriptorFrente is not null && DescriptorIzquierda is not null && DescriptorDerecha is not null;
+        FormatoMuestras == FormatoMuestrasPorLado && DescriptorFrente is not null && DescriptorIzquierda is not null && DescriptorDerecha is not null;
 
     public virtual Empleado? Empleado { get; set; }
     public virtual Empleado? EmpleadoRegistra { get; set; }

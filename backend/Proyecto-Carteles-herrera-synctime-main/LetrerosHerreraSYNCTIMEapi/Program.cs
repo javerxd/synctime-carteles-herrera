@@ -192,6 +192,8 @@ static string UsuarioOIp(HttpContext context)
 var limiteApi = builder.Configuration.GetValue("RateLimiting:ApiGeneral", 100);
 var limiteLogin = builder.Configuration.GetValue("RateLimiting:Login", 10);
 var limiteLoginFacial = builder.Configuration.GetValue("RateLimiting:LoginFacial", limiteLogin);
+// Seguimiento de la fase 10: pedir desafios tiene su propio cupo, para no gastar los intentos de ingreso con rostro.
+var limiteDesafioFacial = builder.Configuration.GetValue("RateLimiting:DesafioFacial", 10);
 var limiteReautenticacion = builder.Configuration.GetValue("RateLimiting:Reautenticacion", limiteLogin);
 var limitePublico = builder.Configuration.GetValue("RateLimiting:Publico", 10);
 var limiteSalud = builder.Configuration.GetValue("RateLimiting:Salud", 60);
@@ -210,6 +212,7 @@ builder.Services.AddRateLimiter(options =>
     // Mismo limite con contadores propios: ni fallar con el rostro, ni equivocarse al confirmar la contraseña
     // en una accion delicada, deben bloquear la entrada con contraseña de quienes comparten la IP.
     options.AddPolicy("LoginFacial", context => Ventana(Ip(context), limiteLoginFacial));
+    options.AddPolicy("DesafioFacial", context => Ventana(Ip(context), limiteDesafioFacial));
     options.AddPolicy("Reautenticacion", context => Ventana(Ip(context), limiteReautenticacion));
     options.AddPolicy("Publico", context => Ventana(Ip(context), limitePublico));
     options.AddPolicy("Contacto", context => VentanaHora(Ip(context), limiteContacto));

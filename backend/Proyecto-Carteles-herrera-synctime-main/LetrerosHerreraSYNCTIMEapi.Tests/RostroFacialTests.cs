@@ -374,7 +374,9 @@ public sealed class RostroFacialTests(ApiFixture api)
         var fila = await FilaVigenteAsync(empleado.Id);
         Assert.Equal(ConsentimientoFacial.Version, fila.VersionConsentimiento);
         Assert.InRange(fila.FechaConsentimiento, antes, DateTimeOffset.UtcNow.AddSeconds(2));
-        Assert.Equal(RostroEmpleado.FormatoTresMuestras, fila.FormatoMuestras);
+        // Seguimiento de la fase 10: formato 3, cada muestra cifrada con su lado en los datos asociados.
+        Assert.Equal((byte)3, fila.FormatoMuestras);
+        Assert.Equal(RostroEmpleado.FormatoMuestrasPorLado, fila.FormatoMuestras);
         Assert.Equal(empleado.Id, fila.IdEmpleadoRegistra);
         Assert.Null(fila.DescriptorCifrado);
 
@@ -522,7 +524,7 @@ public sealed class RostroFacialTests(ApiFixture api)
             // Como quedo el rostro del usuario en la base real: un solo descriptor promedio.
             db.RostrosEmpleado.Add(new RostroEmpleado
             {
-                IdEmpleado = empleado.Id, DescriptorCifrado = servicio.Cifrar(persona.Frente, empleado.Id), FechaConsentimiento = DateTimeOffset.UtcNow,
+                IdEmpleado = empleado.Id, DescriptorCifrado = servicio.Cifrar(persona.Frente, empleado.Id, LadoMuestra.Frente), FechaConsentimiento = DateTimeOffset.UtcNow,
                 VersionConsentimiento = "2026-11-06", TokenEquipoHash = RostroFacialService.HashToken(token), FechaAutorizacionEquipo = DateTimeOffset.UtcNow
             });
             return await db.SaveChangesAsync();
@@ -671,23 +673,77 @@ public sealed class RostroFacialTests(ApiFixture api)
         await IngresarAsync(empleado).EsperarAsync(HttpStatusCode.OK);
     }
 
+    // Seguimiento de la fase 10 (decision del usuario del 15-11-2026): el desafio tiene su propio limite por IP
+    // (RateLimiting:DesafioFacial). Pedir desafios no gasta intentos de ingreso, ni al reves, y ninguno de los
+    // dos bloquea la contraseña.
+    private ApiFixture.ApiTemporal ConLimitesFaciales(int desafios, int ingresos) => api.ConVariables(new Dictionary<string, string>
+    {
+        ["RateLimiting__DesafioFacial"] = desafios.ToString(CultureInfo.InvariantCulture),
+        ["RateLimiting__LoginFacial"] = ingresos.ToString(CultureInfo.InvariantCulture)
+    });
+
     [Fact]
-    public async Task ElLimitePorIp_CuentaElDesafioYElIngreso_SinBloquearLaContraseña()
+    public async Task AgotarLosDesafios_NoGastaLosIngresos_NiLaContraseña()
     {
         var empleado = await GestionConRostroAsync(39);
-        await using var limitada = api.ConVariable("RateLimiting__LoginFacial", "3");
+        await using var limitada = ConLimitesFaciales(desafios: 3, ingresos: 3);
         var cliente = limitada.Cliente();
 
-        var desafio = await cliente.PostAsJsonAsync("/api/v1/auth/login-facial/desafio", new { email = empleado.Email }).EsperarAsync(HttpStatusCode.OK);
-        var orden = desafio.GetProperty("orden").EnumerateArray().Select(o => o.GetString()!).ToArray();
-        var cuerpo = CuerpoLogin(empleado.Email, desafio.GetProperty("desafio").GetString(), empleado.TokenEquipo, Capturas(Sintetica(40), orden));
+        var pedidos = new List<JsonElement>();
+        for (var i = 0; i < 3; i++)
+            pedidos.Add(await cliente.PostAsJsonAsync("/api/v1/auth/login-facial/desafio", new { email = empleado.Email }).EsperarAsync(HttpStatusCode.OK));
+        await cliente.PostAsJsonAsync("/api/v1/auth/login-facial/desafio", new { email = empleado.Email }).EsperarAsync(HttpStatusCode.TooManyRequests);
+
+        // Con los desafios agotados, el cupo de ingresos sigue entero: tres intentos y recien el cuarto es 429.
+        foreach (var pedido in pedidos.Take(2))
+        {
+            var orden = pedido.GetProperty("orden").EnumerateArray().Select(o => o.GetString()!).ToArray();
+            await cliente.PostAsJsonAsync("/api/v1/auth/login-facial",
+                CuerpoLogin(empleado.Email, pedido.GetProperty("desafio").GetString(), empleado.TokenEquipo, Capturas(Sintetica(40), orden)))
+                .EsperarAsync(HttpStatusCode.Unauthorized);
+        }
+        var ultimo = pedidos[2];
+        var ordenUltimo = ultimo.GetProperty("orden").EnumerateArray().Select(o => o.GetString()!).ToArray();
+        await cliente.PostAsJsonAsync("/api/v1/auth/login-facial",
+            CuerpoLogin(empleado.Email, ultimo.GetProperty("desafio").GetString(), empleado.TokenEquipo, Capturas(empleado.Persona, ordenUltimo)))
+            .EsperarAsync(HttpStatusCode.OK);
+        await cliente.PostAsJsonAsync("/api/v1/auth/login-facial", CuerpoLogin(empleado.Email, "x", empleado.TokenEquipo, Capturas(empleado.Persona, ordenUltimo)))
+            .EsperarAsync(HttpStatusCode.TooManyRequests);
+
+        await cliente.PostAsJsonAsync("/api/v1/auth/login", new { email = empleado.Email, password = ApiFixture.AdminPassword }).EsperarAsync(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task AgotarLosIngresos_NoGastaLosDesafios_NiLaContraseña()
+    {
+        var empleado = await GestionConRostroAsync(71);
+        await using var limitada = ConLimitesFaciales(desafios: 3, ingresos: 2);
+        var cliente = limitada.Cliente();
+        var cuerpo = CuerpoLogin(empleado.Email, "inventado", empleado.TokenEquipo, Capturas(empleado.Persona, ["izquierda", "derecha"]));
+
         await cliente.PostAsJsonAsync("/api/v1/auth/login-facial", cuerpo).EsperarAsync(HttpStatusCode.Unauthorized);
         await cliente.PostAsJsonAsync("/api/v1/auth/login-facial", cuerpo).EsperarAsync(HttpStatusCode.Unauthorized);
         await cliente.PostAsJsonAsync("/api/v1/auth/login-facial", cuerpo).EsperarAsync(HttpStatusCode.TooManyRequests);
+
+        for (var i = 0; i < 3; i++)
+            await cliente.PostAsJsonAsync("/api/v1/auth/login-facial/desafio", new { email = empleado.Email }).EsperarAsync(HttpStatusCode.OK);
         await cliente.PostAsJsonAsync("/api/v1/auth/login-facial/desafio", new { email = empleado.Email }).EsperarAsync(HttpStatusCode.TooManyRequests);
 
-        // El contador es propio: quien falla con el rostro debe poder usar su contraseña.
         await cliente.PostAsJsonAsync("/api/v1/auth/login", new { email = empleado.Email, password = ApiFixture.AdminPassword }).EsperarAsync(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task ElLimiteDeDesafios_PorDefectoEsDeDiezPorMinuto()
+    {
+        // Sin la variable de las pruebas, vale el valor por defecto de la API (10 por minuto por IP).
+        // null borra la variable mientras arranca esta API (ConVariables la restaura al terminar).
+        await using var porDefecto = api.ConVariables(new Dictionary<string, string> { ["RateLimiting__DesafioFacial"] = null! });
+        var cliente = porDefecto.Cliente();
+        var email = $"diez{api.Siguiente()}@test.local";
+
+        for (var i = 0; i < 10; i++)
+            await cliente.PostAsJsonAsync("/api/v1/auth/login-facial/desafio", new { email }).EsperarAsync(HttpStatusCode.OK);
+        await cliente.PostAsJsonAsync("/api/v1/auth/login-facial/desafio", new { email }).EsperarAsync(HttpStatusCode.TooManyRequests);
     }
 
     [Fact]
@@ -1100,6 +1156,76 @@ public sealed class RostroFacialTests(ApiFixture api)
         await IngresarAsync(victima with { Persona = atacante.Persona }).EsperarAsync(HttpStatusCode.Unauthorized);
     }
 
+    // Seguimiento de la fase 10: el lado va en los datos asociados. Una muestra movida a la columna de otro lado
+    // del mismo empleado ya no se descifra, y el ingreso cae en el 401 generico.
+    [Fact]
+    public async Task IntercambiarLasMuestrasDeLado_DelMismoEmpleado_NoSirve()
+    {
+        var empleado = await GestionConRostroAsync(72);
+        await IngresarAsync(empleado).EsperarAsync(HttpStatusCode.OK);
+
+        var fila = await FilaVigenteAsync(empleado.Id);
+        await api.ConsultarAsync(db => db.RostrosEmpleado.Where(r => r.IdRostro == fila.IdRostro)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.DescriptorIzquierda, fila.DescriptorDerecha).SetProperty(r => r.DescriptorDerecha, fila.DescriptorIzquierda)));
+        // Las capturas tambien van cruzadas, para que la comparacion coincidiria si las muestras se descifraran.
+        var cruzada = empleado with { Persona = empleado.Persona with { Izquierda = empleado.Persona.Derecha, Derecha = empleado.Persona.Izquierda } };
+
+        await IngresarAsync(cruzada).EsperarAsync(HttpStatusCode.Unauthorized);
+        await IngresarAsync(empleado).EsperarAsync(HttpStatusCode.Unauthorized);
+
+        // Y la frente puesta en una columna de giro, tampoco.
+        await api.ConsultarAsync(db => db.RostrosEmpleado.Where(r => r.IdRostro == fila.IdRostro)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.DescriptorIzquierda, fila.DescriptorFrente).SetProperty(r => r.DescriptorDerecha, fila.DescriptorDerecha)));
+        await IngresarAsync(empleado with { Persona = empleado.Persona with { Izquierda = empleado.Persona.Frente } }).EsperarAsync(HttpStatusCode.Unauthorized);
+    }
+
+    // Las filas de formato 2 se cifraron sin el lado: deben registrarse de nuevo, aunque sus muestras se puedan leer.
+    [Fact]
+    public async Task UnRostroDeFormato2_DebeRegistrarseDeNuevo()
+    {
+        var empleado = await api.CrearEmpleadoAsync(Roles.Administrador);
+        var persona = Sintetica(73);
+        var token = await InsertarRostroAsync(empleado.Id, persona, formato: 2);
+        var conRostro = new ConRostro(empleado.Id, empleado.Email, empleado.Token, token, persona);
+
+        var estado = await api.Cliente(empleado.Token).GetAsync("/api/v1/auth/rostro").EsperarAsync(HttpStatusCode.OK);
+        Assert.True(estado.GetProperty("debeRegistrarseDeNuevo").GetBoolean());
+        Assert.False(estado.GetProperty("activo").GetBoolean());
+        var admin = api.Cliente(await api.TokenAdminAsync());
+        var fila = (await admin.GetAsync("/api/v1/rostros").EsperarAsync(HttpStatusCode.OK)).EnumerateArray().Single(f => f.GetProperty("idEmpleado").GetInt32() == empleado.Id);
+        Assert.Equal("debe_registrarse", fila.GetProperty("estado").GetString());
+
+        await IngresarAsync(conRostro).EsperarAsync(HttpStatusCode.Unauthorized);
+        // No se cuenta como intento: para el ingreso no hay rostro que comparar.
+        Assert.Equal(0, (await FilaVigenteAsync(empleado.Id)).IntentosFallidos);
+
+        // La calibracion lo rechaza como a un rostro incompleto.
+        await using var activa = api.ConVariable("RostroFacial__Calibracion__Activa", "true");
+        var (desafio, orden) = await DesafioAsync(empleado.Email);
+        var error = await activa.Cliente(await api.TokenAdminAsync()).PostAsJsonAsync("/api/v1/rostros/calibracion",
+                new { idEmpleado = empleado.Id, etiqueta = "propio", desafio, capturas = Capturas(persona, orden) })
+            .EsperarAsync(HttpStatusCode.BadRequest);
+        Assert.True(error.GetProperty("errores").TryGetProperty("idEmpleado", out _));
+
+        // Al registrar de nuevo queda en formato 3 y entra.
+        var nuevo = (await api.Cliente(empleado.Token).PutAsJsonAsync("/api/v1/auth/rostro", Registro(persona)).EsperarAsync(HttpStatusCode.OK))
+            .GetProperty("tokenEquipo").GetString()!;
+        await IngresarAsync(conRostro with { TokenEquipo = nuevo }).EsperarAsync(HttpStatusCode.OK);
+    }
+
+    // El señuelo se cifra por lado: medir contra el (sin rostro) hace el mismo trabajo que contra un rostro real.
+    [Fact]
+    public void ElSeñuelo_SeDescifraPorLado_YSeMide()
+    {
+        var servicio = api.Services.GetRequiredService<RostroFacialService>();
+        var p = Sintetica(74);
+
+        var medicion = servicio.Medir([p.Frente, p.Izquierda, p.Derecha], Negocio.Rostro.LadoGiro.Izquierda, null, 0);
+
+        Assert.NotNull(medicion);
+        Assert.False(servicio.Coincide(medicion));
+    }
+
     [Fact]
     public async Task UnaMuestraIlegible_SeRegistraEnLosLogs_SinRevelarla()
     {
@@ -1308,7 +1434,7 @@ public sealed class RostroFacialTests(ApiFixture api)
     }
 
     // Un rostro guardado directo en la base (por ejemplo, de un rol que ya no puede registrarlo). Devuelve el token de equipo.
-    private async Task<string> InsertarRostroAsync(int idEmpleado, Persona persona)
+    private async Task<string> InsertarRostroAsync(int idEmpleado, Persona persona, byte formato = RostroEmpleado.FormatoMuestrasPorLado)
     {
         var servicio = api.Services.GetRequiredService<RostroFacialService>();
         var token = RostroFacialService.CrearTokenEquipo();
@@ -1317,10 +1443,10 @@ public sealed class RostroFacialTests(ApiFixture api)
             db.RostrosEmpleado.Add(new RostroEmpleado
             {
                 IdEmpleado = idEmpleado,
-                DescriptorFrente = servicio.Cifrar(persona.Frente, idEmpleado),
-                DescriptorIzquierda = servicio.Cifrar(persona.Izquierda, idEmpleado),
-                DescriptorDerecha = servicio.Cifrar(persona.Derecha, idEmpleado),
-                FormatoMuestras = RostroEmpleado.FormatoTresMuestras,
+                DescriptorFrente = servicio.Cifrar(persona.Frente, idEmpleado, LadoMuestra.Frente),
+                DescriptorIzquierda = servicio.Cifrar(persona.Izquierda, idEmpleado, LadoMuestra.Izquierda),
+                DescriptorDerecha = servicio.Cifrar(persona.Derecha, idEmpleado, LadoMuestra.Derecha),
+                FormatoMuestras = formato,
                 IdEmpleadoRegistra = idEmpleado,
                 FechaConsentimiento = DateTimeOffset.UtcNow,
                 VersionConsentimiento = ConsentimientoFacial.Version,

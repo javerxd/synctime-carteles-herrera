@@ -32,7 +32,8 @@ public sealed class RostroFacialService
     private const int SegundosDesafioPorDefecto = 30;
 
     private readonly byte[]? clave;
-    private readonly byte[]? senuelo;
+    // El señuelo tiene una muestra por lado, cifrada como las de verdad: todo intento descifra y compara lo mismo.
+    private readonly MuestrasCifradas? senuelo;
     private readonly int tiempoMinimoMs;
     private readonly TimeSpan vigenciaEquipo;
     private readonly ILogger<RostroFacialService> logger;
@@ -63,7 +64,11 @@ public sealed class RostroFacialService
         vigenciaEquipo = TimeSpan.FromDays(Math.Max(1, configuration.GetValue("RostroFacial:DiasEquipo", 30)));
 
         if (clave is not null)
-            senuelo = Cifrar(CrearDescriptorSenuelo(), idEmpleado: 0);
+        {
+            var descriptor = CrearDescriptorSenuelo();
+            senuelo = new MuestrasCifradas(
+                Cifrar(descriptor, 0, LadoMuestra.Frente), Cifrar(descriptor, 0, LadoMuestra.Izquierda), Cifrar(descriptor, 0, LadoMuestra.Derecha));
+        }
     }
 
     // Sin clave valida el login facial queda deshabilitado, pero la API y el login con contraseña siguen funcionando.
@@ -99,7 +104,8 @@ public sealed class RostroFacialService
         return distintoDeCero;
     }
 
-    public byte[] Cifrar(float[] descriptor, int idEmpleado)
+    // Cada muestra se ata a su empleado y a su lado: copiada a otra fila o a otra columna, ya no se descifra.
+    public byte[] Cifrar(float[] descriptor, int idEmpleado, LadoMuestra lado)
     {
         var claro = new byte[Dimensiones * sizeof(float)];
         Buffer.BlockCopy(descriptor, 0, claro, 0, claro.Length);
@@ -110,7 +116,7 @@ public sealed class RostroFacialService
         RandomNumberGenerator.Fill(nonce);
 
         using var aes = new AesGcm(clave!, BytesTag);
-        aes.Encrypt(nonce, claro, cifrado.AsSpan(1 + BytesNonce + BytesTag), cifrado.AsSpan(1 + BytesNonce, BytesTag), DatosAsociados(idEmpleado));
+        aes.Encrypt(nonce, claro, cifrado.AsSpan(1 + BytesNonce + BytesTag), cifrado.AsSpan(1 + BytesNonce, BytesTag), DatosAsociados(idEmpleado, lado));
         CryptographicOperations.ZeroMemory(claro);
         return cifrado;
     }
@@ -121,13 +127,11 @@ public sealed class RostroFacialService
     // el email existe o tiene rostro. null si alguna muestra guardada no se pudo descifrar.
     public MedicionIntento? Medir(float[][] capturas, LadoGiro primero, MuestrasCifradas? muestras, int idEmpleado)
     {
-        var (frente, izquierda, derecha, id) = muestras is { } m
-            ? (m.Frente, m.Izquierda, m.Derecha, idEmpleado)
-            : (senuelo!, senuelo!, senuelo!, 0);
+        var (m, id) = muestras is not null ? (muestras, idEmpleado) : (senuelo!, 0);
 
-        var claroFrente = Descifrar(frente, id);
-        var claroIzquierda = Descifrar(izquierda, id);
-        var claroDerecha = Descifrar(derecha, id);
+        var claroFrente = Descifrar(m.Frente, id, LadoMuestra.Frente);
+        var claroIzquierda = Descifrar(m.Izquierda, id, LadoMuestra.Izquierda);
+        var claroDerecha = Descifrar(m.Derecha, id, LadoMuestra.Derecha);
         try
         {
             // Para quien intenta es un fallo mas. Quien llama decide si avisarlo en el log (suele indicar que
@@ -208,7 +212,7 @@ public sealed class RostroFacialService
         return restante > 0 ? Task.Delay(TimeSpan.FromMilliseconds(restante), ct) : Task.CompletedTask;
     }
 
-    private float[]? Descifrar(byte[] cifrado, int idEmpleado)
+    private float[]? Descifrar(byte[] cifrado, int idEmpleado, LadoMuestra lado)
     {
         if (cifrado.Length != 1 + BytesNonce + BytesTag + Dimensiones * sizeof(float) || cifrado[0] != Formato)
             return null;
@@ -217,7 +221,7 @@ public sealed class RostroFacialService
         try
         {
             using var aes = new AesGcm(clave!, BytesTag);
-            aes.Decrypt(cifrado.AsSpan(1, BytesNonce), cifrado.AsSpan(1 + BytesNonce + BytesTag), cifrado.AsSpan(1 + BytesNonce, BytesTag), claro, DatosAsociados(idEmpleado));
+            aes.Decrypt(cifrado.AsSpan(1, BytesNonce), cifrado.AsSpan(1 + BytesNonce + BytesTag), cifrado.AsSpan(1 + BytesNonce, BytesTag), claro, DatosAsociados(idEmpleado, lado));
         }
         catch (CryptographicException)
         {
@@ -236,8 +240,18 @@ public sealed class RostroFacialService
             Array.Clear(descriptor);
     }
 
-    // Ata el dato a su dueño: un descriptor copiado a la fila de otro empleado no se puede descifrar.
-    private static byte[] DatosAsociados(int idEmpleado) => Encoding.UTF8.GetBytes($"{ModeloDescriptor}:{idEmpleado}");
+    // Ata el dato a su dueño y a su lado: una muestra copiada a la fila de otro empleado, o a la columna de otro
+    // lado del mismo empleado, no se puede descifrar.
+    private static byte[] DatosAsociados(int idEmpleado, LadoMuestra lado) =>
+        Encoding.UTF8.GetBytes($"{ModeloDescriptor}:{idEmpleado}:{Nombre(lado)}");
+
+    private static string Nombre(LadoMuestra lado) => lado switch
+    {
+        LadoMuestra.Frente => "frente",
+        LadoMuestra.Izquierda => "izquierda",
+        LadoMuestra.Derecha => "derecha",
+        _ => throw new ArgumentOutOfRangeException(nameof(lado))
+    };
 
     private double Entre(double valor, double porDefecto, string nombre)
     {
@@ -269,6 +283,14 @@ public sealed class RostroFacialService
             descriptor[i] = RandomNumberGenerator.GetInt32(-1000, 1001) / 10000f;
         return descriptor;
     }
+}
+
+// La columna de cada muestra. Va en los datos asociados del cifrado.
+public enum LadoMuestra
+{
+    Frente,
+    Izquierda,
+    Derecha
 }
 
 // Las tres muestras cifradas de un rostro.

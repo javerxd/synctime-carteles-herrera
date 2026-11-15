@@ -22,9 +22,10 @@ public static class RostroApi
     {
         var auth = app.MapGroup("/api/v1/auth").WithTags("Login facial");
 
+        // Cupo propio (RateLimiting:DesafioFacial): pedir desafios no gasta los intentos de ingreso.
         auth.MapPost("/login-facial/desafio", PedirDesafioAsync)
             .AllowAnonymous()
-            .RequireRateLimiting("LoginFacial")
+            .RequireRateLimiting("DesafioFacial")
             .WithMetadata(new RequestSizeLimitAttribute(TamanoDesafio));
 
         auth.MapPost("/login-facial", IniciarSesionAsync)

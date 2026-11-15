@@ -1,6 +1,6 @@
 # Plan de la fase 10 — Rostro según requisitos
 
-Fecha: 15-11-2026 · Rama: `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · Estado: **aprobado el 15-11-2026** · especificación: `fase-10-especificacion.md` · construido el 15-11-2026, informe: `informes/fase-10.md`
+Fecha: 15-11-2026 · Rama: `fase-10-rostro-segun-requisitos` (nace de `fase-09-mantenedores-y-local`) · Estado: **aprobado el 15-11-2026** · especificación: `fase-10-especificacion.md` · construido y aprobado el 15-11-2026, informe: `informes/fase-10.md`
 
 Requisitos del plan general: RFS03 (ingreso facial), RFU21, RFU22 (parcial), RNFP12, RNFE06, E17, E18, S15, S16. Se suma tu pedido del 15-11-2026: la **prueba de vida con giros de cabeza**, con su flujo guiado y la calibración del umbral.
 

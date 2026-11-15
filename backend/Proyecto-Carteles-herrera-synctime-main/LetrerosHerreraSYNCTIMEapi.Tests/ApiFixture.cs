@@ -70,6 +70,7 @@ public sealed class ApiFixture : IAsyncLifetime
             ["RateLimiting__ApiGeneral"] = "100000",
             ["RateLimiting__Login"] = "100000",
             ["RateLimiting__LoginFacial"] = "100000",
+            ["RateLimiting__DesafioFacial"] = "100000",
             ["RateLimiting__Reautenticacion"] = "100000",
             ["RateLimiting__Publico"] = "100000",
             ["RateLimiting__ContactoPorHora"] = "100000",

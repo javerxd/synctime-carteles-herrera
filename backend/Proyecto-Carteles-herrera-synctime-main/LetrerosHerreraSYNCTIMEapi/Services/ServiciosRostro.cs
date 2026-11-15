@@ -296,10 +296,10 @@ public sealed class ServicioRostros(
         var rostro = new RostroEmpleado
         {
             IdEmpleado = idTitular,
-            DescriptorFrente = rostros.Cifrar(muestras.Frente!.Descriptor!, idTitular),
-            DescriptorIzquierda = rostros.Cifrar(muestras.Izquierda!.Descriptor!, idTitular),
-            DescriptorDerecha = rostros.Cifrar(muestras.Derecha!.Descriptor!, idTitular),
-            FormatoMuestras = RostroEmpleado.FormatoTresMuestras,
+            DescriptorFrente = rostros.Cifrar(muestras.Frente!.Descriptor!, idTitular, LadoMuestra.Frente),
+            DescriptorIzquierda = rostros.Cifrar(muestras.Izquierda!.Descriptor!, idTitular, LadoMuestra.Izquierda),
+            DescriptorDerecha = rostros.Cifrar(muestras.Derecha!.Descriptor!, idTitular, LadoMuestra.Derecha),
+            FormatoMuestras = RostroEmpleado.FormatoMuestrasPorLado,
             IdEmpleadoRegistra = idRegistra,
             FechaConsentimiento = ahora,
             VersionConsentimiento = ConsentimientoFacial.Version,
@@ -376,7 +376,7 @@ public sealed class ServicioRostros(
                 r.FechaConsentimiento,
                 r.VersionConsentimiento,
                 r.FechaRevocacion,
-                Completo = r.FormatoMuestras == RostroEmpleado.FormatoTresMuestras
+                Completo = r.FormatoMuestras == RostroEmpleado.FormatoMuestrasPorLado
                     && r.DescriptorFrente != null && r.DescriptorIzquierda != null && r.DescriptorDerecha != null,
                 RegistradoPor = r.EmpleadoRegistra == null ? null : r.EmpleadoRegistra.Nombre + " " + r.EmpleadoRegistra.Apellido
             })
