@@ -296,11 +296,20 @@ Pendientes que quedan para después de la fase 11:
 | Requisito | Qué falta | Por qué queda para después | Responsable |
 |---|---|---|---|
 | RFS12, S20 | Registrar quién exportó cada reporte | Las exportaciones son de la fase 13 | Claude, fase 13 |
-| RNFE01 | Plazo de borrado de la IP guardada en la bitácora | La bitácora no tiene purga en esta fase | Usuario: decidir el plazo |
+| RNFE01 | ~~Plazo de borrado de la IP guardada en la bitácora~~ **Decidido el 16-11-2026: 90 días** (ver fase 12A) | La purga se construye en la fase 12B | Claude, fase 12B |
 | RFS12 | Usuario de la base sin permisos de dueño, para que nadie pueda desactivar el trigger de la bitácora | Corresponde al despliegue | Claude, fase 16 |
 | RFU09 | El trabajador de la cola no vuelve a revisar la baja al enviar un correo opcional que ya estaba en la cola | Riesgo bajo: el aviso ya estaba encolado antes de la baja | Claude, si el usuario lo pide |
 | RFU34 | Tras la baja, las demás rutas del cliente siguen aceptando su token hasta que vence (como máximo 15 minutos) | Igual que la desactivación de empleados (fase 9) | — |
 | Base real | Aplicar las migraciones pendientes (ahora 11, incluida `NotificacionesYAuditoria`) con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario) | Usuario |
+
+## Decisiones y pendientes de la fase 12A (16-11-2026)
+
+| Requisito | Decisión | Detalle |
+|---|---|---|
+| RNFE01 | **Retención de la IP en la bitácora de auditoría: 90 días** (decisión del usuario, 16-11-2026) | Pasados 90 días se borra **solo la IP** (`Ip = NULL`); el registro de auditoría queda intacto. Mismo criterio que los correos fallidos. Se anota en la política de privacidad (`textos.js`). La tarea de purga se construye en la 12B |
+| Fase 12 | Se divide en 12A (contrato y frontend con datos de demostración) y 12B (backend, vistas SQL, índices, purga de IP y conexión real) | Decisión del usuario, 16-11-2026 |
+| RNFO16, RNFO17 | Gráficos en SVG propio, sin librerías | Sin dependencias nuevas ni licencias que revisar |
+| — | Aviso visible «Datos de demostración» mientras `VITE_INDICADORES_DEMO` esté activo | El cambio a la API real en la 12B no toca las pantallas |
 
 ## Restricciones del equipo de desarrollo
 
