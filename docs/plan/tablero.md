@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 16-11-2026 (fase 11 construida, en revisión).
+Última actualización: 16-11-2026 (fase 11 aprobada; la fase 12 empieza por su plan).
 
 ## Hecho
 
@@ -18,10 +18,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` · informe: `informes/fase-08.md` · aprobada el 14-11-2026 · pendiente del usuario, sin bloquear: decidir si la API lleva clave de idempotencia (`desviaciones.md`)
 - **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` · informe: `informes/fase-09.md` · aprobada el 15-11-2026 · incluye los avisos del taller · el usuario confirmó (15-11-2026) que el administrador puede dar y quitar el rol de dueño
 - **Fase 10 — Rostro según requisitos** · rama `fase-10-rostro-segun-requisitos` · informe: `informes/fase-10.md` · aprobada el 15-11-2026 · incluye la prueba de vida con giros, la calibración (umbral 0.45, calibrado por el usuario), el límite propio del desafío y el lado de cada muestra en el cifrado
+- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` · informe: `informes/fase-11.md` · aprobada el 16-11-2026 · pendiente del usuario, sin bloquear: plazo de borrado de la IP en la bitácora
 
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` · informe: `informes/fase-11.md` · incluye los avisos del taller como correos operativos (preferencia por destino, «Correos no enviados» con reenviar, auditoría de los avisos) y la idempotencia y las versiones pendientes de las fases 8 y 9
+_(ninguna)_
 
 ## En curso
 

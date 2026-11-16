@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 11: notificaciones, auditoría y privacidad
 
-Fecha: 16-11-2026 · Rama: `fase-11-notificaciones-auditoria-y-privacidad` (nace de `fase-10-rostro-segun-requisitos`) · Estado: **en revisión, esperando tu visto bueno**
+Fecha: 16-11-2026 · Rama: `fase-11-notificaciones-auditoria-y-privacidad` (nace de `fase-10-rostro-segun-requisitos`) · Estado: **aprobada el 16-11-2026**
 
 Plan aprobado: `fase-11-plan.md`, con tus cinco decisiones del 15-11-2026, y su especificación en `fase-11-especificacion.md`. Incluye tus pedidos sobre los **avisos del taller como correos operativos** y la **revisión de concurrencia e idempotencia**.
 
