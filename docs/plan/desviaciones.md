@@ -310,6 +310,14 @@ Pendientes que quedan para después de la fase 11:
 | Fase 12 | Se divide en 12A (contrato y frontend con datos de demostración) y 12B (backend, vistas SQL, índices, purga de IP y conexión real) | Decisión del usuario, 16-11-2026 |
 | RNFO16, RNFO17 | Gráficos en SVG propio, sin librerías | Sin dependencias nuevas ni licencias que revisar |
 | — | Aviso visible «Datos de demostración» mientras `VITE_INDICADORES_DEMO` esté activo | El cambio a la API real en la 12B no toca las pantallas |
+| — | Sin la variable `VITE_INDICADORES_DEMO`, la demo se enciende **solo en desarrollo y en las pruebas**; un build de producción usa la API real salvo `VITE_INDICADORES_DEMO=true` | Hallazgo de la revisión de ECC: así un build de producción nunca muestra cifras de ejemplo por olvido |
+| ContratoTests | Las seis rutas de `/api/v1/indicadores` quedan en `openapi.json` bajo `x-planificadas`, fuera de `paths` | La prueba compara `paths` con la API real: sigue en verde (3 de 3) y la 12B mueve las rutas a `paths` al implementarlas |
+| S24 | El saldo del dashboard parte en **«Saldo del período»** y tiene a un clic **«Toda la deuda vigente»** (`alcanceSaldo=vigente`), que ignora las fechas | Precisión del usuario del 16-11-2026, para no ocultar cobros antiguos. El inicio del dueño muestra siempre toda la deuda vigente |
+| RFS09 | Las «siete tarjetas» del plan son siete indicadores más el saldo por cobrar, destacado aparte (ocho bloques de cifra) | El plan nombraba ocho cifras; el saldo va separado por ser la alerta |
+| — | El filtro de estado del pedido no ofrece «Anulado» | Ningún indicador cuenta los anulados (fórmulas del plan general) |
+| RNFE01 | La línea de los 90 días se agregó a la política de privacidad **sin subir su versión (1.0)** | Subirla obliga a pedir de nuevo el consentimiento y a cambiar `DocumentosLegales.cs` (backend). **Usuario: decidir si se sube a 1.1 en la 12B** |
+| — | Mientras dure la demo, el inicio del dueño mezcla cifras de ejemplo (indicadores del mes, con su insignia) con las reales de «Entregas y cobranza» | Desaparece al conectar la API en la 12B |
+| — | Dos pruebas antiguas fallan a veces al correr toda la suite (`cotizaciones.test.jsx` y `pedidosFase8.test.jsx`, una distinta en cada corrida) y pasan al repetirla | Son de tiempo bajo carga, no de esta fase; se revisan en la fase 15 |
 
 ## Restricciones del equipo de desarrollo
 

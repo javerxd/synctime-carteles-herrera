@@ -7,6 +7,7 @@ import { menuPara, GESTION } from '../../estructuras/navegacion';
 import { useSesion } from '../../sesion/sesion';
 import { useConsulta } from '../../utilidades/useConsulta';
 import { AvisoCorreosNoEnviados } from '../correos/AvisoCorreosNoEnviados';
+import { MetricasInicio } from '../indicadores/MetricasInicio';
 import { AlertasGestion } from '../pedidos/AlertasGestion';
 import { SolicitudesPorAtender } from '../solicitudes/panel/SolicitudesPorAtender';
 import estilos from './Panel.module.css';
@@ -18,7 +19,7 @@ const DESCRIPCIONES = {
   '/panel/calendario': 'Entregas por día, pendientes y entregadas.',
   '/panel/clientes': 'Listado y ficha, con búsqueda por RUT o teléfono.',
   '/panel/local': 'Cartel abierto o cerrado, horario y código QR.',
-  '/panel/indicadores': 'Pedidos, ingresos, cobranza y conversión.',
+  '/panel/indicadores': 'Dashboard: ingresos, pedidos, cobranza y conversión.',
   '/panel/reportes': 'Reportes operativo, gerencial y parametrizable.',
   '/panel/mantenedores': 'Catálogo, materiales y categorías.',
   '/panel/rostros': 'Quién entra con su rostro y la calibración.',
@@ -67,6 +68,8 @@ export default function InicioPanel() {
       {esGestion && <AvisoCorreosNoEnviados />}
 
       <SolicitudesPorAtender />
+
+      {esGestion && <MetricasInicio />}
 
       {esGestion && <AlertasGestion />}
 

@@ -435,6 +435,36 @@ test('un operario ve su menú sin Gestión y recibe la página 403 en Indicadore
   await expect(page.getByRole('heading', { name: 'No tienes permiso para ver esta página' })).toBeVisible();
 });
 
+// Fase 12A: el dashboard con el adaptador de demostración (VITE_INDICADORES_DEMO), a 360 px.
+test('dashboard: el anillo filtra la tabla, cada gráfico tiene su tabla y el saldo cambia de alcance', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 900 });
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel/indicadores');
+  await expect(page.getByText('Datos de demostración')).toBeVisible();
+
+  const resumen = page.getByRole('region', { name: 'Resumen del período' });
+  await expect(resumen.getByText('Saldo del período')).toBeVisible();
+  await resumen.getByRole('button', { name: 'Ver toda la deuda vigente' }).click();
+  await expect(resumen.getByText('Toda la deuda vigente')).toBeVisible();
+  await expect(page).toHaveURL(/alcanceSaldo=vigente/);
+
+  const cobranza = page.getByRole('region', { name: 'Cobranza' });
+  await cobranza.getByRole('button', { name: /^No pagado/ }).click();
+  await expect(page).toHaveURL(/cobro=no_pagado/);
+  const tabla = page.getByRole('region', { name: 'Pedidos por cobrar' });
+  await expect(tabla.getByRole('button', { name: /Quitar el filtro por estado de pago/ })).toBeVisible();
+
+  const evolucion = page.getByRole('region', { name: 'Evolución comercial' });
+  await evolucion.getByRole('button', { name: 'Tabla de datos' }).click();
+  await expect(evolucion.getByRole('table')).toBeVisible();
+  // Mientras un bloque se recarga se ve atenuado: se mide cuando todos terminaron y pasó la transición.
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+  expect(violations.filter((v) => ['critical', 'serious'].includes(v.impact)).map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
+});
+
 test('sin sesión, el panel lleva al acceso del personal', async ({ page }) => {
   await page.goto('/panel/pedidos');
   await expect(page.getByRole('heading', { name: 'Acceso del personal' })).toBeVisible();

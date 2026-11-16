@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 16-11-2026 (fase 11 aprobada; la fase 12 empieza por su plan).
+Última actualización: 16-11-2026 (fase 12A cerrada, esperando tu visto bueno).
 
 ## Hecho
 
@@ -18,11 +18,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 8 — Cotizaciones, pedidos, pagos y abonos** · rama `fase-08-cotizaciones-y-pedidos` · informe: `informes/fase-08.md` · aprobada el 14-11-2026 · pendiente del usuario, sin bloquear: decidir si la API lleva clave de idempotencia (`desviaciones.md`)
 - **Fase 9 — Mantenedores y estado del local** · rama `fase-09-mantenedores-y-local` · informe: `informes/fase-09.md` · aprobada el 15-11-2026 · incluye los avisos del taller · el usuario confirmó (15-11-2026) que el administrador puede dar y quitar el rol de dueño
 - **Fase 10 — Rostro según requisitos** · rama `fase-10-rostro-segun-requisitos` · informe: `informes/fase-10.md` · aprobada el 15-11-2026 · incluye la prueba de vida con giros, la calibración (umbral 0.45, calibrado por el usuario), el límite propio del desafío y el lado de cada muestra en el cifrado
-- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` · informe: `informes/fase-11.md` · aprobada el 16-11-2026 · pendiente del usuario, sin bloquear: plazo de borrado de la IP en la bitácora
+- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` · informe: `informes/fase-11.md` · aprobada el 16-11-2026 · plazo de la IP en la bitácora decidido el 16-11-2026: 90 días (purga en la 12B)
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 12A — Dashboard: contrato y frontend** · rama `fase-12a-dashboard-frontend` · informe: `informes/fase-12a.md` · con datos de demostración (`VITE_INDICADORES_DEMO`) hasta la 12B
 
 ## En curso
 
@@ -32,7 +32,7 @@ _(ninguna)_
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 12 | Indicadores y dashboard | 8 | — |
+| 12B | Dashboard: backend, vistas SQL, índices, purga de la IP y conexión real | 12A | — |
 | 13 | Reportes y exportaciones | 11, 12 | — |
 | 14 | Google y asistente de IA | 6, 7, 9 | ID de cliente OAuth de Google; clave de IA |
 | 15 | Calidad: rendimiento, accesibilidad y compatibilidad | 13, 14 | Prueba con NVDA; prueba en Safari real |

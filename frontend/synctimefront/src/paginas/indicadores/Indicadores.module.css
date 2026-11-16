@@ -1,0 +1,942 @@
+/* Fase 12A: dashboard de indicadores. Blancos y grises, tinta para los datos, ámbar solo en lo activo y en las
+   acciones; los tonos de estado (amarillo, azul, verde) solo en la cobranza, igual que sus insignias. */
+.pagina {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+.titulo {
+  font-size: var(--tamano-2xl);
+}
+
+.bajada {
+  margin-top: var(--espacio-1);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* ── Filtros ── */
+.filaFiltros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  align-items: start;
+  gap: var(--espacio-3) var(--espacio-4);
+}
+
+.periodos {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 64rem) {
+  .periodos {
+    grid-column: auto / span 2;
+  }
+}
+
+.etiquetaFiltro {
+  display: block;
+  margin-bottom: var(--espacio-2);
+  padding: 0;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+}
+
+.rango,
+.grupoChips {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.camposRango {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  align-items: end;
+  gap: var(--espacio-3);
+}
+
+.botonRango {
+  margin-bottom: 1.75rem; /* alinea con los campos, que reservan el renglón del error */
+}
+
+.filaFiltros,
+.rango,
+.masFiltros {
+  flex: 1 1 100%;
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.masFiltros {
+  border-top: 1px solid var(--color-borde);
+  padding-top: var(--espacio-3);
+}
+
+.masFiltros summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tamano-control-compacto);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  cursor: pointer;
+}
+
+.contenidoFiltros {
+  display: grid;
+  gap: var(--espacio-4);
+  padding-top: var(--espacio-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.filtroCliente {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+}
+
+.filtroCliente > :first-child {
+  justify-self: stretch;
+}
+
+.ayudaRango {
+  margin: calc(var(--espacio-1) * -1) 0 var(--espacio-2);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* ── Bloques ── */
+.bloque {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--espacio-4);
+  min-width: 0;
+  padding: var(--espacio-5);
+  border: 1px solid var(--color-borde-sutil);
+  border-radius: var(--radio-lg);
+  background: var(--color-superficie);
+  box-shadow: var(--sombra-reposo);
+  transition: opacity var(--duracion-estado) var(--curva-estandar);
+}
+
+.actualizando {
+  opacity: 0.6;
+}
+
+.bloqueResumen {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.cabeceraBloque {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+}
+
+.textosBloque {
+  display: grid;
+  gap: var(--espacio-1);
+  min-width: min(100%, 16rem);
+  flex: 1 1 16rem;
+}
+
+.tituloBloque {
+  font-size: var(--tamano-md);
+}
+
+.narrativa {
+  color: var(--color-texto);
+  font-size: var(--tamano-sm);
+  max-width: var(--medida-lectura);
+}
+
+.descripcionBloque {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.controlesBloque {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.vacioBloque {
+  padding-block: var(--espacio-6);
+}
+
+/* Conmutador segmentado: la opción elegida, con fondo de superficie y borde (no solo color) */
+.conmutador {
+  display: inline-flex;
+  padding: var(--espacio-0-5);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  background: var(--color-fondo-hundido);
+}
+
+.opcionConmutador {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1-5);
+  min-height: var(--tamano-control-compacto);
+  padding: 0 var(--espacio-3);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radio-md) - 2px);
+  background: transparent;
+  color: var(--color-texto-secundario);
+  font: inherit;
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-medio);
+  cursor: pointer;
+  transition: background-color var(--duracion-estado) var(--curva-estandar), color var(--duracion-estado) var(--curva-estandar);
+}
+
+.opcionConmutador:hover {
+  color: var(--color-texto);
+}
+
+.opcionConmutador[aria-pressed='true'] {
+  border-color: var(--color-borde-fuerte);
+  background: var(--color-superficie);
+  box-shadow: var(--sombra-reposo);
+  color: var(--color-texto);
+  font-weight: var(--peso-seminegrita);
+}
+
+@media (pointer: coarse) {
+  .opcionConmutador {
+    min-height: var(--tamano-control);
+  }
+}
+
+/* ── Tarjetas ── */
+.resumen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-4);
+}
+
+@media (min-width: 64rem) {
+  .resumen {
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 3fr);
+    align-items: start;
+  }
+}
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--espacio-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tarjeta,
+.tarjetaSaldo {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-1);
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-borde-sutil);
+  border-radius: var(--radio-lg);
+  background: var(--color-superficie);
+  box-shadow: var(--sombra-reposo);
+}
+
+.nombreTarjeta {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.valorTarjeta {
+  font-size: var(--tamano-xl);
+  font-weight: var(--peso-seminegrita);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-titulo);
+}
+
+.unidadTarjeta,
+.detalleTarjeta {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.formula {
+  margin-top: var(--espacio-1);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  line-height: var(--interlineado-compacto);
+}
+
+.variacion {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-1);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.variacion svg {
+  flex: none;
+  margin-top: 0.15em;
+}
+
+.favorable {
+  color: var(--tono-exito-texto);
+}
+
+.desfavorable {
+  color: var(--tono-peligro-texto);
+}
+
+.meta {
+  display: grid;
+  gap: var(--espacio-1);
+  margin-top: var(--espacio-1);
+}
+
+.pistaMeta {
+  position: relative;
+  height: 0.5rem;
+  border-radius: var(--radio-pildora);
+  background: var(--color-fondo-hundido);
+}
+
+.rellenoMeta {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-texto-secundario);
+}
+
+.marcaMeta {
+  position: absolute;
+  top: -0.25rem;
+  bottom: -0.25rem;
+  width: 2px;
+  background: var(--color-texto);
+}
+
+.textoMeta {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+/* Saldo por cobrar: la alerta del dashboard (borde y fondo de aviso, icono y texto) */
+.tarjetaSaldo {
+  gap: var(--espacio-2);
+  border-color: var(--tono-aviso-borde);
+  background: var(--tono-aviso-fondo);
+}
+
+.cabeceraSaldo {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.iconoSaldo {
+  color: var(--tono-aviso-texto);
+}
+
+.cabeceraSaldo .nombreTarjeta {
+  color: var(--tono-aviso-texto);
+}
+
+.alcance {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-1-5);
+  color: var(--color-texto);
+  font-size: var(--tamano-sm);
+}
+
+.alcance svg {
+  flex: none;
+  margin-top: 0.2em;
+}
+
+.valorSaldo {
+  font-size: var(--tamano-3xl);
+  font-weight: var(--peso-negrita);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-titulo);
+  line-height: var(--interlineado-titulo);
+}
+
+.botonAlcance {
+  justify-self: start;
+  margin-top: var(--espacio-2);
+}
+
+/* ── Gráficos ── */
+.graficos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-4);
+}
+
+@media (min-width: 64rem) {
+  .graficos {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas: 'evolucion cobranza' 'embudo demanda';
+  }
+
+  .areaEvolucion { grid-area: evolucion; }
+  .areaCobranza { grid-area: cobranza; }
+  .areaEmbudo { grid-area: embudo; }
+  .areaDemanda { grid-area: demanda; }
+}
+
+.guia {
+  stroke: var(--color-borde);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.base {
+  stroke: var(--color-borde-fuerte);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Evolución */
+.figuraEvolucion {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.leyendaSeries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-1) var(--espacio-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.leyendaSeries li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.muestraActual,
+.muestraComparacion {
+  width: 1.5rem;
+  height: 0;
+  border-top: 3px solid var(--color-texto);
+}
+
+.muestraComparacion {
+  border-top: 2px dashed var(--color-texto-secundario);
+}
+
+.lienzo {
+  position: relative;
+  padding-top: var(--espacio-5);
+  border-radius: var(--radio-sm);
+}
+
+.lienzo:focus-visible {
+  outline: 2px solid var(--color-foco);
+  outline-offset: 4px;
+}
+
+.ejeMaximo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.svgEvolucion {
+  display: block;
+  width: 100%;
+  height: 13rem;
+  overflow: visible;
+}
+
+.area {
+  fill: var(--color-texto);
+  opacity: 0.07;
+}
+
+.lineaActual,
+.lineaComparacion {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.lineaActual {
+  stroke: var(--color-texto);
+  stroke-width: 2.5;
+}
+
+.lineaComparacion {
+  stroke: var(--color-texto-secundario);
+  stroke-width: 1.75;
+  stroke-dasharray: 6 5;
+}
+
+.cursor {
+  stroke: var(--color-acento);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.globo {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: var(--espacio-0-5);
+  min-width: 9rem;
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  background: var(--color-superficie);
+  box-shadow: var(--sombra-flotante);
+  font-size: var(--tamano-sm);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: aparecer var(--duracion-estado) var(--curva-resorte);
+}
+
+/* El globo no se sale del gráfico en los extremos */
+.globoInicio {
+  transform: none;
+}
+
+.globoFin {
+  transform: translateX(-100%);
+}
+
+.globoComparacion {
+  color: var(--color-texto-secundario);
+}
+
+@keyframes aparecer {
+  from { opacity: 0; translate: 0 4px; }
+}
+
+.ejeX {
+  position: relative;
+  height: 1.25rem;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+.ejeX span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.ejeX span:first-child {
+  transform: none;
+}
+
+/* Cobranza */
+.cobranza {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: var(--espacio-4);
+}
+
+@media (min-width: 30rem) {
+  .cobranza {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+  }
+}
+
+.anillo {
+  position: relative;
+  width: 12rem;
+  aspect-ratio: 1;
+}
+
+.anillo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pistaAnillo {
+  fill: none;
+  stroke: var(--color-fondo-hundido);
+  stroke-width: 16;
+}
+
+.segmento {
+  fill: none;
+  stroke-width: 16;
+  transition: stroke-width var(--duracion-estado) var(--curva-resorte);
+}
+
+.segmentoFiltrable {
+  cursor: pointer;
+}
+
+.segmentoElegido {
+  stroke-width: 22;
+}
+
+.segmento_no_pagado,
+.muestra_no_pagado { stroke: var(--tono-aviso-solido); background: var(--tono-aviso-solido); }
+.segmento_abonado,
+.muestra_abonado { stroke: var(--tono-info-solido); background: var(--tono-info-solido); }
+.segmento_pagado_total,
+.muestra_pagado_total { stroke: var(--tono-exito-solido); background: var(--tono-exito-solido); }
+
+/* Un disco de superficie dentro del hueco del anillo: la cifra siempre tiene fondo propio */
+.centroAnillo {
+  position: absolute;
+  inset: 17%;
+  border-radius: 50%;
+  background: var(--color-superficie);
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.valorCentro {
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-negrita);
+  font-variant-numeric: tabular-nums;
+}
+
+.textoCentro {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+.leyendaCobranza {
+  display: grid;
+  gap: var(--espacio-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.itemLeyenda {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  width: 100%;
+  min-height: var(--tamano-control);
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  background: var(--color-superficie);
+  color: var(--color-texto);
+  font: inherit;
+  text-align: start;
+}
+
+button.itemLeyenda {
+  cursor: pointer;
+  transition: border-color var(--duracion-estado) var(--curva-estandar), background-color var(--duracion-estado) var(--curva-estandar);
+}
+
+button.itemLeyenda:hover {
+  background: var(--color-hover-neutro);
+}
+
+button.itemLeyenda[aria-pressed='true'] {
+  border-color: var(--color-acento);
+  background: var(--color-acento-suave);
+}
+
+.muestraSegmento {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+}
+
+.iconoLeyenda {
+  flex: none;
+  color: var(--color-texto-secundario);
+}
+
+.textoLeyenda {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.nombreLeyenda {
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.cifrasLeyenda {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.marcaLeyenda {
+  flex: none;
+  color: var(--color-acento);
+}
+
+/* Embudo */
+.embudo {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pasoEmbudo {
+  display: grid;
+  gap: var(--espacio-1);
+}
+
+.transicion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+.filaEmbudo {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--espacio-1) var(--espacio-3);
+  font-size: var(--tamano-sm);
+}
+
+.nombrePaso {
+  font-weight: var(--peso-medio);
+}
+
+.cifrasPaso {
+  color: var(--color-texto-secundario);
+  font-variant-numeric: tabular-nums;
+}
+
+.cifrasPaso strong {
+  color: var(--color-texto);
+}
+
+.pistaEmbudo {
+  display: flex;
+  justify-content: center;
+  height: 1.5rem;
+  border-radius: var(--radio-sm);
+  background: var(--color-fondo-alterno);
+}
+
+.barraEmbudo {
+  display: block;
+  height: 100%;
+  border-radius: var(--radio-sm);
+  background: var(--color-texto-secundario);
+}
+
+.barraFinal {
+  background: var(--color-texto);
+}
+
+/* Demanda */
+.demanda {
+  display: grid;
+  gap: var(--espacio-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.filaDemanda {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'nombre valor' 'pista pista';
+  gap: var(--espacio-1) var(--espacio-3);
+  font-size: var(--tamano-sm);
+}
+
+.nombreDemanda { grid-area: nombre; }
+
+.valorDemanda {
+  grid-area: valor;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--peso-seminegrita);
+}
+
+.pistaDemanda {
+  grid-area: pista;
+  height: 0.75rem;
+  border-radius: var(--radio-sm);
+  background: var(--color-fondo-hundido);
+}
+
+.barraDemanda {
+  display: block;
+  height: 100%;
+  border-radius: var(--radio-sm);
+  background: var(--color-texto-secundario);
+  transition: width var(--duracion-entrada) var(--curva-resorte);
+}
+
+/* Tablas de datos de los gráficos */
+.marcoTabla {
+  overflow-x: auto;
+  border-radius: var(--radio-sm);
+}
+
+.marcoTabla:focus-visible {
+  outline: 2px solid var(--color-foco);
+  outline-offset: 2px;
+}
+
+.tablaDatos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--tamano-sm);
+}
+
+.tablaDatos th,
+.tablaDatos td {
+  padding: var(--espacio-2) var(--espacio-2);
+  border-bottom: 1px solid var(--color-borde);
+  text-align: start;
+}
+
+.tablaDatos td {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.tablaDatos thead th {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+  font-weight: var(--peso-seminegrita);
+}
+
+.tablaDatos tfoot th,
+.tablaDatos tfoot td {
+  border-bottom: none;
+  font-weight: var(--peso-seminegrita);
+}
+
+/* Pedidos por cobrar */
+.barraTabla {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-4);
+}
+
+.accionesTabla {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.sinCorte {
+  white-space: nowrap;
+}
+
+.estadosFila {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-1);
+}
+
+.totalTabla {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: var(--espacio-1) var(--espacio-3);
+  padding-top: var(--espacio-3);
+  border-top: 1px solid var(--color-borde-fuerte);
+  font-size: var(--tamano-sm);
+}
+
+.totalTabla strong {
+  font-size: var(--tamano-lg);
+}
+
+/* Inicio del dueño: métricas principales */
+.metricasInicio {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: var(--espacio-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bloque,
+  .opcionConmutador,
+  .segmento,
+  .barraDemanda,
+  button.itemLeyenda {
+    transition: none;
+  }
+
+  .globo {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .lineaActual,
+  .cursor {
+    stroke: CanvasText;
+  }
+
+  .area {
+    fill: CanvasText;
+  }
+
+  .barraEmbudo,
+  .barraDemanda,
+  .rellenoMeta,
+  .muestraSegmento {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  .opcionConmutador[aria-pressed='true'],
+  button.itemLeyenda[aria-pressed='true'] {
+    outline: 2px solid Highlight;
+  }
+}

@@ -1290,5 +1290,1086 @@
         }
       }
     }
+  },
+  "x-planificadas": {
+    "descripcion": "Rutas del dashboard (fase 12) acordadas en la 12A y construidas en la 12B. Contrato completo en docs/plan/fase-12-especificacion.md. No están en `paths` porque aún no existen en la API: ContratoTests compara `paths` con la API real. La 12B las mueve a `paths` en el mismo commit que las implementa.",
+    "parametros": {
+      "periodo": {
+        "name": "periodo",
+        "in": "query",
+        "required": false,
+        "description": "Período relativo a hoy (Chile). Predeterminado: mes.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "semana",
+            "mes",
+            "anio"
+          ]
+        }
+      },
+      "desde": {
+        "name": "desde",
+        "in": "query",
+        "required": false,
+        "description": "Inicio del rango propio (aaaa-mm-dd). Exige `hasta` y gana a todo lo demás.",
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "hasta": {
+        "name": "hasta",
+        "in": "query",
+        "required": false,
+        "description": "Fin del rango propio (aaaa-mm-dd).",
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "anio": {
+        "name": "anio",
+        "in": "query",
+        "required": false,
+        "description": "Año (2020 a 2100). Gana a `periodo`.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "mes": {
+        "name": "mes",
+        "in": "query",
+        "required": false,
+        "description": "Mes (1 a 12). Exige `anio`.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "comparar": {
+        "name": "comparar",
+        "in": "query",
+        "required": false,
+        "description": "Período de comparación. Predeterminado: anterior.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "anterior",
+            "anio_anterior",
+            "ninguno"
+          ]
+        }
+      },
+      "estadoPedido": {
+        "name": "estadoPedido",
+        "in": "query",
+        "required": false,
+        "description": "Lista separada por comas de aceptado, en_proceso, terminado, entregado (los anulados nunca cuentan).",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "estadoPago": {
+        "name": "estadoPago",
+        "in": "query",
+        "required": false,
+        "description": "Lista separada por comas de no_pagado, abonado, pagado_total, o el atajo por_cobrar.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "categoria": {
+        "name": "categoria",
+        "in": "query",
+        "required": false,
+        "description": "Id de categoría: el pedido entra si alguno de sus ítems es de ella.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "origen": {
+        "name": "origen",
+        "in": "query",
+        "required": false,
+        "description": "Origen del pedido o de la solicitud.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "online",
+            "presencial"
+          ]
+        }
+      },
+      "cliente": {
+        "name": "cliente",
+        "in": "query",
+        "required": false,
+        "description": "Id del cliente.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "alcanceSaldo": {
+        "name": "alcanceSaldo",
+        "in": "query",
+        "required": false,
+        "description": "periodo (predeterminado) o vigente: toda la deuda, sin límite de fecha (saldo, cobranza y por cobrar).",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "periodo",
+            "vigente"
+          ]
+        }
+      }
+    },
+    "esquemas": {
+      "Periodo": {
+        "type": "object",
+        "required": [
+          "tipo",
+          "desde",
+          "hasta",
+          "etiqueta"
+        ],
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "semana",
+              "mes",
+              "anio",
+              "rango"
+            ]
+          },
+          "desde": {
+            "type": "string",
+            "format": "date"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date"
+          },
+          "etiqueta": {
+            "type": "string"
+          }
+        }
+      },
+      "Tarjeta": {
+        "type": "object",
+        "required": [
+          "clave",
+          "unidad",
+          "valor",
+          "anterior",
+          "variacion",
+          "tipoVariacion"
+        ],
+        "properties": {
+          "clave": {
+            "type": "string",
+            "enum": [
+              "ingresos",
+              "pedidos",
+              "origen",
+              "concretadas",
+              "conversion",
+              "ticketPromedio",
+              "entregasATiempo"
+            ]
+          },
+          "unidad": {
+            "type": "string",
+            "enum": [
+              "pesos",
+              "cantidad",
+              "porcentaje"
+            ]
+          },
+          "valor": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "anterior": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "variacion": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tipoVariacion": {
+            "type": "string",
+            "enum": [
+              "porcentaje",
+              "puntos"
+            ]
+          },
+          "detalle": {
+            "type": "object",
+            "description": "origen: { presenciales, porcentajeEnLinea }; concretadas: { solicitudesEnLinea }"
+          }
+        }
+      },
+      "Resumen": {
+        "type": "object",
+        "required": [
+          "periodo",
+          "comparacion",
+          "tarjetas",
+          "saldo"
+        ],
+        "properties": {
+          "periodo": {
+            "$ref": "#/x-planificadas/esquemas/Periodo"
+          },
+          "comparacion": {
+            "oneOf": [
+              {
+                "$ref": "#/x-planificadas/esquemas/Periodo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tarjetas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/x-planificadas/esquemas/Tarjeta"
+            },
+            "minItems": 7,
+            "maxItems": 7
+          },
+          "saldo": {
+            "type": "object",
+            "required": [
+              "alcance",
+              "valor",
+              "cantidad",
+              "anterior",
+              "variacion"
+            ],
+            "properties": {
+              "alcance": {
+                "type": "string",
+                "enum": [
+                  "periodo",
+                  "vigente"
+                ]
+              },
+              "valor": {
+                "type": "integer"
+              },
+              "cantidad": {
+                "type": "integer"
+              },
+              "anterior": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "variacion": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "Evolucion": {
+        "type": "object",
+        "required": [
+          "periodo",
+          "comparacion",
+          "granularidad",
+          "serie"
+        ],
+        "properties": {
+          "periodo": {
+            "$ref": "#/x-planificadas/esquemas/Periodo"
+          },
+          "comparacion": {
+            "oneOf": [
+              {
+                "$ref": "#/x-planificadas/esquemas/Periodo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "granularidad": {
+            "type": "string",
+            "enum": [
+              "dia",
+              "semana",
+              "mes"
+            ]
+          },
+          "serie": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "desde",
+                "hasta",
+                "etiqueta",
+                "ingresos",
+                "pedidos",
+                "ingresosComparacion",
+                "pedidosComparacion"
+              ],
+              "properties": {
+                "desde": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "hasta": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "etiqueta": {
+                  "type": "string"
+                },
+                "ingresos": {
+                  "type": "integer"
+                },
+                "pedidos": {
+                  "type": "integer"
+                },
+                "ingresosComparacion": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "pedidosComparacion": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Cobranza": {
+        "type": "object",
+        "required": [
+          "periodo",
+          "alcance",
+          "segmentos",
+          "saldoTotal",
+          "cantidadPorCobrar"
+        ],
+        "properties": {
+          "periodo": {
+            "$ref": "#/x-planificadas/esquemas/Periodo"
+          },
+          "alcance": {
+            "type": "string",
+            "enum": [
+              "periodo",
+              "vigente"
+            ]
+          },
+          "segmentos": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "estadoPago",
+                "cantidad",
+                "saldo"
+              ],
+              "properties": {
+                "estadoPago": {
+                  "type": "string",
+                  "enum": [
+                    "no_pagado",
+                    "abonado",
+                    "pagado_total"
+                  ]
+                },
+                "cantidad": {
+                  "type": "integer"
+                },
+                "saldo": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "saldoTotal": {
+            "type": "integer"
+          },
+          "cantidadPorCobrar": {
+            "type": "integer"
+          }
+        }
+      },
+      "Embudo": {
+        "type": "object",
+        "required": [
+          "periodo",
+          "pasos"
+        ],
+        "properties": {
+          "periodo": {
+            "$ref": "#/x-planificadas/esquemas/Periodo"
+          },
+          "pasos": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "required": [
+                "clave",
+                "cantidad",
+                "porcentaje",
+                "porcentajePaso"
+              ],
+              "properties": {
+                "clave": {
+                  "type": "string",
+                  "enum": [
+                    "solicitudes",
+                    "cotizadas",
+                    "aprobadas",
+                    "concretadas"
+                  ]
+                },
+                "cantidad": {
+                  "type": "integer"
+                },
+                "porcentaje": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "porcentajePaso": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Demanda": {
+        "type": "object",
+        "required": [
+          "periodo",
+          "categorias"
+        ],
+        "properties": {
+          "periodo": {
+            "$ref": "#/x-planificadas/esquemas/Periodo"
+          },
+          "categorias": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "idCategoria",
+                "nombre",
+                "monto",
+                "cantidad",
+                "pedidos"
+              ],
+              "properties": {
+                "idCategoria": {
+                  "type": "integer"
+                },
+                "nombre": {
+                  "type": "string"
+                },
+                "monto": {
+                  "type": "integer"
+                },
+                "cantidad": {
+                  "type": "integer"
+                },
+                "pedidos": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PorCobrar": {
+        "type": "object",
+        "required": [
+          "periodo",
+          "alcance",
+          "elementos",
+          "total",
+          "pagina",
+          "tamano",
+          "totalPaginas",
+          "totalSaldo"
+        ],
+        "properties": {
+          "periodo": {
+            "$ref": "#/x-planificadas/esquemas/Periodo"
+          },
+          "alcance": {
+            "type": "string",
+            "enum": [
+              "periodo",
+              "vigente"
+            ]
+          },
+          "elementos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "idPedido",
+                "cliente",
+                "fechaPedido",
+                "fechaEntregaEstimada",
+                "diasDesdePedido",
+                "estadoPedido",
+                "estadoPago",
+                "montoTotalFinal",
+                "montoAbonado",
+                "saldoPendiente",
+                "listoSinPagar"
+              ],
+              "properties": {
+                "idPedido": {
+                  "type": "integer"
+                },
+                "cliente": {
+                  "type": "object",
+                  "required": [
+                    "idCliente",
+                    "nombre"
+                  ],
+                  "properties": {
+                    "idCliente": {
+                      "type": "integer"
+                    },
+                    "nombre": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "fechaPedido": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "fechaEntregaEstimada": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "diasDesdePedido": {
+                  "type": "integer"
+                },
+                "estadoPedido": {
+                  "type": "string",
+                  "enum": [
+                    "aceptado",
+                    "en_proceso",
+                    "terminado",
+                    "entregado"
+                  ]
+                },
+                "estadoPago": {
+                  "type": "string",
+                  "enum": [
+                    "no_pagado",
+                    "abonado"
+                  ]
+                },
+                "montoTotalFinal": {
+                  "type": "integer"
+                },
+                "montoAbonado": {
+                  "type": "integer"
+                },
+                "saldoPendiente": {
+                  "type": "integer"
+                },
+                "listoSinPagar": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "pagina": {
+            "type": "integer"
+          },
+          "tamano": {
+            "type": "integer"
+          },
+          "totalPaginas": {
+            "type": "integer"
+          },
+          "totalSaldo": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "paths": {
+      "/api/v1/indicadores/resumen": {
+        "get": {
+          "tags": [
+            "Indicadores"
+          ],
+          "summary": "Las siete tarjetas del dashboard y el saldo por cobrar, con su valor anterior y su variación (en puntos para los porcentajes)",
+          "x-acceso": "gestion",
+          "x-fase": "12B",
+          "parameters": [
+            {
+              "$ref": "#/x-planificadas/parametros/periodo"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/desde"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/hasta"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/anio"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/mes"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/comparar"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPedido"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPago"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/categoria"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/origen"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/cliente"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/alcanceSaldo"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Correcto",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/x-planificadas/esquemas/Resumen"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Filtro inválido (errores por campo)"
+            },
+            "401": {
+              "description": "Sin sesión"
+            },
+            "403": {
+              "description": "Sin permiso (solo dueño y administrador)"
+            }
+          }
+        }
+      },
+      "/api/v1/indicadores/evolucion": {
+        "get": {
+          "tags": [
+            "Indicadores"
+          ],
+          "summary": "Serie de ingresos y pedidos del período y del período de comparación, alineadas por tramo",
+          "x-acceso": "gestion",
+          "x-fase": "12B",
+          "parameters": [
+            {
+              "$ref": "#/x-planificadas/parametros/periodo"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/desde"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/hasta"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/anio"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/mes"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/comparar"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPedido"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPago"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/categoria"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/origen"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/cliente"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/alcanceSaldo"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Correcto",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/x-planificadas/esquemas/Evolucion"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Filtro inválido (errores por campo)"
+            },
+            "401": {
+              "description": "Sin sesión"
+            },
+            "403": {
+              "description": "Sin permiso (solo dueño y administrador)"
+            }
+          }
+        }
+      },
+      "/api/v1/indicadores/cobranza": {
+        "get": {
+          "tags": [
+            "Indicadores"
+          ],
+          "summary": "Pedidos y saldo por estado de pago (no pagado, abonado, pagado total) y el saldo total por cobrar",
+          "x-acceso": "gestion",
+          "x-fase": "12B",
+          "parameters": [
+            {
+              "$ref": "#/x-planificadas/parametros/periodo"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/desde"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/hasta"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/anio"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/mes"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/comparar"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPedido"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPago"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/categoria"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/origen"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/cliente"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/alcanceSaldo"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Correcto",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/x-planificadas/esquemas/Cobranza"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Filtro inválido (errores por campo)"
+            },
+            "401": {
+              "description": "Sin sesión"
+            },
+            "403": {
+              "description": "Sin permiso (solo dueño y administrador)"
+            }
+          }
+        }
+      },
+      "/api/v1/indicadores/embudo": {
+        "get": {
+          "tags": [
+            "Indicadores"
+          ],
+          "summary": "Embudo del canal web: solicitudes en línea, cotizadas, aprobadas y pedidos concretados, con su porcentaje",
+          "x-acceso": "gestion",
+          "x-fase": "12B",
+          "parameters": [
+            {
+              "$ref": "#/x-planificadas/parametros/periodo"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/desde"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/hasta"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/anio"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/mes"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/comparar"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPedido"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPago"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/categoria"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/origen"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/cliente"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/alcanceSaldo"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Correcto",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/x-planificadas/esquemas/Embudo"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Filtro inválido (errores por campo)"
+            },
+            "401": {
+              "description": "Sin sesión"
+            },
+            "403": {
+              "description": "Sin permiso (solo dueño y administrador)"
+            }
+          }
+        }
+      },
+      "/api/v1/indicadores/demanda": {
+        "get": {
+          "tags": [
+            "Indicadores"
+          ],
+          "summary": "Monto, unidades y pedidos por categoría, de mayor a menor monto",
+          "x-acceso": "gestion",
+          "x-fase": "12B",
+          "parameters": [
+            {
+              "$ref": "#/x-planificadas/parametros/periodo"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/desde"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/hasta"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/anio"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/mes"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/comparar"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPedido"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPago"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/categoria"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/origen"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/cliente"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/alcanceSaldo"
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Correcto",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/x-planificadas/esquemas/Demanda"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Filtro inválido (errores por campo)"
+            },
+            "401": {
+              "description": "Sin sesión"
+            },
+            "403": {
+              "description": "Sin permiso (solo dueño y administrador)"
+            }
+          }
+        }
+      },
+      "/api/v1/indicadores/por-cobrar": {
+        "get": {
+          "tags": [
+            "Indicadores"
+          ],
+          "summary": "Listado paginado de pedidos con saldo, de mayor a menor saldo, con el total de todas las páginas",
+          "x-acceso": "gestion",
+          "x-fase": "12B",
+          "parameters": [
+            {
+              "$ref": "#/x-planificadas/parametros/periodo"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/desde"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/hasta"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/anio"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/mes"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/comparar"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPedido"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/estadoPago"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/categoria"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/origen"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/cliente"
+            },
+            {
+              "$ref": "#/x-planificadas/parametros/alcanceSaldo"
+            },
+            {
+              "name": "pagina",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "tamano",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Correcto",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/x-planificadas/esquemas/PorCobrar"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Filtro inválido (errores por campo)"
+            },
+            "401": {
+              "description": "Sin sesión"
+            },
+            "403": {
+              "description": "Sin permiso (solo dueño y administrador)"
+            }
+          }
+        }
+      }
+    }
   }
 }

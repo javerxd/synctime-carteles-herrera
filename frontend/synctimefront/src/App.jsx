@@ -36,7 +36,7 @@ const ListaCotizaciones = lazy(() => import('./paginas/cotizaciones/ListaCotizac
 const FichaCotizacion = lazy(() => import('./paginas/cotizaciones/FichaCotizacion'));
 const EditorCotizacion = lazy(() => import('./paginas/cotizaciones/EditorCotizacion'));
 const EstadoLocal = lazy(() => import('./paginas/panel/EstadoLocal'));
-const Indicadores = lazy(() => import('./paginas/panel/Indicadores'));
+const Indicadores = lazy(() => import('./paginas/indicadores/Indicadores'));
 const Reportes = lazy(() => import('./paginas/panel/Reportes'));
 const Perfil = lazy(() => import('./paginas/panel/Perfil'));
 const ConfirmarDestino = lazy(() => import('./paginas/avisosTaller/ConfirmarDestino'));

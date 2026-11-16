@@ -89,6 +89,7 @@ export const PRIVACIDAD = {
         'Pedidos: durante el plazo que exigen las normas contables y tributarias.',
         'Solicitudes rechazadas o que no se concretaron: se borran a los 12 meses.',
         'Correos automáticos ya enviados: se borran de la cola de envío a los 30 días.',
+        'Dirección IP en el registro de auditoría (quién cambió qué y cuándo en el panel del taller): se borra a los 90 días. El registro del cambio se conserva, ya sin la IP.',
         'Consultas del formulario de contacto: 12 meses desde que las recibimos, para su seguimiento comercial y nuestras estadísticas internas. Después se eliminan.',
         'Cuenta de cliente: mientras la tengas activa. Si pides la baja, la cuenta se inhabilita, borramos tu contraseña y conservamos solo el historial de pedidos que exige la ley.',
         'Acceso facial: hasta que retires tu consentimiento o se dé de baja tu cuenta del personal.',
