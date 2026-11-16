@@ -10,6 +10,8 @@ import { useSesion } from '../../../sesion/sesion';
 import { formatearRut } from '../../../utilidades/rut';
 import { useConsulta } from '../../../utilidades/useConsulta';
 import { useDebounce } from '../../../utilidades/useDebounce';
+import { AvisoConflicto } from '../../compartidos/AvisoConflicto';
+import { useConflictoDeVersion } from '../../compartidos/useConflictoDeVersion';
 import { useFormulario } from '../../cuenta/useFormulario';
 import { nombreCompleto } from '../reglasSolicitud';
 import { telefonoVisible } from '../reglasSolicitud';
@@ -110,46 +112,68 @@ export default function Clientes() {
   );
 }
 
-function FormularioCliente({ cliente, alGuardar }) {
+const formularioDesde = (cliente) => ({
+  nombre: cliente.nombre ?? '', apellido: cliente.apellido ?? '', telefono: telefonoVisible(cliente.telefono).replace('—', ''),
+  rut: cliente.rut ?? '', email: correoDe(cliente) ?? '', direccion: cliente.direccion ?? '',
+});
+
+/**
+ * Los datos del cliente, con la versión vista (If-Match). Fase 11: si otra persona lo cambió mientras se editaba,
+ * lo escrito se queda y se ofrece «Guardar sobre la versión actual» o descartar, como en los mantenedores.
+ */
+function FormularioCliente({ cliente, alGuardar, alDescartar }) {
   const {
-    aplicarErroresApi, comprobar, datos, propiedades, refFormulario,
+    aplicarErroresApi, comprobar, datos, propiedades, refFormulario, reiniciar,
   } = useFormulario({
-    inicial: {
-      nombre: cliente.nombre ?? '', apellido: cliente.apellido ?? '', telefono: telefonoVisible(cliente.telefono).replace('—', ''),
-      rut: cliente.rut ?? '', email: correoDe(cliente) ?? '', direccion: cliente.direccion ?? '',
-    },
+    inicial: formularioDesde(cliente),
     validar: validarCliente,
     orden: ORDEN_CLIENTE,
   });
   const [estado, setEstado] = useState({ guardando: false, error: null, exito: null });
+  const version = useConflictoDeVersion({ releer: () => clientes.obtener(cliente.idCliente), versionInicial: cliente.rowVersion });
   const refResultado = useRef(null);
   useEffect(() => {
     if (!estado.guardando && (estado.error || estado.exito)) refResultado.current?.focus();
   }, [estado]);
 
-  async function guardar(evento) {
-    evento.preventDefault();
-    if (!comprobar()) return;
+  async function guardar(evento, sobreActual = false) {
+    evento?.preventDefault();
+    if (estado.guardando || !comprobar()) return;
     setEstado({ guardando: true, error: null, exito: null });
     try {
-      const actualizado = await clientes.actualizar(cliente.idCliente, { ...clienteParaApi(datos), activo: cliente.activo ?? true }, cliente.rowVersion);
+      const base = sobreActual ? version.conflicto?.actual ?? cliente : cliente;
+      const actualizado = await clientes.actualizar(cliente.idCliente, { ...clienteParaApi(datos), activo: base.activo ?? true },
+        sobreActual ? version.version : cliente.rowVersion);
+      version.olvidar();
       setEstado({ guardando: false, error: null, exito: 'Guardamos los datos del cliente.' });
       alGuardar(actualizado);
     } catch (error) {
       if (error?.codigo === 'version_obsoleta') {
-        setEstado({ guardando: false, error: 'Otra persona modificó este cliente mientras lo editabas. Tus cambios siguen aquí: recarga la página para ver la versión actual antes de guardar.', exito: null });
+        setEstado({ guardando: false, error: null, exito: null });
+        version.detectar();
       } else if (aplicarErroresApi(error)) setEstado({ guardando: false, error: null, exito: null });
       else setEstado({ guardando: false, error: error?.message || 'No pudimos guardar. Inténtalo de nuevo.', exito: null });
     }
   }
 
+  function descartar() {
+    const vigente = version.conflicto?.actual;
+    version.olvidar();
+    if (vigente) reiniciar(formularioDesde(vigente));
+    alDescartar?.();
+  }
+
   const campo = (nombre) => ({ ...propiedades(nombre), disabled: estado.guardando });
+  const vigente = version.conflicto?.actual;
   return (
     <form ref={refFormulario} className={estilosPanel.formulario} onSubmit={guardar} noValidate>
       <div ref={refResultado} tabIndex={-1} className={estilos.foco}>
         <div role="status">{estado.exito && <Aviso tono="exito" titulo={estado.exito} />}</div>
         {estado.error && <Aviso tono="peligro" titulo={estado.error} />}
       </div>
+      <AvisoConflicto conflicto={version.conflicto} entidad="este cliente" guardando={estado.guardando} refAccion={version.refAccion}
+        resumen={vigente ? [nombreCompleto(vigente), telefonoVisible(vigente.telefono), correoDe(vigente), vigente.direccion].filter(Boolean).join(' · ') : null}
+        alGuardarSobre={() => guardar(null, true)} alReintentar={version.detectar} alDescartar={descartar} />
       <div className={estilosPanel.dosColumnas}>
         <Campo etiqueta="Nombre" requerido maxLength={80} autoComplete="off" {...campo('nombre')} />
         <Campo etiqueta="Apellido" requerido maxLength={80} autoComplete="off" {...campo('apellido')} />
@@ -220,7 +244,7 @@ export function FichaCliente() {
           <h2 id="titulo-datos-cliente" className={estilos.subtitulo}>Datos del cliente</h2>
           {cliente.activo === false && <Aviso tono="aviso" titulo="Este cliente está inactivo" />}
           {puedeEditar ? (
-            <FormularioCliente key={cliente.idCliente} cliente={cliente}
+            <FormularioCliente key={cliente.idCliente} cliente={cliente} alDescartar={consulta.recargar}
               alGuardar={() => { anunciar({ tono: 'exito', titulo: 'Datos del cliente guardados' }); consulta.recargar(); }} />
           ) : (
             <dl className={estilos.datos}>

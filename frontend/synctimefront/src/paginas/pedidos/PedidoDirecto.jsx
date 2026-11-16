@@ -12,6 +12,7 @@ import { formatearPesos } from '../../utilidades/formato';
 import { useConsulta } from '../../utilidades/useConsulta';
 import { AvisoTrasCorte } from '../compartidos/AvisoTrasCorte';
 import { bloqueaReintento, errorTrasCorte, sinRespuesta, TRAS_CORTE } from '../compartidos/trasCorte';
+import { fallaDeClave, useClaveIdempotencia } from '../compartidos/useClaveIdempotencia';
 import { CostosCotizacion, EditorMateriales } from '../cotizaciones/EditorMateriales';
 import { calcularTotales, cotizacionParaApi, pesosDesdeTexto } from '../cotizaciones/reglasCotizacion';
 import { useCotizacionEditable } from '../cotizaciones/useCotizacionEditable';
@@ -65,6 +66,8 @@ function FormularioDirecto({ cliente, alCrear }) {
   const { refFormulario: refDatos } = datos;
   const { refFormulario: refAbono } = abono;
   const [estado, setEstado] = useState({ enviando: false, falla: null, candidato: null });
+  // Fase 11: la misma clave en cada reintento de este formulario abierto.
+  const idempotencia = useClaveIdempotencia();
   const final = trabajo + costoInstalacion(datos.datos);
 
   // Al elegir el cliente, el foco va al primer letrero.
@@ -109,7 +112,8 @@ function FormularioDirecto({ cliente, alCrear }) {
         ...cotizacionParaApi(cotizacion.datos),
         ...datosPedidoParaApi(datos.datos),
         ...(abonoInicial ? { abonoInicial } : {}),
-      });
+      }, { clave: idempotencia.clave });
+      idempotencia.renovar();
       alCrear(ficha);
     } catch (falla) {
       if (sinRespuesta(falla)) {
@@ -117,7 +121,7 @@ function FormularioDirecto({ cliente, alCrear }) {
         return;
       }
       const enCampos = [aplicarError(falla), cotizacion.aplicarErroresApi(falla), solicitud.aplicarErroresApi(falla)].some(Boolean);
-      setEstado({ enviando: false, falla: enCampos ? null : falla, candidato: null });
+      setEstado({ enviando: false, falla: enCampos ? null : fallaDeClave(falla, idempotencia.renovar), candidato: null });
     }
   }
 

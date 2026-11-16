@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Api;
+using LetrerosHerreraSYNCTIMEapi.Middleware;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Solicitudes;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -42,7 +43,8 @@ public static class SolicitudApi
             var resultado = await servicio.CrearPresencialAsync(user.IdUsuario(), req.IdCliente,
                 new EntradaSolicitud(req.DescripcionGeneral, RespuestasSolicitud.Detalles(req.Detalles), null), ct);
             return RespuestasSolicitud.Responder(resultado, http, r => Results.Created($"/api/v1/solicitudes/{r.Ficha.IdSolicitud}", r.Ficha));
-        });
+        })
+        .ConIdempotencia("POST /solicitudes");
 
         // El estado no se edita aqui: solo cambia con PATCH /estado, reservado a gestion.
         group.MapPut("/{id}", async (int id, ActualizarSolicitudRequest req, ClaimsPrincipal user, HttpContext http, ServicioSolicitudes servicio, CancellationToken ct) =>

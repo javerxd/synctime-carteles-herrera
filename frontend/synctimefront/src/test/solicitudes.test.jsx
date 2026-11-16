@@ -176,7 +176,7 @@ describe('formulario de solicitud del cliente', () => {
       descripcionGeneral: 'Letras para la fachada del local',
       detalles: [{ idProducto: 2, descripcion: null, anchoMm: 1200, altoMm: 600, cantidad: 2 }],
       adjuntos: [7],
-    }), { timeout: 3000 });
+    }, { clave: expect.stringMatching(/^[0-9a-f-]{36}$/) }), { timeout: 3000 });
     const titulo = await screen.findByRole('heading', { level: 1, name: 'Recibimos tu solicitud #123' });
     await waitFor(() => expect(titulo).toHaveFocus());
     expect(screen.getByText('14-11-2026 10:32')).toBeInTheDocument();
@@ -482,7 +482,7 @@ describe('revisión ECC del formulario y la bandeja', () => {
     escribir(screen.getByRole('textbox', { name: /^Descripción/ }), 'Letras para la fachada del local');
     await act(async () => { await new Promise((r) => { setTimeout(r, 0); }); });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }));
-    await waitFor(() => expect(misSolicitudes.enviar).toHaveBeenCalledWith(expect.objectContaining({ adjuntos: [31] })));
+    await waitFor(() => expect(misSolicitudes.enviar).toHaveBeenCalledWith(expect.objectContaining({ adjuntos: [31] }), { clave: expect.stringMatching(/^[0-9a-f-]{36}$/) }));
   });
 
   it('409 tope_adjuntos se explica junto al archivo', async () => {

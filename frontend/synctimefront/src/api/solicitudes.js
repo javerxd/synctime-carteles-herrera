@@ -1,4 +1,4 @@
-import { api, rutaRelativa } from './cliente';
+import { api, conClave, rutaRelativa } from './cliente';
 
 // Solicitudes, adjuntos y clientes (fase 7). Contrato: docs/plan/fase-07-especificacion.md.
 //
@@ -36,8 +36,9 @@ export const misSolicitudes = {
   /**
    * POST /mis/solicitudes { descripcionGeneral, detalles, adjuntos } → 201 comprobante.
    * 403 correo_sin_confirmar · 409 contacto_directo · 400 con errores por campo.
+   * `clave` (fase 11): Idempotency-Key del formulario abierto; la misma en cada reintento.
    */
-  enviar: (solicitud) => api.post('/mis/solicitudes', solicitud),
+  enviar: (solicitud, { clave } = {}) => api.post('/mis/solicitudes', solicitud, conClave(clave)),
   listar: ({ pagina = 1, tamano = 10 } = {}) => api.get('/mis/solicitudes', { parametros: { pagina, tamano } })
     .then((r) => comoPaginado(r, { pagina, tamano })),
   /** Con el seguimiento (fase 8): `cotizacion` { idCotizacion, numero, total, estado } y `pedido` (S04), o null. */
@@ -56,8 +57,8 @@ export const solicitudes = {
   listar: (filtros = {}) => api.get('/solicitudes', { parametros: filtros }).then((r) => comoPaginado(r, filtros)),
   /** Comprobante + historial + registradaPor; en la fase 8, también sus cotizaciones (ver api/cotizaciones.js). */
   obtener: (id) => api.get(`/solicitudes/${id}`),
-  /** Registro presencial: { idCliente, descripcionGeneral, detalles } → 201 comprobante. */
-  crear: (solicitud) => api.post('/solicitudes', solicitud),
+  /** Registro presencial: { idCliente, descripcionGeneral, detalles } → 201 comprobante. `clave`: Idempotency-Key. */
+  crear: (solicitud, { clave } = {}) => api.post('/solicitudes', solicitud, conClave(clave)),
   /** Edición con control de concurrencia: 409 si otra persona la modificó. */
   editar: (id, cambios, rowVersion) => api.put(`/solicitudes/${id}`, cambios, siVersion(rowVersion)),
   /**

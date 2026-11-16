@@ -384,7 +384,7 @@ public sealed class ServicioContacto(
 
 // ── Plazos de conservacion de la politica de privacidad ──
 
-public sealed record ResultadoPurga(int Consultas, int Consentimientos, int Adjuntos = 0);
+public sealed record ResultadoPurga(int Consultas, int Consentimientos, int Adjuntos = 0, int CuerposDeCorreo = 0);
 
 // Borra lo que la politica de privacidad dice que no se guarda mas:
 // - consultas del formulario de contacto, 12 meses despues de recibirlas;
@@ -392,8 +392,13 @@ public sealed record ResultadoPurga(int Consultas, int Consentimientos, int Adju
 // - consentimientos de clientes y del personal, 24 meses despues de retirarlos (los vigentes se conservan,
 //   porque acreditan que la persona acepto);
 // - adjuntos borrador (fase 7) que nadie envio en 24 horas, con sus archivos, y los archivos de adjuntos
-//   que quedaron sin registro en la base (por ejemplo, de una solicitud borrada).
-public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, AlmacenAdjuntos almacenAdjuntos, TimeProvider reloj)
+//   que quedaron sin registro en la base (por ejemplo, de una solicitud borrada);
+// - fase 11: el asunto, el cuerpo, el enlace de baja y la direccion completa de los correos enviados hace mas de
+//   Correo:Cola:DiasCuerpoEnviados (30) y de los fallidos hace mas de Correo:Cola:DiasCuerpoFallidos (90); la fila queda
+//   con el tipo, la referencia, el estado, las fechas y el destino enmascarado. Y las claves de idempotencia vencidas.
+// La bitacora (auditoria) no se purga en esta fase: se conserva al menos 24 meses.
+public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, AlmacenAdjuntos almacenAdjuntos,
+    Microsoft.Extensions.Options.IOptions<Infraestructura.Correo.OpcionesCorreo> opcionesCorreo, TimeProvider reloj)
 {
     public const int MesesConsultas = 12;
     public const int MesesConsentimientos = 24;
@@ -420,7 +425,50 @@ public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, AlmacenAdj
         while (await db.DesafiosRostro.Where(d => d.Emitido < limiteTecnico).OrderBy(d => d.IdDesafio).Take(5000).ExecuteDeleteAsync(ct) > 0)
         {
         }
-        return new ResultadoPurga(consultas, consentimientos, await PurgarAdjuntosAsync(ahora, ct));
+        // Fase 11: las claves de idempotencia duran 24 horas.
+        while (await db.ClavesIdempotencia.Where(c => c.Vence < ahora).OrderBy(c => c.IdClave).Take(5000).ExecuteDeleteAsync(ct) > 0)
+        {
+        }
+        var cuerpos = await PurgarCuerposDeCorreoAsync(ahora, ct);
+        return new ResultadoPurga(consultas, consentimientos, await PurgarAdjuntosAsync(ahora, ct), cuerpos);
+    }
+
+    // Se cuenta desde que se envio o desde que fallo (proximo_intento guarda cuando fallo), no desde que se creo. Lo ya
+    // purgado (cuerpo vacio) no se vuelve a tocar. De a 500 filas, para no bloquear la cola mucho rato.
+    private async Task<int> PurgarCuerposDeCorreoAsync(DateTimeOffset ahora, CancellationToken ct)
+    {
+        var o = opcionesCorreo.Value.Cola;
+        var limiteEnviados = ahora.AddDays(-Math.Max(1, o.DiasCuerpoEnviados));
+        var limiteFallidos = ahora.AddDays(-Math.Max(1, o.DiasCuerpoFallidos));
+        var total = 0;
+        var ultimo = 0L;
+        while (true)
+        {
+            // Paginado por id: cada vuelta sigue desde el ultimo, sin volver a recorrer lo ya revisado.
+            var lote = await db.CorreosSalientes.AsNoTracking()
+                .Where(c => c.IdCorreo > ultimo && c.CuerpoHtml != "" && ((c.Estado == EstadosCorreo.Enviado && c.FechaEnvio < limiteEnviados)
+                    || (c.Estado == EstadosCorreo.Fallido && c.ProximoIntento < limiteFallidos)))
+                .OrderBy(c => c.IdCorreo)
+                .Select(c => new { c.IdCorreo, c.Destinatarios })
+                .Take(500)
+                .ToListAsync(ct);
+            if (lote.Count == 0)
+                return total;
+            ultimo = lote[^1].IdCorreo;
+            foreach (var correo in lote)
+            {
+                var enmascarado = Negocio.Correo.CategoriasCorreo.Enmascarar(correo.Destinatarios);
+                total += await db.CorreosSalientes.Where(c => c.IdCorreo == correo.IdCorreo && c.CuerpoHtml != ""
+                        && (c.Estado == EstadosCorreo.Enviado || c.Estado == EstadosCorreo.Fallido))
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(c => c.Asunto, "")
+                        .SetProperty(c => c.CuerpoHtml, "")
+                        .SetProperty(c => c.CuerpoTexto, "")
+                        .SetProperty(c => c.EnlaceBaja, (string?)null)
+                        .SetProperty(c => c.ResponderA, (string?)null)
+                        .SetProperty(c => c.Destinatarios, enmascarado.Length == 0 ? "•••" : enmascarado), ct);
+            }
+        }
     }
 
     private async Task<int> PurgarAdjuntosAsync(DateTimeOffset ahora, CancellationToken ct)
@@ -476,9 +524,9 @@ public sealed class ProcesoPurgaDatosPersonales(
                 {
                     await using var alcance = alcances.CreateAsyncScope();
                     var resultado = await alcance.ServiceProvider.GetRequiredService<PurgaDatosPersonales>().PurgarAsync(ct);
-                    if (resultado.Consultas + resultado.Consentimientos + resultado.Adjuntos > 0)
-                        logger.LogInformation("Plazos de conservacion: se borraron {Consultas} consulta(s), {Consentimientos} consentimiento(s) y {Adjuntos} adjunto(s) vencidos.",
-                            resultado.Consultas, resultado.Consentimientos, resultado.Adjuntos);
+                    if (resultado.Consultas + resultado.Consentimientos + resultado.Adjuntos + resultado.CuerposDeCorreo > 0)
+                        logger.LogInformation("Plazos de conservacion: se borraron {Consultas} consulta(s), {Consentimientos} consentimiento(s), {Adjuntos} adjunto(s) y el cuerpo de {Correos} correo(s) vencidos.",
+                            resultado.Consultas, resultado.Consentimientos, resultado.Adjuntos, resultado.CuerposDeCorreo);
                 }
                 catch (Exception error) when (error is not OperationCanceledException)
                 {

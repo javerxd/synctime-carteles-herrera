@@ -52,6 +52,11 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Desactivar su propio acceso con rostro (`DELETE /auth/rostro`) | No | No | Sí | Sí | Sí |
 | Ver los rostros registrados y registrar o desactivar el de otro empleado de gestión (`/rostros`) | No | No | No | No | Sí |
 | Calibrar el umbral del rostro (`/rostros/calibracion`, solo con `RostroFacial:Calibracion:Activa`) | No | No | No | No | Sí |
+| Elegir qué avisos del taller recibe cada destino (`PUT /avisos-taller/destinos/{id}/preferencia`) | No | No | No | No | Sí |
+| Ver y reenviar los correos no enviados (`/correos/no-enviados`) | No | No | No | No | Sí |
+| Consultar la bitácora de auditoría y los consentimientos (`/auditoria`) | No | No | No | No | Sí |
+| Darse de baja de los correos opcionales con el enlace (`/correos/baja`) | Sí (con el enlace) | Sí | No | No | No |
+| Descargar sus datos y dar de baja su cuenta (`/mi-cuenta/datos`, `/mi-cuenta/baja`) | No | Sí | No | No | No |
 
 ## Diferencias con los requisitos
 

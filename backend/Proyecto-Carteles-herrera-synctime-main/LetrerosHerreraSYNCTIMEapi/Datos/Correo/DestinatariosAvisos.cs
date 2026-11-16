@@ -22,9 +22,14 @@ public sealed class DestinatariosAvisosDesdeBaseYConfiguracion(
 
     public async Task<IReadOnlyList<string>> ObtenerAsync(CancellationToken ct) => (await LeerAsync(ct)).Correos;
 
-    public async Task<DestinatariosVigentes> LeerAsync(CancellationToken ct)
+    public Task<DestinatariosVigentes> LeerAsync(CancellationToken ct) => LeerAsync(origen: null, ct);
+
+    public Task<DestinatariosVigentes> LeerAsync(OrigenAviso origen, CancellationToken ct) => LeerAsync((OrigenAviso?)origen, ct);
+
+    // Sin origen: todos los activos (la prueba desde el perfil y los avisos de cambios de destino).
+    private async Task<DestinatariosVigentes> LeerAsync(OrigenAviso? origen, CancellationToken ct)
     {
-        List<string> activos = [];
+        List<DestinoLeido> activos = [];
         if (!tablaAusente.Recordada())
         {
             try
@@ -32,7 +37,7 @@ public sealed class DestinatariosAvisosDesdeBaseYConfiguracion(
                 activos = await db.DestinatariosAvisos.AsNoTracking()
                     .Where(d => d.Estado == EstadosDestinatario.Activo)
                     .OrderBy(d => d.IdDestinatario)
-                    .Select(d => d.Correo)
+                    .Select(d => new DestinoLeido(d.Correo, d.RecibeEnLinea, d.RecibePresenciales))
                     .ToListAsync(ct);
             }
             catch (Microsoft.Data.SqlClient.SqlException e) when (e.Number == 208 && e.Message.Contains("destinatarios_avisos", StringComparison.Ordinal))
@@ -45,8 +50,18 @@ public sealed class DestinatariosAvisosDesdeBaseYConfiguracion(
             }
         }
         if (activos.Count > 0)
-            return new DestinatariosVigentes(activos, DesdeRespaldo: false);
+            return new DestinatariosVigentes(activos
+                .Where(d => origen switch
+                {
+                    OrigenAviso.EnLinea => d.EnLinea,
+                    OrigenAviso.Presencial => d.Presenciales,
+                    _ => true
+                })
+                .Select(d => d.Correo).ToList(), DesdeRespaldo: false);
 
+        // El respaldo de la configuracion no tiene preferencia: recibe lo que recibia antes de la fase 11.
+        if (origen == OrigenAviso.Presencial)
+            return new DestinatariosVigentes([], DesdeRespaldo: true);
         var destinatarios = ListaDeCorreos.Separar(configuracion[Clave], out var invalidos);
 
         // Sin las direcciones en el registro: son datos personales y no hacen falta para corregir el error.
@@ -57,6 +72,8 @@ public sealed class DestinatariosAvisosDesdeBaseYConfiguracion(
 
         return new DestinatariosVigentes(destinatarios, DesdeRespaldo: true);
     }
+
+    private sealed record DestinoLeido(string Correo, bool EnLinea, bool Presenciales);
 }
 
 // Recuerda por 5 minutos que la base no tiene la tabla destinatarios_avisos, para no consultar (ni registrar)

@@ -59,7 +59,26 @@ export const TEXTOS_ACCION = {
   quitar: 'Se quitó',
   reenviar: 'Se reenvió el enlace a',
   probar: 'Correo de prueba a',
+  preferencia: 'Se cambió qué avisos recibe',
 };
+
+// ── Preferencia de avisos por destino (fase 11, decisión 1) ──
+
+/** Lo guardado de un destino; si la API aún no lo trae, lo de la base por defecto (solo en línea). */
+export const preferenciaDe = (destino) => ({
+  recibeEnLinea: destino?.recibeEnLinea !== false,
+  recibePresenciales: destino?.recibePresenciales === true,
+});
+
+/** Al menos una de las dos (la base y la API también lo exigen). */
+export const errorPreferencia = ({ recibeEnLinea, recibePresenciales }) =>
+  (recibeEnLinea || recibePresenciales ? null : 'Marca al menos un tipo de solicitud.');
+
+export function textoPreferencia({ recibeEnLinea, recibePresenciales }) {
+  if (recibeEnLinea && recibePresenciales) return 'los avisos de las solicitudes en línea y presenciales';
+  if (recibePresenciales) return 'solo los avisos de las solicitudes presenciales';
+  return 'solo los avisos de las solicitudes en línea';
+}
 
 // ── Correo de prueba ──
 

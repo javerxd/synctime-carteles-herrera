@@ -188,7 +188,7 @@ describe('editor de cotización', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Emitir cotización' }));
     await waitFor(() => expect(cotizaciones.emitir).toHaveBeenCalledWith(123, {
       materiales: [{ idMaterial: 1, medidaAplicada: null, cantidad: 2.5, costoUnitario: 10500 }], costoManoObra: 30000, otrosCostos: 0, observaciones: null,
-    }));
+    }, { clave: expect.stringMatching(/^[0-9a-f-]{36}$/) }));
     await waitFor(() => expect(screen.getByTestId('ruta')).toHaveTextContent('/panel/cotizaciones/90'));
   });
 

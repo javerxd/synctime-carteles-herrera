@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 15-11-2026 (fase 10 aprobada; la fase 11 empieza por su plan).
+Última actualización: 16-11-2026 (fase 11 construida, en revisión).
 
 ## Hecho
 
@@ -21,11 +21,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` · informe: `informes/fase-11.md` · incluye los avisos del taller como correos operativos (preferencia por destino, «Correos no enviados» con reenviar, auditoría de los avisos) y la idempotencia y las versiones pendientes de las fases 8 y 9
 
 ## En curso
 
-- **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` (nace de `fase-10-rostro-segun-requisitos`) · incluye, por pedido del usuario (15-11-2026), los avisos del taller como correos operativos (preferencia por destino, «Correos no enviados» con reenviar, auditoría de los avisos) y la revisión de concurrencia e idempotencia · plan aprobado el 15-11-2026: `fase-11-plan.md` · especificación: `fase-11-especificacion.md` · construcción en curso (15-11-2026)
+_(ninguna)_
 
 ## Por hacer
 

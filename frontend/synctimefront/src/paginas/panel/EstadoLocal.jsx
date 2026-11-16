@@ -1,9 +1,10 @@
 import { TALLER } from '../../configuracion/taller';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { AvisoConflicto } from '../compartidos/AvisoConflicto';
+import { useConflictoDeVersion } from '../compartidos/useConflictoDeVersion';
 import { Download, Printer, RefreshCw } from 'lucide-react';
 import { Aviso, Boton, Campo, Esqueleto, EstadoCartel, Tarjeta } from '../../componentes/ui';
 import { panel } from '../../api/panel';
-import { publico } from '../../api/publico';
 import { useAvisos } from '../../avisos/Avisos';
 import { GESTION } from '../../estructuras/navegacion';
 import { useSesion } from '../../sesion/sesion';
@@ -26,8 +27,10 @@ const ID_QR = 'qr-portal';
 export default function EstadoLocal() {
   const { tieneRol } = useSesion();
   const esGestion = tieneRol(GESTION);
-  const cartel = useConsulta('cartel', publico.cartel);
-  const horarios = useConsulta('horarios', publico.horarios);
+  // Fase 11: el cartel y el horario se leen con su versión (If-Match al guardar).
+  const cartel = useConsulta('cartel-version', (senal) => panel.cartel({ senal }));
+  const horarios = useConsulta('horario-version', (senal) => panel.horario({ senal }));
+  const dias = horarios.datos?.dias;
   const urlPortal = TALLER.urlPortal;
   const hoy = diaDeHoy();
 
@@ -51,7 +54,7 @@ export default function EstadoLocal() {
               <p>{cartel.datos.mensajeEstado}</p>
               {cartel.datos.tiempoEstimadoRegreso && <p className={estilos.bajada}>Regreso estimado: {cartel.datos.tiempoEstimadoRegreso}</p>}
               <p className={estilos.indicadorFormula}>Actualizado el {formatearFechaHora(cartel.datos.fechaUltimaModificacion)}</p>
-              <DarVuelta actual={cartel.datos} alGuardar={cartel.recargar} />
+              <DarVuelta actual={cartel.datos} releer={panel.cartel} alGuardar={cartel.recargar} />
             </>
           )}
         </Tarjeta>
@@ -74,11 +77,14 @@ export default function EstadoLocal() {
         <h2 id="titulo-horario" className={estilos.subtitulo}>Horario semanal</h2>
         {horarios.cargando && <Esqueleto lineas={7} />}
         {horarios.error && <Aviso tono="peligro" titulo="No pudimos cargar el horario">{horarios.error.message}</Aviso>}
-        {horarios.datos && (esGestion
-          ? <EditorHorario key={JSON.stringify(horarios.datos)} dias={horarios.datos} alGuardar={horarios.recargar} />
+        {dias && (esGestion
+          ? (
+            <EditorHorario key={horarios.datos.rowVersion ?? JSON.stringify(dias)} dias={dias} rowVersion={horarios.datos.rowVersion}
+              releer={panel.horario} alGuardar={horarios.recargar} />
+          )
           : (
             <>
-              <HorarioLectura dias={horarios.datos} hoy={hoy} />
+              <HorarioLectura dias={dias} hoy={hoy} />
               <p className={estilos.indicadorFormula}>Lo cambian el dueño o el administrador.</p>
             </>
           ))}
@@ -89,7 +95,7 @@ export default function EstadoLocal() {
         <p className={`${estilos.bajada} ${estilos.bajadaSeccion}`}>
           Las franjas en que atiendes cada semana. La portada muestra las del equipo juntas, sin nombres.
         </p>
-        {horarios.datos && <MiDisponibilidad horario={horarios.datos} />}
+        {dias && <MiDisponibilidad horario={dias} />}
         {horarios.cargando && <Esqueleto lineas={4} />}
       </Tarjeta>
 
@@ -103,14 +109,20 @@ export default function EstadoLocal() {
   );
 }
 
-function DarVuelta({ actual, alGuardar }) {
+/**
+ * Dar vuelta el cartel (todo el personal). Fase 11: con la versión vista (If-Match); si otra persona lo cambió,
+ * lo escrito se queda y se ofrece guardar sobre la versión actual o descartar.
+ */
+function DarVuelta({ actual, releer, alGuardar }) {
   const { anunciar } = useAvisos();
+  const version = useConflictoDeVersion({ releer, versionInicial: actual.rowVersion });
   const [abierto, setAbierto] = useState(actual.abiertoEnLocal ? 'abierto' : 'cerrado');
   const [mensaje, setMensaje] = useState(actual.mensajeEstado ?? '');
   const [regreso, setRegreso] = useState(actual.tiempoEstimadoRegreso ?? '');
   const [guardando, setGuardando] = useState(false);
   const [errorMensaje, setErrorMensaje] = useState(null);
   const [errorGuardado, setErrorGuardado] = useState(null);
+  const refMensaje = useRef(null);
 
   function alCambiarEstado(evento) {
     const valor = evento.target.value;
@@ -118,11 +130,12 @@ function DarVuelta({ actual, alGuardar }) {
     setMensaje(valor === 'abierto' ? 'Local abierto y atendiendo' : 'Salimos a una instalación en terreno');
   }
 
-  async function alEnviar(evento) {
-    evento.preventDefault();
+  async function alEnviar(evento, sobreActual = false) {
+    evento?.preventDefault();
+    if (guardando) return;
     if (!mensaje.trim()) {
       setErrorMensaje('Escribe el mensaje que verán los clientes.');
-      evento.currentTarget.querySelector('[name="mensaje"]')?.focus();
+      refMensaje.current?.focus();
       return;
     }
     setGuardando(true);
@@ -133,15 +146,30 @@ function DarVuelta({ actual, alGuardar }) {
         abiertoEnLocal: abierto === 'abierto',
         mensajeEstado: mensaje.trim(),
         tiempoEstimadoRegreso: abierto === 'cerrado' && regreso.trim() ? regreso.trim() : null,
-      });
+      }, sobreActual ? version.version : actual.rowVersion);
+      version.olvidar();
       anunciar({ tono: 'exito', titulo: abierto === 'abierto' ? 'El cartel dice Abierto' : 'El cartel dice Cerrado' });
       alGuardar();
     } catch (e) {
-      setErrorGuardado(e.message);
+      if (e?.codigo === 'version_obsoleta') version.detectar();
+      else setErrorGuardado(e?.message || 'No pudimos guardar el cartel.');
     } finally {
       setGuardando(false);
     }
   }
+
+  function descartar() {
+    const vigente = version.conflicto?.actual;
+    version.olvidar();
+    if (vigente) {
+      setAbierto(vigente.abiertoEnLocal ? 'abierto' : 'cerrado');
+      setMensaje(vigente.mensajeEstado ?? '');
+      setRegreso(vigente.tiempoEstimadoRegreso ?? '');
+    }
+    alGuardar();
+  }
+
+  const vigente = version.conflicto?.actual;
 
   return (
     <form className={estilos.formulario} onSubmit={alEnviar} noValidate>
@@ -149,11 +177,14 @@ function DarVuelta({ actual, alGuardar }) {
         <option value="abierto">Abierto / Disponible</option>
         <option value="cerrado">Cerrado / Ausente</option>
       </Campo>
-      <Campo name="mensaje" etiqueta="Mensaje para los clientes" maxLength={LIMITES_CARTEL.mensaje} value={mensaje} onChange={(e) => setMensaje(e.target.value)} error={errorMensaje} />
+      <Campo ref={refMensaje} name="mensaje" etiqueta="Mensaje para los clientes" maxLength={LIMITES_CARTEL.mensaje} value={mensaje} onChange={(e) => setMensaje(e.target.value)} error={errorMensaje} />
       {abierto === 'cerrado' && (
         <Campo etiqueta="Regreso estimado" ayuda="Por ejemplo: 16:30, o mañana a las 9:00" maxLength={LIMITES_CARTEL.regreso}
           value={regreso} onChange={(e) => setRegreso(e.target.value)} />
       )}
+      <AvisoConflicto conflicto={version.conflicto} entidad="el cartel" guardando={guardando} refAccion={version.refAccion}
+        resumen={vigente ? `dice «${vigente.abiertoEnLocal ? 'Abierto' : 'Cerrado'}»: ${vigente.mensajeEstado ?? ''}` : null}
+        alGuardarSobre={() => alEnviar(null, true)} alReintentar={version.detectar} alDescartar={descartar} />
       {errorGuardado && <Aviso tono="peligro" titulo="No pudimos dar vuelta el cartel">{errorGuardado}</Aviso>}
       <Boton type="submit" iconoInicio={RefreshCw} cargando={guardando} textoCargando="Guardando…">Dar vuelta el cartel</Boton>
     </form>

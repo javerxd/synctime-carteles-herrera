@@ -99,6 +99,9 @@ public sealed class OpcionesCola
     public int Lote { get; set; } = 10;
     public int MaxIntentos { get; set; } = 6;
 
-    // Lo ya enviado o fallido se borra pasado este plazo: el cuerpo lleva datos personales.
-    public int DiasRetencion { get; set; } = 30;
+    // Fase 11: el cuerpo, el asunto y la direccion completa de lo ya enviado se borran pasado este plazo (llevan datos
+    // personales); la fila queda con el tipo, la referencia, el estado y las fechas. Los fallidos los conservan mas
+    // tiempo, para poder reenviarlos desde «Correos no enviados».
+    public int DiasCuerpoEnviados { get; set; } = 30;
+    public int DiasCuerpoFallidos { get; set; } = 90;
 }

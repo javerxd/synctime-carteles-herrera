@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Api;
+using LetrerosHerreraSYNCTIMEapi.Middleware;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Cotizaciones;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -71,7 +72,8 @@ public static class CotizacionApi
                 r => Results.Created($"/api/v1/cotizaciones/{r.Ficha.IdCotizacion}", r.Ficha)))
             .WithTags("Cotizaciones")
             .RequireAuthorization(Politicas.Empleado)
-            .RequireRateLimiting("ApiGeneral");
+            .RequireRateLimiting("ApiGeneral")
+            .ConIdempotencia("POST /solicitudes/{id}/cotizaciones");
     }
 
     internal static IResult IfMatchIlegible() =>

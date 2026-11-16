@@ -309,12 +309,12 @@ function Ficha({ id }) {
     consulta.recargar();
   }
 
-  async function registrarAbono(abono) {
+  async function registrarAbono(abono, clave) {
     try {
-      await pedidos.registrarAbono(pedido.idPedido, abono);
+      await pedidos.registrarAbono(pedido.idPedido, abono, { clave });
     } catch (falla) {
       if (sinRespuesta(falla)) {
-        // Sin respuesta no sabemos si se guardó: se revisa antes de dejar reintentar (la API no tiene idempotencia).
+        // Sin respuesta no sabemos si se guardó: se revisa antes de dejar reintentar (el reintento lleva la misma clave).
         const resultado = await verificarAbono(abono);
         if (resultado !== 'registrado') throw errorTrasCorte(resultado);
         abonoListo(abono, { trasCorte: true });

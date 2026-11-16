@@ -16,7 +16,7 @@ export function AvisoConflicto({
     <Aviso tono="peligro" titulo={`Otra persona modificó ${entidad} mientras lo editabas`}>
       <div className={estilos.conflicto}>
         <p>Tus cambios siguen aquí y no se guardaron.</p>
-        {conflicto.estado === 'buscando' && <p role="status">Buscando la versión actual…</p>}
+        {conflicto.estado === 'buscando' && <p>Buscando la versión actual…</p>}
         {conflicto.estado === 'error' && <p>No pudimos traer la versión actual. Revisa tu conexión y vuelve a intentarlo.</p>}
         {listo && resumen && <p>Versión actual: {resumen}</p>}
         {listo && noSePuede && <p><strong>{noSePuede}</strong></p>}

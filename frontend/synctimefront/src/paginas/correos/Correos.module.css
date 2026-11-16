@@ -1,0 +1,109 @@
+/* Fase 11: «Correos no enviados», su aviso en el inicio y la página pública de baja. */
+
+.celdaTipo {
+  display: grid;
+  gap: var(--espacio-1);
+}
+
+.detalle {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.correo {
+  overflow-wrap: anywhere;
+}
+
+.sinCorte {
+  white-space: nowrap;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.motivo {
+  flex-basis: 100%;
+  max-width: 22rem;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.inactivo {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.cuerpoDialogo {
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+.destino {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-2);
+  font-weight: 600;
+}
+
+.destino svg {
+  flex: none;
+  margin-top: 0.15rem;
+  color: var(--color-texto-secundario);
+}
+
+.nota {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* ── Página pública /baja ── */
+
+.paginaBaja {
+  display: grid;
+  justify-items: center;
+  padding: var(--espacio-12) var(--margen-pagina);
+}
+
+.tarjetaBaja {
+  display: grid;
+  gap: var(--espacio-4);
+  width: 100%;
+  max-width: 34rem;
+}
+
+.tituloBaja {
+  font-size: var(--tamano-2xl);
+}
+
+.opciones {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.leyenda {
+  margin-bottom: var(--espacio-2);
+  font-weight: 600;
+}
+
+.errorGrupo {
+  color: var(--tono-peligro-texto);
+  font-size: var(--tamano-sm);
+}
+
+.pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+}
+
+/* El título recibe el foco al cambiar de estado (resultado o enlace inválido): no se dibuja el anillo. */
+.tituloBaja:focus {
+  outline: none;
+}

@@ -274,11 +274,11 @@ describe('ficha del pedido', () => {
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar abono' }));
     await waitFor(() => expect(monto).toHaveAccessibleDescription('El abono supera el saldo pendiente ($19.065).'));
     expect(monto).toHaveValue('20.000');
-    expect(pedidos.registrarAbono).toHaveBeenCalledWith(1, { monto: 20000, fechaPago: undefined, medioPago: 'efectivo', observacion: null });
+    expect(pedidos.registrarAbono).toHaveBeenCalledWith(1, { monto: 20000, fechaPago: undefined, medioPago: 'efectivo', observacion: null }, { clave: expect.stringMatching(/^[0-9a-f-]{36}$/) });
 
     escribir(monto, '19.065');
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar abono' }));
-    await waitFor(() => expect(pedidos.registrarAbono).toHaveBeenLastCalledWith(1, expect.objectContaining({ monto: 19065 })));
+    await waitFor(() => expect(pedidos.registrarAbono).toHaveBeenLastCalledWith(1, expect.objectContaining({ monto: 19065 }), { clave: expect.stringMatching(/^[0-9a-f-]{36}$/) }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 

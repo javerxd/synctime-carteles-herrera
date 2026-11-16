@@ -1,10 +1,11 @@
-import { api } from './cliente';
+import { api, conClave } from './cliente';
 import { comoPaginado, siVersion } from './solicitudes';
 
 // Pedidos, abonos, calendario y alertas (fase 8). Contrato: docs/plan/fase-08-especificacion.md, «Rutas».
 // Las lecturas aceptan { senal } (AbortSignal): un filtro que cambia corta la petición anterior.
-// Registrar un abono o crear un pedido no tienen clave de idempotencia: si la respuesta se pierde (estado 0),
-// la pantalla relee el pedido o la cotización antes de dejar intentarlo de nuevo.
+// Fase 11: crear un pedido y registrar un abono llevan la clave de idempotencia del formulario abierto
+// (Idempotency-Key, `{ clave }`): la API no duplica el registro si el mismo envío se repite. Si la respuesta se
+// pierde (estado 0), la pantalla igual relee el pedido o la cotización antes de reintentar, con la misma clave.
 //
 // Ficha (S07): { idPedido, numero, origen, solicitud: { idSolicitud, numero }, cotizacion, cliente,
 //   responsable: { idEmpleado, nombre }, fechaPedido, fechaEntregaEstimada, fechaEntregaReal, modalidadEntrega,
@@ -27,15 +28,15 @@ export const pedidos = {
   listar: (filtros = {}, { senal } = {}) => api.get('/pedidos', { parametros: filtros, senal }).then((r) => comoPaginado(r, filtros)),
   obtener: (id) => api.get(`/pedidos/${id}`),
   /** Desde una cotización aprobada y sin pedido: datos E08 y `abonoInicial` opcional → 201 ficha. */
-  crearDesdeCotizacion: (idCotizacion, datos) => api.post(`/cotizaciones/${idCotizacion}/pedido`, datos),
+  crearDesdeCotizacion: (idCotizacion, datos, { clave } = {}) => api.post(`/cotizaciones/${idCotizacion}/pedido`, datos, conClave(clave)),
   /** Pedido presencial directo (RFU35, E26) → 201 ficha. */
-  crearDirecto: (datos) => api.post('/pedidos/directo', datos),
+  crearDirecto: (datos, { clave } = {}) => api.post('/pedidos/directo', datos, conClave(clave)),
   /** Los datos editables, con la versión vista (If-Match). */
   editar: (id, datos, rowVersion) => api.put(`/pedidos/${id}`, datos, siVersion(rowVersion)),
   /** { estado, fechaEntregaReal?, motivo?, nota? }, con la versión vista. 409 transicion_invalida o version_obsoleta. */
   cambiarEstado: (id, cambio, rowVersion) => api.patch(`/pedidos/${id}/estado`, cambio, siVersion(rowVersion)),
   /** Registrar un abono no exige versión (solo suma; la base protege el tope). 409 abono_excede_saldo → 201 ficha. */
-  registrarAbono: (id, abono) => api.post(`/pedidos/${id}/pagos`, abono),
+  registrarAbono: (id, abono, { clave } = {}) => api.post(`/pedidos/${id}/pagos`, abono, conClave(clave)),
   /** { motivo } → 200 ficha. 403 solo_gestion (o sin_permiso) si no es de quien lo registró en las últimas 24 horas. */
   anularAbono: (id, idPago, motivo) => api.post(`/pedidos/${id}/pagos/${idPago}/anular`, { motivo }),
   /** Gestión: borrado lógico de un pedido anulado sin abonos vigentes → 204. */

@@ -9,6 +9,7 @@ import { enlaceTelefono, enlaceWhatsapp, TALLER } from '../../configuracion/tall
 import { BotonSolicitar } from '../../estructuras/Solicitud';
 import { formatearFechaHora, formatearPesos } from '../../utilidades/formato';
 import { useConsulta } from '../../utilidades/useConsulta';
+import { ComprobanteBaja } from '../cuenta/ComprobanteBaja';
 import { FormularioContacto } from './contacto/FormularioContacto';
 import { franja, hora, textoEstado } from './horario';
 import { MapaUbicacion } from './mapa/MapaUbicacion';
@@ -59,6 +60,7 @@ export default function Portada() {
 
   return (
     <>
+      <ComprobanteBaja />
       <section className={estilos.portada} aria-labelledby="titulo-portada">
         <div className={estilos.contenedor}>
           <div className={estilos.propuesta}>

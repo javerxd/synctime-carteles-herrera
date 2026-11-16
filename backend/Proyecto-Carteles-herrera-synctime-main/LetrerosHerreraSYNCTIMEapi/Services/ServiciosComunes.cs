@@ -17,6 +17,8 @@ public interface IAvisosDelTaller
     // Fase 7 (outbox): deja el aviso de una solicitud nueva en la cola de la transaccion que la guarda.
     // A diferencia de los demas avisos, si algo falla lanza la excepcion: quien llama revierte la
     // transaccion completa, asi nunca queda una solicitud guardada cuyo aviso se perdio.
+    // Fase 11: tambien las presenciales, a los destinos que las quieren. Es un correo operativo: ninguna baja ni
+    // preferencia del cliente lo afecta.
     Task SolicitudNuevaAsync(IServicioCorreo colaDeLaTransaccion, ComprobanteSolicitud solicitud, string? registradaPor, CancellationToken ct);
 
     // Una consulta del formulario de contacto, ya guardada. Nunca lanza: si algo falla, lo registra.
@@ -50,6 +52,7 @@ public sealed class AvisosDelTaller(
 {
     public Task SolicitudNuevaAsync(IServicioCorreo colaDeLaTransaccion, ComprobanteSolicitud solicitud, string? registradaPor, CancellationToken ct) =>
         AvisarAsync(colaDeLaTransaccion, $"solicitud {solicitud.IdSolicitud}", TiposCorreo.AvisoSolicitudNueva, sublimite: 0,
+            solicitud.Origen == "presencial" ? OrigenAviso.Presencial : OrigenAviso.EnLinea,
             (para, url, _) => Task.FromResult<MensajeCorreo?>(AvisoSolicitudNueva.Componer(solicitud, registradaPor, para, url)), ct);
 
     public async Task ConsultaContactoAsync(ConsultaParaAviso consulta)
@@ -58,7 +61,8 @@ public sealed class AvisosDelTaller(
         // aviso igual debe quedar en la cola.
         try
         {
-            await AvisarAsync(correo, $"consulta {consulta.IdConsulta}", TiposCorreo.ConsultaContacto, opciones.Value.TopeConsultasPorHora,
+            // Una consulta llega desde la pagina: la reciben los destinos de las solicitudes en linea.
+            await AvisarAsync(correo, $"consulta {consulta.IdConsulta}", TiposCorreo.ConsultaContacto, opciones.Value.TopeConsultasPorHora, OrigenAviso.EnLinea,
                 (para, url, _) => Task.FromResult<MensajeCorreo?>(AvisoConsultaContacto.Componer(consulta, para, url)), CancellationToken.None);
         }
         catch (Exception error)
@@ -70,10 +74,11 @@ public sealed class AvisosDelTaller(
 
     // Solicitudes y consultas comparten el tope por hora: las dos salen de la misma cuenta de Gmail. Las
     // consultas, ademas, tienen un sublimite propio para no dejar sin cupo a las solicitudes.
-    private async Task AvisarAsync(IServicioCorreo cola, string que, string tipo, int sublimite,
+    private async Task AvisarAsync(IServicioCorreo cola, string que, string tipo, int sublimite, OrigenAviso origen,
         Func<IReadOnlyList<string>, string?, CancellationToken, Task<MensajeCorreo?>> componer, CancellationToken ct)
     {
-        var para = await destinatarios.ObtenerAsync(ct);
+        // Un aviso que nadie quiere recibir no se encola.
+        var para = (await destinatarios.LeerAsync(origen, ct)).Correos;
         if (para.Count == 0)
             return;
         var urlPublica = configuracion["Sitio:UrlPublica"];

@@ -8,11 +8,19 @@ namespace LetrerosHerreraSYNCTIMEapi.Services;
 
 // ── Fase 9: estado del local, horario y disponibilidad (RFS02, RNFO03, RFU16, RFU20, E10, E11) ──
 
+// Fase 11: con su version (ETag) para guardar con If-Match.
 public sealed record VistaCartel(bool AbiertoEnLocal, string MensajeEstado, string? TiempoEstimadoRegreso, DateTime FechaUltimaModificacion,
-    int? IdEmpleadoModifica, string? ModificadoPor);
+    int? IdEmpleadoModifica, string? ModificadoPor, byte[] RowVersion) : IConVersion;
 
-// Las horas en «HH:mm»; un dia cerrado, sin horas.
-public sealed record VistaDiaHorario(int DiaSemana, string NombreDia, bool Abierto, string? HoraInicio, string? HoraFin);
+// Lo que ve la portada del cartel: sin el empleado que lo cambio.
+public sealed record CartelPublico(bool AbiertoEnLocal, string MensajeEstado, string? TiempoEstimadoRegreso, DateTime FechaUltimaModificacion, byte[] RowVersion)
+    : IConVersion;
+
+// Las horas en «HH:mm»; un dia cerrado, sin horas. Fase 11: rowVersion es la version del horario completo (la misma en
+// los siete dias y en el ETag): se envia en If-Match al guardar.
+public sealed record VistaDiaHorario(int DiaSemana, string NombreDia, bool Abierto, string? HoraInicio, string? HoraFin, byte[] RowVersion);
+
+public sealed record HorarioConVersion(IReadOnlyList<VistaDiaHorario> Dias, byte[] RowVersion);
 
 public sealed record VistaFranja(int DiaSemana, string HoraInicio, string HoraFin);
 public sealed record MiDisponibilidad(IReadOnlyList<VistaFranja> Franjas);
@@ -21,41 +29,77 @@ public sealed record DisponibilidadDePersona(int IdEmpleado, string Nombre, stri
 public sealed class ServicioLocal(LetrerosHerreradbContext db, IConfiguration configuracion, TimeProvider reloj)
 {
     // RFU16, RNFO03 (decision 1 del 14-11-2026): todo el personal da vuelta el cartel. Queda quien y cuando;
-    // la portada lo muestra sin el empleado.
-    public async Task<ResultadoGestion<VistaCartel>> ActualizarCartelAsync(int idEmpleado, EntradaCartel entrada, CancellationToken ct)
+    // la portada lo muestra sin el empleado. Fase 11: con la version vista (If-Match); si otra persona lo dio vuelta
+    // entretanto, 409 version_obsoleta.
+    public async Task<ResultadoGestion<VistaCartel>> ActualizarCartelAsync(int idEmpleado, EntradaCartel entrada, byte[]? version, CancellationToken ct)
     {
         var errores = ValidacionMantenedores.Cartel(entrada);
         if (errores.Count > 0)
             return new ResultadoGestion<VistaCartel>.Invalido(errores);
+        if (version is not { Length: > 0 })
+            return new ResultadoGestion<VistaCartel>.SinVersion();
         var cartel = await db.CartelDigital.FirstOrDefaultAsync(ct);
         if (cartel is null)
             return new ResultadoGestion<VistaCartel>.NoEncontrado();
+        if (!Versiones.Iguales(version, cartel.RowVersion))
+            return new ResultadoGestion<VistaCartel>.VersionObsoleta();
         cartel.AbiertoEnLocal = entrada.AbiertoEnLocal;
         cartel.MensajeEstado = entrada.MensajeEstado!.Trim();
         cartel.TiempoEstimadoRegreso = ValidacionMantenedores.Limpiar(entrada.TiempoEstimadoRegreso);
         cartel.IdEmpleadoModifica = idEmpleado;
         // La portada la muestra tal cual: en hora de Chile, no en la del servidor (un contenedor usa UTC).
         cartel.FechaUltimaModificacion = HoraChile.Convertir(reloj.GetUtcNow());
-        await db.SaveChangesAsync(ct);
+        // La base compara con la version vista: dos cambios a la vez no se pisan.
+        db.Entry(cartel).Property(c => c.RowVersion).OriginalValue = version;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ResultadoGestion<VistaCartel>.VersionObsoleta();
+        }
         var nombre = await db.Empleados.AsNoTracking().Where(e => e.IdEmpleado == idEmpleado).Select(e => e.Nombre + " " + e.Apellido).FirstOrDefaultAsync(ct);
         return new ResultadoGestion<VistaCartel>.Correcto(new VistaCartel(cartel.AbiertoEnLocal, cartel.MensajeEstado, cartel.TiempoEstimadoRegreso,
-            cartel.FechaUltimaModificacion, idEmpleado, nombre));
+            cartel.FechaUltimaModificacion, idEmpleado, nombre, cartel.RowVersion));
     }
 
-    public async Task<IReadOnlyList<VistaDiaHorario>> HorarioAsync(CancellationToken ct) =>
-        (await LeerHorarioAsync(ct)).Select(Vista).ToList();
+    // GET /cartel-digital (publico): sin quien lo cambio, con su version.
+    public Task<CartelPublico?> CartelAsync(CancellationToken ct) =>
+        db.CartelDigital.AsNoTracking().OrderBy(c => c.IdCartel)
+            .Select(c => new CartelPublico(c.AbiertoEnLocal, c.MensajeEstado, c.TiempoEstimadoRegreso, c.FechaUltimaModificacion, c.RowVersion))
+            .FirstOrDefaultAsync(ct);
 
-    // E10: solo gestion. Los 7 dias en una transaccion, con quien y cuando.
-    public async Task<ResultadoGestion<IReadOnlyList<VistaDiaHorario>>> GuardarHorarioAsync(int idEmpleado, IReadOnlyList<EntradaDiaHorario?>? dias,
+    public async Task<HorarioConVersion> HorarioAsync(CancellationToken ct)
+    {
+        var filas = await db.HorariosAtencion.AsNoTracking().OrderBy(h => h.DiaSemana).ToListAsync(ct);
+        var version = VersionDelHorario(filas);
+        return new HorarioConVersion(filas.Select(h => Vista(new DiaHorario(h.DiaSemana, h.NombreDia, h.Abierto, h.HoraInicio, h.HoraFin), version)).ToList(),
+            version);
+    }
+
+    // La version del horario completo: la mayor de las siete filas (rowversion crece con cada cambio en la base).
+    private static byte[] VersionDelHorario(IEnumerable<HorarioAtencion> filas) =>
+        filas.Select(f => f.RowVersion).Where(v => v is { Length: 8 })
+            .OrderByDescending(v => System.Buffers.Binary.BinaryPrimitives.ReadUInt64BigEndian(v)).FirstOrDefault() ?? new byte[8];
+
+    // E10: solo gestion. Los 7 dias en una transaccion, con quien y cuando. Fase 11: con la version vista del horario
+    // completo (If-Match); los guardados van en fila, asi el segundo con la misma version recibe 409.
+    public async Task<ResultadoGestion<HorarioConVersion>> GuardarHorarioAsync(int idEmpleado, IReadOnlyList<EntradaDiaHorario?>? dias, byte[]? version,
         CancellationToken ct)
     {
         var (validados, errores) = ReglasHorario.Validar(dias);
         if (errores.Count > 0)
-            return new ResultadoGestion<IReadOnlyList<VistaDiaHorario>>.Invalido(errores, "Revisa el horario.");
+            return new ResultadoGestion<HorarioConVersion>.Invalido(errores, "Revisa el horario.");
+        if (version is not { Length: > 0 })
+            return new ResultadoGestion<HorarioConVersion>.SinVersion();
 
         var ahora = reloj.GetUtcNow();
         await using var transaccion = await db.Database.BeginTransactionAsync(ct);
+        await BloqueoDeAplicacion.TomarAsync(db, "horario_atencion", BloqueoDeAplicacion.Espera(configuracion), ct);
         var filas = await db.HorariosAtencion.ToListAsync(ct);
+        if (!Versiones.Iguales(version, VersionDelHorario(filas)))
+            return new ResultadoGestion<HorarioConVersion>.VersionObsoleta();
         foreach (var dia in validados)
         {
             var fila = filas.FirstOrDefault(f => f.DiaSemana == dia.DiaSemana);
@@ -72,7 +116,7 @@ public sealed class ServicioLocal(LetrerosHerreradbContext db, IConfiguration co
         }
         await db.SaveChangesAsync(ct);
         await transaccion.CommitAsync(CancellationToken.None);
-        return new ResultadoGestion<IReadOnlyList<VistaDiaHorario>>.Correcto(await HorarioAsync(CancellationToken.None));
+        return new ResultadoGestion<HorarioConVersion>.Correcto(await HorarioAsync(CancellationToken.None));
     }
 
     public async Task<MiDisponibilidad> MiDisponibilidadAsync(int idEmpleado, CancellationToken ct) =>
@@ -145,15 +189,16 @@ public sealed class ServicioLocal(LetrerosHerreradbContext db, IConfiguration co
         (await db.HorariosAtencion.AsNoTracking().OrderBy(h => h.DiaSemana).ToListAsync(ct))
             .Select(h => new DiaHorario(h.DiaSemana, h.NombreDia, h.Abierto, h.HoraInicio, h.HoraFin)).ToList();
 
-    private static VistaDiaHorario Vista(DiaHorario d) => new(d.DiaSemana, d.NombreDia, d.Abierto,
+    private static VistaDiaHorario Vista(DiaHorario d, byte[] version) => new(d.DiaSemana, d.NombreDia, d.Abierto,
         d.Abierto && d.HoraInicio is { } inicio ? ReglasHorario.Texto(inicio) : null,
-        d.Abierto && d.HoraFin is { } fin ? ReglasHorario.Texto(fin) : null);
+        d.Abierto && d.HoraFin is { } fin ? ReglasHorario.Texto(fin) : null, version);
 }
 
 // ── Fase 9: la ficha de un cliente (RNFP10: editar exige la version vista) ──
 
+// Fase 11: CuentaDadaDeBaja, si el cliente dio de baja su cuenta web (se conservan sus pedidos).
 public sealed record FichaCliente(int IdCliente, string? Rut, string Nombre, string Apellido, string Telefono, string? Email,
-    string? Direccion, bool Registrado, bool CorreoConfirmado, bool Activo, DateTime FechaRegistro, byte[] RowVersion) : IConVersion;
+    string? Direccion, bool Registrado, bool CorreoConfirmado, bool Activo, DateTime FechaRegistro, byte[] RowVersion, bool CuentaDadaDeBaja = false) : IConVersion;
 
 // Activo null: al crear, true; al editar, se conserva (no se reactiva sin pedirlo).
 public sealed record EntradaCliente(string? Rut, string? Nombre, string? Apellido, string? Telefono, string? Email, string? Direccion, bool? Activo);
@@ -166,7 +211,7 @@ public sealed class ServicioFichaClientes(LetrerosHerreradbContext db, ServicioS
     public Task<FichaCliente?> ObtenerAsync(int id, CancellationToken ct) =>
         db.Clientes.AsNoTracking().Where(c => c.IdCliente == id)
             .Select(c => new FichaCliente(c.IdCliente, c.Rut, c.Nombre, c.Apellido, c.Telefono, c.Email, c.Direccion, c.Registrado,
-                c.FechaVerificacionCorreo != null, c.Activo, c.FechaRegistro, c.RowVersion))
+                c.FechaVerificacionCorreo != null, c.Activo, c.FechaRegistro, c.RowVersion, c.InhabilitadoEn != null))
             .FirstOrDefaultAsync(ct);
 
     // Cliente presencial (sin cuenta web). Las reglas de formato las hace cumplir la base (fase 7).
@@ -283,6 +328,9 @@ public sealed class ServicioFichaClientes(LetrerosHerreradbContext db, ServicioS
         if (cambioCorreo)
             cliente.FechaVerificacionCorreo = null;
         cliente.PasswordHash = auth.HashPassword(password!);
+        // Fase 11: si habia dado de baja su cuenta, el personal (que comprobo su identidad) la habilita de nuevo. Los
+        // avisos de estado siguen apagados hasta que el cliente los encienda.
+        cliente.InhabilitadoEn = null;
         // La nueva contraseña y el cierre de las sesiones anteriores van juntos.
         await using (var transaccion = await db.Database.BeginTransactionAsync(ct))
         {

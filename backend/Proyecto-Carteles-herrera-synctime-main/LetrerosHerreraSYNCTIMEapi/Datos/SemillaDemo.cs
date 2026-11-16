@@ -119,8 +119,10 @@ public static class SemillaDemo
         if (dueno is null)
             return 0;
 
-        await db.Catalogos.Where(c => c.Imagen != null && c.Imagen.EsEjemplo && c.Visible)
-            .ExecuteUpdateAsync(s => s.SetProperty(c => c.Visible, false));
+        // Fase 11: con seguimiento (no ExecuteUpdate), para que el cambio quede en la bitacora.
+        foreach (var ejemplo in await db.Catalogos.Where(c => c.Imagen != null && c.Imagen.EsEjemplo && c.Visible).ToListAsync())
+            ejemplo.Visible = false;
+        await db.SaveChangesAsync();
 
         var ahora = DateTimeOffset.UtcNow;
         var completados = 0;

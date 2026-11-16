@@ -258,14 +258,14 @@
         "tags": [
           "Local"
         ],
-        "summary": "Devuelve los 7 días del horario semanal: [{ diaSemana, nombreDia, abierto, horaInicio, horaFin }] con horas «HH:mm», sin quién lo cambió",
+        "summary": "Devuelve los 7 días del horario semanal: [{ diaSemana, nombreDia, abierto, horaInicio, horaFin, rowVersion }] con horas «HH:mm», sin quién lo cambió. Fase 11: rowVersion es la versión del horario completo (igual en los 7 días y en el ETag)",
         "x-acceso": "publico"
       },
       "put": {
         "tags": [
           "Local"
         ],
-        "summary": "Guarda el horario semanal { dias: [{ diaSemana, abierto, horaInicio?, horaFin? }] } con los 7 días, en una transacción y con quién y cuándo; el cierre debe ser posterior a la apertura (errores por «{dia}.horaFin»). Responde los 7 días",
+        "summary": "Guarda el horario semanal { dias: [{ diaSemana, abierto, horaInicio?, horaFin? }] } con los 7 días, en una transacción y con quién y cuándo; el cierre debe ser posterior a la apertura (errores por «{dia}.horaFin»). Fase 11: exige If-Match (400 sin_version, 409 version_obsoleta). Responde los 7 días con el ETag nuevo",
         "x-acceso": "gestion"
       }
     },
@@ -274,14 +274,14 @@
         "tags": [
           "Local"
         ],
-        "summary": "Devuelve el estado actual del local",
+        "summary": "Devuelve el estado actual del local Fase 11: incluye rowVersion y el ETag.",
         "x-acceso": "publico"
       },
       "put": {
         "tags": [
           "Local"
         ],
-        "summary": "Da vuelta el cartel { abiertoEnLocal, mensajeEstado (1–200), tiempoEstimadoRegreso? (≤100) }; guarda quién y cuándo (decisión 1: todo el personal)",
+        "summary": "Da vuelta el cartel { abiertoEnLocal, mensajeEstado (1–200), tiempoEstimadoRegreso? (≤100) }; guarda quién y cuándo (decisión 1: todo el personal) Fase 11: exige If-Match (400 sin_version, 409 version_obsoleta).",
         "x-acceso": "personal"
       }
     },
@@ -369,7 +369,7 @@
         "tags": [
           "Solicitudes"
         ],
-        "summary": "Registra una solicitud presencial ({ idCliente, descripcionGeneral, detalles }) y responde 201 con la ficha; confirma al cliente por correo si tiene uno, sin aviso al taller",
+        "summary": "Registra una solicitud presencial ({ idCliente, descripcionGeneral, detalles }) y responde 201 con la ficha; confirma al cliente por correo si tiene uno, sin aviso al taller Fase 11: acepta Idempotency-Key (UUID); repetida con el mismo cuerpo devuelve la respuesta original con Idempotent-Replayed: true; con otro cuerpo, 409 clave_reutilizada; en curso, 409 en_proceso; clave inválida, 400 clave_invalida.",
         "x-acceso": "personal"
       }
     },
@@ -426,7 +426,7 @@
         "tags": [
           "Portal del cliente"
         ],
-        "summary": "Envía una solicitud en línea ({ descripcionGeneral, detalles, adjuntos }): 201 con el comprobante, 403 correo_sin_confirmar, 409 contacto_directo (regla contra solicitudes falsas, sin escribir nada) o 400 por campo",
+        "summary": "Envía una solicitud en línea ({ descripcionGeneral, detalles, adjuntos }): 201 con el comprobante, 403 correo_sin_confirmar, 409 contacto_directo (regla contra solicitudes falsas, sin escribir nada) o 400 por campo Fase 11: acepta Idempotency-Key (UUID); repetida con el mismo cuerpo devuelve la respuesta original con Idempotent-Replayed: true; con otro cuerpo, 409 clave_reutilizada; en curso, 409 en_proceso; clave inválida, 400 clave_invalida.",
         "x-acceso": "cliente"
       }
     },
@@ -756,7 +756,7 @@
         "tags": [
           "Cotizaciones"
         ],
-        "summary": "Emite una cotización sobre una solicitud «solicitado»: la solicitud pasa a «cotizado» y, si el cliente tiene el correo confirmado, se encola «Tu cotización #N está lista». 201 con la cotización; 409 cotizacion_pendiente si ya hay una pendiente",
+        "summary": "Emite una cotización sobre una solicitud «solicitado»: la solicitud pasa a «cotizado» y, si el cliente tiene el correo confirmado, se encola «Tu cotización #N está lista». 201 con la cotización; 409 cotizacion_pendiente si ya hay una pendiente Fase 11: acepta Idempotency-Key (UUID); repetida con el mismo cuerpo devuelve la respuesta original con Idempotent-Replayed: true; con otro cuerpo, 409 clave_reutilizada; en curso, 409 en_proceso; clave inválida, 400 clave_invalida.",
         "x-acceso": "personal"
       }
     },
@@ -774,7 +774,7 @@
         "tags": [
           "Pedidos"
         ],
-        "summary": "Crea el pedido de una cotización «aprobada» de una solicitud «aceptado», con el abono inicial opcional, en una transacción. 201 con la ficha; 409 cotizacion_con_pedido si ya tiene (o tuvo) un pedido",
+        "summary": "Crea el pedido de una cotización «aprobada» de una solicitud «aceptado», con el abono inicial opcional, en una transacción. 201 con la ficha; 409 cotizacion_con_pedido si ya tiene (o tuvo) un pedido Fase 11: acepta Idempotency-Key (UUID); repetida con el mismo cuerpo devuelve la respuesta original con Idempotent-Replayed: true; con otro cuerpo, 409 clave_reutilizada; en curso, 409 en_proceso; clave inválida, 400 clave_invalida.",
         "x-acceso": "personal"
       }
     },
@@ -783,7 +783,7 @@
         "tags": [
           "Pedidos"
         ],
-        "summary": "Pedido presencial directo (RFU35): en una transacción, la solicitud presencial ya aceptada, la cotización aprobada, el pedido y el abono. No envía correos. 201 con la ficha",
+        "summary": "Pedido presencial directo (RFU35): en una transacción, la solicitud presencial ya aceptada, la cotización aprobada, el pedido y el abono. No envía correos. 201 con la ficha Fase 11: acepta Idempotency-Key (UUID); repetida con el mismo cuerpo devuelve la respuesta original con Idempotent-Replayed: true; con otro cuerpo, 409 clave_reutilizada; en curso, 409 en_proceso; clave inválida, 400 clave_invalida.",
         "x-acceso": "personal"
       }
     },
@@ -801,7 +801,7 @@
         "tags": [
           "Pedidos"
         ],
-        "summary": "Registra un abono (sin versión; bloquea el pedido): { monto, fechaPago?, medioPago, observacion?, numeroFactura? }. La factura solo completa la del pedido. 201 con la ficha; 409 abono_excede_saldo, pedido_anulado o factura_distinta",
+        "summary": "Registra un abono (sin versión; bloquea el pedido): { monto, fechaPago?, medioPago, observacion?, numeroFactura? }. La factura solo completa la del pedido. 201 con la ficha; 409 abono_excede_saldo, pedido_anulado o factura_distinta Fase 11: acepta Idempotency-Key (UUID); repetida con el mismo cuerpo devuelve la respuesta original con Idempotent-Replayed: true; con otro cuerpo, 409 clave_reutilizada; en curso, 409 en_proceso; clave inválida, 400 clave_invalida.",
         "x-acceso": "personal"
       }
     },
@@ -1088,6 +1088,121 @@
         ],
         "summary": "Desactiva un rostro y borra sus muestras. Gestión puede con cualquiera; el resto del personal solo con el propio",
         "x-acceso": "personal"
+      }
+    },
+    "/api/v1/avisos-taller/destinos/{id}/preferencia": {
+      "put": {
+        "tags": [
+          "Avisos del taller"
+        ],
+        "summary": "Fase 11: elige qué solicitudes avisa el destino { recibeEnLinea, recibePresenciales } (al menos una; si no, 400 datos_invalidos con errores.preferencia), con If-Match (400 sin_version, 409 version_obsoleta). Queda en el historial con la acción «preferencia». Responde el destino con su ETag",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/correos/baja": {
+      "get": {
+        "tags": [
+          "Correos"
+        ],
+        "summary": "Fase 11: muestra la baja del enlace ?t= sin cambiar nada: { correoEnmascarado, avisosEstado, marketing }. Token inválido, alterado o viejo: 404",
+        "x-acceso": "publico"
+      },
+      "post": {
+        "tags": [
+          "Correos"
+        ],
+        "summary": "Fase 11: da de baja { t, avisosEstado?: false, marketing?: false } (sin campos, los dos). Idempotente; responde { avisosEstado, marketing }. Token inválido: 404",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/correos/baja/un-clic": {
+      "post": {
+        "tags": [
+          "Correos"
+        ],
+        "summary": "Fase 11: baja con un clic (RFC 8058): formulario List-Unsubscribe=One-Click y el token en ?t=. Apaga los avisos de estado y el marketing; 200 sin cuerpo; token inválido: 404",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/correos/no-enviados": {
+      "get": {
+        "tags": [
+          "Correos"
+        ],
+        "summary": "Fase 11: correos fallidos tras todos los reintentos (?pagina, tamano, tipo, desde, hasta, revisado): { idCorreo, tipo, tipoTexto, referencia, enlace, destinoEnmascarado, intentos, motivo, fechaCreacion, fechaFallo, revisado, reenviable, reenviadoComo }",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/correos/no-enviados/resumen": {
+      "get": {
+        "tags": [
+          "Correos"
+        ],
+        "summary": "Fase 11: { sinRevisar } para el aviso del inicio del panel",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/correos/no-enviados/{id}/reenviar": {
+      "post": {
+        "tags": [
+          "Correos"
+        ],
+        "summary": "Fase 11: vuelve a encolar el correo una sola vez (avisos del taller a los destinos activos de hoy, los demás a su misma dirección). 202 { idCorreoNuevo }; 409 ya_reenviado (con idCorreoNuevo), sin_contenido, sin_destinos o cliente_no_recibe (aviso de estado a un cliente que ya no lo recibe); 404",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/correos/no-enviados/{id}/revisado": {
+      "post": {
+        "tags": [
+          "Correos"
+        ],
+        "summary": "Fase 11: marca el correo fallido como revisado sin reenviarlo. 204; 404",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/auditoria": {
+      "get": {
+        "tags": [
+          "Auditoría"
+        ],
+        "summary": "Fase 11: bitácora del más reciente al más antiguo (?pagina, tamano, desde, hasta, entidad, accion, idEmpleado, q = id exacto de la entidad): { idAuditoria, fecha, usuario { tipo, id, nombre }, rol, entidad, entidadTexto, idEntidad, accion, accionTexto, detalle, ip }",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/auditoria/consentimientos": {
+      "get": {
+        "tags": [
+          "Auditoría"
+        ],
+        "summary": "Fase 11: aceptaciones y revocaciones de consentimientos (?pagina, tamano, tipo, desde, hasta): { titular { tipo, id, nombre }, tipo, version, acepta, fecha }",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/mi-cuenta/preferencias": {
+      "put": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Fase 11: correos opcionales { avisosEstado, marketing, versionMarketing? }; cada cambio queda como consentimiento. Responde la cuenta (con avisosEstado y marketing). Reemplaza a PUT /mi-cuenta/marketing",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mi-cuenta/datos": {
+      "post": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Fase 11: descarga «Mis datos» { password } como JSON adjunto (mis-datos-letreros-herrera-AAAAMMDD.json). Contraseña incorrecta: 400 datos_invalidos (errores.password)",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mi-cuenta/baja": {
+      "post": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Fase 11: da de baja la cuenta { password, confirmacion: \"DAR DE BAJA\" }: inhabilita la cuenta, cierra las sesiones y conserva solicitudes, pedidos y abonos. 200 { comprobante { numero, fecha } }",
+        "x-acceso": "cliente"
       }
     }
   },

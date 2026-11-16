@@ -10,6 +10,7 @@ import { hoyChile } from '../../utilidades/fechas';
 import { useConsulta } from '../../utilidades/useConsulta';
 import { AvisoTrasCorte } from '../compartidos/AvisoTrasCorte';
 import { bloqueaReintento, errorTrasCorte, sinRespuesta, TRAS_CORTE } from '../compartidos/trasCorte';
+import { fallaDeClave, useClaveIdempotencia } from '../compartidos/useClaveIdempotencia';
 import { numeroCotizacion, pesosDesdeTexto } from '../cotizaciones/reglasCotizacion';
 import { nombreCompleto } from '../solicitudes/reglasSolicitud';
 import { CamposAbono, CamposPedido } from './CamposPedido';
@@ -114,6 +115,8 @@ function FormularioPedido({ cotizacion, alCrear, alRecargar }) {
   const { refFormulario: refDatos } = datos;
   const { refFormulario: refAbono } = abono;
   const [estado, setEstado] = useState({ enviando: false, falla: null });
+  // Fase 11: la misma clave en cada reintento de este formulario abierto.
+  const idempotencia = useClaveIdempotencia();
 
   /** ¿Se creó el pedido aunque se perdió la respuesta? La cotización releída ya trae su idPedido. */
   async function revisar() {
@@ -138,13 +141,14 @@ function FormularioPedido({ cotizacion, alCrear, alRecargar }) {
       const abonoInicial = abonoParaApi(abono.datos, { opcional: true });
       const ficha = await pedidos.crearDesdeCotizacion(cotizacion.idCotizacion, {
         ...datosPedidoParaApi(datos.datos), ...(abonoInicial ? { abonoInicial } : {}),
-      });
+      }, { clave: idempotencia.clave });
+      idempotencia.renovar();
       alCrear(ficha);
     } catch (falla) {
       if (sinRespuesta(falla)) await revisar();
       else if (aplicarError(falla)) setEstado({ enviando: false, falla: null });
       else {
-        setEstado({ enviando: false, falla });
+        setEstado({ enviando: false, falla: fallaDeClave(falla, idempotencia.renovar) });
         if (falla?.estado === 409) alRecargar();
       }
     }

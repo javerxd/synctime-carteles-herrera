@@ -420,6 +420,7 @@ public sealed class ServicioEmpleados(
     ServicioCodigosCuenta codigos,
     ServicioReautenticacion reautenticacion,
     ColaEnTransaccion cola,
+    Datos.Auditoria.IAuditoria auditoria,
     IOptions<OpcionesCorreo> opcionesCorreo,
     IConfiguration configuracion,
     TimeProvider reloj)
@@ -569,10 +570,19 @@ public sealed class ServicioEmpleados(
         if (seDesactiva)
         {
             var ahora = reloj.GetUtcNow();
-            // Fase 10: tambien las tres muestras (DatosRostro.Borrado borra las cuatro columnas cifradas).
-            await db.RostrosEmpleado
-                .Where(r => r.IdEmpleado == id && r.FechaRevocacion == null)
-                .ExecuteUpdateAsync(DatosRostro.Borrado(ahora), ct);
+            // Fase 10: tambien las tres muestras (DatosRostro.Borrado borra las cuatro columnas cifradas). Fase 11: queda
+            // en la bitacora, en la misma transaccion (el interceptor no ve el ExecuteUpdate).
+            var idRostro = await db.RostrosEmpleado.AsNoTracking().Where(r => r.IdEmpleado == id && r.FechaRevocacion == null)
+                .Select(r => (int?)r.IdRostro).FirstOrDefaultAsync(ct);
+            if (idRostro is int rostro && await db.RostrosEmpleado
+                    .Where(r => r.IdRostro == rostro && r.FechaRevocacion == null)
+                    .ExecuteUpdateAsync(DatosRostro.Borrado(ahora), ct) > 0)
+                await auditoria.RegistrarAsync("rostro_empleado", rostro.ToString(System.Globalization.CultureInfo.InvariantCulture), Models.AccionesAuditoria.Modificar,
+                    Datos.Auditoria.DetalleAuditoria.Libre(new Dictionary<string, object?>
+                    {
+                        ["campos"] = new[] { "descriptorCifrado", "descriptorFrente", "descriptorIzquierda", "descriptorDerecha", "tokenEquipoHash", "fechaRevocacion" },
+                        ["motivo"] = "empleado desactivado"
+                    }), ct);
             await sesiones.RevocarTodasAsync(TitularSesion.DeEmpleado(id), ct);
         }
         await transaccion.CommitAsync(CancellationToken.None);

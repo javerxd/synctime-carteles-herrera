@@ -1,4 +1,5 @@
 import { api } from './cliente';
+import { siVersion } from './solicitudes';
 
 // Avisos del taller (fase 9, pedido del usuario del 14-11-2026). Contrato: docs/plan/fase-09-especificacion.md,
 // «Avisos del taller». Todo es de gestión (dueño y administrador), salvo confirmar, que es pública.
@@ -6,6 +7,7 @@ import { api } from './cliente';
 // GET /avisos-taller → { destinos: [{ idDestinatario, correo, estado: 'activo' | 'pendiente',
 //   reemplazaA: { idDestinatario, correo } | null, fechaSolicitudChile, fechaConfirmacionChile, venceChile }],
 //   usaRespaldo, historial: [{ fechaChile, accion, correo, empleado, detalle }] }
+// Fase 11: cada destino suma recibeEnLinea, recibePresenciales y rowVersion.
 
 export const avisosTaller = {
   obtener: ({ senal } = {}) => api.get('/avisos-taller', { senal }),
@@ -17,6 +19,11 @@ export const avisosTaller = {
   agregar: ({ correo, idReemplaza, passwordActual }) => api.post('/avisos-taller/destinos', {
     correo, ...(idReemplaza ? { idReemplaza } : {}), passwordActual,
   }),
+  /**
+   * Fase 11: qué solicitudes avisa este destino, { recibeEnLinea, recibePresenciales }, con la versión vista (If-Match).
+   * 200 con el destino; 400 datos_invalidos (errores.preferencia) si las dos vienen apagadas; 409 version_obsoleta.
+   */
+  preferencia: (id, preferencia, rowVersion) => api.put(`/avisos-taller/destinos/${id}/preferencia`, preferencia, siVersion(rowVersion)),
   /** Enlace nuevo para un pendiente (invalida el anterior). 429 si se pide muy seguido. */
   reenviar: (id) => api.post(`/avisos-taller/destinos/${id}/reenviar`),
   /** El pendiente pasa a «cancelado». */

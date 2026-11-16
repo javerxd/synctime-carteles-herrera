@@ -431,12 +431,12 @@ public sealed class FlujoNegocioTests(ApiFixture api)
     [Fact]
     public async Task CartelDigital_RecordsTheEmployeeFromTheToken()
     {
-        var cartel = await api.Cliente(await api.TokenAdminAsync()).PutAsJsonAsync("/api/v1/cartel-digital", new
+        var cartel = await api.Cliente(await api.TokenAdminAsync()).GuardarCartelAsync(new
         {
             abiertoEnLocal = false,
             mensajeEstado = "Volvemos pronto",
             idEmpleadoModifica = 999999
-        }).EsperarAsync(HttpStatusCode.OK);
+        });
 
         Assert.Equal(await api.IdAdminAsync(), cartel.GetProperty("idEmpleadoModifica").GetInt32());
         Assert.False(cartel.GetProperty("abiertoEnLocal").GetBoolean());

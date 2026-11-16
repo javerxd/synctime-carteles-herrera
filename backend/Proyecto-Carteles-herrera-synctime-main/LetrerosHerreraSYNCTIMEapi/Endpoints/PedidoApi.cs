@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LetrerosHerreraSYNCTIMEapi.Api;
+using LetrerosHerreraSYNCTIMEapi.Middleware;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Pedidos;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Solicitudes;
@@ -51,7 +52,8 @@ public static class PedidoApi
         // Pedido presencial directo (RFU35, E26): el cliente se busca o se crea antes (GET /clientes/buscar, POST /clientes).
         group.MapPost("/directo", async (PedidoDirectoRequest req, ClaimsPrincipal user, HttpContext http, ServicioPedidos servicio, CancellationToken ct) =>
             RespuestasPedido.Responder(await servicio.CrearDirectoAsync(Quien(user), req.Entrada(), ct), http,
-                r => Results.Created($"/api/v1/pedidos/{r.Ficha.IdPedido}", r.Ficha)));
+                r => Results.Created($"/api/v1/pedidos/{r.Ficha.IdPedido}", r.Ficha)))
+            .ConIdempotencia("POST /pedidos/directo");
 
         group.MapPut("/{id:int}", async (int id, EditarPedidoRequest req, ClaimsPrincipal user, HttpContext http, ServicioPedidos servicio, CancellationToken ct) =>
         {
@@ -73,7 +75,8 @@ public static class PedidoApi
 
         group.MapPost("/{id:int}/pagos", async (int id, AbonoRequest req, ClaimsPrincipal user, HttpContext http, ServicioPedidos servicio, CancellationToken ct) =>
             RespuestasPedido.Responder(await servicio.RegistrarAbonoAsync(id, Quien(user), req.Entrada(), ct), http,
-                r => Results.Created($"/api/v1/pedidos/{id}", r.Ficha)));
+                r => Results.Created($"/api/v1/pedidos/{id}", r.Ficha)))
+            .ConIdempotencia("POST /pedidos/{id}/pagos");
 
         group.MapPost("/{id:int}/pagos/{idPago:int}/anular", async (int id, int idPago, AnularAbonoRequest req, ClaimsPrincipal user, HttpContext http,
                 ServicioPedidos servicio, CancellationToken ct) =>
@@ -95,7 +98,8 @@ public static class PedidoApi
                 r => Results.Created($"/api/v1/pedidos/{r.Ficha.IdPedido}", r.Ficha)))
             .WithTags("Pedidos")
             .RequireAuthorization(Politicas.Empleado)
-            .RequireRateLimiting("ApiGeneral");
+            .RequireRateLimiting("ApiGeneral")
+            .ConIdempotencia("POST /cotizaciones/{id}/pedido");
     }
 
     // Quien opera sale del token: su id y si es de gestion.

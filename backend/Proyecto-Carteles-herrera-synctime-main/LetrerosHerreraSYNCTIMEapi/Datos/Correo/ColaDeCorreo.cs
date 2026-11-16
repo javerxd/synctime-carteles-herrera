@@ -78,6 +78,7 @@ public static class FilaDeCola
             Asunto = PlantillaCorreo.AsuntoSeguro(mensaje.Asunto),
             CuerpoHtml = mensaje.Html,
             CuerpoTexto = mensaje.Texto,
+            EnlaceBaja = mensaje.EnlaceBaja,
             Estado = EstadosCorreo.Pendiente,
             ProximoIntento = disponibleDesde,
             FechaCreacion = ahora

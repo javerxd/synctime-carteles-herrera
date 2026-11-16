@@ -6,6 +6,7 @@ import { publico } from '../../api/publico';
 import { menuPara, GESTION } from '../../estructuras/navegacion';
 import { useSesion } from '../../sesion/sesion';
 import { useConsulta } from '../../utilidades/useConsulta';
+import { AvisoCorreosNoEnviados } from '../correos/AvisoCorreosNoEnviados';
 import { AlertasGestion } from '../pedidos/AlertasGestion';
 import { SolicitudesPorAtender } from '../solicitudes/panel/SolicitudesPorAtender';
 import estilos from './Panel.module.css';
@@ -20,6 +21,9 @@ const DESCRIPCIONES = {
   '/panel/indicadores': 'Pedidos, ingresos, cobranza y conversión.',
   '/panel/reportes': 'Reportes operativo, gerencial y parametrizable.',
   '/panel/mantenedores': 'Catálogo, materiales y categorías.',
+  '/panel/rostros': 'Quién entra con su rostro y la calibración.',
+  '/panel/correos-no-enviados': 'Correos que no salieron, para reenviarlos.',
+  '/panel/auditoria': 'Quién cambió qué y cuándo, y los consentimientos.',
   '/panel/perfil': 'Tus datos y el acceso con rostro.',
 };
 
@@ -59,6 +63,8 @@ export default function InicioPanel() {
         <h1 className={estilos.titulo}>Hola, {usuario?.nombre}</h1>
         <p className={estilos.bajada}>Resumen del taller con los datos de la base de demostración.</p>
       </div>
+
+      {esGestion && <AvisoCorreosNoEnviados />}
 
       <SolicitudesPorAtender />
 

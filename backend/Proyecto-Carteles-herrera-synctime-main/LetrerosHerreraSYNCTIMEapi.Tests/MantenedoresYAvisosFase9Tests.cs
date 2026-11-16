@@ -697,20 +697,19 @@ public sealed partial class MantenedoresYAvisosFase9Tests(ApiFixture api)
         var personal = api.Cliente(await api.TokenEmpleadoAsync(rol));
         try
         {
-            var cartel = await personal.PutAsJsonAsync("/api/v1/cartel-digital", new { abiertoEnLocal = false, mensajeEstado = $"Salimos a instalar ({rol})", tiempoEstimadoRegreso = "Volvemos a las 16:00" })
-                .EsperarAsync(HttpStatusCode.OK);
+            var cartel = await personal.GuardarCartelAsync(new { abiertoEnLocal = false, mensajeEstado = $"Salimos a instalar ({rol})", tiempoEstimadoRegreso = "Volvemos a las 16:00" });
             Assert.False(cartel.GetProperty("abiertoEnLocal").GetBoolean());
             var estado = await api.Cliente().GetAsync("/api/v1/local/estado").EsperarAsync(HttpStatusCode.OK);
             Assert.Equal($"Salimos a instalar ({rol})", estado.GetProperty("cartel").GetProperty("mensajeEstado").GetString());
             Assert.DoesNotContain("mpleado", estado.GetRawText());
 
-            await personal.PutAsJsonAsync("/api/v1/cartel-digital", new { abiertoEnLocal = true, mensajeEstado = new string('x', 201) }).EsperarAsync(HttpStatusCode.BadRequest);
+            await personal.GuardarCartelAsync(new { abiertoEnLocal = true, mensajeEstado = new string('x', 201) }, HttpStatusCode.BadRequest);
             var (_, _, tokenCliente) = await api.RegistrarClienteAsync();
             await api.Cliente(tokenCliente).PutAsJsonAsync("/api/v1/cartel-digital", new { abiertoEnLocal = true, mensajeEstado = "x" }).EsperarAsync(HttpStatusCode.Forbidden);
         }
         finally
         {
-            await personal.PutAsJsonAsync("/api/v1/cartel-digital", new { abiertoEnLocal = true, mensajeEstado = "Local abierto y atendiendo" }).EsperarAsync(HttpStatusCode.OK);
+            await personal.GuardarCartelAsync(new { abiertoEnLocal = true, mensajeEstado = "Local abierto y atendiendo" });
         }
     }
 
@@ -733,10 +732,10 @@ public sealed partial class MantenedoresYAvisosFase9Tests(ApiFixture api)
     {
         await api.Cliente(await api.TokenEmpleadoAsync(Roles.Operario)).PutAsJsonAsync("/api/v1/horarios", Semana()).EsperarAsync(HttpStatusCode.Forbidden);
         var admin = await AdminAsync();
-        var invalido = await admin.PutAsJsonAsync("/api/v1/horarios", Semana(cierreLunes: "08:00")).EsperarAsync(HttpStatusCode.BadRequest);
+        var invalido = await admin.GuardarHorarioAsync(Semana(cierreLunes: "08:00"), HttpStatusCode.BadRequest);
         Assert.True(invalido.GetProperty("errores").TryGetProperty("1.horaFin", out _));
 
-        var guardado = await admin.PutAsJsonAsync("/api/v1/horarios", Semana()).EsperarAsync(HttpStatusCode.OK);
+        var guardado = await admin.GuardarHorarioAsync(Semana());
         Assert.Equal(7, guardado.GetArrayLength());
         Assert.Equal("09:00", guardado[0].GetProperty("horaInicio").GetString());
         var fila = await api.ConsultarAsync(db => db.HorariosAtencion.AsNoTracking().SingleAsync(h => h.DiaSemana == 1));
@@ -749,7 +748,7 @@ public sealed partial class MantenedoresYAvisosFase9Tests(ApiFixture api)
     [Fact]
     public async Task LaDisponibilidad_SeValida_YLaPortadaMuestraLaUnionSinNombres()
     {
-        await (await AdminAsync()).PutAsJsonAsync("/api/v1/horarios", Semana()).EsperarAsync(HttpStatusCode.OK);
+        await (await AdminAsync()).GuardarHorarioAsync(Semana());
         var (idUno, _, tokenUno) = await api.CrearEmpleadoAsync(Roles.Operario);
         var (idDos, _, tokenDos) = await api.CrearEmpleadoAsync(Roles.Disenador);
         await api.ConsultarAsync(db => db.DisponibilidadEmpleados.ExecuteDeleteAsync());
@@ -1008,7 +1007,7 @@ public sealed partial class MantenedoresYAvisosFase9Tests(ApiFixture api)
     [Fact]
     public async Task DosGuardadosALaVezDeLaDisponibilidad_NoMezclanFranjas()
     {
-        await (await AdminAsync()).PutAsJsonAsync("/api/v1/horarios", Semana()).EsperarAsync(HttpStatusCode.OK);
+        await (await AdminAsync()).GuardarHorarioAsync(Semana());
         var (id, _, token) = await api.CrearEmpleadoAsync(Roles.Operario);
         var cliente = api.Cliente(token);
         object Franja(string desde, string hasta) => new { franjas = new[] { new { diaSemana = 2, horaInicio = desde, horaFin = hasta } } };

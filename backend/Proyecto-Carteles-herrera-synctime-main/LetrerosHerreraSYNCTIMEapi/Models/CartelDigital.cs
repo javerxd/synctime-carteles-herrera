@@ -9,6 +9,9 @@ public class CartelDigital
     public DateTime FechaUltimaModificacion { get; set; }
     public int? IdEmpleadoModifica { get; set; }
 
+    // Fase 11: version para guardar con If-Match.
+    public byte[] RowVersion { get; set; } = null!;
+
     public virtual Empleado? EmpleadoModifica { get; set; }
 }
 

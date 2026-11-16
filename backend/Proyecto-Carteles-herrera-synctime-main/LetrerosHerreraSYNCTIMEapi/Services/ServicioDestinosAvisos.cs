@@ -18,8 +18,9 @@ namespace LetrerosHerreraSYNCTIMEapi.Services;
 
 public sealed record DestinoReemplazado(int IdDestinatario, string Correo);
 
+// Fase 11: con la preferencia (que solicitudes avisa) y su version para editarla con If-Match.
 public sealed record VistaDestino(int IdDestinatario, string Correo, string Estado, DestinoReemplazado? ReemplazaA, DateTime FechaSolicitudChile,
-    DateTime? FechaConfirmacionChile, DateTime? VenceChile);
+    DateTime? FechaConfirmacionChile, DateTime? VenceChile, bool RecibeEnLinea, bool RecibePresenciales, byte[] RowVersion) : IConVersion;
 
 public sealed record VistaHistorialAvisos(DateTime FechaChile, string Accion, string Correo, string? Empleado, string? Detalle);
 
@@ -70,7 +71,7 @@ public sealed class ServicioDestinosAvisos(
             .Select(d => new
             {
                 d.IdDestinatario, d.Correo, d.Estado, d.IdReemplaza, ReemplazaCorreo = d.Reemplaza == null ? null : d.Reemplaza.Correo,
-                d.FechaSolicitud, d.FechaConfirmacion, d.Vence
+                d.FechaSolicitud, d.FechaConfirmacion, d.Vence, d.RecibeEnLinea, d.RecibePresenciales, d.RowVersion
             })
             .ToListAsync(ct);
         var historial = await db.DestinatariosAvisosHistorial.AsNoTracking()
@@ -83,7 +84,7 @@ public sealed class ServicioDestinosAvisos(
             d.IdReemplaza is int idReemplaza && d.ReemplazaCorreo is not null ? new DestinoReemplazado(idReemplaza, d.ReemplazaCorreo) : null,
             HoraChile.Convertir(d.FechaSolicitud),
             d.FechaConfirmacion is { } confirmacion ? HoraChile.Convertir(confirmacion) : null,
-            d.Vence is { } vence ? HoraChile.Convertir(vence) : null)).ToList();
+            d.Vence is { } vence ? HoraChile.Convertir(vence) : null, d.RecibeEnLinea, d.RecibePresenciales, d.RowVersion)).ToList();
         return new VistaAvisosTaller(destinos, !vigentes.Any(d => d.Estado == EstadosDestinatario.Activo),
             historial.Select(h => new VistaHistorialAvisos(HoraChile.Convertir(h.Fecha), h.Accion, h.CorreoEnmascarado, h.Empleado, h.Detalle)).ToList());
     }
@@ -158,6 +159,58 @@ public sealed class ServicioDestinosAvisos(
         cola.AvisarAlTrabajador();
         return new ResultadoGestion<VistaDestino>.Correcto(await VistaAsync(destino.IdDestinatario));
     }
+
+    // Fase 11 (decision 1): que solicitudes avisa un destino activo o pendiente: las en linea, las presenciales o
+    // ambas (al menos una). Con la version vista (If-Match) y en el historial de la seccion. No pide contraseña.
+    public async Task<ResultadoGestion<VistaDestino>> PreferenciaAsync(int idEmpleado, int id, bool? enLinea, bool? presenciales, byte[]? version,
+        CancellationToken ct)
+    {
+        if (enLinea is not bool recibeEnLinea || presenciales is not bool recibePresenciales)
+            return new ResultadoGestion<VistaDestino>.Invalido(new Dictionary<string, string[]>
+            {
+                ["preferencia"] = ["Indica si recibe las solicitudes en línea y las presenciales (recibeEnLinea y recibePresenciales: true o false)."]
+            });
+        if (!recibeEnLinea && !recibePresenciales)
+            return new ResultadoGestion<VistaDestino>.Invalido(new Dictionary<string, string[]>
+            {
+                ["preferencia"] = ["Elige al menos un tipo de solicitud: en línea o presenciales."]
+            });
+        if (version is not { Length: > 0 })
+            return new ResultadoGestion<VistaDestino>.SinVersion();
+
+        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
+        await BloqueoDeAplicacion.TomarAsync(db, Bloqueo, BloqueoDeAplicacion.Espera(configuracion), ct);
+        var destino = await db.DestinatariosAvisos.FirstOrDefaultAsync(d => d.IdDestinatario == id, ct);
+        if (destino is null)
+            return new ResultadoGestion<VistaDestino>.NoEncontrado();
+        if (destino.Estado is not (EstadosDestinatario.Activo or EstadosDestinatario.Pendiente))
+            return new ResultadoGestion<VistaDestino>.Conflicto(CodigosMantenedores.TransicionInvalida,
+                "Solo se cambia la preferencia de un destino activo o pendiente de confirmar.");
+        if (!Versiones.Iguales(version, destino.RowVersion))
+            return new ResultadoGestion<VistaDestino>.VersionObsoleta();
+
+        destino.RecibeEnLinea = recibeEnLinea;
+        destino.RecibePresenciales = recibePresenciales;
+        db.Entry(destino).Property(d => d.RowVersion).OriginalValue = version;
+        Historial(AccionesDestinatario.Preferencia, destino.Correo, id, idEmpleado, reloj.GetUtcNow(), TextoPreferencia(recibeEnLinea, recibePresenciales));
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ResultadoGestion<VistaDestino>.VersionObsoleta();
+        }
+        await transaccion.CommitAsync(CancellationToken.None);
+        return new ResultadoGestion<VistaDestino>.Correcto(await VistaAsync(id));
+    }
+
+    private static string TextoPreferencia(bool enLinea, bool presenciales) => (enLinea, presenciales) switch
+    {
+        (true, true) => "Recibe las solicitudes en línea y las presenciales.",
+        (true, false) => "Recibe solo las solicitudes en línea.",
+        _ => "Recibe solo las solicitudes presenciales."
+    };
 
     // Enlace nuevo para un pendiente: el anterior deja de servir. Uno por minuto y 5 por hora por destino.
     public async Task<ResultadoGestion<VistaDestino>> ReenviarAsync(int idEmpleado, int id, CancellationToken ct)
@@ -413,13 +466,13 @@ public sealed class ServicioDestinosAvisos(
     {
         var d = await db.DestinatariosAvisos.AsNoTracking().Where(x => x.IdDestinatario == id)
             .Select(x => new { x.IdDestinatario, x.Correo, x.Estado, x.IdReemplaza, ReemplazaCorreo = x.Reemplaza == null ? null : x.Reemplaza.Correo,
-                x.FechaSolicitud, x.FechaConfirmacion, x.Vence })
+                x.FechaSolicitud, x.FechaConfirmacion, x.Vence, x.RecibeEnLinea, x.RecibePresenciales, x.RowVersion })
             .SingleAsync(CancellationToken.None);
         return new VistaDestino(d.IdDestinatario, d.Correo, d.Estado,
             d.IdReemplaza is int r && d.ReemplazaCorreo is not null ? new DestinoReemplazado(r, d.ReemplazaCorreo) : null,
             HoraChile.Convertir(d.FechaSolicitud),
             d.FechaConfirmacion is { } c ? HoraChile.Convertir(c) : null,
-            d.Vence is { } v ? HoraChile.Convertir(v) : null);
+            d.Vence is { } v ? HoraChile.Convertir(v) : null, d.RecibeEnLinea, d.RecibePresenciales, d.RowVersion);
     }
 
     private string? UrlSitio()

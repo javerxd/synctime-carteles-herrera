@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text;
+using LetrerosHerreraSYNCTIMEapi.Datos.Auditoria;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Rostro;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -21,6 +23,7 @@ public sealed class ServicioRostros(
     RostroFacialService rostros,
     ServicioReautenticacion reautenticacion,
     LimitadorPorCuenta limitePorCuenta,
+    IAuditoria auditoria,
     IConfiguration configuracion,
     TimeProvider reloj,
     ILogger<ServicioRostros> logger)
@@ -171,10 +174,30 @@ public sealed class ServicioRostros(
     // Desde la fase 9 desactivar a un empleado borra su rostro en el mismo paso. Esto cubre ademas al que se
     // desactive por SQL: sus datos se borran en el siguiente intento de cualquiera, y su rostro deja de
     // aceptarse antes, en la consulta del ingreso.
-    private Task<int> BorrarDatosDeInactivosAsync(DateTimeOffset ahora, CancellationToken ct) =>
-        db.RostrosEmpleado
-            .Where(r => r.FechaRevocacion == null && !r.Empleado!.Activo)
-            .ExecuteUpdateAsync(DatosRostro.Borrado(ahora), ct);
+    // Fase 11: lo borrado queda en la bitacora (el interceptor no ve el ExecuteUpdate). Los contadores de intentos
+    // de arriba no se registran: son tecnicos y cambian en cada intento.
+    private async Task<int> BorrarDatosDeInactivosAsync(DateTimeOffset ahora, CancellationToken ct)
+    {
+        var borrados = 0;
+        var ids = await db.RostrosEmpleado.AsNoTracking().Where(r => r.FechaRevocacion == null && !r.Empleado!.Activo).Select(r => r.IdRostro).ToListAsync(ct);
+        foreach (var id in ids)
+        {
+            if (await db.RostrosEmpleado.Where(r => r.IdRostro == id && r.FechaRevocacion == null && !r.Empleado!.Activo)
+                    .ExecuteUpdateAsync(DatosRostro.Borrado(ahora), ct) == 0)
+                continue;
+            borrados++;
+            await RegistrarBorradoAsync(id, "empleado desactivado", ct);
+        }
+        return borrados;
+    }
+
+    private Task RegistrarBorradoAsync(int idRostro, string motivo, CancellationToken ct) =>
+        auditoria.RegistrarAsync("rostro_empleado", idRostro.ToString(CultureInfo.InvariantCulture), AccionesAuditoria.Modificar,
+            DetalleAuditoria.Libre(new Dictionary<string, object?>
+            {
+                ["campos"] = new[] { "descriptorCifrado", "descriptorFrente", "descriptorIzquierda", "descriptorDerecha", "tokenEquipoHash", "fechaRevocacion" },
+                ["motivo"] = motivo
+            }), ct);
 
     // ── Estado y registro ──
 
@@ -344,11 +367,19 @@ public sealed class ServicioRostros(
     // Retirar el consentimiento no pide contraseña: debe ser tan expedito como sea posible.
     public async Task<bool> DesactivarAsync(int idEmpleado, int idQuienDesactiva, CancellationToken ct)
     {
+        var vigente = await db.RostrosEmpleado.AsNoTracking().Where(r => r.IdEmpleado == idEmpleado && r.FechaRevocacion == null)
+            .Select(r => (int?)r.IdRostro).FirstOrDefaultAsync(ct);
+        if (vigente is not int idRostro)
+            return false;
+        // El borrado y su constancia en la bitacora van juntos.
+        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
         var afectadas = await db.RostrosEmpleado
-            .Where(r => r.IdEmpleado == idEmpleado && r.FechaRevocacion == null)
+            .Where(r => r.IdRostro == idRostro && r.FechaRevocacion == null)
             .ExecuteUpdateAsync(DatosRostro.Borrado(reloj.GetUtcNow()), ct);
         if (afectadas > 0)
         {
+            await RegistrarBorradoAsync(idRostro, idEmpleado == idQuienDesactiva ? "lo retiró su titular" : "lo desactivó gestión", CancellationToken.None);
+            await transaccion.CommitAsync(CancellationToken.None);
             if (idEmpleado == idQuienDesactiva)
                 logger.LogInformation("Empleado {IdEmpleado} retiro su acceso facial", idEmpleado);
             else

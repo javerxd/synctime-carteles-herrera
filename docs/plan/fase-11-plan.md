@@ -1,6 +1,6 @@
 # Plan de la fase 11 — Notificaciones, auditoría y privacidad
 
-Fecha: 15-11-2026 · Rama: `fase-11-notificaciones-auditoria-y-privacidad` (nace de `fase-10-rostro-segun-requisitos`) · Estado: **aprobado el 15-11-2026** · especificación: `fase-11-especificacion.md`
+Fecha: 15-11-2026 · Rama: `fase-11-notificaciones-auditoria-y-privacidad` (nace de `fase-10-rostro-segun-requisitos`) · Estado: **aprobado el 15-11-2026** · especificación: `fase-11-especificacion.md` · construido el 16-11-2026, informe: `informes/fase-11.md`
 
 Requisitos del plan general: RFS08 (avisos al cliente y baja de correos), RFS12 (auditoría, portabilidad e inhabilitación), RNFO04, RNFE01, RFU09, RFU28, RFU34, E24, E25 (auditoría de abonos), S09, S20, S23. Se suman tus pedidos del 15-11-2026 sobre los **avisos del taller como correos operativos**.
 

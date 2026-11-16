@@ -1,4 +1,7 @@
+using System.Globalization;
 using LetrerosHerreraSYNCTIMEapi.Datos;
+using LetrerosHerreraSYNCTIMEapi.Datos.Auditoria;
+using LetrerosHerreraSYNCTIMEapi.Datos.Correo;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
@@ -39,7 +42,8 @@ public sealed record EntradaPedidoDirecto(
     EntradaDatosPedido Datos,
     EntradaAbono? AbonoInicial);
 
-public sealed class ServicioPedidos(LetrerosHerreradbContext db, TimeProvider reloj)
+public sealed class ServicioPedidos(LetrerosHerreradbContext db, ColaEnTransaccion cola, AvisosAlCliente avisosAlCliente, IAuditoria auditoria,
+    TimeProvider reloj)
 {
     public const string MensajeVersionObsoleta = "Otra persona modificó este pedido mientras lo veías. Vuelve a cargarlo para ver los cambios.";
     public const string MensajePedidoAnulado = "Un pedido anulado no recibe abonos.";
@@ -382,8 +386,15 @@ public sealed class ServicioPedidos(LetrerosHerreradbContext db, TimeProvider re
             pedido.MotivoAnulacion = motivoLimpio;
             pedido.FechaAnulacion = ahora;
         }
-        return await GuardarAsync(pedido, version, quien, ct);
+        // Fase 11 (S09): el cliente recibe el aviso del estado nuevo, en el mismo guardado.
+        var avisa = EstadosConAviso.Contains(estado!) && await avisosAlCliente.EstadoPedidoAsync(cola, id, estado!, motivoLimpio, ct);
+        var resultado = await GuardarAsync(pedido, version, quien, ct);
+        if (avisa && resultado is ResultadoPedido.Correcto)
+            cola.AvisarAlTrabajador();
+        return resultado;
     }
+
+    private static readonly string[] EstadosConAviso = [EstadosPedido.EnProceso, EstadosPedido.Terminado, EstadosPedido.Entregado, EstadosPedido.Anulado];
 
     // La base compara con la version que vio quien edita: si otra persona guardo (o se registro un abono)
     // entre la lectura y este UPDATE, no se pisa su trabajo.
@@ -456,7 +467,11 @@ public sealed class ServicioPedidos(LetrerosHerreradbContext db, TimeProvider re
             return new ResultadoPedido.Conflicto(CodigosConflicto.AbonoExcedeSaldo, MensajeExcedeSaldo(saldo), DesdeLaBase: true);
         }
         if (factura is not null && bloqueado.NumeroFactura is null)
+        {
             await db.Pedidos.Where(p => p.IdPedido == id).ExecuteUpdateAsync(s => s.SetProperty(p => p.NumeroFactura, factura), ct);
+            await auditoria.RegistrarAsync("pedido", id.ToString(CultureInfo.InvariantCulture), AccionesAuditoria.Modificar,
+                DetalleAuditoria.Libre(new Dictionary<string, object?> { ["campos"] = new[] { "numeroFactura" } }), ct);
+        }
         await transaccion.CommitAsync(CancellationToken.None);
         return new ResultadoPedido.Correcto((await FichaAsync(id, quien, CancellationToken.None))!);
     }
@@ -507,13 +522,22 @@ public sealed class ServicioPedidos(LetrerosHerreradbContext db, TimeProvider re
             return new ResultadoPedido.SinVersion();
 
         var fecha = reloj.GetUtcNow();
-        var eliminados = await db.Pedidos
-            .Where(p => p.IdPedido == id && !p.EliminadoLogico && p.EstadoPedido == EstadosPedido.Anulado && p.MontoAbonado == 0 && p.RowVersion == version)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(p => p.EliminadoLogico, true)
-                .SetProperty(p => p.FechaEliminacionLogica, (DateTimeOffset?)fecha), ct);
-        if (eliminados == 1)
-            return new ResultadoPedido.Eliminado();
+        // El borrado y su registro en la bitacora van juntos (el interceptor no ve un ExecuteUpdate).
+        await using (var transaccion = await db.Database.BeginTransactionAsync(ct))
+        {
+            var eliminados = await db.Pedidos
+                .Where(p => p.IdPedido == id && !p.EliminadoLogico && p.EstadoPedido == EstadosPedido.Anulado && p.MontoAbonado == 0 && p.RowVersion == version)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.EliminadoLogico, true)
+                    .SetProperty(p => p.FechaEliminacionLogica, (DateTimeOffset?)fecha), ct);
+            if (eliminados == 1)
+            {
+                await auditoria.RegistrarAsync("pedido", id.ToString(CultureInfo.InvariantCulture), AccionesAuditoria.Eliminar,
+                    DetalleAuditoria.Libre(new Dictionary<string, object?> { ["borradoLogico"] = true }), ct);
+                await transaccion.CommitAsync(CancellationToken.None);
+                return new ResultadoPedido.Eliminado();
+            }
+        }
 
         // No se borro: se explica por que, sin haber cambiado nada.
         var actual = await db.Pedidos.AsNoTracking().Where(p => p.IdPedido == id && !p.EliminadoLogico)

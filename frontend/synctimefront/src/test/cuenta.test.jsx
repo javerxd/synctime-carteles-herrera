@@ -30,7 +30,10 @@ vi.mock('../api/authService', () => ({
 }));
 
 vi.mock('../api/cuenta', () => ({
-  cuenta: { obtener: vi.fn(), actualizar: vi.fn(), cambiarCorreo: vi.fn(), cambiarPassword: vi.fn(), marketing: vi.fn() },
+  cuenta: {
+    obtener: vi.fn(), actualizar: vi.fn(), cambiarCorreo: vi.fn(), cambiarPassword: vi.fn(), marketing: vi.fn(), preferencias: vi.fn(),
+    descargarDatos: vi.fn(), darDeBaja: vi.fn(),
+  },
 }));
 
 vi.mock('../api/publico', () => ({ publico: { documentosLegales: vi.fn() } }));
@@ -368,14 +371,15 @@ describe('Mi cuenta', () => {
   });
 
   it('la casilla de novedades viene como la dejó el cliente y guarda con la versión vigente', async () => {
-    cuenta.marketing.mockResolvedValue(undefined);
+    cuenta.preferencias.mockResolvedValue({ avisosEstado: true, marketing: true });
     dibujar('/cuenta', <MiCuenta />, '/cuenta');
     const casilla = await screen.findByRole('checkbox', { name: /novedades y promociones/i });
     expect(casilla).not.toBeChecked();
     await waitFor(() => expect(publico.documentosLegales).toHaveBeenCalled());
     await new Promise((r) => { setTimeout(r, 0); });
     fireEvent.click(casilla);
-    await waitFor(() => expect(cuenta.marketing).toHaveBeenCalledWith({ acepta: true, version: 'm-1' }));
+    // Fase 11: las dos preferencias viajan juntas (PUT /mi-cuenta/preferencias), con la versión al aceptar las novedades.
+    await waitFor(() => expect(cuenta.preferencias).toHaveBeenCalledWith({ avisosEstado: true, marketing: true, versionMarketing: 'm-1' }));
     await waitFor(() => expect(casilla).toBeChecked());
   });
 });

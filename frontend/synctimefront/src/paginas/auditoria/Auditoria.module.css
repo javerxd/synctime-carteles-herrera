@@ -1,0 +1,110 @@
+/* Fase 11: visor de auditoría y consentimientos. Las vistas son enlaces con la forma de las pestañas del sistema. */
+
+.vistas {
+  display: flex;
+  gap: var(--espacio-1);
+  border-bottom: 1px solid var(--color-borde);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.vista {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: var(--tamano-control);
+  padding: 0 var(--espacio-4);
+  color: var(--pestana-texto);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.vista::after {
+  content: '';
+  position: absolute;
+  inset: auto var(--espacio-2) -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .vista:hover {
+    color: var(--pestana-texto-activa);
+  }
+}
+
+.vista[aria-current='page'] {
+  color: var(--pestana-texto-activa);
+}
+
+.vista[aria-current='page']::after {
+  background: var(--pestana-indicador);
+}
+
+.vista:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radio-sm);
+}
+
+@media (forced-colors: active) {
+  .vista[aria-current='page']::after {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+}
+
+.celda {
+  display: grid;
+  gap: var(--espacio-1);
+}
+
+.tenue {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.sinCorte {
+  white-space: nowrap;
+}
+
+.detalle summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--color-texto);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  text-decoration: underline;
+  text-decoration-color: var(--color-borde-control);
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.lista {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: var(--espacio-2) 0 0;
+  font-size: var(--tamano-sm);
+}
+
+.fila {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.fila dt {
+  color: var(--color-texto-secundario);
+}
+
+.fila dd {
+  margin: 0;
+}
+
+.valor {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}

@@ -1,3 +1,5 @@
+using System.Globalization;
+using LetrerosHerreraSYNCTIMEapi.Datos.Auditoria;
 using LetrerosHerreraSYNCTIMEapi.Datos.Correo;
 using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
@@ -28,7 +30,9 @@ public sealed record ResumenCola(int FallidosRecientes, int Atrasados, DateTimeO
 //   - Si el proceso se cae mientras envia, el correo se retoma al vencer su bloqueo; cuando eso ya paso
 //     tantas veces como intentos admite, queda "fallido" en vez de repetirse sin fin.
 // Los registros llevan el numero, el tipo y la categoria del fallo; nunca direcciones, asuntos ni el
-// texto que respondio el servidor.
+// texto que respondio el servidor. Fase 11: cada aviso del taller enviado y cada fallo definitivo quedan en la
+// bitacora (aviso_enviado, correo_fallido) con el tipo, la referencia, el destino enmascarado, los intentos y el
+// motivo clasificado; nunca el asunto, el cuerpo ni la direccion completa.
 public sealed class TrabajadorColaCorreo(
     IServiceScopeFactory ambitos,
     IEnviadorCorreo enviador,
@@ -78,7 +82,8 @@ public sealed class TrabajadorColaCorreo(
 
         await using var ambito = ambitos.CreateAsyncScope();
         var db = ambito.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
-        fallidos += await CerrarInterrumpidosAsync(db, maximo, ct);
+        var auditoria = ambito.ServiceProvider.GetRequiredService<IAuditoria>();
+        fallidos += await CerrarInterrumpidosAsync(db, auditoria, maximo, ct);
 
         for (var i = 0; i < Math.Max(1, o.Cola.Lote); i++)
         {
@@ -112,6 +117,8 @@ public sealed class TrabajadorColaCorreo(
                 enviados++;
                 logger.LogInformation("Correo {IdCorreo} ({Tipo}) enviado por {Medio} al intento {Intento}.",
                     correo.IdCorreo, correo.Tipo, enviador.Descripcion, correo.Intentos);
+                if (CategoriasCorreo.EsAvisoDelTaller(correo.Tipo))
+                    await AuditarAsync(auditoria, correo, AccionesAuditoria.AvisoEnviado, correo.Intentos, motivo: null);
                 continue;
             }
 
@@ -132,6 +139,7 @@ public sealed class TrabajadorColaCorreo(
                 fallidos++;
                 logger.LogError("Correo {IdCorreo} ({Tipo}) no se envio y se dejo de intentar tras {Intentos} intento(s): {Fallo} [{TipoError}]",
                     correo.IdCorreo, correo.Tipo, correo.Intentos, fallo.Texto, error.GetType().Name);
+                await AuditarAsync(auditoria, correo, AccionesAuditoria.CorreoFallido, correo.Intentos, fallo.Texto);
             }
             else
             {
@@ -148,19 +156,55 @@ public sealed class TrabajadorColaCorreo(
     }
 
     // Correos que quedaron "enviando" porque el proceso se detuvo y que ya gastaron todos sus intentos.
-    private async Task<int> CerrarInterrumpidosAsync(LetrerosHerreradbContext db, int maximo, CancellationToken ct)
+    private async Task<int> CerrarInterrumpidosAsync(LetrerosHerreradbContext db, IAuditoria auditoria, int maximo, CancellationToken ct)
     {
         var ahora = reloj.GetUtcNow();
-        var cerrados = await db.CorreosSalientes
+        var cerrados = 0;
+        var candidatos = await db.CorreosSalientes.AsNoTracking()
             .Where(c => c.Estado == EstadosCorreo.Enviando && c.BloqueadoHasta < ahora && c.Intentos >= maximo)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(c => c.Estado, EstadosCorreo.Fallido)
-                .SetProperty(c => c.ProximoIntento, ahora)
-                .SetProperty(c => c.BloqueadoHasta, (DateTimeOffset?)null)
-                .SetProperty(c => c.UltimoError, Interrumpido), ct);
+            .ToListAsync(ct);
+        foreach (var correo in candidatos)
+        {
+            // Cada uno con las mismas condiciones: si otro proceso lo tomo entretanto, no se pisa.
+            var cerrado = await db.CorreosSalientes
+                .Where(c => c.IdCorreo == correo.IdCorreo && c.Estado == EstadosCorreo.Enviando && c.BloqueadoHasta < ahora && c.Intentos >= maximo)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(c => c.Estado, EstadosCorreo.Fallido)
+                    .SetProperty(c => c.ProximoIntento, ahora)
+                    .SetProperty(c => c.BloqueadoHasta, (DateTimeOffset?)null)
+                    .SetProperty(c => c.UltimoError, Interrumpido), ct);
+            if (cerrado == 1)
+            {
+                cerrados++;
+                await AuditarAsync(auditoria, correo, AccionesAuditoria.CorreoFallido, correo.Intentos, Interrumpido);
+            }
+        }
         if (cerrados > 0)
             logger.LogError("{Cantidad} correo(s) quedaron fallidos: su envio se corto {Maximo} veces.", cerrados, maximo);
         return cerrados;
+    }
+
+    // Sin asunto, cuerpo ni direcciones completas. Si la bitacora no se puede escribir, el envio no se repite: se registra el error.
+    private async Task AuditarAsync(IAuditoria auditoria, CorreoSaliente correo, string accion, int intentos, string? motivo)
+    {
+        try
+        {
+            var detalle = new Dictionary<string, object?>
+            {
+                ["tipo"] = correo.Tipo,
+                ["referencia"] = correo.Referencia,
+                ["destino"] = CategoriasCorreo.Enmascarar(correo.Destinatarios),
+                ["intentos"] = intentos
+            };
+            if (motivo is not null)
+                detalle["motivo"] = motivo;
+            await auditoria.RegistrarAsync("correo", correo.IdCorreo.ToString(CultureInfo.InvariantCulture), accion, DetalleAuditoria.Libre(detalle),
+                CancellationToken.None, ActorAuditoria.Sistema);
+        }
+        catch (Exception error)
+        {
+            logger.LogError("No se pudo registrar en la bitacora el correo {IdCorreo} ({Accion}): [{TipoError}]", correo.IdCorreo, accion, error.GetType().Name);
+        }
     }
 
     private async Task<CorreoSaliente?> ReclamarAsync(LetrerosHerreradbContext db, int maximo, CancellationToken ct)
@@ -194,22 +238,6 @@ public sealed class TrabajadorColaCorreo(
             (c.Estado == EstadosCorreo.Pendiente && c.ProximoIntento <= ahora)
             || (c.Estado == EstadosCorreo.Enviando && c.BloqueadoHasta < ahora && c.Intentos < maximo));
 
-    // Borra lo ya resuelto pasado el plazo de retencion, porque el cuerpo lleva datos personales. Se cuenta
-    // desde que se envio o desde que fallo, no desde que se creo: un aviso que espero mucho y fallo
-    // al final conserva su rastro el plazo completo.
-    public async Task<int> PurgarAsync(CancellationToken ct)
-    {
-        var limite = reloj.GetUtcNow().AddDays(-Math.Max(1, opciones.Value.Cola.DiasRetencion));
-        await using var ambito = ambitos.CreateAsyncScope();
-        var db = ambito.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
-        var borrados = await db.CorreosSalientes
-            .Where(c => (c.Estado == EstadosCorreo.Enviado && c.FechaEnvio < limite)
-                     || (c.Estado == EstadosCorreo.Fallido && c.ProximoIntento < limite))
-            .ExecuteDeleteAsync(ct);
-        if (borrados > 0)
-            logger.LogInformation("Se borraron {Cantidad} correo(s) antiguos de la cola.", borrados);
-        return borrados;
-    }
 
     // Fallidos de los ultimos 7 dias y pendientes que llevan mas de 30 minutos sin salir.
     public async Task<ResumenCola> ResumirAsync(CancellationToken ct)
@@ -314,9 +342,9 @@ public sealed class ProcesadorColaCorreo(
         return true;
     }
 
+    // Fase 11: la purga de los cuerpos paso a PurgaDatosPersonales (las filas ya no se borran: quedan sin cuerpo).
     private async Task RevisarAsync(CancellationToken ct)
     {
-        await trabajador.PurgarAsync(ct);
         var resumen = await trabajador.ResumirAsync(ct);
         if (resumen.HayProblemas)
             logger.LogError(

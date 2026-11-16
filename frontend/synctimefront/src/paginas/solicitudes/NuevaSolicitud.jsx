@@ -9,6 +9,7 @@ import { adjuntos as apiAdjuntos, misSolicitudes } from '../../api/solicitudes';
 import { useAvisos } from '../../avisos/Avisos';
 import { useSesion } from '../../sesion/sesion';
 import { useConsulta } from '../../utilidades/useConsulta';
+import { fallaDeClave, useClaveIdempotencia } from '../compartidos/useClaveIdempotencia';
 import { Comprobante } from './Comprobante';
 import { ContactoDirecto } from './ContactoDirecto';
 import { EditorItems } from './EditorItems';
@@ -115,6 +116,8 @@ export default function NuevaSolicitud() {
   const [adjuntos, setAdjuntos] = useState({ listos: [], subiendo: false });
   const [estado, setEstado] = useState({ enviando: false, error: null, contacto: null, correoPendiente: false });
   const [comprobante, setComprobante] = useState(null);
+  // Fase 11: la misma clave en cada reintento de este formulario; una nueva tras enviarlo.
+  const idempotencia = useClaveIdempotencia();
   const refContacto = useRef(null);
   const refCorreo = useRef(null);
   const refError = useRef(null);
@@ -146,12 +149,14 @@ export default function NuevaSolicitud() {
     refEnviando.current = true;
     setEstado({ enviando: true, error: null, contacto: null, correoPendiente: estado.correoPendiente });
     try {
-      const respuesta = await misSolicitudes.enviar({ ...paraApi(), adjuntos: adjuntos.listos.map((a) => a.idAdjunto) });
+      const respuesta = await misSolicitudes.enviar({ ...paraApi(), adjuntos: adjuntos.listos.map((a) => a.idAdjunto) }, { clave: idempotencia.clave });
+      idempotencia.renovar();
       olvidar();
       anunciar({ tono: 'exito', titulo: `Recibimos tu solicitud ${numeroSolicitud(respuesta)}` });
       setComprobante(respuesta);
-    } catch (error) {
+    } catch (falla) {
       refEnviando.current = false;
+      const error = fallaDeClave(falla, idempotencia.renovar);
       if (error?.codigo === 'contacto_directo') {
         enfocar.current = 'contacto';
         setEstado({ enviando: false, error: null, contacto: error.message, correoPendiente: false });

@@ -10,12 +10,16 @@ public static class DocumentosLegales
     public const string Marketing = "marketing";
     public const string Cookies = "cookies";
 
+    // Fase 11: la preferencia de los avisos de estado (RFU09). Cada cambio queda como aceptacion o revocacion.
+    public const string AvisosEstado = "avisos_estado";
+
     public static readonly IReadOnlyDictionary<string, string> VersionesVigentes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [Privacidad] = "1.0",
         [Terminos] = "1.0",
         [Marketing] = "1.0",
-        [Cookies] = "1.0"
+        [Cookies] = "1.0",
+        [AvisosEstado] = "1.0"
     };
 
     public static bool EsTipo(string? tipo) => tipo is not null && VersionesVigentes.ContainsKey(tipo);

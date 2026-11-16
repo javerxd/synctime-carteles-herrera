@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using LetrerosHerreraSYNCTIMEapi.Middleware;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Solicitudes;
 using LetrerosHerreraSYNCTIMEapi.Security;
@@ -32,7 +33,8 @@ public static class MisSolicitudesApi
             var resultado = await servicio.CrearEnLineaAsync(user.IdUsuario(), entrada, Ip(http), ct);
             return RespuestasSolicitud.Responder(resultado, http,
                 r => Results.Created($"/api/v1/mis/solicitudes/{r.Comprobante.IdSolicitud}", r.Comprobante));
-        });
+        })
+        .ConIdempotencia("POST /mis/solicitudes");
 
         // Cada archivo se sube al elegirlo y queda como borrador del cliente hasta que envie la solicitud.
         // La API usa tokens Bearer, no cookies: la proteccion antifalsificacion de formularios no aplica.

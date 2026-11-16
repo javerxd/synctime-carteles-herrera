@@ -1,4 +1,4 @@
-import { api } from './cliente';
+import { api, conClave } from './cliente';
 import { todasLasPaginas } from './mantenedores';
 import { comoPaginado, siVersion } from './solicitudes';
 
@@ -16,8 +16,11 @@ import { comoPaginado, siVersion } from './solicitudes';
 
 /** Del personal del taller. */
 export const cotizaciones = {
-  /** POST /solicitudes/{id}/cotizaciones → 201 cotización. 409 si la solicitud ya tiene una pendiente. */
-  emitir: (idSolicitud, cotizacion) => api.post(`/solicitudes/${idSolicitud}/cotizaciones`, cotizacion),
+  /**
+   * POST /solicitudes/{id}/cotizaciones → 201 cotización. 409 si la solicitud ya tiene una pendiente.
+   * `clave` (fase 11): Idempotency-Key del formulario abierto.
+   */
+  emitir: (idSolicitud, cotizacion, { clave } = {}) => api.post(`/solicitudes/${idSolicitud}/cotizaciones`, cotizacion, conClave(clave)),
   /** Solo «pendiente», con la versión vista: 409 version_obsoleta si otra persona la cambió. */
   editar: (id, cotizacion, rowVersion) => api.put(`/cotizaciones/${id}`, cotizacion, siVersion(rowVersion)),
   /** Respuesta que el cliente dio por teléfono, WhatsApp o en el local: { decision, via, motivo? }. */

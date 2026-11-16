@@ -36,6 +36,18 @@ public class CorreoSaliente
 
     public DateTimeOffset FechaCreacion { get; set; }
     public DateTimeOffset? FechaEnvio { get; set; }
+
+    // Fase 11: la direccion de la baja con un clic (cabecera List-Unsubscribe) de un correo opcional al cliente.
+    // Null en los esenciales y en los avisos del taller. La purga la borra junto con el cuerpo.
+    public string? EnlaceBaja { get; set; }
+
+    // Fase 11, «Correos no enviados»: gestion lo vio (o lo reenvio). Un fallido sin revisar avisa en el inicio del panel.
+    public bool Revisado { get; set; }
+
+    // El correo nuevo que se encolo al reenviar este fallido, quien lo pidio y cuando. Se reenvia una sola vez.
+    public long? ReenviadoComo { get; set; }
+    public int? IdEmpleadoReenvia { get; set; }
+    public DateTimeOffset? FechaReenvio { get; set; }
 }
 
 public static class EstadosCorreo

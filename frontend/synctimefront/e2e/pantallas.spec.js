@@ -275,6 +275,45 @@ Object.assign(RESPUESTAS, {
   '/api/v1/rostros': ROSTROS,
   '/api/v1/rostros/calibracion': CALIBRACION,
 });
+// ── Fase 11: notificaciones, auditoría y privacidad ──
+const correoFallido = (id, tipo, tipoTexto, referencia, enlace, destino, extra = {}) => ({
+  idCorreo: id, tipo, tipoTexto, referencia, enlace, destinoEnmascarado: destino, intentos: 6, motivo: 'El servidor de correo no aceptó el envío',
+  fechaCreacion: `${HOY_CHILE}T09:00:00`, fechaFallo: `${HOY_CHILE}T09:40:00`, revisado: false, reenviable: true, reenviadoComo: null, ...extra,
+});
+const NO_ENVIADOS = paginaDe([
+  correoFallido(51, 'aviso_solicitud_nueva', 'Aviso de solicitud nueva', 'solicitud:123', '/panel/solicitudes/123', 'c•••a@gmail.com'),
+  correoFallido(52, 'estado_pedido', 'Estado del pedido', 'pedido:1', '/panel/pedidos/1', 'r•••a@correo.test'),
+  correoFallido(53, 'cotizacion_lista', 'Cotización lista', 'cotizacion:45', null, 'r•••a@correo.test', { reenviable: false, revisado: true }),
+]);
+const BITACORA = paginaDe([
+  {
+    idAuditoria: 900, fecha: `${HOY_CHILE}T10:30:00`, usuario: { tipo: 'empleado', id: 1, nombre: 'Marta Fuentes' }, rol: 'dueño', entidad: 'Pedido',
+    entidadTexto: 'Pedido', idEntidad: '1', accion: 'modificar', accionTexto: 'Modificó',
+    detalle: { campos: [{ campo: 'estadoPedido', antes: 'aceptado', despues: 'en_proceso' }, { campo: 'direccionInstalacion' }] }, ip: '10.0.0.8',
+  },
+  {
+    idAuditoria: 899, fecha: `${HOY_CHILE}T09:40:00`, usuario: { tipo: 'sistema', id: null, nombre: null }, rol: 'sistema', entidad: 'CorreoSaliente',
+    entidadTexto: 'Correo', idEntidad: '51', accion: 'correo_fallido', accionTexto: 'Correo no enviado',
+    detalle: { tipo: 'aviso_solicitud_nueva', referencia: 'solicitud:123', destinoEnmascarado: 'c•••a@gmail.com', intentos: 6, motivo: 'rechazado' }, ip: null,
+  },
+  {
+    idAuditoria: 898, fecha: `${HOY_CHILE}T09:15:00`, usuario: { tipo: 'empleado', id: 2, nombre: 'Hugo Vera' }, rol: 'operario', entidad: 'Pago',
+    entidadTexto: 'Abono', idEntidad: '11', accion: 'crear', accionTexto: 'Creó', detalle: { campos: [{ campo: 'monto', despues: 40000 }] }, ip: '10.0.0.9',
+  },
+]);
+const CONSENTIMIENTOS = paginaDe([
+  { titular: { tipo: 'cliente', id: 9, nombre: 'Rosa Pino' }, tipo: 'terminos', version: '1.0', acepta: true, fecha: fecha(1, 3) },
+  { titular: { tipo: 'cliente', id: 9, nombre: 'Rosa Pino' }, tipo: 'marketing', version: '1.0', acepta: false, fecha: fecha(0, 2) },
+  { titular: { tipo: 'cliente', id: 9, nombre: 'Rosa Pino' }, tipo: 'avisos_estado', version: '1.0', acepta: true, fecha: fecha(0, 3) },
+]);
+Object.assign(DESTINO_ACTIVO, { recibeEnLinea: true, recibePresenciales: false, rowVersion: 'AAAAAAAADE1=' });
+Object.assign(RESPUESTAS, {
+  '/api/v1/correos/no-enviados': NO_ENVIADOS,
+  '/api/v1/correos/no-enviados/resumen': { sinRevisar: 2 },
+  '/api/v1/auditoria': BITACORA,
+  '/api/v1/auditoria/consentimientos': CONSENTIMIENTOS,
+  '/api/v1/correos/baja': { correoEnmascarado: 'r•••a@correo.test', avisosEstado: true, marketing: true },
+});
 const IMAGEN_PRUEBA = 'public/marca/logo-lh-256.webp';
 
 function tokenDePrueba() {
@@ -287,7 +326,7 @@ const destinoDe = (ruta) => new URL(ruta.request().url()).pathname.replace(/\/$/
 const CLIENTE = { idCliente: 9, nombre: 'Rosa', apellido: 'Pino', telefono: '912345678', email: 'rosa@correo.test', correoVerificado: false };
 const MI_CUENTA = {
   idCliente: 9, nombre: 'Rosa', apellido: 'Pino', rut: null, telefono: '912345678', correo: 'rosa@correo.test',
-  direccion: null, correoVerificado: false, marketing: false,
+  direccion: null, correoVerificado: false, marketing: false, avisosEstado: true,
 };
 
 /**
@@ -359,6 +398,11 @@ const PANTALLAS = [
   ['/panel/mantenedores/personal/2', 'Hugo Vera'],
   ['/panel/mantenedores/personal/nuevo', 'Agregar persona'],
   ['/avisos/confirmar?token=abc123', 'Correo confirmado'],
+  // Fase 11
+  ['/panel/correos-no-enviados', 'Correos no enviados'],
+  ['/panel/auditoria', 'Auditoría'],
+  ['/panel/auditoria/consentimientos', 'Auditoría'],
+  ['/baja?t=abc123', 'Darte de baja de los correos'],
 ];
 
 for (const ancho of [360, 768, 1440]) {
@@ -1372,4 +1416,90 @@ test('la portada muestra las franjas de atención junto al horario, sin nombres'
   const horario = page.locator('#horario');
   await expect(horario.getByText('Atención: 9:00 a 13:00 · 15:00 a 18:00').first()).toBeVisible();
   await expect(horario.getByText(/Marta|Hugo/)).toHaveCount(0);
+});
+
+// ── Fase 11: notificaciones, auditoría y privacidad ──
+
+for (const ancho of [360, 768, 1440]) {
+  test(`fase 11: reenviar un correo a ${ancho} px, la confirmación dice a quién irá y no tiene fallas graves`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 900 });
+    await entrarComo(page, 'dueño');
+    await page.goto('/panel/correos-no-enviados');
+    await page.getByRole('button', { name: 'Reenviar el correo #51' }).click();
+    const dialogo = page.getByRole('dialog', { name: 'Reenviar este correo' });
+    await expect(dialogo.getByText(/destinos activos de hoy/)).toBeVisible();
+    await expect(dialogo.getByRole('button', { name: 'Cancelar' })).toBeFocused();
+    await sinFallasGraves(page);
+    await dialogo.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(dialogo).toBeHidden();
+    await page.getByRole('button', { name: 'Reenviar el correo #52' }).click();
+    await expect(page.getByRole('dialog', { name: 'Reenviar este correo' }).getByText(/misma dirección.*r•••a@correo\.test/)).toBeVisible();
+  });
+
+  test(`fase 11: auditoría a ${ancho} px, el detalle se abre y se lee sin fallas graves`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 900 });
+    await entrarComo(page, 'dueño');
+    await page.goto('/panel/auditoria');
+    await page.getByText('Ver detalle').first().click();
+    await expect(page.getByText('Estado del pedido')).toBeVisible();
+    await expect(page.getByText('en_proceso')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    await sinFallasGraves(page);
+  });
+
+  test(`fase 11: mi cuenta a ${ancho} px, el diálogo de baja explica qué se conserva y no tiene fallas graves`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 900 });
+    await entrarComoCliente(page, { verificado: true });
+    await page.goto('/cuenta');
+    await expect(page.getByRole('heading', { name: 'Correos que recibo' })).toBeVisible();
+    await expect(page.getByText('Los correos de seguridad de tu cuenta siempre se envían.')).toBeVisible();
+    await page.getByRole('button', { name: 'Dar de baja mi cuenta' }).click();
+    const dialogo = page.getByRole('dialog', { name: 'Dar de baja mi cuenta' });
+    await expect(dialogo.getByText(/Se conservan tus solicitudes, cotizaciones, pedidos y abonos/)).toBeVisible();
+    await sinFallasGraves(page);
+  });
+}
+
+test('fase 11: el enlace de baja no actúa al abrirse, saca el token de la dirección y da de baja solo al confirmar', async ({ page }) => {
+  const posts = [];
+  await page.route('**/api/v1/**', (ruta) => {
+    const destino = new URL(ruta.request().url()).pathname.replace(/\/$/, '');
+    if (destino === '/api/v1/correos/baja' && ruta.request().method() === 'POST') {
+      posts.push(ruta.request().postDataJSON());
+      return ruta.fulfill({ json: { avisosEstado: false, marketing: false } });
+    }
+    return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
+  });
+  await page.goto('/baja?t=abc123');
+  await expect(page.getByRole('heading', { level: 1, name: 'Darte de baja de los correos' })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  expect(posts).toEqual([]);
+  await expect(page).toHaveURL(/\/baja$/);
+  await page.getByRole('button', { name: 'Confirmar baja' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Listo, te diste de baja' })).toBeFocused();
+  expect(posts).toEqual([{ t: 'abc123', avisosEstado: false, marketing: false }]);
+  await sinFallasGraves(page);
+});
+
+test('fase 11: el inicio avisa de los correos no enviados y la preferencia de avisos marca el error sin enviar', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel');
+  await page.getByRole('link', { name: 'Ver los correos no enviados' }).click();
+  await expect(page).toHaveURL(/\/panel\/correos-no-enviados\?revisado=false$/);
+  await page.goto('/panel/perfil');
+  const grupo = page.getByRole('group', { name: /Avisos que recibe contacto/ });
+  await grupo.getByRole('checkbox', { name: 'Solicitudes en línea' }).uncheck();
+  await grupo.getByRole('button', { name: 'Guardar preferencia' }).click();
+  await expect(grupo.getByText('Marca al menos un tipo de solicitud.')).toBeVisible();
+  await expect(grupo.getByRole('checkbox', { name: 'Solicitudes en línea' })).toBeFocused();
+});
+
+test('fase 11: un operario no ve auditoría ni correos no enviados en el menú y recibe 403 por la dirección', async ({ page }) => {
+  await entrarComo(page, 'operario');
+  await page.goto('/panel');
+  const menu = page.getByRole('navigation', { name: 'Panel del taller' });
+  await expect(menu.getByRole('link', { name: /Auditoría/ })).toHaveCount(0);
+  await expect(menu.getByRole('link', { name: /Correos no enviados/ })).toHaveCount(0);
+  await page.goto('/panel/auditoria');
+  await expect(page.getByRole('heading', { name: 'No tienes permiso para ver esta página' })).toBeVisible();
 });

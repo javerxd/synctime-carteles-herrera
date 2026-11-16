@@ -1,7 +1,7 @@
 ﻿-- =====================================================================================
 -- SyncTime - Letreros Herrera (la base conserva el nombre LetreriaLosHerreraDB)
 -- Script completo de la base de datos: tablas, restricciones, índices, datos iniciales,
--- triggers, vista y procedimiento almacenado. Estado: migración RostroMuestrasPorLado.
+-- triggers, vista y procedimiento almacenado. Estado: migración NotificacionesYAuditoria.
 -- Generado el 15-11-2026 desde el modelo de EF Core, que es la fuente única del esquema.
 --
 -- Cambios de la revisión del 12-11-2026 (tabla pedidos):
@@ -51,6 +51,15 @@
 --   * ck_rostros_empleado_muestras admite formato_muestras 3: cada muestra cifrada con su lado (frente,
 --                       izquierda o derecha) en los datos asociados. Las filas de formato 2 se cifraron sin el
 --                       lado y la API las trata como «debe registrarse de nuevo».
+--
+-- Fase 11 (15-11-2026), migración NotificacionesYAuditoria (sección 2e):
+--   * auditoria:          (tabla nueva) bitácora inmutable: el trigger trg_auditoria_inmutable rechaza UPDATE y DELETE.
+--   * claves_idempotencia: (tabla nueva) Idempotency-Key de las rutas que crean; duran 24 horas.
+--   * destinatarios_avisos: recibe_en_linea y recibe_presenciales (al menos uno) y row_version.
+--   * clientes:           recibe_avisos_estado (avisos de estado opcionales) e inhabilitado_en (baja de la cuenta).
+--   * correos_salientes:  enlace_baja (List-Unsubscribe) y el reenvío de los fallidos (revisado, reenviado_como,
+--                         id_empleado_reenvia, fecha_reenvio); índice filtrado de los fallidos.
+--   * row_version en horarios_atencion y cartel_digital; consentimientos admite avisos_estado.
 --
 -- Cómo ejecutarlo. Crea una base NUEVA y se detiene sin hacer nada si ya existe:
 --   sqlcmd -S localhost\SQLEXPRESS -E -C -I -f 65001 -i LetreriaLosHerreraDB.sql
@@ -1172,6 +1181,105 @@ ALTER TABLE [rostros_empleado] ADD CONSTRAINT [ck_rostros_empleado_muestras] CHE
 GO
 
 -- -------------------------------------------------------------------------------------
+-- 2e. Fase 11: notificaciones, auditoría y privacidad (migración NotificacionesYAuditoria)
+-- -------------------------------------------------------------------------------------
+ALTER TABLE [destinatarios_avisos_historial] DROP CONSTRAINT [ck_destinatarios_avisos_historial_accion];
+
+ALTER TABLE [consentimientos] DROP CONSTRAINT [ck_consentimientos_tipo];
+
+ALTER TABLE [horarios_atencion] ADD [row_version] rowversion NOT NULL;
+
+ALTER TABLE [destinatarios_avisos] ADD [recibe_en_linea] bit NOT NULL DEFAULT CAST(1 AS bit);
+
+ALTER TABLE [destinatarios_avisos] ADD [recibe_presenciales] bit NOT NULL DEFAULT CAST(0 AS bit);
+
+ALTER TABLE [destinatarios_avisos] ADD [row_version] rowversion NOT NULL;
+
+ALTER TABLE [correos_salientes] ADD [enlace_baja] varchar(400) NULL;
+
+ALTER TABLE [correos_salientes] ADD [fecha_reenvio] datetimeoffset(0) NULL;
+
+ALTER TABLE [correos_salientes] ADD [id_empleado_reenvia] int NULL;
+
+ALTER TABLE [correos_salientes] ADD [reenviado_como] bigint NULL;
+
+ALTER TABLE [correos_salientes] ADD [revisado] bit NOT NULL DEFAULT CAST(0 AS bit);
+
+ALTER TABLE [clientes] ADD [inhabilitado_en] datetimeoffset(0) NULL;
+
+ALTER TABLE [clientes] ADD [recibe_avisos_estado] bit NOT NULL DEFAULT CAST(1 AS bit);
+
+ALTER TABLE [cartel_digital] ADD [row_version] rowversion NOT NULL;
+GO
+
+-- Las columnas nuevas ya existen: lo que sigue puede usarlas.
+
+CREATE TABLE [auditoria] (
+    [id_auditoria] bigint NOT NULL IDENTITY,
+    [fecha] datetimeoffset(0) NOT NULL DEFAULT (SYSDATETIMEOFFSET()),
+    [id_empleado] int NULL,
+    [id_cliente] int NULL,
+    [rol] nvarchar(20) NULL,
+    [entidad] varchar(40) NOT NULL,
+    [id_entidad] varchar(40) NULL,
+    [accion] varchar(30) NOT NULL,
+    [detalle] nvarchar(2000) NULL,
+    [ip] varchar(45) NULL,
+    CONSTRAINT [pk_auditoria] PRIMARY KEY ([id_auditoria]),
+    CONSTRAINT [ck_auditoria_quien] CHECK (id_empleado IS NULL OR id_cliente IS NULL)
+);
+
+CREATE TABLE [claves_idempotencia] (
+    [id_clave] bigint NOT NULL IDENTITY,
+    [clave] char(36) NOT NULL,
+    [ambito] varchar(100) NOT NULL,
+    [id_usuario] int NOT NULL,
+    [tipo_usuario] varchar(10) NOT NULL,
+    [hash_cuerpo] char(64) NOT NULL,
+    [estado_http] int NULL,
+    [respuesta] nvarchar(max) NULL,
+    [fecha] datetimeoffset(0) NOT NULL,
+    [vence] datetimeoffset(0) NOT NULL,
+    CONSTRAINT [pk_claves_idempotencia] PRIMARY KEY ([id_clave]),
+    CONSTRAINT [ck_claves_idempotencia_tipo_usuario] CHECK (tipo_usuario IN ('cliente', 'empleado')),
+    CONSTRAINT [ck_claves_idempotencia_vence] CHECK (vence > fecha)
+);
+
+ALTER TABLE [destinatarios_avisos_historial] ADD CONSTRAINT [ck_destinatarios_avisos_historial_accion] CHECK (accion IN ('agregar', 'reemplazar', 'confirmar', 'cancelar', 'quitar', 'reenviar', 'probar', 'preferencia'));
+
+ALTER TABLE [destinatarios_avisos] ADD CONSTRAINT [ck_destinatarios_avisos_preferencia] CHECK (recibe_en_linea = 1 OR recibe_presenciales = 1);
+
+CREATE INDEX [ix_correos_salientes_empleado_reenvia] ON [correos_salientes] ([id_empleado_reenvia]) WHERE [id_empleado_reenvia] IS NOT NULL;
+
+CREATE INDEX [ix_correos_salientes_fallidos] ON [correos_salientes] ([proximo_intento], [revisado]) WHERE [estado] = 'fallido';
+
+ALTER TABLE [consentimientos] ADD CONSTRAINT [ck_consentimientos_tipo] CHECK (tipo IN ('privacidad', 'terminos', 'marketing', 'cookies', 'avisos_estado'));
+
+CREATE INDEX [ix_auditoria_cliente] ON [auditoria] ([id_cliente], [fecha] DESC) WHERE [id_cliente] IS NOT NULL;
+
+CREATE INDEX [ix_auditoria_empleado] ON [auditoria] ([id_empleado], [fecha] DESC, [id_auditoria] DESC) WHERE [id_empleado] IS NOT NULL;
+
+CREATE INDEX [ix_auditoria_entidad] ON [auditoria] ([entidad], [id_entidad]);
+
+CREATE INDEX [ix_auditoria_fecha] ON [auditoria] ([fecha] DESC, [id_auditoria] DESC);
+
+CREATE INDEX [ix_claves_idempotencia_vence] ON [claves_idempotencia] ([vence]);
+
+CREATE UNIQUE INDEX [uq_claves_idempotencia] ON [claves_idempotencia] ([clave], [ambito], [tipo_usuario], [id_usuario]);
+
+ALTER TABLE [correos_salientes] ADD CONSTRAINT [fk_correos_salientes_empleado_reenvia] FOREIGN KEY ([id_empleado_reenvia]) REFERENCES [empleados] ([id_empleado]);
+
+GO
+CREATE TRIGGER dbo.trg_auditoria_inmutable ON dbo.auditoria
+INSTEAD OF UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    THROW 50125, N'La bitácora de auditoría no se modifica ni se borra.', 1;
+END
+GO
+
+-- -------------------------------------------------------------------------------------
 -- 3. Historial de migraciones: la API reconoce la base como actualizada.
 -- -------------------------------------------------------------------------------------
 CREATE TABLE [__EFMigrationsHistory] (
@@ -1194,7 +1302,8 @@ INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES
     (N'20261114220104_CotizacionesYPedidos', N'10.0.11'),
     (N'20261115021638_MantenedoresYAvisos', N'10.0.11'),
     (N'20261115131307_RostroConPruebaDeVida', N'10.0.11'),
-    (N'20261115151730_RostroMuestrasPorLado', N'10.0.11');
+    (N'20261115151730_RostroMuestrasPorLado', N'10.0.11'),
+    (N'20261116002312_NotificacionesYAuditoria', N'10.0.11');
 GO
 
 SET NOEXEC OFF;

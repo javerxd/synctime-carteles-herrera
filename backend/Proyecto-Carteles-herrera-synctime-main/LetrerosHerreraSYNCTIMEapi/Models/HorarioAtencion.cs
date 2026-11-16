@@ -12,5 +12,8 @@ public class HorarioAtencion
     // Fase 9: quien hizo el ultimo cambio y cuando. La portada no lo muestra.
     public int? IdEmpleadoModifica { get; set; }
     public DateTimeOffset? FechaModificacion { get; set; }
+
+    // Fase 11: version de la fila. La del horario completo es la mayor de los siete dias.
+    public byte[] RowVersion { get; set; } = null!;
 }
 

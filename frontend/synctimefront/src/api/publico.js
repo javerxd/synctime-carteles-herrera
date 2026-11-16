@@ -9,8 +9,8 @@ export const publico = {
   categorias: () => api.get('/categorias', { parametros: { activo: true, tamano: 100 } }).then(lista),
   /** Tipos de letrero activos, para la lista del modal de solicitud. */
   productos: () => api.get('/productos', { parametros: { activo: true, tamano: 100 } }).then(lista),
-  /** Siete días, de lunes (1) a domingo (7). */
-  horarios: () => api.get('/horarios'),
+  /** Siete días, de lunes (1) a domingo (7). Desde la fase 11 la API puede envolverlos con su versión ({ dias, rowVersion }). */
+  horarios: () => api.get('/horarios').then((r) => (Array.isArray(r) ? r : r?.dias ?? [])),
   /** { abiertoEnLocal, mensajeEstado, tiempoEstimadoRegreso, fechaUltimaModificacion } */
   cartel: () => api.get('/cartel-digital'),
   /**

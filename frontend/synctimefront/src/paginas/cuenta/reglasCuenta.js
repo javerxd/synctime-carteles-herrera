@@ -83,3 +83,23 @@ export function telefonoLegible(telefono = '') {
   const t = String(telefono).replace(/\s/g, '');
   return /^\d{9}$/.test(t) ? `${t[0]} ${t.slice(1, 5)} ${t.slice(5)}` : telefono;
 }
+
+// ── Fase 11: Mis datos y baja de la cuenta ──
+
+/** La frase que se escribe para confirmar la baja (la API la exige igual). */
+export const FRASE_BAJA = 'DAR DE BAJA';
+
+const dos = (n) => String(n).padStart(2, '0');
+
+/** Nombre del archivo de «Descargar mis datos», como el que propone la API: mis-datos-letreros-herrera-AAAAMMDD.json. */
+export function nombreArchivoDatos(fecha = new Date()) {
+  return `mis-datos-letreros-herrera-${fecha.getFullYear()}${dos(fecha.getMonth() + 1)}${dos(fecha.getDate())}.json`;
+}
+
+/** Errores del diálogo de baja: la contraseña y la frase exacta (en mayúsculas). */
+export function validarBaja({ password = '', confirmacion = '' }) {
+  const errores = {};
+  if (!password) errores.password = 'Escribe tu contraseña para confirmar.';
+  if (confirmacion.trim() !== FRASE_BAJA) errores.confirmacion = `Escribe ${FRASE_BAJA}, en mayúsculas, para confirmar.`;
+  return errores;
+}

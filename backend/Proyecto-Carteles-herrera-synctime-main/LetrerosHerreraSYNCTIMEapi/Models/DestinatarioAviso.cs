@@ -24,6 +24,13 @@ public class DestinatarioAviso
     public DateTimeOffset? FechaConfirmacion { get; set; }
     public DateTimeOffset? FechaRetiro { get; set; }
 
+    // Fase 11 (decision 1): que solicitudes avisa este destino. Al menos una (ck_destinatarios_avisos_preferencia).
+    public bool RecibeEnLinea { get; set; } = true;
+    public bool RecibePresenciales { get; set; }
+
+    // Fase 11: version para editar la preferencia con If-Match.
+    public byte[] RowVersion { get; set; } = null!;
+
     public virtual DestinatarioAviso? Reemplaza { get; set; }
     public virtual Empleado? EmpleadoSolicita { get; set; }
 }
@@ -60,4 +67,5 @@ public static class AccionesDestinatario
     public const string Quitar = "quitar";
     public const string Reenviar = "reenviar";
     public const string Probar = "probar";
+    public const string Preferencia = "preferencia";
 }

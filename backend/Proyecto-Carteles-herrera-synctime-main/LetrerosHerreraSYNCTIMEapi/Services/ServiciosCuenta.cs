@@ -414,9 +414,10 @@ public sealed record DatosRegistro(
 
 public sealed record DatosPerfil(string? Rut, string? Nombre, string? Apellido, string? Telefono, string? Direccion);
 
+// Fase 11: AvisosEstado, la preferencia de los avisos de estado (los de cuenta y seguridad llegan siempre).
 public sealed record MiCuenta(
     int IdCliente, string Nombre, string Apellido, string? Rut, string Telefono, string Correo, string? Direccion,
-    bool CorreoVerificado, bool Marketing);
+    bool CorreoVerificado, bool Marketing, bool AvisosEstado);
 
 public abstract record ResultadoCuenta
 {
@@ -431,7 +432,8 @@ public sealed class ServicioMiCuenta(
     IServicioConsentimientos consentimientos,
     ServicioCodigosCuenta codigos,
     ServicioSesiones sesiones,
-    AuthService auth)
+    AuthService auth,
+    TimeProvider reloj)
 {
     public const string MensajeTelefonoDelTaller =
         "Ese teléfono o ese RUT ya están registrados en el taller. Pide en el local que activen tu acceso web: así nadie puede quedarse con tus pedidos sabiendo solo tu número.";
@@ -492,12 +494,28 @@ public sealed class ServicioMiCuenta(
 
     public async Task<MiCuenta?> ObtenerAsync(int idCliente, CancellationToken ct)
     {
-        var cliente = await db.Clientes.AsNoTracking().FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo, ct);
+        // Una cuenta dada de baja ya no existe para su titular (aunque su token aun no venza).
+        var cliente = await db.Clientes.AsNoTracking().FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo && c.InhabilitadoEn == null, ct);
         if (cliente is null)
             return null;
         var marketing = await consentimientos.VigenteAsync(TitularConsentimiento.Cliente(idCliente), DocumentosLegales.Marketing, ct) is not null;
         return new MiCuenta(cliente.IdCliente, cliente.Nombre, cliente.Apellido, cliente.Rut, cliente.Telefono, cliente.Email ?? "",
-            cliente.Direccion, cliente.FechaVerificacionCorreo is not null, marketing);
+            cliente.Direccion, cliente.FechaVerificacionCorreo is not null, marketing, cliente.RecibeAvisosEstado);
+    }
+
+    // Fase 11: PUT /mi-cuenta/preferencias. Cada cambio queda como consentimiento con fecha, hora y version. El
+    // marketing se acepta con la version que leyo el cliente (o la vigente, si no la indica). null si se pudo.
+    public async Task<string?> PreferenciasAsync(int idCliente, bool avisosEstado, bool marketing, string? versionMarketing, CancellationToken ct)
+    {
+        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo && c.InhabilitadoEn == null, ct);
+        if (cliente is null)
+            return null;
+        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
+        await PreferenciaAvisosEstado.CambiarAsync(db, consentimientos, cliente, avisosEstado, reloj, ct);
+        if (await MarketingAsync(idCliente, marketing, versionMarketing ?? DocumentosLegales.VersionVigente(DocumentosLegales.Marketing), ct) is { } error)
+            return error;
+        await transaccion.CommitAsync(CancellationToken.None);
+        return null;
     }
 
     public async Task<ResultadoCuenta> ActualizarAsync(int idCliente, DatosPerfil datos, CancellationToken ct)
@@ -505,7 +523,7 @@ public sealed class ServicioMiCuenta(
         var errores = ValidacionCuenta.Validar(datos.Rut, datos.Nombre, datos.Apellido, datos.Telefono, datos.Direccion);
         if (errores.Count > 0)
             return new ResultadoCuenta.Invalida(errores);
-        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo, ct);
+        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo && c.InhabilitadoEn == null, ct);
         if (cliente is null)
             return new ResultadoCuenta.NoEncontrada();
 
@@ -534,7 +552,7 @@ public sealed class ServicioMiCuenta(
         ValidacionCuenta.ValidarCorreo(correo, errores);
         if (errores.Count > 0)
             return new ResultadoCuenta.Invalida(errores);
-        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo, ct);
+        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo && c.InhabilitadoEn == null, ct);
         if (cliente?.PasswordHash is null)
             return new ResultadoCuenta.NoEncontrada();
         if (string.IsNullOrEmpty(passwordActual) || !auth.VerifyPassword(passwordActual, cliente.PasswordHash))
@@ -557,13 +575,14 @@ public sealed class ServicioMiCuenta(
     }
 
     public const string MensajePasswordActual = "La contraseña actual no es correcta.";
+    public const string MensajeCuentaDadaDeBaja = "Esta cuenta fue dada de baja.";
 
     public sealed record ResultadoPassword(Cliente? Cliente, IReadOnlyDictionary<string, string[]>? Errores);
 
     // Cambia la contraseña y cierra todas las sesiones de la cuenta en una sola transaccion.
     public async Task<ResultadoPassword> CambiarPasswordAsync(int idCliente, string? actual, string? nueva, CancellationToken ct)
     {
-        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo, ct);
+        var cliente = await db.Clientes.FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo && c.InhabilitadoEn == null, ct);
         if (cliente?.PasswordHash is null || string.IsNullOrEmpty(actual) || !auth.VerifyPassword(actual, cliente.PasswordHash))
             return new(null, new Dictionary<string, string[]> { ["passwordActual"] = [MensajePasswordActual] });
         if (!AuthService.EsPasswordValida(nueva))
@@ -580,6 +599,9 @@ public sealed class ServicioMiCuenta(
     // Aceptar o retirar el marketing en cualquier momento (RFU04: separado de los terminos). null si se pudo.
     public async Task<string?> MarketingAsync(int idCliente, bool acepta, string? version, CancellationToken ct)
     {
+        // Revision de la fase 11: una cuenta dada de baja no vuelve a aceptar nada (su token puede no haber vencido).
+        if (acepta && !await db.Clientes.AnyAsync(c => c.IdCliente == idCliente && c.Activo && c.InhabilitadoEn == null, ct))
+            return MensajeCuentaDadaDeBaja;
         var titular = TitularConsentimiento.Cliente(idCliente);
         if (!acepta)
         {

@@ -12,6 +12,7 @@ import { AvisoConflicto } from '../compartidos/AvisoConflicto';
 import { AvisoTrasCorte } from '../compartidos/AvisoTrasCorte';
 import { bloqueaReintento, errorTrasCorte, sinRespuesta, TRAS_CORTE } from '../compartidos/trasCorte';
 import { useConflictoDeVersion } from '../compartidos/useConflictoDeVersion';
+import { fallaDeClave, useClaveIdempotencia } from '../compartidos/useClaveIdempotencia';
 import { formatearArea, medidasCm, nombreCompleto, numeroSolicitud } from '../solicitudes/reglasSolicitud';
 import { CostosCotizacion, EditorMateriales, TotalEnVivo } from './EditorMateriales';
 import {
@@ -58,6 +59,8 @@ function FormularioCotizacion({ inicial, catalogo, base, modo, rowVersion, alGua
   const [estado, setEstado] = useState({ enviando: false, falla: null });
   const ultimo = useRef(null);
   const version = useConflictoDeVersion({ releer: () => cotizaciones.obtener(base.idCotizacion), versionInicial: rowVersion });
+  // Fase 11: emitir lleva la clave del formulario abierto (la misma al reintentar tras un corte).
+  const idempotencia = useClaveIdempotencia();
   const actual = version.conflicto?.actual;
 
   /**
@@ -93,18 +96,19 @@ function FormularioCotizacion({ inicial, catalogo, base, modo, rowVersion, alGua
     try {
       const respuesta = editar
         ? await cotizaciones.editar(base.idCotizacion, ultimo.current, version.version)
-        : await cotizaciones.emitir(base.idSolicitud, ultimo.current);
-      setEstado({ enviando: false, falla: null });
+        : await cotizaciones.emitir(base.idSolicitud, ultimo.current, { clave: idempotencia.clave });
+      // Tras emitir, el formulario sigue ocupado hasta que se navega: un segundo clic no crea otra cotización.
+      if (editar) setEstado({ enviando: false, falla: null });
       alGuardar(respuesta);
     } catch (falla) {
       if (falla?.codigo === 'version_obsoleta') {
         setEstado({ enviando: false, falla: null });
         version.detectar();
       } else if (!editar && sinRespuesta(falla)) {
-        // Emitir no tiene idempotencia: antes de dejar reintentar se revisa si quedó emitida.
+        // Sin respuesta, antes de dejar reintentar (con la misma clave) se revisa si quedó emitida.
         await revisarEmision();
       } else if (aplicarErroresApi(falla)) setEstado({ enviando: false, falla: null });
-      else setEstado({ enviando: false, falla });
+      else setEstado({ enviando: false, falla: fallaDeClave(falla, idempotencia.renovar) });
     }
   }
 

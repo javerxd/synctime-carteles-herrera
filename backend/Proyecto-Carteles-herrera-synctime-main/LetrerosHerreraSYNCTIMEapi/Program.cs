@@ -31,8 +31,14 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
         "No se encontro ConnectionStrings:DefaultConnection. Configure la variable de entorno ConnectionStrings__DefaultConnection.");
 var nombreBase = BasesDeDatos.Nombre(connectionString);
 
-builder.Services.AddDbContext<LetrerosHerreradbContext>(options =>
-    options.UseSqlServer(connectionString));
+// Fase 11: la bitacora se escribe sola con cada SaveChanges (InterceptorAuditoria), con quien hace la operacion.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.IActorActual, ActorHttp>();
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.InterceptorAuditoria>();
+builder.Services.AddDbContext<LetrerosHerreradbContext>((servicios, options) =>
+    options.UseSqlServer(connectionString)
+        .AddInterceptors(servicios.GetRequiredService<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.InterceptorAuditoria>()));
+builder.Services.AddScoped<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.IAuditoria, LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.Auditoria>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("No se configuro Jwt:Key.");
@@ -125,6 +131,14 @@ builder.Services.AddScoped<ServicioDestinosAvisos>();
 // Fase 10: rostro con prueba de vida, «Rostros registrados» y calibracion.
 builder.Services.AddScoped<ServicioRostros>();
 builder.Services.AddScoped<ServicioCalibracionRostro>();
+// Fase 11: notificaciones, auditoria y privacidad.
+builder.Services.AddSingleton<ClaveEnlaceBaja>();
+builder.Services.AddScoped<AvisosAlCliente>();
+builder.Services.AddScoped<ServicioBajaCorreos>();
+builder.Services.AddScoped<ServicioCorreosNoEnviados>();
+builder.Services.AddScoped<ServicioVisorAuditoria>();
+builder.Services.AddScoped<ServicioPrivacidad>();
+builder.Services.AddSingleton<ServicioIdempotencia>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
@@ -159,8 +173,9 @@ builder.Services.AddCors(options =>
     // Con credenciales (la cookie de renovacion): solo orígenes explicitos, nunca "*" (RNFP29).
     options.AddPolicy("FrontendPermitido", policy =>
         policy.WithOrigins(allowedOrigins)
-            .WithHeaders("Authorization", "Content-Type", "Accept", "If-Match", LetrerosHerreraSYNCTIMEapi.Endpoints.CookiesSesion.CabeceraCsrf)
-            .WithExposedHeaders("ETag")
+            .WithHeaders("Authorization", "Content-Type", "Accept", "If-Match", MiddlewareIdempotencia.Cabecera,
+                LetrerosHerreraSYNCTIMEapi.Endpoints.CookiesSesion.CabeceraCsrf)
+            .WithExposedHeaders("ETag", MiddlewareIdempotencia.CabeceraRepetida, "Content-Disposition")
             .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
             .AllowCredentials());
 });
@@ -305,6 +320,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
+// Fase 11: Idempotency-Key en las rutas que crean (despues de saber quien es el usuario).
+app.UseMiddleware<MiddlewareIdempotencia>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -334,6 +351,8 @@ app.MapPedidoApi();
 app.MapImagenApi();
 app.MapPortadaApi();
 app.MapCuentaApi();
+app.MapCorreosApi();
+app.MapAuditoriaApi();
 
 app.Run();
 

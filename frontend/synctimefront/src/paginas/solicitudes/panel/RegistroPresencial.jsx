@@ -18,6 +18,7 @@ import {
 } from './reglasClientes';
 import estilosPanel from '../../panel/Panel.module.css';
 import estilos from '../Solicitudes.module.css';
+import { fallaDeClave, useClaveIdempotencia } from '../../compartidos/useClaveIdempotencia';
 
 /** Busca al cliente por teléfono o RUT antes de crearlo (así no se duplica). También lo usa el pedido directo. */
 export function BuscarCliente({ alEncontrar, alNoEncontrar, primario }) {
@@ -149,6 +150,8 @@ export default function RegistroPresencial() {
   const [estado, setEstado] = useState({ enviando: false, error: null });
   const refError = useRef(null);
   const refSeccionSolicitud = useRef(null);
+  // Fase 11: la misma clave en cada reintento de este formulario abierto.
+  const idempotencia = useClaveIdempotencia();
   const puedeCrear = tieneRol(EDITAN_CLIENTES);
 
   // El cliente que llega desde su ficha queda elegido al cargarse.
@@ -174,10 +177,12 @@ export default function RegistroPresencial() {
     if (estado.enviando || !comprobar()) return;
     setEstado({ enviando: true, error: null });
     try {
-      const comprobante = await solicitudes.crear({ idCliente: cliente.idCliente, ...paraApi() });
+      const comprobante = await solicitudes.crear({ idCliente: cliente.idCliente, ...paraApi() }, { clave: idempotencia.clave });
+      idempotencia.renovar();
       anunciar({ tono: 'exito', titulo: `Solicitud ${numeroSolicitud(comprobante)} registrada` });
       navegar(`/panel/solicitudes/${comprobante.idSolicitud}`, { state: { registrada: true } });
-    } catch (error) {
+    } catch (falla) {
+      const error = fallaDeClave(falla, idempotencia.renovar);
       if (aplicarErroresApi(error)) setEstado({ enviando: false, error: null });
       else setEstado({ enviando: false, error: error?.message || 'No pudimos registrar la solicitud. Inténtalo de nuevo.' });
     }

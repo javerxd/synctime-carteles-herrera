@@ -8,7 +8,7 @@ public class ConsentimientosTests
     [Fact]
     public void CadaDocumentoLegal_TieneVersion()
     {
-        Assert.Equal(["cookies", "marketing", "privacidad", "terminos"], DocumentosLegales.VersionesVigentes.Keys.Order());
+        Assert.Equal(["avisos_estado", "cookies", "marketing", "privacidad", "terminos"], DocumentosLegales.VersionesVigentes.Keys.Order());
         Assert.All(DocumentosLegales.VersionesVigentes.Values, version => Assert.Matches(@"^\d+\.\d+$", version));
     }
 

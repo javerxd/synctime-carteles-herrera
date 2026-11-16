@@ -46,6 +46,10 @@ const ListaMantenedor = lazy(() => import('./paginas/mantenedores/ListaMantenedo
 const EditorMantenedor = lazy(() => import('./paginas/mantenedores/EditorMantenedor'));
 const RostrosRegistrados = lazy(() => import('./paginas/rostros/RostrosRegistrados'));
 const CalibrarRostro = lazy(() => import('./paginas/rostros/CalibrarRostro'));
+const BajaCorreos = lazy(() => import('./paginas/correos/BajaCorreos'));
+const CorreosNoEnviados = lazy(() => import('./paginas/correos/CorreosNoEnviados'));
+const Auditoria = lazy(() => import('./paginas/auditoria/Auditoria'));
+const ConsentimientosAuditoria = lazy(() => import('./paginas/auditoria/Auditoria').then((m) => ({ default: m.ConsentimientosAuditoria })));
 
 function Cargando() {
   return (
@@ -79,6 +83,8 @@ export default function App() {
               <Route path="terminos" element={enCarga(<DocumentoLegal tipo="terminos" />)} />
               {/* Enlace del correo que confirma el destino de los avisos del taller (fase 9): público, sin sesión. */}
               <Route path="avisos/confirmar" element={enCarga(<ConfirmarDestino />)} />
+              {/* Enlace de baja de los correos opcionales (fase 11): público; no actúa al abrirse. */}
+              <Route path="baja" element={enCarga(<BajaCorreos />)} />
               {/* Direcciones antiguas del panel */}
               <Route path="login" element={<Navigate to="/personal/ingresar" replace />} />
               <Route path="dashboard" element={<Navigate to="/panel" replace />} />
@@ -114,6 +120,9 @@ export default function App() {
                 <Route path="mantenedores/:tipo/:id" element={enCarga(<EditorMantenedor />)} />
                 <Route path="rostros" element={enCarga(<RostrosRegistrados />)} />
                 <Route path="rostros/calibrar" element={enCarga(<CalibrarRostro />)} />
+                <Route path="correos-no-enviados" element={enCarga(<CorreosNoEnviados />)} />
+                <Route path="auditoria" element={enCarga(<Auditoria />)} />
+                <Route path="auditoria/consentimientos" element={enCarga(<ConsentimientosAuditoria />)} />
               </Route>
               <Route path="*" element={<Pagina404 />} />
             </Route>

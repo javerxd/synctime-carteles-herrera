@@ -58,10 +58,76 @@ public static class CuentaApi
         })
         .RequireRateLimiting("Reautenticacion");
 
+        // Fase 11: alias de PUT /preferencias, que la reemplaza.
         grupo.MapPut("/marketing", async (MarketingRequest req, ClaimsPrincipal user, ServicioMiCuenta cuentas, CancellationToken ct) =>
             await cuentas.MarketingAsync(user.IdUsuario(), req.Acepta, req.Version, ct) is { } error
                 ? ErrorApi.Conflicto(error)
                 : Results.NoContent());
+
+        // Fase 11: los correos opcionales que recibe (avisos de estado y marketing). Los de la cuenta y la seguridad
+        // llegan siempre. Responde la cuenta completa.
+        grupo.MapPut("/preferencias", async (PreferenciasRequest req, ClaimsPrincipal user, ServicioMiCuenta cuentas, CancellationToken ct) =>
+        {
+            if (req.AvisosEstado is not bool avisos || req.Marketing is not bool marketing)
+                return ErrorApi.Invalido("Indica avisosEstado y marketing (true o false).", new Dictionary<string, string[]>
+                {
+                    ["preferencias"] = ["Indica avisosEstado y marketing (true o false)."]
+                });
+            if (await cuentas.PreferenciasAsync(user.IdUsuario(), avisos, marketing, req.VersionMarketing, ct) is { } error)
+                return ErrorApi.Conflicto(error);
+            return await cuentas.ObtenerAsync(user.IdUsuario(), ct) is { } cuenta ? Results.Ok(cuenta) : Results.NotFound();
+        })
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(4 * 1024));
+
+        // Fase 11 (RFU34): «Mis datos». Las dos piden la contraseña, con el limite de las acciones delicadas y el
+        // limite por cuenta (un token robado no sirve para probar contraseñas).
+        grupo.MapPost("/datos", async (ConfirmarPasswordRequest req, ClaimsPrincipal user, HttpContext http, ServicioPrivacidad privacidad, LimitadorPorCuenta limite,
+            CancellationToken ct) =>
+        {
+            var cuenta = $"cliente-clave:{user.IdUsuario()}";
+            if (limite.EstaBloqueada(cuenta))
+                return ErrorApi.DemasiadosIntentos();
+            switch (await privacidad.DescargarAsync(user.IdUsuario(), req.Password, ct))
+            {
+                case ResultadoPrivacidad<ArchivoMisDatos>.Correcto { Valor: var archivo }:
+                    limite.Olvidar(cuenta);
+                    // Datos personales: que ningun proxy ni el navegador los guarden.
+                    http.Response.Headers.CacheControl = "private, no-store";
+                    return Results.File(archivo.Contenido, "application/json", archivo.Nombre);
+                case ResultadoPrivacidad<ArchivoMisDatos>.Invalido { Errores: var errores, Mensaje: var mensaje }:
+                    limite.RegistrarFallo(cuenta);
+                    return ErrorApi.Invalido(mensaje, errores);
+                default:
+                    return Results.NotFound();
+            }
+        })
+        .RequireRateLimiting("Reautenticacion")
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(4 * 1024));
+
+        grupo.MapPost("/baja", async (BajaCuentaRequest req, ClaimsPrincipal user, HttpContext contexto, ServicioPrivacidad privacidad,
+            LimitadorPorCuenta limite, CancellationToken ct) =>
+        {
+            var cuenta = $"cliente-clave:{user.IdUsuario()}";
+            if (limite.EstaBloqueada(cuenta))
+                return ErrorApi.DemasiadosIntentos();
+            switch (await privacidad.DarDeBajaAsync(user.IdUsuario(), req.Password, req.Confirmacion, ct))
+            {
+                case ResultadoPrivacidad<ComprobanteBaja>.Correcto { Valor: var comprobante }:
+                    limite.Olvidar(cuenta);
+                    // La sesion de este navegador tambien se cierra (sus tokens de renovacion ya no existen).
+                    CookiesSesion.Borrar(contexto);
+                    contexto.Response.Headers.CacheControl = "private, no-store";
+                    return Results.Ok(new { Comprobante = comprobante });
+                case ResultadoPrivacidad<ComprobanteBaja>.Invalido { Errores: var errores, Mensaje: var mensaje }:
+                    if (errores.ContainsKey("password"))
+                        limite.RegistrarFallo(cuenta);
+                    return ErrorApi.Invalido(mensaje, errores);
+                default:
+                    return Results.NotFound();
+            }
+        })
+        .RequireRateLimiting("Reautenticacion")
+        .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(4 * 1024));
     }
 
     private static async Task<IResult> ResponderAsync(ResultadoCuenta resultado, ClaimsPrincipal user, ServicioMiCuenta cuentas, CancellationToken ct) => resultado switch
@@ -77,3 +143,6 @@ public record PerfilRequest(string? Rut, string? Nombre, string? Apellido, strin
 public record CambiarCorreoRequest(string? Correo, string? PasswordActual);
 public record CambiarPasswordRequest(string? PasswordActual, string? PasswordNueva);
 public record MarketingRequest(bool Acepta, string? Version);
+public record PreferenciasRequest(bool? AvisosEstado, bool? Marketing, string? VersionMarketing = null);
+public record ConfirmarPasswordRequest(string? Password);
+public record BajaCuentaRequest(string? Password, string? Confirmacion);

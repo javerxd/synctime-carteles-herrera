@@ -428,7 +428,7 @@ Restricciones: `pk_correos_salientes`, `ck_correos_salientes_estado`, `ck_correo
 - `ix_correos_salientes_referencia` (`referencia`), filtrado a los no nulos: encontrar el correo de una solicitud.
 - `ix_correos_salientes_fecha` (`fecha_creacion`): la purga de lo antiguo.
 
-**Retención:** lo enviado o fallido se borra a los 30 días (`Correo:Cola:DiasRetencion`), porque el cuerpo lleva datos personales del cliente.
+**Retención (fase 11):** la fila no se borra; se vacían el asunto, los cuerpos, `enlace_baja` y `responder_a`, y el destinatario queda enmascarado: a los 30 días los enviados (`Correo:Cola:DiasCuerpoEnviados`) y a los 90 los fallidos (`Correo:Cola:DiasCuerpoFallidos`), para poder reenviarlos mientras tanto. Columnas nuevas: `revisado`, `reenviado_como`, `id_empleado_reenvia`, `fecha_reenvio` y `enlace_baja`. Ver también `auditoria` y `claves_idempotencia` en el script de la base.
 
 ## consentimientos
 

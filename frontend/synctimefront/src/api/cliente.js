@@ -122,11 +122,14 @@ function errorDesde(respuesta, cuerpo) {
 }
 
 /**
- * `cabeceras`: cabeceras extra (por ejemplo, X-CSRF-Token). `sinRenovar`: un 401 no intenta renovar
- * la sesión (las rutas de la propia sesión y la petición ya repetida).
+ * `cabeceras`: cabeceras extra (por ejemplo, X-CSRF-Token, If-Match o Idempotency-Key). `sinRenovar`: un 401 no
+ * intenta renovar la sesión (las rutas de la propia sesión y la petición ya repetida). Una respuesta 2xx con
+ * `Idempotent-Replayed: true` (la API repite la de un envío anterior con la misma clave) es un éxito como cualquier otro.
  */
 async function pedir(metodo, ruta, configuracion = {}) {
-  const { cuerpo, parametros, senal, cabeceras: extra, sinRenovar = false, comoArchivo = false, reintentoOcupado = false } = configuracion;
+  const {
+    cuerpo, parametros, senal, cabeceras: extra, sinRenovar = false, comoArchivo = false, conCabeceras = false, reintentoOcupado = false,
+  } = configuracion;
   const token = opciones.obtenerToken();
   const cabeceras = new Headers({ Accept: comoArchivo ? '*/*' : 'application/json' });
   if (token) cabeceras.set('Authorization', `Bearer ${token}`);
@@ -154,7 +157,8 @@ async function pedir(metodo, ruta, configuracion = {}) {
   // Un archivo privado (adjunto) llega como Blob: la pantalla lo muestra con URL.createObjectURL.
   if (respuesta.ok && comoArchivo) return respuesta.blob();
   const datos = await leerCuerpo(respuesta);
-  if (respuesta.ok) return datos;
+  // `conCabeceras`: quien necesita el ETag (la versión del horario y del cartel) recibe también las cabeceras.
+  if (respuesta.ok) return conCabeceras ? { datos, cabeceras: respuesta.headers } : datos;
 
   if (await debeRepetir(respuesta.status, token, sinRenovar)) return pedir(metodo, ruta, { ...configuracion, sinRenovar: true });
   if (!sinRenovar && estaOcupado(respuesta.status, datos)) {
@@ -236,6 +240,16 @@ function subir(ruta, archivo, { campo = 'archivo', alProgreso, senal, sinRenovar
   });
 }
 
+/** La versión de un ETag («"AAAAAAAAB9E="» o W/"…») sin comillas, o null. */
+export function versionDeEtag(etag) {
+  const texto = String(etag ?? '').trim().replace(/^W\//, '');
+  const sinComillas = texto.replace(/^"(.*)"$/, '$1');
+  return sinComillas || null;
+}
+
+/** Cabecera de idempotencia de un formulario (fase 11): la misma clave en cada reintento del mismo envío. */
+export const conClave = (clave) => (clave ? { cabeceras: { 'Idempotency-Key': clave } } : undefined);
+
 /** Ruta de la API sin el prefijo /api/v1 (la API entrega algunas URL completas, como urlMiniatura). */
 export function rutaRelativa(url) {
   return String(url ?? '').replace(/^(https?:\/\/[^/]+)?\/api\/v1(?=\/)/, '');
@@ -244,7 +258,7 @@ export function rutaRelativa(url) {
 function leer(ruta, configuracion = {}) {
   // Las lecturas con señal propia no se comparten: cancelar una no debe cancelar la otra.
   if (configuracion.senal) return pedir('GET', ruta, configuracion);
-  const clave = `${opciones.obtenerToken() ?? ''} ${construirUrl(ruta, configuracion.parametros)}`;
+  const clave = `${opciones.obtenerToken() ?? ''} ${configuracion.conCabeceras ? 'cabeceras ' : ''}${construirUrl(ruta, configuracion.parametros)}`;
   const existente = enCurso.get(clave);
   if (existente) return existente;
   const promesa = pedir('GET', ruta, configuracion).finally(() => enCurso.delete(clave));
@@ -260,5 +274,7 @@ export const api = {
   delete: (ruta, configuracion) => pedir('DELETE', ruta, configuracion),
   /** Descarga un archivo con la sesión (adjuntos privados) y lo entrega como Blob. */
   archivo: (ruta, configuracion) => pedir('GET', ruta, { ...configuracion, comoArchivo: true }),
+  /** Un POST cuya respuesta es un archivo (por ejemplo, «Descargar mis datos», que pide la contraseña en el cuerpo). */
+  postArchivo: (ruta, cuerpo, configuracion) => pedir('POST', ruta, { ...configuracion, cuerpo, comoArchivo: true }),
   subir,
 };

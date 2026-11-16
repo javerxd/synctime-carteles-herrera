@@ -1,4 +1,6 @@
+using System.Globalization;
 using LetrerosHerreraSYNCTIMEapi.Datos;
+using LetrerosHerreraSYNCTIMEapi.Datos.Auditoria;
 using LetrerosHerreraSYNCTIMEapi.Datos.Correo;
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Adjuntos;
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Correo;
@@ -39,6 +41,8 @@ public sealed class ServicioSolicitudes(
     LetrerosHerreradbContext db,
     ColaEnTransaccion cola,
     IAvisosDelTaller avisos,
+    AvisosAlCliente avisosAlCliente,
+    IAuditoria auditoria,
     IOptions<OpcionesCorreo> opcionesCorreo,
     IConfiguration configuracion,
     TimeProvider reloj,
@@ -56,7 +60,7 @@ public sealed class ServicioSolicitudes(
     // regla contra solicitudes falsas la frena, no se escribe nada.
     public async Task<ResultadoSolicitud> CrearEnLineaAsync(int idCliente, EntradaSolicitud entrada, string? ip, CancellationToken ct)
     {
-        var cliente = await db.Clientes.AsNoTracking().FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo, ct);
+        var cliente = await db.Clientes.AsNoTracking().FirstOrDefaultAsync(c => c.IdCliente == idCliente && c.Activo && c.InhabilitadoEn == null, ct);
         if (cliente is null)
             return new ResultadoSolicitud.NoEncontrada();
         if (cliente.FechaVerificacionCorreo is null)
@@ -86,8 +90,8 @@ public sealed class ServicioSolicitudes(
         return await GuardarAsync(cliente, idEmpleado: null, entrada, huella, transaccion, ct);
     }
 
-    // Registro presencial del personal: sin regla contra falsas y sin aviso al taller (decision de la
-    // fase 4, confirmada el 14-11-2026), pero con confirmacion al cliente si tiene correo.
+    // Registro presencial del personal: sin regla contra falsas y con confirmacion al cliente si tiene correo. Fase 11
+    // (decision 1): avisa al taller solo a los destinos que eligieron recibir las presenciales.
     public async Task<ResultadoSolicitud> CrearPresencialAsync(int idEmpleado, int idCliente, EntradaSolicitud entrada, CancellationToken ct)
     {
         var errores = await ValidarAsync(entrada.DescripcionGeneral, entrada.Detalles, adjuntos: null, idCliente: null, ct);
@@ -142,11 +146,12 @@ public sealed class ServicioSolicitudes(
 
         var leida = (await LeerAsync(solicitud.IdSolicitud, idClienteDueno: null, ct))!;
 
-        // Outbox: los correos se escriben en la cola con el mismo COMMIT que la solicitud.
-        if (idEmpleado is null)
-            await avisos.SolicitudNuevaAsync(cola, leida.Comprobante, registradaPor: null, ct);
-        // Solo a un correo confirmado: el personal puede haber escrito mal el de un cliente presencial.
-        if (Reglas.EsCorreo(cliente.Email) && cliente.FechaVerificacionCorreo is not null)
+        // Outbox: los correos se escriben en la cola con el mismo COMMIT que la solicitud. El aviso al taller es
+        // operativo: sale aunque el cliente se haya dado de baja de los correos o de la cuenta.
+        await avisos.SolicitudNuevaAsync(cola, leida.Comprobante, registradaPor: idEmpleado is null ? null : leida.RegistradaPor, ct);
+        // Solo a un correo confirmado (el personal puede haber escrito mal el de un cliente presencial) y a una
+        // cuenta que no se dio de baja.
+        if (Reglas.EsCorreo(cliente.Email) && cliente.FechaVerificacionCorreo is not null && cliente.InhabilitadoEn is null)
             await cola.EncolarAsync(ConfirmacionSolicitud.Componer(leida.Comprobante, cliente.Email!, opcionesCorreo.Value.ContactoTaller,
                 configuracion["Sitio:UrlPublica"]), ct);
         await db.SaveChangesAsync(ct);
@@ -460,7 +465,13 @@ public sealed class ServicioSolicitudes(
                 motivoLimpio is null ? "La solicitud volvió a «solicitado»." : "Se rechazó la solicitud.", ahora, ct);
         Registrar(solicitud, estado!, motivoLimpio, idEmpleado, ahora);
         solicitud.MotivoRechazo = motivoLimpio;
-        return await GuardarCambiosAsync(solicitud, version, transaccion, ct);
+        // Fase 11 (S09): el cliente recibe el aviso de su solicitud rechazada, en el mismo guardado.
+        var avisa = estado == EstadosSolicitud.Rechazado
+            && await avisosAlCliente.EstadoSolicitudAsync(cola, id, solicitud.IdCliente, EstadosSolicitud.Rechazado, motivoLimpio, ct);
+        var resultado = await GuardarCambiosAsync(solicitud, version, transaccion, ct);
+        if (avisa && resultado is ResultadoSolicitud.Correcta)
+            cola.AvisarAlTrabajador();
+        return resultado;
     }
 
     // Borrado logico (no desaparece de la base ni de la metrica), solo en «solicitado» o «rechazado», sin
@@ -472,16 +483,25 @@ public sealed class ServicioSolicitudes(
             return new ResultadoSolicitud.SinVersion();
 
         var fecha = FechaChile(reloj.GetUtcNow());
-        var eliminadas = await db.Solicitudes
-            .Where(s => s.IdSolicitud == id && !s.EliminadoLogico
-                && (s.Estado == EstadosSolicitud.Solicitado || s.Estado == EstadosSolicitud.Rechazado)
-                && s.RowVersion == version
-                && !db.Pedidos.Any(p => p.IdSolicitud == id))
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.EliminadoLogico, true)
-                .SetProperty(x => x.FechaEliminacionLogica, (DateTime?)fecha), ct);
-        if (eliminadas == 1)
-            return new ResultadoSolicitud.Eliminada();
+        // El borrado y su registro en la bitacora van juntos (el interceptor no ve un ExecuteUpdate).
+        await using (var transaccion = await db.Database.BeginTransactionAsync(ct))
+        {
+            var eliminadas = await db.Solicitudes
+                .Where(s => s.IdSolicitud == id && !s.EliminadoLogico
+                    && (s.Estado == EstadosSolicitud.Solicitado || s.Estado == EstadosSolicitud.Rechazado)
+                    && s.RowVersion == version
+                    && !db.Pedidos.Any(p => p.IdSolicitud == id))
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.EliminadoLogico, true)
+                    .SetProperty(x => x.FechaEliminacionLogica, (DateTime?)fecha), ct);
+            if (eliminadas == 1)
+            {
+                await auditoria.RegistrarAsync("solicitud", id.ToString(CultureInfo.InvariantCulture), AccionesAuditoria.Eliminar,
+                    DetalleAuditoria.Libre(new Dictionary<string, object?> { ["borradoLogico"] = true }), ct);
+                await transaccion.CommitAsync(CancellationToken.None);
+                return new ResultadoSolicitud.Eliminada();
+            }
+        }
 
         // No se borro: se explica por que, sin haber cambiado nada.
         var actual = await db.Solicitudes.AsNoTracking().Where(s => s.IdSolicitud == id && !s.EliminadoLogico)
@@ -514,14 +534,30 @@ public sealed class ServicioSolicitudes(
     // Una sola cotizacion «pendiente» a la vez: al editar, rechazar o devolver la solicitud, la vigente
     // queda «rechazada» y se conserva como historial. Fase 8: la respuesta la registra quien lo hizo, en el
     // local, con el motivo (ck_cotizaciones_respuesta exige fecha y via en toda cotizacion respondida).
-    private Task<int> RechazarCotizacionPendienteAsync(int idSolicitud, int idEmpleado, string motivo, DateTimeOffset ahora, CancellationToken ct) =>
-        db.Cotizaciones.Where(c => c.IdSolicitud == idSolicitud && c.Estado == Pendiente && !c.EliminadoLogico)
+    // Fase 11: el interceptor no ve este UPDATE; cada cotizacion rechazada se anota a mano y se guarda con el mismo
+    // SaveChanges (y la misma transaccion) que el cambio de la solicitud.
+    private async Task<int> RechazarCotizacionPendienteAsync(int idSolicitud, int idEmpleado, string motivo, DateTimeOffset ahora, CancellationToken ct)
+    {
+        var pendientes = await db.Cotizaciones.AsNoTracking().Where(c => c.IdSolicitud == idSolicitud && c.Estado == Pendiente && !c.EliminadoLogico)
+            .Select(c => c.IdCotizacion).ToListAsync(ct);
+        if (pendientes.Count == 0)
+            return 0;
+        var rechazadas = await db.Cotizaciones.Where(c => pendientes.Contains(c.IdCotizacion) && c.Estado == Pendiente && !c.EliminadoLogico)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(c => c.Estado, Rechazada)
                 .SetProperty(c => c.FechaRespuesta, (DateTimeOffset?)ahora)
                 .SetProperty(c => c.ViaRespuesta, ViasRespuesta.Presencial)
                 .SetProperty(c => c.IdEmpleadoRespuesta, (int?)idEmpleado)
                 .SetProperty(c => c.MotivoRechazo, motivo), ct);
+        foreach (var idCotizacion in pendientes)
+            auditoria.Anotar("cotizacion", idCotizacion.ToString(CultureInfo.InvariantCulture), AccionesAuditoria.Modificar,
+                DetalleAuditoria.Libre(new Dictionary<string, object?>
+                {
+                    ["campos"] = new[] { "estado", "fechaRespuesta", "viaRespuesta", "idEmpleadoRespuesta", "motivoRechazo" },
+                    ["estado"] = $"{Pendiente} → {Rechazada}"
+                }));
+        return rechazadas;
+    }
 
     private async Task<ResultadoSolicitud> GuardarCambiosAsync(Solicitud solicitud, byte[] version,
         IDbContextTransaction? transaccion, CancellationToken ct)
@@ -644,7 +680,7 @@ public sealed record LectorAdjunto(int? IdCliente)
     public static LectorAdjunto DeCliente(int id) => new(id);
 }
 
-public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjuntos almacen, IConfiguration configuracion, TimeProvider reloj)
+public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjuntos almacen, IAuditoria auditoria, IConfiguration configuracion, TimeProvider reloj)
 {
     // Procesar una foto grande ocupa memoria y procesador: como mucho dos a la vez.
     private static readonly SemaphoreSlim Procesando = new(2, 2);
@@ -839,9 +875,15 @@ public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjunto
         return new ResultadoAdjunto.Borrado();
     }
 
-    // Un UPDATE sin cambios de datos: SQL Server renueva igual el row_version de la solicitud.
-    private Task<int> CambiarVersionAsync(int idSolicitud, CancellationToken ct) =>
-        db.Solicitudes.Where(s => s.IdSolicitud == idSolicitud).ExecuteUpdateAsync(s => s.SetProperty(x => x.Estado, x => x.Estado), ct);
+    // Un UPDATE sin cambios de datos: SQL Server renueva igual el row_version de la solicitud. Fase 11: queda en la
+    // bitacora como un cambio de los adjuntos de la solicitud (el interceptor no ve este UPDATE).
+    private async Task<int> CambiarVersionAsync(int idSolicitud, CancellationToken ct)
+    {
+        var cambiadas = await db.Solicitudes.Where(s => s.IdSolicitud == idSolicitud).ExecuteUpdateAsync(s => s.SetProperty(x => x.Estado, x => x.Estado), ct);
+        await auditoria.RegistrarAsync("solicitud", idSolicitud.ToString(CultureInfo.InvariantCulture), AccionesAuditoria.Modificar,
+            DetalleAuditoria.Libre(new Dictionary<string, object?> { ["campos"] = new[] { "adjuntos" } }), ct);
+        return cambiadas;
+    }
 
     // El archivo pedido si quien lo pide puede verlo: el cliente dueño (lo subio el, o es de una solicitud
     // suya) o cualquier empleado. A los demas se les responde igual que si no existiera.
@@ -879,7 +921,7 @@ public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjunto
 // ── Clientes (RFU10, RFU19) ──
 
 public sealed record FilaCliente(int IdCliente, string? Rut, string Nombre, string Apellido, string Telefono, string? Email,
-    string? Direccion, bool Registrado, bool CorreoConfirmado, bool Activo, DateTime FechaRegistro);
+    string? Direccion, bool Registrado, bool CorreoConfirmado, bool Activo, DateTime FechaRegistro, bool CuentaDadaDeBaja);
 
 public sealed class ServicioClientes(LetrerosHerreradbContext db)
 {
@@ -930,7 +972,7 @@ public sealed class ServicioClientes(LetrerosHerreradbContext db)
 
     private static readonly System.Linq.Expressions.Expression<Func<Cliente, FilaCliente>> Fila = c => new FilaCliente(
         c.IdCliente, c.Rut, c.Nombre, c.Apellido, c.Telefono, c.Email, c.Direccion, c.Registrado,
-        c.FechaVerificacionCorreo != null, c.Activo, c.FechaRegistro);
+        c.FechaVerificacionCorreo != null, c.Activo, c.FechaRegistro, c.InhabilitadoEn != null);
 }
 
 // Bloqueo de SQL Server con nombre (sp_getapplock), atado a la transaccion en curso: pone en fila las

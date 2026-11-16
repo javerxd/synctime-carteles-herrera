@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { panel } from '../api/panel';
-import { publico } from '../api/publico';
 import { ProveedorAvisos } from '../avisos/Avisos';
 import {
   aMinutos, equipoPorPersona, franjasParaApi, horaCorta, horarioDesdeApi, horarioParaApi, textoFranja, validarFranjas, validarHorario,
@@ -11,10 +10,9 @@ import { almacenSesion } from '../sesion/sesion';
 vi.mock('../api/authService', () => ({ COOKIE_CSRF: 'synctime_csrf', default: { renovar: vi.fn(), salir: vi.fn() } }));
 vi.mock('../api/panel', () => ({
   panel: {
-    actualizarCartel: vi.fn(), guardarHorario: vi.fn(), miDisponibilidad: vi.fn(), guardarMiDisponibilidad: vi.fn(), disponibilidadEquipo: vi.fn(),
+    horario: vi.fn(), cartel: vi.fn(), actualizarCartel: vi.fn(), guardarHorario: vi.fn(), miDisponibilidad: vi.fn(), guardarMiDisponibilidad: vi.fn(), disponibilidadEquipo: vi.fn(),
   },
 }));
-vi.mock('../api/publico', () => ({ publico: { cartel: vi.fn(), horarios: vi.fn() } }));
 vi.mock('../paginas/panel/CodigoQr', () => ({ CodigoQr: () => null, descargarPng: vi.fn(), descargarSvg: vi.fn() }));
 
 const NOMBRES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -29,8 +27,10 @@ function entrarComo(rol) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  publico.cartel.mockResolvedValue({ abiertoEnLocal: true, mensajeEstado: 'Local abierto y atendiendo', tiempoEstimadoRegreso: null, fechaUltimaModificacion: '2026-11-14T09:00:00' });
-  publico.horarios.mockResolvedValue(HORARIO);
+  panel.cartel.mockResolvedValue({
+    abiertoEnLocal: true, mensajeEstado: 'Local abierto y atendiendo', tiempoEstimadoRegreso: null, fechaUltimaModificacion: '2026-11-14T09:00:00', rowVersion: 'AAAAAAAACA1=',
+  });
+  panel.horario.mockResolvedValue({ dias: HORARIO, rowVersion: 'AAAAAAAAHO1=' });
   panel.miDisponibilidad.mockResolvedValue([{ diaSemana: 1, horaInicio: '09:00:00', horaFin: '13:00:00' }]);
   panel.disponibilidadEquipo.mockResolvedValue([{ idEmpleado: 2, nombre: 'Hugo Vera', franjas: [{ diaSemana: 1, horaInicio: '09:00:00', horaFin: '13:00:00' }] }]);
 });
@@ -92,7 +92,7 @@ describe('/panel/local (fase 9)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dar vuelta el cartel' }));
     await waitFor(() => expect(panel.actualizarCartel).toHaveBeenCalledWith({
       abiertoEnLocal: false, mensajeEstado: 'Salimos a una instalación en terreno', tiempoEstimadoRegreso: '16:30',
-    }));
+    }, 'AAAAAAAACA1='));
     expect(screen.getByText('Lo cambian el dueño o el administrador.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Guardar horario' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Disponibilidad del equipo' })).not.toBeInTheDocument();

@@ -44,7 +44,8 @@ public static class PortadaApi
         .RequireRateLimiting("ApiGeneral");
 
         grupo.MapGet("/documentos-legales", () =>
-            Results.Ok(DocumentosLegales.VersionesVigentes.Select(d => new { Tipo = d.Key, Version = d.Value })))
+            // Fase 11: avisos_estado es una preferencia del cliente, no un documento publicado: no se lista aqui.
+            Results.Ok(DocumentosLegales.VersionesVigentes.Where(d => d.Key != DocumentosLegales.AvisosEstado).Select(d => new { Tipo = d.Key, Version = d.Value })))
             .RequireRateLimiting("ApiGeneral");
 
         grupo.MapPost("/contacto", async (ContactoRequest req, ServicioContacto servicio, ILogger<ContactoRequest> logger, CancellationToken ct) =>

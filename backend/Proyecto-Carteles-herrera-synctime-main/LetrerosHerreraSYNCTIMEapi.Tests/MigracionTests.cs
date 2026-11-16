@@ -180,11 +180,13 @@ public sealed class MigracionTests(ApiFixture api)
 
     // Seguimiento de la fase 10: RostroMuestrasPorLado solo reemplaza la regla de las muestras para admitir el
     // formato 3 (muestras atadas a su lado). No toca filas, tablas ni columnas.
+    private const string Fase10b = "20261115151730_RostroMuestrasPorLado";
+
     [Fact]
     public async Task RostroMuestrasPorLado_SoloCambiaLaRegla()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_RostroMuestrasPorLado", ultima);
+        const string ultima = Fase10b;
+        Assert.Contains(ultima, await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().ToList())));
         var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase10, ultima)));
 
         Assert.Contains("ADD CONSTRAINT [ck_rostros_empleado_muestras] CHECK", script);
@@ -196,12 +198,51 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task RevertirRostroMuestrasPorLado_SeDetieneSiHayRostrosDeFormato3()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        const string ultima = Fase10b;
         var abajo = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(ultima, Fase10)));
 
         Assert.Contains("THROW 50110", abajo, StringComparison.Ordinal);
         Assert.True(abajo.IndexOf("THROW 50110", StringComparison.Ordinal) < abajo.IndexOf("DROP CONSTRAINT [ck_rostros_empleado_muestras]", StringComparison.Ordinal));
         Assert.Contains("formato_muestras = 2 AND", abajo);
+        Assert.Equal(["DELETE FROM [__EFMigrationsHistory]"],
+            System.Text.RegularExpressions.Regex.Matches(abajo, @"DELETE FROM \S+").Select(m => m.Value));
+    }
+
+    // Fase 11: NotificacionesYAuditoria solo agrega columnas (con valor por defecto o nulas), dos tablas, indices,
+    // reglas y el trigger de la bitacora. Las dos reglas que reemplaza solo se amplian. No borra tablas, columnas ni filas.
+    [Fact]
+    public async Task NotificacionesYAuditoria_SoloAgrega()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.EndsWith("_NotificacionesYAuditoria", ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase10b, ultima)));
+
+        Assert.Contains("CREATE TABLE [auditoria]", script);
+        Assert.Contains("CREATE TABLE [claves_idempotencia]", script);
+        Assert.Contains("CREATE TRIGGER dbo.trg_auditoria_inmutable", script);
+        Assert.Contains("CREATE UNIQUE INDEX [uq_claves_idempotencia]", script);
+        Assert.Contains("ck_destinatarios_avisos_preferencia", script);
+        foreach (var tabla in new[] { "horarios_atencion", "cartel_digital", "destinatarios_avisos" })
+            Assert.Contains($"ALTER TABLE [{tabla}] ADD [row_version] rowversion NOT NULL", script);
+        Assert.Contains("'avisos_estado'", script);
+        Assert.Contains("'preferencia'", script);
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
+            Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
+    }
+
+    // Revertir la fase 11 se detiene (THROW) si la bitacora, las claves o las columnas nuevas tienen datos. No borra filas.
+    [Fact]
+    public async Task RevertirNotificacionesYAuditoria_SeDetieneAntesDePerderDatos()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        var abajo = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(ultima, Fase10b)));
+
+        foreach (var codigo in new[] { "THROW 50120", "THROW 50121", "THROW 50122", "THROW 50123" })
+        {
+            Assert.Contains(codigo, abajo, StringComparison.Ordinal);
+            Assert.True(abajo.IndexOf(codigo, StringComparison.Ordinal) < abajo.IndexOf("DROP TABLE", StringComparison.Ordinal));
+            Assert.True(abajo.IndexOf(codigo, StringComparison.Ordinal) < abajo.IndexOf("DROP COLUMN", StringComparison.Ordinal));
+        }
         Assert.Equal(["DELETE FROM [__EFMigrationsHistory]"],
             System.Text.RegularExpressions.Regex.Matches(abajo, @"DELETE FROM \S+").Select(m => m.Value));
     }
@@ -285,6 +326,7 @@ public sealed class MigracionTests(ApiFixture api)
         Assert.Contains("trg_pagos_recalcular_monto_abonado", objetos);
         Assert.Contains("vw_metricas_conversion_online", objetos);
         Assert.Contains("sp_depurar_solicitudes_no_concretadas", objetos);
+        Assert.Contains("trg_auditoria_inmutable", objetos);
     }
 
     [Fact]
@@ -292,7 +334,10 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(63, restricciones.Count);
+        Assert.Equal(67, restricciones.Count);
+        // Fase 11: preferencia de los destinos de avisos, quien en la bitacora y las claves de idempotencia.
+        foreach (var nombre in new[] { "ck_destinatarios_avisos_preferencia", "ck_auditoria_quien", "ck_claves_idempotencia_tipo_usuario", "ck_claves_idempotencia_vence" })
+            Assert.Contains(nombre, restricciones);
         // Fase 10: muestras completas mientras el rostro este vigente, orden y vigencia del desafio, etiqueta de la calibracion.
         foreach (var nombre in new[] { "ck_rostros_empleado_muestras", "ck_desafios_rostro_orden", "ck_desafios_rostro_vigencia", "ck_calibracion_rostro_etiqueta" })
             Assert.Contains(nombre, restricciones);

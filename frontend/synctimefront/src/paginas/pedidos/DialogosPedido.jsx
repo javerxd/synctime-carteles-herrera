@@ -7,6 +7,7 @@ import { AvisoFalla } from '../compartidos/Dialogos';
 import { AvisoTrasCorte } from '../compartidos/AvisoTrasCorte';
 import { bloqueaReintento, errorTrasCorte } from '../compartidos/trasCorte';
 import { useEnvioDialogo } from '../compartidos/useEnvioDialogo';
+import { fallaDeClave, useClaveIdempotencia } from '../compartidos/useClaveIdempotencia';
 import { CamposAbono } from './CamposPedido';
 import {
   ABONO_VACIO, abonoParaApi, errorFechaEntrega, errorMotivo, LIMITES_PEDIDO, MEDIOS_PAGO, numeroPedido, ORDEN_ABONO, validarAbono,
@@ -43,6 +44,8 @@ export function DialogoAbono({ pedido, hoy, abierto, alCerrar, alRegistrar, alRe
   const form = useFormulario({ inicial: ABONO_VACIO, validar: (a) => validarAbono(a, { hoy, saldo }), orden: ORDEN_ABONO });
   const { refFormulario, reiniciar } = form;
   const envio = useEnvioDialogo(abierto);
+  // Fase 11: una clave por cada vez que se abre el diálogo; la misma en cada reintento mientras sigue abierto.
+  const idempotencia = useClaveIdempotencia(abierto);
   const refMonto = useRef(null);
   const ultimo = useRef(null);
   const [revisando, setRevisando] = useState(false);
@@ -57,7 +60,13 @@ export function DialogoAbono({ pedido, hoy, abierto, alCerrar, alRegistrar, alRe
     evento.preventDefault();
     if (envio.enviando || bloqueado || !form.comprobar()) return;
     ultimo.current = abonoParaApi(form.datos);
-    const falla = await envio.ejecutar(() => alRegistrar(ultimo.current));
+    const falla = await envio.ejecutar(async () => {
+      try {
+        await alRegistrar(ultimo.current, idempotencia.clave);
+      } catch (error) {
+        throw fallaDeClave(error, idempotencia.renovar);
+      }
+    });
     // El error se explica junto a su campo cuando corresponde (el saldo vigente, en el monto; la factura, en
     // la suya); si no, arriba.
     let enCampo = false;

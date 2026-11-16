@@ -13,6 +13,7 @@ import {
 import {
   enlaceVencido, enmascararCorreo, errorCorreoAviso, MOTIVO_NO_QUITAR, ordenarDestinos, puedeQuitar, reemplazoPendiente, TEXTOS_ACCION, textoEstadoPrueba,
 } from './reglasAvisosTaller';
+import { PreferenciaDestino } from './PreferenciaDestino';
 import { usePruebaAvisos } from './usePruebaAvisos';
 import estilos from './AvisosTaller.module.css';
 
@@ -77,7 +78,8 @@ export function SeccionAvisosTaller() {
             <Insignia tono="neutro">Configuración del taller</Insignia>
           </div>
           <p className={estilos.explicacion}>
-            Estos correos reciben los avisos de solicitudes nuevas para todo el equipo. No cambia tu correo de ingreso.
+            Estos correos reciben los avisos de solicitudes nuevas para todo el equipo; cada uno elige si recibe las en línea, las
+            presenciales o ambas. No cambia tu correo de ingreso.
           </p>
         </div>
       </header>
@@ -115,6 +117,7 @@ export function SeccionAvisosTaller() {
                     alCerrarFormulario={() => setFormulario(null)}
                     alEnviarCorreo={enviarCorreo}
                     alQuitar={() => setQuitando(destino)}
+                    alRecargar={consulta.recargar}
                     alReenviar={() => ejecutar(destino.idDestinatario, () => avisosTaller.reenviar(destino.idDestinatario),
                       { tono: 'exito', titulo: `Reenviamos el enlace a ${destino.correo}`, texto: 'El enlace anterior ya no sirve.' })}
                     alCancelar={() => ejecutar(destino.idDestinatario, () => avisosTaller.cancelar(destino.idDestinatario),
@@ -168,7 +171,7 @@ function CorreoPartido({ correo }) {
 }
 
 function Destino({
-  destino, destinos, ocupado, falla, reemplazando, alReemplazar, alCerrarFormulario, alEnviarCorreo, alQuitar, alReenviar, alCancelar,
+  destino, destinos, ocupado, falla, reemplazando, alReemplazar, alCerrarFormulario, alEnviarCorreo, alQuitar, alReenviar, alCancelar, alRecargar,
 }) {
   const idMotivo = useId();
   const refReemplazar = useRef(null);
@@ -231,6 +234,8 @@ function Destino({
         )}
         {activo && !sePuedeQuitar && <p id={idMotivo}>{MOTIVO_NO_QUITAR}</p>}
       </div>
+
+      {activo && <PreferenciaDestino destino={destino} alGuardado={alRecargar} />}
 
       {reemplazando && (
         <FormularioCorreo etiqueta={`Correo que reemplaza a ${destino.correo}`} textoBoton="Enviar enlace de confirmación"

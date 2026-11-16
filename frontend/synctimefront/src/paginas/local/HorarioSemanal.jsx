@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Save } from 'lucide-react';
 import { Aviso, Boton, Campo, Casilla } from '../../componentes/ui';
 import { panel } from '../../api/panel';
 import { useAvisos } from '../../avisos/Avisos';
+import { AvisoConflicto } from '../compartidos/AvisoConflicto';
+import { useConflictoDeVersion } from '../compartidos/useConflictoDeVersion';
 import { franja } from '../publicas/horario';
 import { horarioDesdeApi, horarioParaApi, validarHorario } from './reglasLocal';
 import estilosPanel from '../panel/Panel.module.css';
@@ -25,12 +27,16 @@ export function HorarioLectura({ dias, hoy }) {
 /**
  * Edición del horario (E10, solo gestión): los 7 días en un solo envío. Un día abierto pide apertura y cierre,
  * con el cierre después de la apertura. La portada lo muestra en cuanto se guarda.
+ * Fase 11: guarda con la versión vista (If-Match). Si otra persona lo cambió, lo escrito se queda y se ofrece
+ * guardar sobre la versión actual o descartar (`releer` trae { dias, rowVersion }).
  */
-export function EditorHorario({ dias, alGuardar }) {
+export function EditorHorario({ dias, rowVersion, releer, alGuardar }) {
   const { anunciar } = useAvisos();
   const [form, setForm] = useState(() => horarioDesdeApi(dias));
   const [errores, setErrores] = useState({});
   const [estado, setEstado] = useState({ guardando: false, error: null });
+  const version = useConflictoDeVersion({ releer, versionInicial: rowVersion });
+  const refFormulario = useRef(null);
 
   function cambiar(diaSemana, campo, valor) {
     setForm((actual) => actual.map((d) => (d.diaSemana === diaSemana ? { ...d, [campo]: valor } : d)));
@@ -41,28 +47,46 @@ export function EditorHorario({ dias, alGuardar }) {
     });
   }
 
-  async function enviar(evento) {
-    evento.preventDefault();
+  async function enviar(evento, sobreActual = false) {
+    evento?.preventDefault();
+    if (estado.guardando) return;
     const problemas = validarHorario(form);
     setErrores(problemas);
     const primero = Object.keys(problemas)[0];
     if (primero) {
-      evento.currentTarget.querySelector(`[name="${primero}"]`)?.focus();
+      refFormulario.current?.querySelector(`[name="${primero}"]`)?.focus();
       return;
     }
     setEstado({ guardando: true, error: null });
     try {
-      await panel.guardarHorario(horarioParaApi(form));
+      await panel.guardarHorario(horarioParaApi(form), sobreActual ? version.version : rowVersion);
+      version.olvidar();
       anunciar({ tono: 'exito', titulo: 'Horario guardado', texto: 'La portada ya muestra el horario nuevo.' });
       setEstado({ guardando: false, error: null });
       alGuardar?.();
     } catch (error) {
+      if (error?.codigo === 'version_obsoleta') {
+        setEstado({ guardando: false, error: null });
+        version.detectar();
+        return;
+      }
       setEstado({ guardando: false, error: error?.message || 'No pudimos guardar el horario.' });
     }
   }
 
+  function descartar() {
+    const vigente = version.conflicto?.actual;
+    version.olvidar();
+    if (vigente?.dias) setForm(horarioDesdeApi(vigente.dias));
+    setErrores({});
+    alGuardar?.();
+  }
+
+  const actual = version.conflicto?.actual;
+  const abiertos = actual?.dias?.filter((d) => d.abierto).length;
+
   return (
-    <form className={estilos.formularioHorario} onSubmit={enviar} noValidate>
+    <form ref={refFormulario} className={estilos.formularioHorario} onSubmit={enviar} noValidate>
       <div className={estilos.dias}>
         {form.map((d) => (
           <div key={d.diaSemana} role="group" aria-labelledby={`horario-dia-${d.diaSemana}`} className={estilos.diaEditable}
@@ -77,6 +101,9 @@ export function EditorHorario({ dias, alGuardar }) {
           </div>
         ))}
       </div>
+      <AvisoConflicto conflicto={version.conflicto} entidad="el horario" guardando={estado.guardando} refAccion={version.refAccion}
+        resumen={actual ? `abre ${abiertos} ${abiertos === 1 ? 'día' : 'días'} a la semana.` : null}
+        alGuardarSobre={() => enviar(null, true)} alReintentar={version.detectar} alDescartar={descartar} />
       {estado.error && <Aviso tono="peligro" titulo="No pudimos guardar el horario">{estado.error}</Aviso>}
       <div className={estilosPanel.acciones}>
         <Boton type="submit" iconoInicio={Save} cargando={estado.guardando} textoCargando="Guardando…">Guardar horario</Boton>

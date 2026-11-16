@@ -151,7 +151,7 @@ Otras opciones de `Correo`:
 - `Smtp:TiempoEsperaSegundos` (20).
 - `TopeAvisosPorHora` (20). Pasado ese numero de solicitudes en una hora, llega un solo aviso de «muchas solicitudes» en vez de uno por cada una; todas se guardan igual. Protege el cupo diario de Gmail (unos 500 envios) ante un envio masivo de solicitudes falsas.
 - `TopeConsultasPorHora` (5): cuantos de esos avisos por hora pueden ser de consultas del formulario de contacto. El resto del cupo queda para las solicitudes.
-- `Cola:Activa`, `Cola:IntervaloSegundos` (30), `Cola:Lote` (10), `Cola:MaxIntentos` (6) y `Cola:DiasRetencion` (30).
+- `Cola:Activa`, `Cola:IntervaloSegundos` (30), `Cola:Lote` (10), `Cola:MaxIntentos` (6), `Cola:DiasCuerpoEnviados` (30) y `Cola:DiasCuerpoFallidos` (90): pasado ese plazo se borran el asunto, el cuerpo y la dirección completa (fase 11; la fila queda).
 
 `Correo:Modo` y `Correo:Smtp:Seguridad` se revisan al arrancar: un valor mal escrito impide iniciar la API, en vez de aceptar solicitudes que nunca avisarian. Si el servidor o la cuenta fallan (Gmail caido, contraseña cambiada), los avisos se siguen intentando cada 3 horas sin agotarse y salen en cuanto se arregla. Solo un fallo del propio mensaje los agota.
 

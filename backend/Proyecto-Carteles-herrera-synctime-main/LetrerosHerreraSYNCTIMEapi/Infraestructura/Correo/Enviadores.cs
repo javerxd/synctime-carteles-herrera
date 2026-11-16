@@ -53,6 +53,14 @@ public static class ConstructorMime
         mensaje.MessageId = $"correo-{correo.IdCorreo}.{correo.FechaCreacion.ToUnixTimeSeconds()}@{dominio}";
         // Correo automatico (RFC 3834): evita respuestas automaticas como "estoy de vacaciones".
         mensaje.Headers.Add("Auto-Submitted", "auto-generated");
+        // Fase 11: un correo opcional al cliente se puede dar de baja con un clic desde el programa de correo
+        // (RFC 2369 y RFC 8058). La direccion es https y no lleva el correo del cliente.
+        if (!string.IsNullOrWhiteSpace(correo.EnlaceBaja) && Uri.TryCreate(correo.EnlaceBaja, UriKind.Absolute, out var baja)
+            && (baja.Scheme == Uri.UriSchemeHttps || baja.Scheme == Uri.UriSchemeHttp))
+        {
+            mensaje.Headers.Add("List-Unsubscribe", $"<{baja.AbsoluteUri}>");
+            mensaje.Headers.Add("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+        }
 
         var cuerpo = new BodyBuilder { TextBody = correo.CuerpoTexto, HtmlBody = correo.CuerpoHtml };
         var logo = cuerpo.LinkedResources.Add("logo-lh.png", Logo.Value, new ContentType("image", "png"));

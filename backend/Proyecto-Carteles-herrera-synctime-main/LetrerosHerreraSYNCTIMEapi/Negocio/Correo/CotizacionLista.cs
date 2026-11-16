@@ -8,7 +8,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
 // rechaza. Todo texto se escapa al componer (PlantillaCorreo), tambien las observaciones del taller.
 public static class CotizacionLista
 {
-    public static MensajeCorreo Componer(FichaCotizacion cotizacion, string para, string correoContacto, string? urlPublica)
+    // Fase 11: es un aviso de estado (opcional): lleva el enlace de baja del cliente y su cabecera.
+    public static MensajeCorreo Componer(FichaCotizacion cotizacion, string para, string correoContacto, string? urlPublica, string? tokenBaja = null)
     {
         var nombre = AvisoSolicitudNueva.Linea(cotizacion.Cliente.Nombre);
         var total = FormatoChile.Pesos(cotizacion.TotalRedondeado);
@@ -35,7 +36,8 @@ public static class CotizacionLista
             $"Cotización {cotizacion.Numero} por {total}: apruébala o recházala desde tu cuenta.",
             cuerpo,
             correoContacto,
-            referencia: $"cotizacion:{cotizacion.IdCotizacion}");
+            referencia: $"cotizacion:{cotizacion.IdCotizacion}",
+            baja: EnlaceBaja.Enlaces(urlPublica, tokenBaja));
     }
 
     // «2 × Letrero luminoso, con logo, 100 × 200 cm, 4 m²», igual que en la confirmacion de la solicitud.

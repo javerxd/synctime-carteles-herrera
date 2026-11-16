@@ -39,6 +39,8 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<DestinatarioAvisoHistorial> DestinatariosAvisosHistorial { get; set; } = null!;
     public DbSet<DesafioRostro> DesafiosRostro { get; set; } = null!;
     public DbSet<MedicionCalibracionRostro> CalibracionRostro { get; set; } = null!;
+    public DbSet<RegistroAuditoria> Auditoria { get; set; } = null!;
+    public DbSet<ClaveIdempotencia> ClavesIdempotencia { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +75,9 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.FechaVerificacionCorreo).HasColumnName("fecha_verificacion_correo").HasColumnType("datetimeoffset(0)");
             // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
             entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
+            // Fase 11: preferencia de los avisos de estado y baja de la cuenta.
+            entity.Property(e => e.RecibeAvisosEstado).HasColumnName("recibe_avisos_estado").HasDefaultValue(true).HasSentinel(true);
+            entity.Property(e => e.InhabilitadoEn).HasColumnName("inhabilitado_en").HasColumnType("datetimeoffset(0)");
 
             entity.HasIndex(e => e.Telefono).IsUnique().HasDatabaseName("uq_clientes_telefono");
             entity.HasIndex(e => e.Rut).IsUnique().HasFilter("[rut] IS NOT NULL").HasDatabaseName("uq_clientes_rut");
@@ -625,6 +630,8 @@ public class LetrerosHerreradbContext : DbContext
             // Fase 9: quien hizo el ultimo cambio y cuando.
             entity.Property(e => e.IdEmpleadoModifica).HasColumnName("id_empleado_modifica");
             entity.Property(e => e.FechaModificacion).HasColumnName("fecha_modificacion").HasColumnType("datetimeoffset(0)");
+            // Fase 11: version para guardar el horario con If-Match.
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => e.DiaSemana).IsUnique().HasDatabaseName("uq_horarios_dia");
             entity.HasIndex(e => e.IdEmpleadoModifica).HasDatabaseName("ix_horarios_empleado_modifica");
@@ -660,6 +667,8 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.FechaUltimaModificacion).HasColumnName("fecha_ultima_modificacion").HasColumnType("datetime2(0)")
                 .HasDefaultValueSql("SYSDATETIME()");
             entity.Property(e => e.IdEmpleadoModifica).HasColumnName("id_empleado_modifica");
+            // Fase 11: version para guardar el cartel con If-Match.
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasOne(e => e.EmpleadoModifica)
                 .WithMany()
@@ -739,6 +748,21 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.FechaCreacion).HasColumnName("fecha_creacion").HasColumnType("datetimeoffset(0)")
                 .HasDefaultValueSql("SYSDATETIMEOFFSET()");
             entity.Property(e => e.FechaEnvio).HasColumnName("fecha_envio").HasColumnType("datetimeoffset(0)");
+            // Fase 11: baja con un clic, «Correos no enviados» y su reenvio.
+            entity.Property(e => e.EnlaceBaja).HasColumnName("enlace_baja").HasMaxLength(400).IsUnicode(false);
+            entity.Property(e => e.Revisado).HasColumnName("revisado").HasDefaultValue(false);
+            entity.Property(e => e.ReenviadoComo).HasColumnName("reenviado_como");
+            entity.Property(e => e.IdEmpleadoReenvia).HasColumnName("id_empleado_reenvia");
+            entity.Property(e => e.FechaReenvio).HasColumnName("fecha_reenvio").HasColumnType("datetimeoffset(0)");
+            entity.HasOne<Empleado>().WithMany()
+                .HasForeignKey(e => e.IdEmpleadoReenvia)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_correos_salientes_empleado_reenvia");
+            entity.HasIndex(e => e.IdEmpleadoReenvia).HasFilter("[id_empleado_reenvia] IS NOT NULL").HasDatabaseName("ix_correos_salientes_empleado_reenvia");
+            // «Correos no enviados»: solo los fallidos, del mas reciente al mas antiguo (proximo_intento guarda cuando fallo).
+            entity.HasIndex(e => new { e.ProximoIntento, e.Revisado })
+                .HasFilter("[estado] = 'fallido'")
+                .HasDatabaseName("ix_correos_salientes_fallidos");
 
             // Lo que el trabajador busca en cada vuelta: lo pendiente cuya hora llego. Solo indexa lo que
             // falta enviar, que es poco; lo enviado se acumula hasta la purga sin agrandar este indice.
@@ -755,7 +779,8 @@ public class LetrerosHerreradbContext : DbContext
         {
             entity.ToTable("consentimientos", t =>
             {
-                t.HasCheckConstraint("ck_consentimientos_tipo", "tipo IN ('privacidad', 'terminos', 'marketing', 'cookies')");
+                // Fase 11: avisos_estado, la preferencia de los avisos de estado del cliente.
+                t.HasCheckConstraint("ck_consentimientos_tipo", "tipo IN ('privacidad', 'terminos', 'marketing', 'cookies', 'avisos_estado')");
                 t.HasCheckConstraint("ck_consentimientos_titular",
                     "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) + (CASE WHEN referencia_envio IS NULL THEN 0 ELSE 1 END) = 1");
                 t.HasCheckConstraint("ck_consentimientos_revocacion", "fecha_revocacion IS NULL OR fecha_revocacion >= fecha_aceptacion");
@@ -1015,6 +1040,8 @@ public class LetrerosHerreradbContext : DbContext
                 t.HasCheckConstraint("ck_destinatarios_avisos_enlace",
                     "(estado = 'pendiente' AND token_hash IS NOT NULL AND vence IS NOT NULL) OR (estado <> 'pendiente' AND token_hash IS NULL AND vence IS NULL)");
                 t.HasCheckConstraint("ck_destinatarios_avisos_correo", "correo COLLATE Latin1_General_100_BIN2 = LOWER(correo) COLLATE Latin1_General_100_BIN2 AND correo LIKE N'%_@_%._%' AND correo NOT LIKE N'% %'");
+                // Fase 11: un destino recibe al menos un origen de solicitudes.
+                t.HasCheckConstraint("ck_destinatarios_avisos_preferencia", "recibe_en_linea = 1 OR recibe_presenciales = 1");
             });
             entity.HasKey(e => e.IdDestinatario).HasName("pk_destinatarios_avisos");
             entity.Property(e => e.IdDestinatario).HasColumnName("id_destinatario");
@@ -1027,6 +1054,10 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.FechaSolicitud).HasColumnName("fecha_solicitud").HasColumnType("datetimeoffset(0)");
             entity.Property(e => e.FechaConfirmacion).HasColumnName("fecha_confirmacion").HasColumnType("datetimeoffset(0)");
             entity.Property(e => e.FechaRetiro).HasColumnName("fecha_retiro").HasColumnType("datetimeoffset(0)");
+            // Fase 11 (decision 1): que solicitudes avisa cada destino, y su version.
+            entity.Property(e => e.RecibeEnLinea).HasColumnName("recibe_en_linea").HasDefaultValue(true).HasSentinel(true);
+            entity.Property(e => e.RecibePresenciales).HasColumnName("recibe_presenciales").HasDefaultValue(false);
+            entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
             entity.HasIndex(e => e.Correo).IsUnique().HasFilter("[estado] IN ('activo', 'pendiente')")
                 .HasDatabaseName("uq_destinatarios_avisos_vigente");
@@ -1050,7 +1081,7 @@ public class LetrerosHerreradbContext : DbContext
         {
             entity.ToTable("destinatarios_avisos_historial", t =>
                 t.HasCheckConstraint("ck_destinatarios_avisos_historial_accion",
-                    "accion IN ('agregar', 'reemplazar', 'confirmar', 'cancelar', 'quitar', 'reenviar', 'probar')"));
+                    "accion IN ('agregar', 'reemplazar', 'confirmar', 'cancelar', 'quitar', 'reenviar', 'probar', 'preferencia')"));
             entity.HasKey(e => e.IdHistorial).HasName("pk_destinatarios_avisos_historial");
             entity.Property(e => e.IdHistorial).HasColumnName("id_historial");
             entity.Property(e => e.Accion).HasColumnName("accion").HasMaxLength(12).IsUnicode(false);
@@ -1129,6 +1160,58 @@ public class LetrerosHerreradbContext : DbContext
                 .HasForeignKey(e => e.IdEmpleadoRegistra)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("fk_calibracion_rostro_registra");
+        });
+
+        // ── auditoria (fase 11) ──
+        // Inmutable: el trigger trg_auditoria_inmutable (migracion NotificacionesYAuditoria) rechaza UPDATE y DELETE.
+        // Sin claves foraneas a proposito: la bitacora sobrevive a lo que registra y no frena ninguna otra operacion.
+        modelBuilder.Entity<RegistroAuditoria>(entity =>
+        {
+            entity.ToTable("auditoria", t =>
+                t.HasCheckConstraint("ck_auditoria_quien", "id_empleado IS NULL OR id_cliente IS NULL"));
+            entity.HasKey(e => e.IdAuditoria).HasName("pk_auditoria");
+            entity.Property(e => e.IdAuditoria).HasColumnName("id_auditoria");
+            entity.Property(e => e.Fecha).HasColumnName("fecha").HasColumnType("datetimeoffset(0)").HasDefaultValueSql("SYSDATETIMEOFFSET()");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.Rol).HasColumnName("rol").HasMaxLength(20);
+            entity.Property(e => e.Entidad).HasColumnName("entidad").HasMaxLength(40).IsUnicode(false);
+            entity.Property(e => e.IdEntidad).HasColumnName("id_entidad").HasMaxLength(40).IsUnicode(false);
+            entity.Property(e => e.Accion).HasColumnName("accion").HasMaxLength(30).IsUnicode(false);
+            entity.Property(e => e.Detalle).HasColumnName("detalle").HasMaxLength(2000);
+            entity.Property(e => e.Ip).HasColumnName("ip").HasMaxLength(45).IsUnicode(false);
+
+            // El visor ordena por fecha e id, del mas reciente al mas antiguo: los indices tienen esa misma clave.
+            entity.HasIndex(e => new { e.Fecha, e.IdAuditoria }).IsDescending(true, true).HasDatabaseName("ix_auditoria_fecha");
+            entity.HasIndex(e => new { e.Entidad, e.IdEntidad }).HasDatabaseName("ix_auditoria_entidad");
+            entity.HasIndex(e => new { e.IdEmpleado, e.Fecha, e.IdAuditoria }).IsDescending(false, true, true)
+                .HasFilter("[id_empleado] IS NOT NULL").HasDatabaseName("ix_auditoria_empleado");
+            entity.HasIndex(e => new { e.IdCliente, e.Fecha }).IsDescending(false, true)
+                .HasFilter("[id_cliente] IS NOT NULL").HasDatabaseName("ix_auditoria_cliente");
+        });
+
+        // ── claves_idempotencia (fase 11) ──
+        modelBuilder.Entity<ClaveIdempotencia>(entity =>
+        {
+            entity.ToTable("claves_idempotencia", t =>
+            {
+                t.HasCheckConstraint("ck_claves_idempotencia_tipo_usuario", "tipo_usuario IN ('cliente', 'empleado')");
+                t.HasCheckConstraint("ck_claves_idempotencia_vence", "vence > fecha");
+            });
+            entity.HasKey(e => e.IdClave).HasName("pk_claves_idempotencia");
+            entity.Property(e => e.IdClave).HasColumnName("id_clave");
+            entity.Property(e => e.Clave).HasColumnName("clave").HasMaxLength(36).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.Ambito).HasColumnName("ambito").HasMaxLength(100).IsUnicode(false);
+            entity.Property(e => e.IdUsuario).HasColumnName("id_usuario");
+            entity.Property(e => e.TipoUsuario).HasColumnName("tipo_usuario").HasMaxLength(10).IsUnicode(false);
+            entity.Property(e => e.HashCuerpo).HasColumnName("hash_cuerpo").HasMaxLength(64).IsUnicode(false).IsFixedLength();
+            entity.Property(e => e.EstadoHttp).HasColumnName("estado_http");
+            entity.Property(e => e.Respuesta).HasColumnName("respuesta");
+            entity.Property(e => e.Fecha).HasColumnName("fecha").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.Vence).HasColumnName("vence").HasColumnType("datetimeoffset(0)");
+
+            entity.HasIndex(e => new { e.Clave, e.Ambito, e.TipoUsuario, e.IdUsuario }).IsUnique().HasDatabaseName("uq_claves_idempotencia");
+            entity.HasIndex(e => e.Vence).HasDatabaseName("ix_claves_idempotencia_vence");
         });
 
         // ── vw_metricas_conversion_online (la crea la migracion ObjetosProgramablesV6) ──

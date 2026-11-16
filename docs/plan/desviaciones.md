@@ -146,7 +146,7 @@ Decisiones de Claude en la fase 7 (objetables):
 - **PDF guardado tal cual.** Un PDF no se reescribe: conserva sus metadatos (por ejemplo, el autor) y cualquier contenido activo. Se sirve solo como descarga (`Content-Disposition: attachment`) y no se revisa su contenido. Si se quiere un análisis (JavaScript o enlaces dentro del PDF), habría que agregarlo antes de la fase 16. Pendiente de decisión del usuario.
 - **Huella de la IP.** La IP nunca se guarda en claro: se guarda su HMAC-SHA256 con una clave derivada de `Jwt:Key` con HKDF (etiqueta `synctime:huella-ip`), o con `Solicitudes:ClaveHuella` si existe. En IPv6 se usa el prefijo /64, porque un mismo hogar puede recibir una dirección distinta en cada envío.
 - **ForwardedHeaders para la fase 16.** Detrás de un proxy, todas las solicitudes llegan con la IP del proxy, y la regla contra solicitudes falsas frenaría a todos los clientes a la vez (3 envíos en 24 horas). Antes de publicar hay que configurar `ForwardedHeaders` con la lista de proxies de confianza. Hasta entonces, la regla por IP no es fiable en el despliegue.
-- **Presenciales sin aviso al taller.** Decisión de la fase 4, confirmada por el usuario el 14-11-2026. La confirmación al cliente sale solo si su correo está confirmado, porque el personal pudo escribirlo mal.
+- **Presenciales sin aviso al taller.** Decisión de la fase 4, confirmada por el usuario el 14-11-2026. **Cambió en la fase 11:** cada destino de avisos puede elegir recibirlas (viene apagado). La confirmación al cliente sale solo si su correo está confirmado, porque el personal pudo escribirlo mal.
 - **El RUT se revisa en todas las solicitudes pendientes,** también en las presenciales, para que un RUT ajeno no sirva para llenar la base desde el local. Las presenciales del personal no pasan por la regla contra solicitudes falsas.
 - **Adjuntos: límites y correo.** 5 archivos por solicitud y 5 borradores por cliente; 10 subidas por minuto por usuario (`RateLimiting:Adjuntos`). Subir exige correo confirmado, para que una cuenta recién creada no use el disco. Un borrador que no se envía en 24 horas se borra con su archivo.
 - **Pedido de la vitrina.** «Solicitar cotización» lleva al formulario del cliente (`/cuenta/solicitud`), no a un modal. El modal `ModalSolicitud.jsx` se retiró.
@@ -192,7 +192,6 @@ Pendientes que quedan para las fases siguientes:
 | RFU36, S24 | Reporte de cobranza exportable (Excel, PDF o CSV) con el listado de pedidos por cobrar | Es parte de los reportes | Fase 13 |
 | RFU09 | Avisos al cliente cuando cambia el estado de su solicitud o de su pedido, con enlace de baja | La fase 8 solo envía «Tu cotización #N está lista» (decisión 3 del plan) | Fase 11 |
 | RFS12, RNFP10 | Bitácora general de quién creó, modificó o anuló cada registro | Los pedidos guardan su historial y los abonos anulados guardan quién y cuándo, pero no hay una bitácora común | Fase 11 |
-| E06, E08, E25 | Clave de idempotencia en la API para cotizaciones, pedidos y abonos | Hoy la pantalla revisa antes de reintentar, pero no evita un doble envío desde otra pestaña ni de otra persona | Usuario, decidir si se agrega |
 | Base real | Aplicar las migraciones pendientes (de `SepararEstadoPedidoYPago` a `CotizacionesYPedidos`), con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario, plan de la fase 8) | Usuario |
 
 ## Cambios y pendientes de la fase 9 (15-11-2026)
@@ -218,9 +217,9 @@ Decisiones de Claude en la fase 9 (objetables):
 - **Vencimiento sin proceso automático.** Un pendiente vencido pasa a `cancelado` solo cuando se vuelve a pedir ese correo o un reemplazo de ese destino. Mientras tanto su enlace ya no sirve y no cuenta para el tope de pendientes.
 - **Límites de los avisos.** Tres cambios pendientes a la vez como máximo, y un envío de enlace por minuto y cinco por hora por dirección.
 - **Tokens de acceso.** Siguen válidos hasta 15 minutos después de desactivar a alguien, y la renovación se corta de inmediato (como en la fase 6).
-- **Ficha de clientes sin guardar sobre la versión actual.** Ante un conflicto de versión, la ficha dice que «tus cambios siguen aquí», pero pide recargar la página, lo que obliga a escribirlos otra vez. Los mantenedores y las cotizaciones sí permiten guardar sobre la versión actual (`useConflictoDeVersion`). Pendiente de unificar.
+- **Ficha de clientes sin guardar sobre la versión actual** (resuelto en la fase 11). Ante un conflicto de versión, la ficha dice que «tus cambios siguen aquí», pero pide recargar la página, lo que obliga a escribirlos otra vez. Los mantenedores y las cotizaciones sí permiten guardar sobre la versión actual (`useConflictoDeVersion`). Pendiente de unificar.
 - **Sin selector de orden en los mantenedores.** La API ordena (`orden`), la pantalla no.
-- **Horario y cartel sin versión.** No tienen `row_version`: si dos personas los editan a la vez, gana la última escritura. La especificación no lo pedía.
+- **Horario y cartel sin versión** (resuelto en la fase 11: tienen `row_version` e `If-Match`). No tienen `row_version`: si dos personas los editan a la vez, gana la última escritura. La especificación no lo pedía.
 
 Pendientes que quedan para después de la fase 9:
 
@@ -228,7 +227,6 @@ Pendientes que quedan para después de la fase 9:
 |---|---|---|---|
 | RNFO06 | Validar el RUT en la API de clientes: `POST /clientes` y `PUT /clientes/{id}` lo guardan sin validar (la pantalla sí valida) | No estaba en la especificación de la fase 9, que valida el RUT del personal | Claude, en la siguiente tarea de código, si el usuario lo confirma |
 | RFS08, E22 | Bandeja para revisar las consultas del formulario de contacto (`consultas_contacto.revisada`) | El plan de la fase 9 no la incluye; el diccionario decía que llegaba aquí. Hoy nadie marca una consulta como revisada | Usuario: decidir en qué fase va |
-| Horario y cartel | Versión (`row_version`) para que no gane la última escritura | La especificación no lo pedía | Usuario: decidir si se agrega |
 | Base real | Aplicar las migraciones pendientes, incluida `MantenedoresYAvisos`, con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario, plan de la fase 8) | Usuario |
 
 ## Cambios y pendientes de la fase 10 (15-11-2026)
@@ -267,6 +265,42 @@ Pendientes que quedan para después de la fase 10:
 | Despliegue | Configurar `ForwardedHeaders` detrás de un proxy inverso, para que el límite por IP sirva | Corresponde a la fase 16 | Claude, fase 16 |
 | RNFP34 | Volver a calibrar con más personas, otra luz u otra cámara | La calibración del 15-11-2026 tiene 7 intentos propios y una sola persona ajena | Usuario |
 | Base real | Aplicar las migraciones pendientes (ahora 10, incluidas `RostroConPruebaDeVida` y `RostroMuestrasPorLado`) con respaldo. Los rostros de la base real deberán registrarse de nuevo con las tres muestras | La base real recibe todas juntas al terminar las fases (decisión del usuario) | Usuario |
+
+## Cambios y pendientes de la fase 11 (16-11-2026)
+
+Recoge lo que se decidió en el plan de la fase 11 (aprobado el 15-11-2026, con cinco decisiones del usuario y su pedido sobre los avisos del taller), las decisiones de construcción y lo que queda pendiente.
+
+Resueltas en esta fase:
+- **Clave de idempotencia:** la fila de la fase 8 sobre la clave para cotizaciones, pedidos y abonos. Ahora `Idempotency-Key` cubre las seis rutas que crean.
+- **Versión del horario y el cartel:** la fila de la fase 9. Ahora tienen `row_version` e `If-Match`.
+- **Ficha de clientes:** la decisión de la fase 9 sobre la ficha sin «guardar sobre la versión actual». Ahora lo ofrece.
+
+| Requisito | Qué pide | Qué se hace | Quién lo decidió | Fecha |
+|---|---|---|---|---|
+| RFS08 | Avisos al taller por cada solicitud | Son correos operativos: ninguna baja de un cliente los toca. Cada destino elige solicitudes en línea, presenciales o ambas. Los que fallan aparecen en «Correos no enviados» y se reenvían a los destinos de hoy | Pedido del usuario, decisiones 1 a 3 | 15-11-2026 |
+| RFU09 | Darse de baja de correos no esenciales | Los avisos de estado de la solicitud y del pedido son opcionales. Los de cuenta y seguridad (verificación, recuperación, cambio de correo y comprobante de baja) se envían siempre | Usuario, decisión 4 | 15-11-2026 |
+| E06, E08, E25 | (El requisito no lo menciona) Que un doble envío no duplique registros | `Idempotency-Key` en crear solicitudes, cotizaciones, pedidos y abonos | Pedido del usuario, decisión 5 | 15-11-2026 |
+
+Decisiones de Claude en la fase 11 (objetables):
+- **El enlace de baja es un token firmado (HMAC), no un valor guardado.** La especificación pedía guardar el hash de un token aleatorio, pero así no se podría volver a poner en cada correo. El enlace vence solo si el cliente cambia de correo o da de baja su cuenta.
+- **La cola de correo ya no borra filas.** Antes se borraban a los 30 días. Ahora se vacían el asunto, los cuerpos y el enlace, y el destino queda enmascarado: a los 30 días los enviados y a los 90 los fallidos, para poder reenviarlos. La fila queda como constancia con el tipo, la referencia, el estado y las fechas.
+  - El plan decía, por error mío, que la cola «nunca se purga». Sí se purgaba, borrando la fila entera.
+- **La bitácora no tiene purga en esta fase.** Un trigger impide modificarla o borrarla. Sí se pueden ejecutar `TRUNCATE` o `DISABLE TRIGGER` con permisos de dueño de la base, así que el usuario de la API no debería serlo (fase 16).
+- **La baja desde el enlace queda a nombre del cliente,** aunque el navegador tenga abierta la sesión de otra persona. Se encontró y corrigió al probar en la app.
+- **Consultas de contacto y aviso del tope:** siguen la preferencia «en línea» de cada destino.
+- **Reenviar un aviso de estado** a un cliente que ya no lo recibe responde 409 `cliente_no_recibe`.
+- **Respuesta repetida por idempotencia:** devuelve el estado y el cuerpo, sin `Location` ni `ETag`.
+
+Pendientes que quedan para después de la fase 11:
+
+| Requisito | Qué falta | Por qué queda para después | Responsable |
+|---|---|---|---|
+| RFS12, S20 | Registrar quién exportó cada reporte | Las exportaciones son de la fase 13 | Claude, fase 13 |
+| RNFE01 | Plazo de borrado de la IP guardada en la bitácora | La bitácora no tiene purga en esta fase | Usuario: decidir el plazo |
+| RFS12 | Usuario de la base sin permisos de dueño, para que nadie pueda desactivar el trigger de la bitácora | Corresponde al despliegue | Claude, fase 16 |
+| RFU09 | El trabajador de la cola no vuelve a revisar la baja al enviar un correo opcional que ya estaba en la cola | Riesgo bajo: el aviso ya estaba encolado antes de la baja | Claude, si el usuario lo pide |
+| RFU34 | Tras la baja, las demás rutas del cliente siguen aceptando su token hasta que vence (como máximo 15 minutos) | Igual que la desactivación de empleados (fase 9) | — |
+| Base real | Aplicar las migraciones pendientes (ahora 11, incluida `NotificacionesYAuditoria`) con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario) | Usuario |
 
 ## Restricciones del equipo de desarrollo
 

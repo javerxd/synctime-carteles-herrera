@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ClipboardList, LogOut, Send } from 'lucide-react';
-import { Aviso, Boton, Campo, Casilla, Esqueleto, Tarjeta } from '../../componentes/ui';
+import { Aviso, Boton, Campo, Esqueleto, Tarjeta } from '../../componentes/ui';
 import authService from '../../api/authService';
 import { cuenta as apiCuenta } from '../../api/cuenta';
-import { publico } from '../../api/publico';
 import { useAvisos } from '../../avisos/Avisos';
 import { useSesion } from '../../sesion/sesion';
 import { useConsulta } from '../../utilidades/useConsulta';
 import { errorCorreo, LIMITES, telefonoLegible, validarDatos, validarNuevaPassword } from './reglasCuenta';
+import { CorreosQueRecibo } from './CorreosQueRecibo';
+import { MisDatos } from './MisDatos';
 import { useFormulario } from './useFormulario';
 import estilos from './Cuenta.module.css';
 
@@ -211,53 +212,6 @@ function FormularioPassword() {
   );
 }
 
-function PreferenciaMarketing({ datosCuenta, alGuardar }) {
-  const documentos = useConsulta('documentos-legales', publico.documentosLegales);
-  const [estado, setEstado] = useState({ guardando: false, exito: null, error: null });
-  const refCasilla = useRef(null);
-  // La casilla se deshabilita mientras guarda: al terminar, el foco vuelve a ella.
-  useEffect(() => {
-    if (!estado.guardando && (estado.exito || estado.error)) refCasilla.current?.focus();
-  }, [estado]);
-
-  async function cambiar(evento) {
-    const acepta = evento.target.checked;
-    const version = documentos.datos?.find((d) => d.tipo === 'marketing')?.version;
-    if (acepta && !version) {
-      documentos.recargar();
-      setEstado({ guardando: false, exito: null, error: 'No pudimos cargar el texto vigente de las novedades. Espera unos segundos y vuelve a intentarlo.' });
-      return;
-    }
-    setEstado({ guardando: true, exito: null, error: null });
-    try {
-      await apiCuenta.marketing(acepta ? { acepta, version } : { acepta });
-      alGuardar((actual) => ({ ...actual, marketing: acepta }));
-      setEstado({
-        guardando: false,
-        exito: acepta ? 'Listo: te enviaremos novedades y promociones.' : 'Listo: ya no te enviaremos novedades ni promociones.',
-        error: null,
-      });
-    } catch (error) {
-      setEstado({ guardando: false, exito: null, error: mensajeDe(error, 'No pudimos guardar tu preferencia. Inténtalo de nuevo.') });
-    }
-  }
-
-  return (
-    <Tarjeta como="section" aria-labelledby="titulo-marketing" className={estilos.seccion}>
-      <h2 id="titulo-marketing" className={estilos.subtitulo}>Novedades y promociones</h2>
-      <Resultado exito={estado.exito} error={estado.error} />
-      <Casilla
-        ref={refCasilla}
-        etiqueta="Quiero recibir novedades y promociones"
-        descripcion="Opcional. Se guarda al marcar o desmarcar, y puedes cambiarlo cuando quieras."
-        checked={Boolean(datosCuenta.marketing)}
-        onChange={cambiar}
-        disabled={estado.guardando}
-      />
-    </Tarjeta>
-  );
-}
-
 /** Aviso persistente mientras el correo no esté confirmado, con la opción de pedir otro enlace. */
 function CorreoSinConfirmar({ correo }) {
   const { anunciar } = useAvisos();
@@ -294,8 +248,8 @@ function CorreoSinConfirmar({ correo }) {
 }
 
 /**
- * /cuenta (RNFE01): el cliente ve y corrige sus datos, cambia su correo o su contraseña y decide sobre las
- * novedades. Desde aquí llega a sus solicitudes (fase 7); sus pedidos llegan en una fase posterior.
+ * /cuenta (RNFE01): el cliente ve y corrige sus datos, cambia su correo o su contraseña, elige qué correos opcionales
+ * recibe y, desde la fase 11, descarga sus datos o da de baja la cuenta. Desde aquí llega a sus solicitudes (fase 7); sus pedidos llegan en una fase posterior.
  */
 export default function MiCuenta() {
   const { usuario, salir } = useSesion();
@@ -367,7 +321,8 @@ export default function MiCuenta() {
           <FormularioDatos datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
           <FormularioCorreo datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
           <FormularioPassword />
-          <PreferenciaMarketing datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
+          <CorreosQueRecibo datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
+          <MisDatos />
         </>
       )}
     </div>

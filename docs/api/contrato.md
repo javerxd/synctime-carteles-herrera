@@ -352,6 +352,32 @@ Todo el personal cotiza, registra la respuesta del cliente, crea pedidos, los av
 | `GET /pedidos/calendario` | Personal | `?desde=aaaa-mm-dd&hasta=aaaa-mm-dd`, como mucho 62 dias contando ambos (`400` si no, tambien con `hasta` = 9999-12-31). Pedidos no anulados ni eliminados: los pendientes en su fecha estimada y los entregados en su fecha real, ordenados por fecha. Cada uno: `{ idPedido, numero, fecha, cliente: { idCliente, nombre, apellido, telefono }, modalidadEntrega, estadoPedido, estadoPago, atrasado }` (`atrasado`: sin entregar y con la fecha estimada ya pasada) |
 | `GET /pedidos/alertas` | Gestion | `{ proximas: [de hoy a hoy + 3], atrasadas: [estimada antes de hoy, sin entregar ni anular], totalPorCobrar, cantidadPorCobrar }`. Las listas tienen la forma del calendario, como mucho 20 cada una; el total por cobrar es de todos los pedidos |
 
+### Notificaciones, auditoria y privacidad (fase 11)
+
+| Ruta | Quien | Cuerpo y notas |
+| --- | --- | --- |
+| `PUT /avisos-taller/destinos/{id}/preferencia` | Gestion | `{ recibeEnLinea, recibePresenciales }` con `If-Match`. Al menos uno: si no, `400 datos_invalidos` (`errores.preferencia`). `400 sin_version`, `409 version_obsoleta`; un destino retirado o cancelado, `409 transicion_invalida`. `GET /avisos-taller` trae los dos campos y `rowVersion` por destino |
+| `GET /correos/no-enviados` | Gestion | Paginado con `tipo`, `desde`, `hasta`, `revisado`. Filas `{ idCorreo, tipo, tipoTexto, referencia, enlace, destinoEnmascarado, intentos, motivo, fechaCreacion, fechaFallo, revisado, reenviable, reenviadoComo }`. Nunca el asunto, el cuerpo ni la direccion completa |
+| `GET /correos/no-enviados/resumen` | Gestion | `{ sinRevisar }`, para el aviso del inicio del panel |
+| `POST /correos/no-enviados/{id}/reenviar` | Gestion | `202 { idCorreoNuevo }`. Un aviso del taller va a los destinos activos de hoy, segun su preferencia; los demas, a su misma direccion. `409`: `ya_reenviado` (con `idCorreoNuevo`), `sin_contenido` (cuerpo purgado), `sin_destinos`, `cliente_no_recibe`. Atomico: dos clics crean un solo correo |
+| `POST /correos/no-enviados/{id}/revisado` | Gestion | `204` |
+| `GET /correos/baja?t=` | Publico | `{ correoEnmascarado, avisosEstado, marketing }`. **No cambia nada.** Token invalido, alterado o viejo: `404` |
+| `POST /correos/baja` | Publico | `{ t, avisosEstado?, marketing? }`; sin campos apaga los dos. `200 { avisosEstado, marketing }`. Queda en la auditoria a nombre del cliente del enlace |
+| `POST /correos/baja/un-clic?t=` | Publico | Formulario `List-Unsubscribe=One-Click` (RFC 8058). `200` sin cuerpo |
+| `GET /auditoria` | Gestion | Paginado con `desde`, `hasta`, `entidad`, `accion`, `idEmpleado`, `q` (id exacto). Filas `{ idAuditoria, fecha, usuario { tipo, id, nombre }, rol, entidad, entidadTexto, idEntidad, accion, accionTexto, detalle, ip }`. `detalle` es `{ campos: [...], valores?: { campo: { antes, despues } } }` para los cambios, u otro objeto para las acciones |
+| `GET /auditoria/consentimientos` | Gestion | Paginado con `tipo`, `desde`, `hasta`. Filas `{ titular { tipo, id, nombre }, tipo, version, acepta, fecha }` |
+| `PUT /mi-cuenta/preferencias` | Cliente | `{ avisosEstado, marketing, versionMarketing? }`. Devuelve la cuenta. `PUT /mi-cuenta/marketing` queda como alias |
+| `POST /mi-cuenta/datos` | Cliente | `{ password }` → archivo `mis-datos-letreros-herrera-AAAAMMDD.json`, `Cache-Control: no-store`. `400 datos_invalidos` (`errores.password`) |
+| `POST /mi-cuenta/baja` | Cliente | `{ password, confirmacion: "DAR DE BAJA" }` → `200 { comprobante: { numero, fecha } }`. Inhabilita la cuenta y conserva sus pedidos. Despues, su login responde `401` |
+
+**Correos al cliente:** `estado_solicitud` (cotizada, rechazada o aceptada), `estado_pedido` (en proceso, terminado, entregado o anulado) y `cotizacion_lista` son opcionales y llevan enlace de baja y las cabeceras `List-Unsubscribe` y `List-Unsubscribe-Post`. Los de cuenta (`verificacion_correo`, `recuperacion_cuenta`, `aviso_cambio_correo`, `baja_cuenta`) se envian siempre.
+
+**Idempotencia:** `POST /solicitudes`, `POST /mis/solicitudes`, `POST /solicitudes/{id}/cotizaciones`, `POST /pedidos/directo`, `POST /cotizaciones/{id}/pedido` y `POST /pedidos/{id}/pagos` aceptan la cabecera `Idempotency-Key` (UUID). La misma clave con el mismo cuerpo devuelve la respuesta original con `Idempotent-Replayed: true`; con otro cuerpo, `409 clave_reutilizada`; en curso, `409 en_proceso`; invalida, `400 clave_invalida`. Sin la cabecera, todo sigue como antes. Las claves duran 24 horas.
+
+**Horario y cartel:** `GET /horarios` (arreglo de dias, cada uno con el `rowVersion` del horario completo) y `GET /cartel-digital` traen `ETag`; sus `PUT` exigen `If-Match` (`400 sin_version`, `409 version_obsoleta`).
+
+**Auditoria:** tabla `auditoria`, que un trigger impide modificar o borrar. La llena un interceptor de EF Core (solicitudes, detalles, cotizaciones, pedidos, abonos, catalogo, productos, categorias, materiales, clientes, empleados, destinos de avisos, rostros, horario y cartel) con los nombres de los campos cambiados y, solo para una lista de campos permitidos, su valor. Nunca contraseñas, hashes, tokens, descriptores ni cuerpos de correo. Ademas: `aviso_enviado`, `correo_fallido`, `correo_reenviado`, `baja_correo`, `baja_cuenta` y `descarga_datos`.
+
 ## 5. Cambios que necesita el frontend actual
 
 Rutas relativas a `frontend/synctimefront`. Los tests de `src/test` y `e2e` simulan el contrato antiguo, asi que pueden pasar sin que la pantalla funcione con la API real: hay que actualizarlos junto con cada cambio y probar contra la API.

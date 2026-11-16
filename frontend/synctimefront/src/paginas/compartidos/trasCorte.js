@@ -1,6 +1,6 @@
 import { ErrorApi } from '../../api/cliente';
 
-// Registrar un abono, crear un pedido o emitir una cotización no tienen clave de idempotencia en la API. Si la
+// Registrar un abono, crear un pedido o emitir una cotización llevan desde la fase 11 una clave de idempotencia. Aun así, si la
 // respuesta se pierde (corte de red o tiempo agotado), no sabemos si se guardó: antes de dejar intentarlo de
 // nuevo, la pantalla relee el pedido o la cotización y lo compara. Así un reintento no duplica un abono.
 

@@ -26,6 +26,14 @@ public class Cliente
     [JsonIgnore]
     public byte[] RowVersion { get; set; } = null!;
 
+    // Fase 11 (RFU09, decision 4): si recibe los avisos de estado (cotizada, aceptada, pedido en proceso...).
+    // Cada cambio queda tambien en consentimientos (tipo avisos_estado).
+    public bool RecibeAvisosEstado { get; set; } = true;
+
+    // Fase 11 (RFU34): la baja de la cuenta. La cuenta queda inhabilitada (sin contraseña ni sesiones) y se
+    // conservan sus solicitudes, pedidos y abonos.
+    public DateTimeOffset? InhabilitadoEn { get; set; }
+
     [JsonIgnore]
     public virtual ICollection<Solicitud> Solicitudes { get; set; } = new List<Solicitud>();
 }

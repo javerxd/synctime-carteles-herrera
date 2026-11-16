@@ -54,6 +54,7 @@ public sealed record QuienResponde(int? IdCliente, int? IdEmpleado, string? Via)
 public sealed class ServicioCotizaciones(
     LetrerosHerreradbContext db,
     ColaEnTransaccion cola,
+    AvisosAlCliente avisosAlCliente,
     IOptions<OpcionesCorreo> opcionesCorreo,
     IConfiguration configuracion,
     TimeProvider reloj)
@@ -123,14 +124,14 @@ public sealed class ServicioCotizaciones(
 
         var ficha = (await FichaAsync(cotizacion.IdCotizacion, idClienteDueno: null, ct))!;
         // Outbox: el correo se escribe en la cola con el mismo COMMIT que la cotizacion. Solo a un correo
-        // confirmado: el de un cliente presencial lo pudo escribir mal el personal.
-        var correo = await db.Clientes.AsNoTracking().Where(c => c.IdCliente == solicitud.IdCliente)
-            .Select(c => new { c.Email, c.FechaVerificacionCorreo }).SingleAsync(ct);
-        var avisa = Reglas.EsCorreo(correo.Email) && correo.FechaVerificacionCorreo is not null;
-        if (avisa)
+        // confirmado: el de un cliente presencial lo pudo escribir mal el personal. Fase 11: es un aviso de estado
+        // (opcional), con el enlace de baja, y no sale si el cliente apago esa preferencia o dio de baja la cuenta.
+        var destino = await avisosAlCliente.DestinoAsync(solicitud.IdCliente, ct);
+        var avisa = destino is not null;
+        if (destino is not null)
         {
-            await cola.EncolarAsync(CotizacionLista.Componer(ficha, correo.Email!, opcionesCorreo.Value.ContactoTaller,
-                configuracion["Sitio:UrlPublica"]), ct);
+            await cola.EncolarAsync(CotizacionLista.Componer(ficha, destino.Correo, opcionesCorreo.Value.ContactoTaller,
+                configuracion["Sitio:UrlPublica"], destino.TokenBaja), ct);
             await db.SaveChangesAsync(ct);
         }
         // Sin el token de la peticion: si ya se llego aqui, la cotizacion y su aviso quedan guardados juntos.
@@ -243,6 +244,8 @@ public sealed class ServicioCotizaciones(
             Fecha = ahora
         });
         solicitud.Estado = nuevoEstado;
+        // Fase 11 (S09): al aprobarse, el cliente recibe el aviso de su solicitud aceptada, en el mismo guardado.
+        var avisa = aprueba && await avisosAlCliente.EstadoSolicitudAsync(cola, solicitud.IdSolicitud, solicitud.IdCliente, EstadosSolicitud.Aceptado, null, ct);
 
         // La base compara con la version que vio quien responde (de la cotizacion y de la solicitud): si
         // otra persona guardo entre la lectura y este UPDATE, no se pisa su trabajo. Un solo SaveChanges va
@@ -256,6 +259,8 @@ public sealed class ServicioCotizaciones(
         {
             return new ResultadoCotizacion.VersionObsoleta();
         }
+        if (avisa)
+            cola.AvisarAlTrabajador();
         return new ResultadoCotizacion.Correcta((await FichaAsync(id, idClienteDueno: null, CancellationToken.None))!);
     }
 
