@@ -347,7 +347,7 @@ Pendientes que quedan para después de la fase 11:
 | Revisión ECC | `ix_pedidos_indicadores_fecha` es ancho y deja redundante a `ix_pedidos_fecha_estado` | Se mide con volumen real en la fase 15 antes de quitar alguno |
 | Revisión ECC | La purga de la IP corre una vez al día: si la aplicación está detenida, la IP puede quedar algo más de 90 días | La política lo dice («la depuración corre una vez al día») |
 | Revisión ECC | La migración `CatalogoRealDelTaller` se detiene con el error 50130 si hay productos con publicaciones o solicitudes que no están en la lista de equivalencias, en vez de remapearlos en silencio | Agregar el producto a la migración y repetir |
-| Demostración | La verificación en la app en marcha sobre la demo con la sesión de dueño la hace el usuario al iniciar sesión | La contraseña de la demo no está en el repositorio ni en la memoria del proyecto; el asistente no la inventa ni la escribe |
+| Demostración | ~~La verificación en la app la hace el usuario al iniciar sesión~~ | **Hecha el 17-11-2026** con la sesión de dueño que abrió el usuario (ver `informes/fase-12.md`) |
 
 ## Restricciones del equipo de desarrollo
 

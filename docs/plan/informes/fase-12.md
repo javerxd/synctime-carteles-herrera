@@ -52,7 +52,7 @@ La política de privacidad pasa a la versión **1.1** (autorizada por ti): infor
 - Lo que se aceptó o queda para después está en `desviaciones.md`.
 
 ## Pendiente
-- **Tu verificación en la app (la hago contigo):** la demo pide iniciar sesión como dueño y no tengo su contraseña. Con el frontend y la API levantados, revisamos juntos `/panel/indicadores` y `/panel` a 360, 768 y 1440 px y la consola.
+- ~~Verificación en la app~~ **Hecha el 17-11-2026** sobre la demo con la sesión de dueño, a 360, 768 y 1440 px: los seis bloques cargan (HTTP 200) y las cifras de noviembre coinciden con SQL independiente (6 pedidos, ingresos $177.800, saldo del período $342.000, 6 solicitudes en línea y 6 presenciales); «Ver toda la deuda vigente» ($370.000, sin límite de fecha), el filtro por estado de pago y la demanda por tipo de letrero funcionan; sin desborde horizontal ni alertas de error. Los 401 y el 502 de la consola son de la renovación de sesión al recargar y de la API reiniciada; ningún bloque falló.
 - **Base real:** le faltan ahora 13 migraciones, entre ellas las dos de esta fase. Se aplican con respaldo y con tu permiso.
 - **Pendientes anotados:** editar las medidas y opciones de un producto desde el panel; regenerar el script completo de la base; buscar clientes en el servidor cuando pasen de 100; validar solo lo modificado al editar una solicitud antigua remapeada.
 - **Trazabilidad:** RFS09, RFU19, RFU27, E21, S10 a S14, S19 y RNFO11 quedan **Cumplido**; S24, RFU36 y E16 siguen «En curso» hasta los reportes exportables (fase 13).
