@@ -1,9 +1,9 @@
 // Documentos legales vigentes (fase 5). Sin revisión legal, por decisión del usuario (13-11-2026).
 // La versión debe coincidir con la del backend (Negocio/Consentimientos/DocumentosLegales.cs).
 export const PRIVACIDAD = {
-  version: '1.0',
+  version: '1.1',
   titulo: 'Política de privacidad',
-  vigenteDesde: '13-11-2026',
+  vigenteDesde: '17-11-2026',
   resumen:
     'Usamos tus datos solo para responderte, cotizar y hacer tus letreros. No vendemos tus datos, no usamos rastreadores y puedes pedirnos en cualquier momento que los revisemos, corrijamos o borremos.',
   secciones: [
@@ -89,7 +89,7 @@ export const PRIVACIDAD = {
         'Pedidos: durante el plazo que exigen las normas contables y tributarias.',
         'Solicitudes rechazadas o que no se concretaron: se borran a los 12 meses.',
         'Correos automáticos ya enviados: se borran de la cola de envío a los 30 días.',
-        'Dirección IP en el registro de auditoría (quién cambió qué y cuándo en el panel del taller): se borra a los 90 días. El registro del cambio se conserva, ya sin la IP.',
+        'Dirección IP en el registro de auditoría (quién cambió qué y cuándo en el panel del taller): se borra a los 90 días (la depuración corre una vez al día). El registro del cambio se conserva, ya sin la IP.',
         'Consultas del formulario de contacto: 12 meses desde que las recibimos, para su seguimiento comercial y nuestras estadísticas internas. Después se eliminan.',
         'Cuenta de cliente: mientras la tengas activa. Si pides la baja, la cuenta se inhabilita, borramos tu contraseña y conservamos solo el historial de pedidos que exige la ley.',
         'Acceso facial: hasta que retires tu consentimiento o se dé de baja tu cuenta del personal.',
@@ -152,6 +152,8 @@ export const PRIVACIDAD = {
       parrafos: [
         'Cada versión de esta política tiene un número y una fecha. Registramos qué versión aceptaste y cuándo.',
         'Si cambiamos algo importante, publicaremos la nueva versión y te pediremos aceptarla de nuevo.',
+        'Versión 1.1 (17-11-2026): agregamos cuánto tiempo guardamos la dirección IP en el registro de auditoría del taller (90 días).',
+        'Versión 1.0 (13-11-2026): texto inicial.',
       ],
     },
   ],

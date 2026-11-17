@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 16-11-2026 (fase 12A aprobada; fase 12B con plan aprobado).
+Última actualización: 17-11-2026 (fase 12 completa; 12B esperando tu visto bueno).
 
 ## Hecho
 
@@ -24,11 +24,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 12B — Backend de indicadores, vistas SQL, conexión real y catálogo real** · rama `fase-12b-indicadores-backend` · informe: `informes/fase-12.md` (cubre la 12A y la 12B) · migraciones `CatalogoRealDelTaller` e `IndicadoresDashboard` aplicadas en la demo, no en la real · política de privacidad 1.1
 
 ## En curso
 
-- **Fase 12B — Backend de indicadores, vistas SQL, conexión real y catálogo real** · rama `fase-12b-indicadores-backend` · plan: `fase-12b-plan.md` (aprobado el 16-11-2026, construcción sin iniciar)
+_(ninguna)_
 
 ## Por hacer
 

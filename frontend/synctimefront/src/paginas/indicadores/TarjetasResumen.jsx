@@ -1,5 +1,5 @@
 import { CalendarRange, History, Minus, TrendingDown, TrendingUp, TriangleAlert } from 'lucide-react';
-import { Boton } from '../../componentes/ui';
+import { Boton, TEXTOS_ESTADO_PEDIDO } from '../../componentes/ui';
 import { textoComparacion } from './reglasIndicadores';
 import { formatearNumero, formatearPorcentaje, formatearValor, formatearVariacion, sentidoDe, TARJETAS } from './formatoIndicadores';
 import estilos from './Indicadores.module.css';
@@ -22,9 +22,11 @@ export function Variacion({ variacion, tipo, comparacion, subirEsBueno = true })
 }
 
 function detalleDe(t) {
-  if (t.clave === 'origen') return `${formatearNumero(t.valor ?? 0)} en línea · ${formatearNumero(t.detalle.presenciales)} presenciales`
-    + (t.detalle.porcentajeEnLinea === null ? '' : ` (${formatearPorcentaje(t.detalle.porcentajeEnLinea)} en línea)`);
-  if (t.clave === 'concretadas') return `De ${formatearNumero(t.detalle.solicitudesEnLinea)} solicitudes en línea`;
+  if (t.clave === 'origen' && t.detalle) {
+    return `${formatearNumero(t.valor ?? 0)} en línea · ${formatearNumero(t.detalle.presenciales)} presenciales`
+      + (t.detalle.porcentajeEnLinea == null ? '' : ` (${formatearPorcentaje(t.detalle.porcentajeEnLinea)} en línea)`);
+  }
+  if (t.clave === 'concretadas' && t.detalle) return `De ${formatearNumero(t.detalle.solicitudesEnLinea)} solicitudes en línea`;
   return null;
 }
 
@@ -35,8 +37,13 @@ function Tarjeta({ t, comparacion }) {
     <li className={estilos.tarjeta}>
       <span className={estilos.nombreTarjeta}>{nombre}</span>
       <span className={estilos.valorTarjeta}>{t.clave === 'origen' ? formatearNumero(t.valor) : formatearValor(t.valor, t.unidad)}</span>
-      {t.clave === 'origen' && <span className={estilos.unidadTarjeta}>pedidos en línea</span>}
+      {t.clave === 'origen' && <span className={estilos.unidadTarjeta}>solicitudes en línea</span>}
       {detalle && <span className={estilos.detalleTarjeta}>{detalle}</span>}
+      {t.clave === 'pedidos' && t.detalle?.porEstado && (
+        <ul className={estilos.porEstado} aria-label="Pedidos por estado">
+          {t.detalle.porEstado.map((e) => <li key={e.estado}>{TEXTOS_ESTADO_PEDIDO[e.estado]}: <strong className="cifras">{formatearNumero(e.cantidad)}</strong></li>)}
+        </ul>
+      )}
       {t.clave === 'entregasATiempo' && t.valor !== null && (
         <span className={estilos.meta}>
           <span className={estilos.pistaMeta} aria-hidden="true">

@@ -16,7 +16,7 @@ export function GraficoEmbudo({ datos }) {
           {i > 0 && (
             <span className={estilos.transicion}>
               <ArrowDown size={14} strokeWidth={2} aria-hidden="true" />
-              {p.porcentajePaso === null ? 'Sin paso anterior' : `${formatearPorcentaje(p.porcentajePaso)} pasa a este paso`}
+              {p.porcentajePaso == null ? 'El paso anterior no tuvo solicitudes' : `${formatearPorcentaje(p.porcentajePaso)} pasa a este paso`}
             </span>
           )}
           <span className={estilos.filaEmbudo}>
@@ -62,7 +62,7 @@ export function GraficoDemanda({ categorias, medida }) {
   return (
     <ul className={estilos.demanda}>
       {categorias.map((c) => (
-        <li key={c.idCategoria} className={estilos.filaDemanda}>
+        <li key={c.idCategoria ?? c.idProducto} className={estilos.filaDemanda}>
           <span className={estilos.nombreDemanda}>{c.nombre}</span>
           <span className={estilos.pistaDemanda} aria-hidden="true">
             <span className={estilos.barraDemanda} style={{ width: `${Math.max((c[medida] / maximo) * 100, 2)}%` }} />
@@ -74,15 +74,15 @@ export function GraficoDemanda({ categorias, medida }) {
   );
 }
 
-export function TablaDemanda({ categorias }) {
+export function TablaDemanda({ categorias, agrupar = 'categoria' }) {
   return (
-    <div className={estilos.marcoTabla} tabIndex={0} role="group" aria-label={`Tabla: Demanda por categoría`}>
+    <div className={estilos.marcoTabla} tabIndex={0} role="group" aria-label="Tabla: Demanda">
       <table className={estilos.tablaDatos}>
-        <caption className="solo-lectores">Demanda por categoría</caption>
-        <thead><tr><th scope="col">Categoría</th><th scope="col">Monto</th><th scope="col">Unidades</th><th scope="col">Pedidos</th></tr></thead>
+        <caption className="solo-lectores">Demanda por {agrupar === 'producto' ? 'tipo de letrero' : 'categoría'}</caption>
+        <thead><tr><th scope="col">{agrupar === 'producto' ? 'Tipo de letrero' : 'Categoría'}</th><th scope="col">Ingresos</th><th scope="col">Unidades</th><th scope="col">Pedidos</th></tr></thead>
         <tbody>
           {categorias.map((c) => (
-            <tr key={c.idCategoria}>
+            <tr key={c.idCategoria ?? c.idProducto}>
               <th scope="row">{c.nombre}</th>
               <td className="cifras">{formatearPesos(c.monto)}</td>
               <td className="cifras">{formatearNumero(c.cantidad)}</td>

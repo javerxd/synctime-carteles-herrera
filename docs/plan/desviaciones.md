@@ -296,11 +296,11 @@ Pendientes que quedan para después de la fase 11:
 | Requisito | Qué falta | Por qué queda para después | Responsable |
 |---|---|---|---|
 | RFS12, S20 | Registrar quién exportó cada reporte | Las exportaciones son de la fase 13 | Claude, fase 13 |
-| RNFE01 | ~~Plazo de borrado de la IP guardada en la bitácora~~ **Decidido el 16-11-2026: 90 días** (ver fase 12A) | La purga se construye en la fase 12B | Claude, fase 12B |
+| RNFE01 | ~~Plazo de borrado de la IP guardada en la bitácora~~ **Decidido el 16-11-2026: 90 días; purga construida en la 12B** | Resuelto | — |
 | RFS12 | Usuario de la base sin permisos de dueño, para que nadie pueda desactivar el trigger de la bitácora | Corresponde al despliegue | Claude, fase 16 |
 | RFU09 | El trabajador de la cola no vuelve a revisar la baja al enviar un correo opcional que ya estaba en la cola | Riesgo bajo: el aviso ya estaba encolado antes de la baja | Claude, si el usuario lo pide |
 | RFU34 | Tras la baja, las demás rutas del cliente siguen aceptando su token hasta que vence (como máximo 15 minutos) | Igual que la desactivación de empleados (fase 9) | — |
-| Base real | Aplicar las migraciones pendientes (ahora 11, incluida `NotificacionesYAuditoria`) con respaldo | La base real recibe todas juntas al terminar las fases (decisión del usuario) | Usuario |
+| Base real | Aplicar las migraciones pendientes (ahora **13**, incluidas `CatalogoRealDelTaller` e `IndicadoresDashboard`) con respaldo. La `CatalogoRealDelTaller` borra categorías y productos: en la real no hay solicitudes ni vitrina que los usen (consultado el 17-11-2026) | La base real recibe todas juntas al terminar las fases (decisión del usuario) | Usuario |
 
 ## Decisiones y pendientes de la fase 12A (16-11-2026)
 
@@ -309,15 +309,45 @@ Pendientes que quedan para después de la fase 11:
 | RNFE01 | **Retención de la IP en la bitácora de auditoría: 90 días** (decisión del usuario, 16-11-2026) | Pasados 90 días se borra **solo la IP** (`Ip = NULL`); el registro de auditoría queda intacto. Mismo criterio que los correos fallidos. Se anota en la política de privacidad (`textos.js`). La tarea de purga se construye en la 12B |
 | Fase 12 | Se divide en 12A (contrato y frontend con datos de demostración) y 12B (backend, vistas SQL, índices, purga de IP y conexión real) | Decisión del usuario, 16-11-2026 |
 | RNFO16, RNFO17 | Gráficos en SVG propio, sin librerías | Sin dependencias nuevas ni licencias que revisar |
-| — | Aviso visible «Datos de demostración» mientras `VITE_INDICADORES_DEMO` esté activo | El cambio a la API real en la 12B no toca las pantallas |
+| — | ~~Aviso visible «Datos de demostración» mientras `VITE_INDICADORES_DEMO` esté activo~~ | **Resuelto en la 12B (17-11-2026):** el adaptador, sus datos y la variable se eliminaron; la pantalla llama a la API real |
 | — | Sin la variable `VITE_INDICADORES_DEMO`, la demo se enciende **solo en desarrollo y en las pruebas**; un build de producción usa la API real salvo `VITE_INDICADORES_DEMO=true` | Hallazgo de la revisión de ECC: así un build de producción nunca muestra cifras de ejemplo por olvido |
 | ContratoTests | Las seis rutas de `/api/v1/indicadores` quedan en `openapi.json` bajo `x-planificadas`, fuera de `paths` | La prueba compara `paths` con la API real: sigue en verde (3 de 3) y la 12B mueve las rutas a `paths` al implementarlas |
 | S24 | El saldo del dashboard parte en **«Saldo del período»** y tiene a un clic **«Toda la deuda vigente»** (`alcanceSaldo=vigente`), que ignora las fechas | Precisión del usuario del 16-11-2026, para no ocultar cobros antiguos. El inicio del dueño muestra siempre toda la deuda vigente |
 | RFS09 | Las «siete tarjetas» del plan son siete indicadores más el saldo por cobrar, destacado aparte (ocho bloques de cifra) | El plan nombraba ocho cifras; el saldo va separado por ser la alerta |
 | — | El filtro de estado del pedido no ofrece «Anulado» | Ningún indicador cuenta los anulados (fórmulas del plan general) |
-| RNFE01 | La línea de los 90 días se agregó a la política de privacidad **sin subir su versión (1.0)** | Subirla obliga a pedir de nuevo el consentimiento y a cambiar `DocumentosLegales.cs` (backend). **Usuario: decidir si se sube a 1.1 en la 12B** |
-| — | Mientras dure la demo, el inicio del dueño mezcla cifras de ejemplo (indicadores del mes, con su insignia) con las reales de «Entregas y cobranza» | Desaparece al conectar la API en la 12B |
+| RNFE01 | ~~La línea de los 90 días se agregó a la política sin subir su versión~~ | **Resuelto en la 12B (autorizado el 16-11-2026):** la política de privacidad pasa a la versión **1.1** (`DocumentosLegales.cs` y `textos.js`, con la fecha y el cambio en «Cambios a esta política») |
+| — | ~~Mientras dure la demo, el inicio del dueño mezcla cifras de ejemplo con las reales~~ | **Resuelto en la 12B:** todo el inicio usa datos reales |
 | — | Dos pruebas antiguas fallan a veces al correr toda la suite (`cotizaciones.test.jsx` y `pedidosFase8.test.jsx`, una distinta en cada corrida) y pasan al repetirla | Son de tiempo bajo carga, no de esta fase; se revisan en la fase 15 |
+
+## Cambios y pendientes de la fase 12B (17-11-2026)
+
+| Requisito | Decisión o desviación | Detalle |
+|---|---|---|
+| Catálogo | **Catálogo real del taller** (pedido del usuario el 16-11-2026): se borra el catálogo de prueba y se rehace con 4 categorías y 16 productos | Migración `CatalogoRealDelTaller`. Probada hacia adelante y hacia atrás sobre una copia de la demo y aplicada en la demo; **no en la real** (le faltan ahora 13 migraciones) |
+| Catálogo | Equivalencias de lo que usaba un producto de prueba (publicaciones de la vitrina e ítems de solicitudes de la demo) | Cartel metálico, Letrero luminoso y Letrero de fachada → Letreros luminosos; Lienzo y Lona publicitaria → Impresión en tela PVC / Gigantografías; Palomita y Caballete → Caballete publicitario / Paloma; Rotulación de vehículo → Rotulación vehicular y general; Estampado textil y Polera → Estampados; Pendón → Pendones; Señalética → Señalizaciones; Volantes y calendarios → Flyers / Folletería; Mural pintado, Vinilo para vitrina, Calcomanía, Decoración en vinilo y Autoadhesivo troquelado → Adhesivos y vinilos. Lo desconocido va a «Adhesivos y vinilos». Resultado en la demo: 29 publicaciones y 25 ítems conservados |
+| Catálogo | Medidas con límites y opciones estructuradas por producto (decisión A, 16-11-2026) | La API valida las medidas y las opciones; elegir una opción es **opcional** (lo no elegido lo define la oficina al cotizar). Los datos anteriores a la 12B no se revalidan |
+| Catálogo | **Pendiente:** editar las medidas y las opciones de un producto desde el panel de mantenedores | Hoy solo cambian con una migración (`CatalogoDelTaller.cs`). Los mantenedores de categorías y productos siguen igual para el nombre, la descripción y si se ofrece |
+| S12 | Las **solicitudes** en línea frente a las presenciales (la 12A contaba pedidos por origen) | Decisión B, 16-11-2026 |
+| RFS09 | El **ticket promedio** es ingresos ÷ pedidos entregados (la 12A promediaba todos los no anulados) | Decisión B |
+| S10 | La tarjeta «Pedidos» trae el desglose por estado (aceptado, en proceso, terminado y entregado) | Decisión B |
+| S19 | La **demanda por categoría** se mide sobre los ingresos: los pedidos **entregados** del período, con el monto de cada uno repartido entre sus ítems según su cantidad (la suma coincide con los ingresos). Admite agrupar por tipo de letrero | Decisión D. En la 12A se medía sobre todos los pedidos no anulados creados en el período; un pedido que aún no se entrega no entra a este ranking |
+| Filtros | Se mantienen `estadoPago=por_cobrar`, `categoria` y `cliente` (no `soloPorCobrar`, `categoriaId`, `clienteId`) | Decisión C. Equivalencia anotada en `docs/api/contrato.md` |
+| RNFE01 | **IP de la bitácora a 90 días.** El trigger `trg_auditoria_inmutable` se reescribió para admitir un único cambio: `ip = NULL` en filas de más de 90 días | La purga diaria (`PurgaDatosPersonales`) lo hace en lotes de 5000. La bitácora sigue sin borrarse nunca. Al introducir fallos a propósito, bajar el umbral del trigger a 30 días **no fue detectado** por las primeras pruebas: se agregó `ElTrigger_RechazaBorrarLaIpDeUnaFilaDeMenosDe90Dias_AunqueTengaMasDeUnMes` y desde entonces se detecta |
+| RNFE01 | **Política de privacidad 1.1** (autorizada el 16-11-2026) | Los registros y consultas nuevos aceptan la 1.1. La 12B no agrega un flujo para pedir de nuevo la aceptación a quienes ya aceptaron la 1.0: sus consentimientos quedan registrados con la versión que leyeron |
+| RNFO11 | Las pruebas del backend crean la base con las migraciones, así que el catálogo real ocupa los ids 1 a 16 (como la semilla anterior ocupaba 1 a 4) | Las pruebas existentes que usan `idProducto = 1` siguen valiendo: ahora es «Impresión en tela PVC / Gigantografías», con medidas amplias |
+| RNFO11 | **Pendiente:** `docs/base-de-datos/LetreriaLosHerreraDB.sql` (el script completo de la base) sigue en el estado de la fase 11 | El diccionario de datos y las migraciones están al día. El script se regenera con el generador de la fase 11, que ya no está en la carpeta temporal; se rehace en la fase 17 |
+| RNFP26 | Los índices nuevos no se pueden medir con los pocos datos de la demo | La medición con volumen real queda para la fase 15 |
+| RFU27 | La lista de clientes del filtro «Cliente» trae como máximo los primeros 100 | **Pendiente (fase 15):** buscarlos en el servidor. Un cliente de la dirección que no está en la lista se muestra igual («Cliente N.º 9») y se puede quitar |
+| Revisión ECC | **Pendiente (aceptado):** editar una solicitud antigua cuyo producto fue remapeado por `CatalogoRealDelTaller` puede fallar la validación de medidas aunque no se toquen (por ejemplo, un «Mural pintado» pasado a «Adhesivos y vinilos») | Solo afecta a solicitudes de la demo; la base real no tiene solicitudes. Se resolverá validando solo lo que cambia, cuando se editen solicitudes con el catálogo real |
+| Revisión ECC | Un producto con rangos o medidas fijas acepta una solicitud **sin medidas** | La oficina cotiza y revisa; el formulario completa solo las medidas únicas. Exigirlas queda como mejora |
+| Revisión ECC | Criterio de los filtros: `categoria` filtra los **pedidos** por «algún ítem de la categoría» y las **solicitudes** por la categoría del primer ítem; el embudo y la conversión no dependen de `estadoPedido` ni de `estadoPago` | Documentado en el contrato; la pantalla lo avisa en el embudo. Con `categoria`, la tarjeta de ingresos suma el pedido completo y la demanda solo la parte de esa categoría |
+| Revisión ECC | La demanda excluye los pedidos que no tienen ítems (no aparecen en la vista de ítems), aunque sí cuentan en los ingresos | No ocurre con datos creados por la API (una solicitud exige al menos un ítem) |
+| Revisión ECC | Las fechas de las vistas son «días de Chile» solo si SQL Server corre en hora de Chile (`fecha_pedido` es `datetime2(0)` sin zona) | **Requisito de despliegue (fase 16):** el servidor de base de datos en hora de Chile |
+| Revisión ECC | Los índices filtrados exigen `QUOTED_IDENTIFIER ON` en la sesión que modifica `pedidos` o `auditoria`: `sqlcmd` y los scripts manuales deben usar `-I` | Para la guía de operación (fase 16) |
+| Revisión ECC | `ix_pedidos_indicadores_fecha` es ancho y deja redundante a `ix_pedidos_fecha_estado` | Se mide con volumen real en la fase 15 antes de quitar alguno |
+| Revisión ECC | La purga de la IP corre una vez al día: si la aplicación está detenida, la IP puede quedar algo más de 90 días | La política lo dice («la depuración corre una vez al día») |
+| Revisión ECC | La migración `CatalogoRealDelTaller` se detiene con el error 50130 si hay productos con publicaciones o solicitudes que no están en la lista de equivalencias, en vez de remapearlos en silencio | Agregar el producto a la migración y repetir |
+| Demostración | La verificación en la app en marcha sobre la demo con la sesión de dueño la hace el usuario al iniciar sesión | La contraseña de la demo no está en el repositorio ni en la memoria del proyecto; el asistente no la inventa ni la escribe |
 
 ## Restricciones del equipo de desarrollo
 

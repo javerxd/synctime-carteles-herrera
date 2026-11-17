@@ -39,6 +39,7 @@ export function Comprobante({ solicitud, nivel = 2, conContacto = false, sinAdju
       ),
     },
     { clave: 'medidas', encabezado: 'Medidas', render: (d) => <span className="cifras">{medidasCm(d.anchoMm, d.altoMm)}</span> },
+    { clave: 'opciones', encabezado: 'Elegido', render: (d) => (d.opciones ? Object.entries(d.opciones).map(([g, v]) => `${g}: ${v}`).join(' · ') : '—') },
     { clave: 'cantidad', encabezado: 'Cantidad', alinear: 'fin', render: (d) => <span className="cifras">{d.cantidad}</span> },
     { clave: 'area', encabezado: 'Área', alinear: 'fin', render: (d) => <span className="cifras">{d.areaM2 ? formatearArea(d.areaM2) : '—'}</span> },
   ];

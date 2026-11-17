@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { respuestaIndicadores } from './indicadoresFalsos.js';
 
 // Recorrido de las pantallas de la revisión (fase 3) con la API simulada: así se prueban sin la
 // contraseña de la base demo. Los datos imitan la semilla de demostración.
@@ -47,7 +48,10 @@ const RESPUESTAS = {
   },
   '/api/v1/documentos-legales': ['privacidad', 'terminos', 'marketing', 'cookies'].map((tipo) => ({ tipo, version: '1.0' })),
   '/api/v1/contacto': { recibida: true, mensaje: 'Recibimos tu consulta. Te responderemos a tu correo lo antes posible.' },
-  '/api/v1/categorias': [{ idCategoria: 1, nombre: 'Luminosos' }, { idCategoria: 2, nombre: 'Vinilos' }],
+  '/api/v1/categorias': [{ idCategoria: 1, nombre: 'Impresión y publicidad gráfica' }, { idCategoria: 2, nombre: 'Letreros y estructuras' }],
+  // Fase 12B: el dashboard de gestión (cifras simuladas con el formato del contrato).
+  ...Object.fromEntries(['resumen', 'evolucion', 'cobranza', 'embudo', 'demanda', 'por-cobrar']
+    .map((r) => [`/api/v1/indicadores/${r}`, (parametros) => respuestaIndicadores(r, parametros)])),
 };
 
 // ── Fase 7: solicitudes, adjuntos y clientes ──
@@ -340,6 +344,8 @@ async function conSesion(page, sesion, extras = {}) {
     if (destino === '/api/v1/auth/salir') return ruta.fulfill({ status: 204 });
     if (/^\/api\/v1\/adjuntos\/\d+\/(miniatura|archivo)$/.test(destino)) return ruta.fulfill({ path: IMAGEN_PRUEBA, contentType: 'image/webp' });
     const cuerpo = extras[destino] ?? RESPUESTAS[destino];
+    // Una función recibe los parámetros de la consulta (el dashboard de la fase 12B depende de ellos).
+    if (typeof cuerpo === 'function') return ruta.fulfill({ json: cuerpo(new URL(ruta.request().url()).searchParams) });
     return cuerpo ? ruta.fulfill({ json: cuerpo }) : ruta.fulfill({ status: 404, json: { error: 'No encontrado' } });
   });
   await page.addInitScript(() => sessionStorage.setItem('synctime_hay_sesion', '1'));
@@ -435,12 +441,12 @@ test('un operario ve su menú sin Gestión y recibe la página 403 en Indicadore
   await expect(page.getByRole('heading', { name: 'No tienes permiso para ver esta página' })).toBeVisible();
 });
 
-// Fase 12A: el dashboard con el adaptador de demostración (VITE_INDICADORES_DEMO), a 360 px.
+// Fases 12A y 12B: el dashboard contra la API simulada (formato del contrato), a 360 px.
 test('dashboard: el anillo filtra la tabla, cada gráfico tiene su tabla y el saldo cambia de alcance', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 900 });
   await entrarComo(page, 'dueño');
   await page.goto('/panel/indicadores');
-  await expect(page.getByText('Datos de demostración')).toBeVisible();
+  await expect(page.getByText('Datos de demostración')).toHaveCount(0);
 
   const resumen = page.getByRole('region', { name: 'Resumen del período' });
   await expect(resumen.getByText('Saldo del período')).toBeVisible();

@@ -250,7 +250,26 @@ Cuando frena, **no se escribe nada** (ni la solicitud, ni los adjuntos vinculado
 | `DELETE /solicitudes/{id}` | Gestión | El mismo borrado lógico y las mismas reglas, con `If-Match`. Responde `204`. La API no tiene borrado físico: solo lo hace el procedimiento `sp_depurar_solicitudes_no_concretadas` (rechazadas o eliminadas, sin pedido, de más de 12 meses) |
 | `POST /solicitudes/{id}/adjuntos` | Personal | Multipart con el campo `archivo`. Sube y vincula de inmediato, con el mismo tope de 5. Responde `201` con el adjunto. `409` con `tope_adjuntos` si ya hay 5, o `409` si la solicitud no esta en `solicitado` o `cotizado`. Ver «Adjuntos (fase 7)» |
 | `DELETE /solicitudes/{id}/adjuntos/{idAdjunto}` | Personal | `204`. Solo en `solicitado` o `cotizado`. Queda anotado en el historial, con la version nueva. `404` si el adjunto no es de esa solicitud |
-| `GET /metricas/conversion-online` | Gestión | Por año y mes: `totalSolicitudesOnline`, `solicitudesConcretadasEnPedido`, `porcentajeConversion` |
+| `GET /metricas/conversion-online` | Gestión | Por año y mes: `totalSolicitudesOnline`, `solicitudesConcretadasEnPedido`, `porcentajeConversion`. Desde la fase 12B el dashboard usa `GET /indicadores/*` |
+
+### Indicadores y dashboard (fase 12B)
+
+Solo gestión (dueño y administrador): sin sesión `401`, cualquier otro rol `403`. Todas son `GET /api/v1/indicadores/{ruta}`, se calculan en el servidor con una consulta agregada sobre las vistas `vw_indicadores_*` y aceptan los mismos filtros combinables. Un filtro inválido responde `400` con el error por campo. El detalle de cada respuesta está en `docs/plan/fase-12-especificacion.md` y en `openapi.json`. Los pedidos anulados nunca cuentan.
+
+| Ruta | Qué devuelve |
+| --- | --- |
+| `GET /indicadores/resumen` | Las siete tarjetas (ingresos, pedidos con su desglose por estado, solicitudes en línea y presenciales, concretadas, conversión en puntos, ticket promedio y entregas a tiempo) con su valor anterior y su variación, más el **saldo por cobrar** (`alcance: periodo` o `vigente`) |
+| `GET /indicadores/evolucion` | Ingresos y pedidos por tramo (día, semana o mes según el período), con el período de comparación alineado por posición |
+| `GET /indicadores/cobranza` | Pedidos y saldo de los tres estados de pago, con el saldo total por cobrar |
+| `GET /indicadores/embudo` | Solicitudes en línea → cotizadas → aprobadas → pedidos concretados, con el porcentaje de cada paso |
+| `GET /indicadores/demanda` | Ingresos (pedidos entregados), unidades y pedidos por categoría o, con `?agrupar=producto`, por tipo de letrero |
+| `GET /indicadores/por-cobrar` | Pedidos no anulados en «no pagado» o «abonado», de mayor a menor saldo, paginados (`?pagina=`, `?tamano=` hasta 100) y con el total de todas las páginas |
+
+Filtros: `periodo` (`semana`, `mes`, `anio`), `desde` y `hasta`, `anio` y `mes`, `comparar` (`anterior`, `anio_anterior`, `ninguno`), `estadoPedido` y `estadoPago` (varios separados por coma; `estadoPago=por_cobrar` equivale a «no pagado» y «abonado»), `categoria`, `origen` (`online` o `presencial`), `cliente` y `alcanceSaldo` (`periodo` o `vigente`: toda la deuda, sin límite de fecha).
+
+**Criterios de los filtros.** `categoria` deja los pedidos que tengan **algún ítem** de esa categoría; en las solicitudes usa la categoría del **primer ítem**. `estadoPedido` y `estadoPago` filtran pedidos: la conversión, las solicitudes en línea y el embudo no dependen de ellos. Un rango propio (`desde` y `hasta`) debe estar entre el 01-01-2020 y el 31-12-2100 y abarcar como máximo 10 años (`400` si no). La demanda reparte los pesos con el método del mayor resto, así que sus grupos suman exactamente los ingresos.
+
+**Nombres de los filtros.** El contrato aprobado en la fase 12A usa `estadoPago=por_cobrar`, `categoria` y `cliente`, que ya viven en las direcciones del panel. Equivalen a `soloPorCobrar`, `categoriaId` y `clienteId` de otros borradores; se mantuvieron los de la 12A (decisión C, 16-11-2026).
 
 ### Portal del cliente (fase 7)
 
@@ -395,15 +414,14 @@ Rutas relativas a `frontend/synctimefront`. Los tests de `src/test` y `e2e` simu
 | Pantallas de administracion de productos | Fase 9: `?incluirInactivos=` ya no existe; gestión recibe todo por defecto y filtra con `?activo=` |
 | `src/api/solicitudes.js` (`clientes.actualizar`) | Fase 9: `PUT /clientes/{id}` exige `If-Match` con el `rowVersion` de la ficha |
 
-## 6. Cargar el catalogo real
+## 6. El catalogo real (fase 12B)
 
-Las categorias, productos, materiales y horarios actuales son datos de ejemplo del script de referencia.
+Desde el 17-11-2026 las categorías y los productos son los **reales del taller**: 4 categorías y 16 productos (migración `CatalogoRealDelTaller`, que borró el catálogo de prueba y lo rehízo). La fuente es `Models/CatalogoDelTaller.cs`; la migración lleva una copia congelada.
 
-1. Cambiar los `HasData` de `LetrerosHerreradbContext.cs`, o cargar los datos por la API si los va a mantener el propio cliente. Conviene decidirlo con los requisitos: lo que este en `HasData` queda fijado en el codigo.
-2. Si se usa `HasData`, generar una migracion nueva con `dotnet ef migrations add`. Nunca editar una migracion ya aplicada.
-3. Actualizar las pruebas que dependen de los datos de ejemplo. `ApiFixture` y otras usan `idProducto = 1` e `idMaterial = 1`, y `MigracionTests` comprueba valores concretos.
-
-Si los productos reales necesitan campos nuevos, se agregan al modelo con su migracion.
+- **Medidas.** Cada producto trae sus límites en milímetros (`anchoMinMm`, `anchoMaxMm`, `altoMinMm`, `altoMaxMm`) o sus `medidasFijas` (`[{ anchoMm, altoMm }]`), o ninguno si no hay medidas que validar (señalizaciones y estampados). Al crear o editar una solicitud o un pedido directo, la API rechaza con `400` una medida fuera de los límites, con el error en `detalles[i].anchoMm` o `detalles[i].altoMm` y el rango en centímetros.
+- **Opciones.** Cada producto trae sus `opciones` (`[{ grupo, valor }]`): material, acabado, terminaciones, variante, espesor, diseño… El detalle de una solicitud acepta `opciones`, un objeto `{ "Material": "Tela PVC de 13 onzas" }`; un grupo o un valor que el producto no tiene responde `400` en `detalles[i].opciones`. Elegir es opcional. Lo elegido vuelve en `detalles[].opciones` del comprobante y de la ficha.
+- **Mantenedores.** Crear o editar un producto desde la API sigue como antes; las medidas y opciones del catálogo real solo cambian con una migración (pendiente: editarlas desde el panel, ver `desviaciones.md`).
+- **Cambiar el catálogo.** Si el taller agrega o cambia productos: actualizar `CatalogoDelTaller.cs` y hacer una migración nueva (nunca editar una ya aplicada) y actualizar las pruebas que dependen de los ids (`ApiFixture` usa `idProducto = 1`, que es «Impresión en tela PVC / Gigantografías»).
 
 ## 7. Login con reconocimiento facial
 

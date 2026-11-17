@@ -85,28 +85,28 @@ public static class SemillaDemo
     // En el orden en que aparecen en la vitrina: la primera pagina mezcla los distintos tipos de trabajo.
     private static readonly TrabajoReal[] Vitrina =
     [
-        new("entre-esquinas-luminoso", "Letrero luminoso para comida rápida", "Letrero circular con iluminación interior y gráfica impresa.", "Letrero luminoso", "Letreros", true),
-        new("glocar-fachada", "Letrero de fachada para lubricentro", "Letrero de gran formato sobre la entrada del taller mecánico.", "Letrero de fachada", "Letreros", true),
-        new("md-auto", "Rotulación de auto para escuela de conductores", "Vinilo impreso en las puertas, con el logo y los datos de contacto.", "Rotulación de vehículo", "Vehículos", true),
-        new("carrito-rojo-caballete", "Caballete para venta de mote con huesillo", "Letrero de pie, de doble cara, para la vereda.", "Caballete", "Pendones y caballetes", true),
-        new("la-travesia-delantal", "Delantal estampado para restaurante", "Logo estampado en blanco sobre delantal de cocina.", "Estampado textil", "Estampados", true),
-        new("sushi-vitrina", "Gráfica para vitrina de local de sushi", "Vinilo impreso en la vitrina con fotos de los productos.", "Vinilo para vitrina", "Autoadhesivos y calcomanías", true),
-        new("redmat-cierre", "Lona para cierre perimetral de ferretería", "Gigantografía en lona tensada a lo largo del cierre.", "Lona publicitaria", "Gigantografías", true),
-        new("calcomania-vinilo-corte", "Calcomanía en vinilo de corte", "Logo recortado en vinilo, listo para aplicar.", "Calcomanía de vinilo de corte", "Autoadhesivos y calcomanías", true),
-        new("los-cima-fachada", "Letrero y vitrinas para pescadería", "Letrero de fachada y vinilos impresos en las puertas de vidrio.", "Letrero de fachada", "Letreros", true),
-        new("campo-nativo-luminoso", "Letrero luminoso para carnicería", "Caja de luz con texto calado para verse de noche.", "Letrero luminoso", "Letreros", true),
-        new("cacharrito-pendon", "Pendón de ofertas para tienda de repuestos", "Pendón impreso con estructura, para el interior del local.", "Pendón", "Pendones y caballetes", true),
-        new("nueva-express-bus", "Rotulación de bus de transporte", "Franja con el nombre de la empresa en el costado del bus.", "Rotulación de vehículo", "Vehículos", true),
-        new("independiente-estampado", "Estampado de escudo para club deportivo", "Escudo y nombre del club estampados a todo color.", "Estampado textil", "Estampados", true),
-        new("lluvia-hamburguesas", "Decoración en vinilo para hamburguesería", "Letras, ilustraciones y guardapolvo en vinilo para el local.", "Decoración en vinilo", "Autoadhesivos y calcomanías", true),
-        new("vallmir-lona", "Lona publicitaria para comida rápida", "Gigantografía con fotos de los productos para la fachada.", "Lona publicitaria", "Gigantografías", true),
-        new("entre-tiempo-fachada", "Letreros de fachada para restaurante", "Dos letreros impresos sobre la entrada y el ventanal.", "Letrero de fachada", "Letreros", true),
-        new("gasceliot-caballete", "Caballete para almacén de barrio", "Letrero de pie con la lista de productos.", "Caballete", "Pendones y caballetes", true),
-        new("night-monsters-troquelados", "Autoadhesivos troquelados para salón de juegos", "Gráfica impresa y recortada a la forma del diseño.", "Autoadhesivo troquelado", "Autoadhesivos y calcomanías", true),
-        new("rochmal-luminoso", "Letrero luminoso para centro terapéutico", "Caja de luz con gráfica impresa de bienvenida.", "Letrero luminoso", "Letreros", true),
-        new("el-balcon-volantes", "Volantes y calendarios para sanguchería", "Impresión a todo color con el menú y los datos de contacto.", "Volantes y calendarios", "Impresos", true),
-        new("cafeteria-fachada", "Letrero y vinilos para cafetería", "Letrero sobre la vitrina y vinilos decorativos en los vidrios.", "Letrero de fachada", "Letreros", true),
-        new("senaletica-estacionamiento", "Señalética de estacionamiento", "Letreros de prohibición y de calles en planchas impresas.", "Señalética", "Letreros", false),
+        new("entre-esquinas-luminoso", "Letrero luminoso para comida rápida", "Letrero circular con iluminación interior y gráfica impresa.", "Letreros luminosos", "Letreros y estructuras", true),
+        new("glocar-fachada", "Letrero de fachada para lubricentro", "Letrero de gran formato sobre la entrada del taller mecánico.", "Letreros luminosos", "Letreros y estructuras", true),
+        new("md-auto", "Rotulación de auto para escuela de conductores", "Vinilo impreso en las puertas, con el logo y los datos de contacto.", "Rotulación vehicular y general", "Letreros y estructuras", true),
+        new("carrito-rojo-caballete", "Caballete para venta de mote con huesillo", "Letrero de pie, de doble cara, para la vereda.", "Caballete publicitario / Paloma", "Letreros y estructuras", true),
+        new("la-travesia-delantal", "Delantal estampado para restaurante", "Logo estampado en blanco sobre delantal de cocina.", "Estampados", "Estampados y personalización", true),
+        new("sushi-vitrina", "Gráfica para vitrina de local de sushi", "Vinilo impreso en la vitrina con fotos de los productos.", "Adhesivos y vinilos", "Impresión y publicidad gráfica", true),
+        new("redmat-cierre", "Lona para cierre perimetral de ferretería", "Gigantografía en lona tensada a lo largo del cierre.", "Impresión en tela PVC / Gigantografías", "Impresión y publicidad gráfica", true),
+        new("calcomania-vinilo-corte", "Calcomanía en vinilo de corte", "Logo recortado en vinilo, listo para aplicar.", "Adhesivos y vinilos", "Impresión y publicidad gráfica", true),
+        new("los-cima-fachada", "Letrero y vitrinas para pescadería", "Letrero de fachada y vinilos impresos en las puertas de vidrio.", "Letreros luminosos", "Letreros y estructuras", true),
+        new("campo-nativo-luminoso", "Letrero luminoso para carnicería", "Caja de luz con texto calado para verse de noche.", "Letreros luminosos", "Letreros y estructuras", true),
+        new("cacharrito-pendon", "Pendón de ofertas para tienda de repuestos", "Pendón impreso con estructura, para el interior del local.", "Pendones", "Impresión y publicidad gráfica", true),
+        new("nueva-express-bus", "Rotulación de bus de transporte", "Franja con el nombre de la empresa en el costado del bus.", "Rotulación vehicular y general", "Letreros y estructuras", true),
+        new("independiente-estampado", "Estampado de escudo para club deportivo", "Escudo y nombre del club estampados a todo color.", "Estampados", "Estampados y personalización", true),
+        new("lluvia-hamburguesas", "Decoración en vinilo para hamburguesería", "Letras, ilustraciones y guardapolvo en vinilo para el local.", "Adhesivos y vinilos", "Impresión y publicidad gráfica", true),
+        new("vallmir-lona", "Lona publicitaria para comida rápida", "Gigantografía con fotos de los productos para la fachada.", "Impresión en tela PVC / Gigantografías", "Impresión y publicidad gráfica", true),
+        new("entre-tiempo-fachada", "Letreros de fachada para restaurante", "Dos letreros impresos sobre la entrada y el ventanal.", "Letreros luminosos", "Letreros y estructuras", true),
+        new("gasceliot-caballete", "Caballete para almacén de barrio", "Letrero de pie con la lista de productos.", "Caballete publicitario / Paloma", "Letreros y estructuras", true),
+        new("night-monsters-troquelados", "Autoadhesivos troquelados para salón de juegos", "Gráfica impresa y recortada a la forma del diseño.", "Adhesivos y vinilos", "Impresión y publicidad gráfica", true),
+        new("rochmal-luminoso", "Letrero luminoso para centro terapéutico", "Caja de luz con gráfica impresa de bienvenida.", "Letreros luminosos", "Letreros y estructuras", true),
+        new("el-balcon-volantes", "Volantes y calendarios para sanguchería", "Impresión a todo color con el menú y los datos de contacto.", "Flyers / Folletería", "Papelería e impresión pequeña", true),
+        new("cafeteria-fachada", "Letrero y vinilos para cafetería", "Letrero sobre la vitrina y vinilos decorativos en los vidrios.", "Letreros luminosos", "Letreros y estructuras", true),
+        new("senaletica-estacionamiento", "Señalética de estacionamiento", "Letreros de prohibición y de calles en planchas impresas.", "Señalizaciones", "Letreros y estructuras", false),
     ];
 
     // Trabajos de la vitrina con su foto real. Repetirla solo completa lo que falta: agrega los trabajos
@@ -207,19 +207,19 @@ public static class SemillaDemo
         db.Catalogos.AddRange(
             new Catalogo
             {
-                IdProducto = 1, EmpleadoCreador = dueno, Titulo = "Cartel metálico para ferretería",
+                IdProducto = 9, EmpleadoCreador = dueno, Titulo = "Cartel metálico para ferretería",
                 Descripcion = "Estructura metálica con gráfica impresa y terminación mate.",
                 ImagenUrl = "/imagenes/demo/cartel-metalico.webp", Visible = false, AnchoMm = 2400, AltoMm = 1200, PrecioReferencial = 180000
             },
             new Catalogo
             {
-                IdProducto = 2, EmpleadoCreador = dueno, Titulo = "Lienzo publicitario para evento",
+                IdProducto = 1, EmpleadoCreador = dueno, Titulo = "Lienzo publicitario para evento",
                 Descripcion = "Lienzo de PVC con ojetillos en todo el perímetro.",
                 ImagenUrl = "/imagenes/demo/lienzo-evento.webp", Visible = false, AnchoMm = 3000, AltoMm = 1000, PrecioReferencial = 45000
             },
             new Catalogo
             {
-                IdProducto = 3, EmpleadoCreador = administrador, Titulo = "Letrero tipo palomita para cafetería",
+                IdProducto = 12, EmpleadoCreador = administrador, Titulo = "Letrero tipo palomita para cafetería",
                 Descripcion = "Letrero plegable de doble cara para la vereda.",
                 ImagenUrl = "/imagenes/demo/palomita-cafeteria.webp", Visible = false, AnchoMm = 600, AltoMm = 900, PrecioReferencial = 60000
             });
@@ -229,17 +229,17 @@ public static class SemillaDemo
             new Solicitud
             {
                 Cliente = presencial, EmpleadoRegistra = operario, DescripcionGeneral = "Cartel para el frente del local.",
-                Detalles = { new SolicitudDetalle { IdProducto = 1, Descripcion = "Cartel con el nombre del negocio", AnchoMm = 2000, AltoMm = 1000, Cantidad = 1 } }
+                Detalles = { new SolicitudDetalle { IdProducto = 9, Descripcion = "Cartel con el nombre del negocio", AnchoMm = 2000, AltoMm = 1000, Cantidad = 1 } }
             },
             new Solicitud
             {
                 Cliente = sinRut, EmpleadoRegistra = operario, DescripcionGeneral = "Dos letreros para la vereda.",
-                Detalles = { new SolicitudDetalle { IdProducto = 3, Descripcion = "Palomita con la carta del día", AnchoMm = 600, AltoMm = 900, Cantidad = 2 } }
+                Detalles = { new SolicitudDetalle { IdProducto = 12, Descripcion = "Palomita con la carta del día", AnchoMm = 600, AltoMm = 900, Cantidad = 2 } }
             },
             new Solicitud
             {
                 Cliente = conCuenta, DescripcionGeneral = "Lienzo para una feria.",
-                Detalles = { new SolicitudDetalle { IdProducto = 2, Descripcion = "Lienzo con logo y fecha", AnchoMm = 3000, AltoMm = 1000, Cantidad = 1 } }
+                Detalles = { new SolicitudDetalle { IdProducto = 1, Descripcion = "Lienzo con logo y fecha", AnchoMm = 3000, AltoMm = 1000, Cantidad = 1 } }
             });
 
         await db.SaveChangesAsync();
@@ -255,18 +255,18 @@ public static class SemillaDemo
     // tiempo y atrasadas, repartidos en los ultimos seis meses.
     private static readonly PedidoDemo[] Pedidos =
     [
-        new("trigal", 1, "Letrero metálico de fachada", 185000, 0, "cotizacion", "en_proceso", 0, 4, 12, null, null, [(100000, "transferencia", 0)]),
-        new("biobio", 2, "Lienzos para liquidación de temporada", 96000, 0, "cotizacion", "entregado", 0, 2, 5, 4, null, []),
-        new("sonrie", 1, "Letras metálicas para la recepción", 240000, 35000, "cotizacion", "terminado", 1, 28, 10, null, null, [(275000, "transferencia", 1)]),
-        new("lucho", 3, "Palomita de doble cara para la vereda", 54000, 0, "directo", "aceptado", 0, 6, 7, null, null, []),
-        new("ruiz", 1, "Cartel metálico para la bodega", 410000, 0, "cotizacion", "entregado", 1, 15, 14, 13, "F-1021", [(200000, "transferencia", 0), (210000, "transferencia", 13)]),
-        new("900000202", 3, "Palomita para cafetería", 72000, 0, "cotizacion", "anulado", 2, 1, 7, null, null, []),
-        new("900000201", 2, "Lienzo con logo para una feria", 128000, 0, "cotizacion", "entregado", 2, 10, 6, 8, null, [(100000, "efectivo", 0)]),
-        new("biobio", 1, "Cartel de horario de atención", 64000, 0, "directo", "entregado", 3, 5, 4, 4, "F-0998", [(64000, "tarjeta_debito", 4)]),
-        new("trigal", 2, "Lienzo de temporada", 45000, 0, "cotizacion", "entregado", 4, 12, 5, 5, "F-0975", [(45000, "efectivo", 5)]),
-        new("sonrie", 3, "Señalética para el estacionamiento", 88000, 0, "cotizacion", "en_proceso", 0, 1, 3, null, null, []),
-        new("900000203", 1, "Cartel para el almacén", 150000, 25000, "directo", "entregado", 5, 20, 10, 12, null, [(175000, "transferencia", 12)]),
-        new("ruiz", 2, "Lienzos para la feria del transporte", 99000, 0, "cotizacion", "terminado", 0, 3, 6, null, null, [(30000, "efectivo", 0)]),
+        new("trigal", 9, "Letrero metálico de fachada", 185000, 0, "cotizacion", "en_proceso", 0, 4, 12, null, null, [(100000, "transferencia", 0)]),
+        new("biobio", 1, "Lienzos para liquidación de temporada", 96000, 0, "cotizacion", "entregado", 0, 2, 5, 4, null, []),
+        new("sonrie", 9, "Letras metálicas para la recepción", 240000, 35000, "cotizacion", "terminado", 1, 28, 10, null, null, [(275000, "transferencia", 1)]),
+        new("lucho", 12, "Palomita de doble cara para la vereda", 54000, 0, "directo", "aceptado", 0, 6, 7, null, null, []),
+        new("ruiz", 9, "Cartel metálico para la bodega", 410000, 0, "cotizacion", "entregado", 1, 15, 14, 13, "F-1021", [(200000, "transferencia", 0), (210000, "transferencia", 13)]),
+        new("900000202", 12, "Palomita para cafetería", 72000, 0, "cotizacion", "anulado", 2, 1, 7, null, null, []),
+        new("900000201", 1, "Lienzo con logo para una feria", 128000, 0, "cotizacion", "entregado", 2, 10, 6, 8, null, [(100000, "efectivo", 0)]),
+        new("biobio", 9, "Cartel de horario de atención", 64000, 0, "directo", "entregado", 3, 5, 4, 4, "F-0998", [(64000, "tarjeta_debito", 4)]),
+        new("trigal", 1, "Lienzo de temporada", 45000, 0, "cotizacion", "entregado", 4, 12, 5, 5, "F-0975", [(45000, "efectivo", 5)]),
+        new("sonrie", 12, "Señalética para el estacionamiento", 88000, 0, "cotizacion", "en_proceso", 0, 1, 3, null, null, []),
+        new("900000203", 9, "Cartel para el almacén", 150000, 25000, "directo", "entregado", 5, 20, 10, 12, null, [(175000, "transferencia", 12)]),
+        new("ruiz", 1, "Lienzos para la feria del transporte", 99000, 0, "cotizacion", "terminado", 0, 3, 6, null, null, [(30000, "efectivo", 0)]),
     ];
 
     /// <summary>

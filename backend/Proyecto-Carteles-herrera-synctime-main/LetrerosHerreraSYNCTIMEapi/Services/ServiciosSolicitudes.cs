@@ -207,7 +207,7 @@ public sealed class ServicioSolicitudes(
                 Cliente = new ClienteComprobante(s.Cliente!.Nombre, s.Cliente.Apellido, s.Cliente.Telefono, s.Cliente.Email),
                 RegistradaPor = s.EmpleadoRegistra == null ? null : s.EmpleadoRegistra.Nombre + " " + s.EmpleadoRegistra.Apellido,
                 Detalles = s.Detalles.OrderBy(d => d.IdSolicitudDetalle)
-                    .Select(d => new { d.IdProducto, Producto = d.Producto!.Nombre, d.Descripcion, d.AnchoMm, d.AltoMm, d.Cantidad })
+                    .Select(d => new { d.IdProducto, Producto = d.Producto!.Nombre, d.Descripcion, d.AnchoMm, d.AltoMm, d.Cantidad, d.Opciones })
                     .ToList(),
                 Adjuntos = s.Adjuntos.OrderBy(a => a.IdAdjunto)
                     .Select(a => new { a.IdAdjunto, a.Tipo, a.NombreOriginal, a.Bytes, a.Ancho, a.Alto })
@@ -219,7 +219,7 @@ public sealed class ServicioSolicitudes(
             return null;
 
         var detalles = fila.Detalles.Select(d => new DetalleComprobante(d.IdProducto, d.Producto, string.IsNullOrWhiteSpace(d.Descripcion) ? null : d.Descripcion,
-            d.AnchoMm, d.AltoMm, d.Cantidad, MedidasSolicitud.AreaM2(d.AnchoMm, d.AltoMm, d.Cantidad))).ToList();
+            d.AnchoMm, d.AltoMm, d.Cantidad, MedidasSolicitud.AreaM2(d.AnchoMm, d.AltoMm, d.Cantidad), ReglasCatalogo.Leer(d.Opciones))).ToList();
         var adjuntos = fila.Adjuntos.Select(a => new AdjuntoComprobante(a.IdAdjunto, a.Tipo, a.NombreOriginal, a.Bytes, a.Ancho, a.Alto,
             a.Tipo == AdjuntoSolicitud.TipoImagen ? Adjuntos.UrlMiniatura(a.IdAdjunto) : null, Adjuntos.UrlArchivo(a.IdAdjunto))).ToList();
 
@@ -587,20 +587,7 @@ public sealed class ServicioSolicitudes(
     {
         var errores = ValidacionSolicitud.Validar(descripcion, detalles, adjuntos);
 
-        if (detalles is { Count: > 0 and <= ValidacionSolicitud.MaxDetalles })
-        {
-            var pedidos = detalles.Select(d => d.IdProducto).Distinct().ToList();
-            var disponibles = await db.Productos.AsNoTracking()
-                .Where(p => pedidos.Contains(p.IdProducto) && p.Activo && p.Categoria!.Activo)
-                .Select(p => p.IdProducto)
-                .ToListAsync(ct);
-            for (var i = 0; i < detalles.Count; i++)
-            {
-                var campo = $"detalles[{i}].idProducto";
-                if (!errores.ContainsKey(campo) && !disponibles.Contains(detalles[i].IdProducto))
-                    errores[campo] = [ValidacionSolicitud.MensajeProducto];
-            }
-        }
+        await ValidadorCatalogo.ValidarAsync(db, detalles, errores, ct);
 
         if (idCliente is int dueno && adjuntos is { Count: > 0 } && !errores.ContainsKey("adjuntos"))
         {
@@ -633,7 +620,8 @@ public sealed class ServicioSolicitudes(
             Descripcion = d.Descripcion?.Trim() ?? "",
             AnchoMm = d.AnchoMm,
             AltoMm = d.AltoMm,
-            Cantidad = d.Cantidad
+            Cantidad = d.Cantidad,
+            Opciones = ReglasCatalogo.Serializar(d.Opciones)
         }).ToList();
 
     // fecha_solicitud es datetime2(0) en hora de Chile: se trunca a segundos para que lo guardado y lo

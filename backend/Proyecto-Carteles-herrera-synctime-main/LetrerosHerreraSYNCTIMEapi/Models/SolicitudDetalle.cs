@@ -13,6 +13,9 @@ public class SolicitudDetalle
     public int Cantidad { get; set; } = 1;
     public decimal? AreaM2 { get; set; }
 
+    // Fase 12B: lo que el cliente eligio entre las opciones del producto, como objeto JSON {"Material":"Tela PVC"}.
+    public string? Opciones { get; set; }
+
     [JsonIgnore]
     public virtual Solicitud? Solicitud { get; set; }
 

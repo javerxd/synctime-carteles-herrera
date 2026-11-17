@@ -297,7 +297,7 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         rut, nombre = "Cli", apellido = "Web", telefono, correo = correo ?? CorreoDe(telefono), password = AdminPassword,
         aceptaTerminosYPrivacidad = true, aceptaMarketing = marketing,
-        versionTerminos = "1.0", versionPrivacidad = "1.0", versionMarketing = marketing ? "1.0" : null
+        versionTerminos = "1.0", versionPrivacidad = "1.1", versionMarketing = marketing ? "1.0" : null
     };
 
     public async Task<(int Id, string Telefono, string Token)> RegistrarClienteAsync()

@@ -15,7 +15,8 @@ public static class DocumentosLegales
 
     public static readonly IReadOnlyDictionary<string, string> VersionesVigentes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        [Privacidad] = "1.0",
+        // 1.1 (17-11-2026, fase 12B): agrega el plazo de 90 dias de la IP de la bitacora de auditoria.
+        [Privacidad] = "1.1",
         [Terminos] = "1.0",
         [Marketing] = "1.0",
         [Cookies] = "1.0",

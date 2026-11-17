@@ -41,8 +41,14 @@ public sealed record FichaCategoria(int IdCategoria, string Nombre, string? Desc
 
 public sealed record CategoriaDelProducto(int IdCategoria, string Nombre, bool Activo);
 
+// Fase 12B: los limites de medidas (milimetros) y las opciones elegibles, para que el formulario las ofrezca.
+public sealed record MedidaFijaProducto(int AnchoMm, int AltoMm);
+
+public sealed record OpcionProducto(string Grupo, string Valor);
+
 public sealed record FichaProducto(int IdProducto, int IdCategoria, CategoriaDelProducto Categoria, string Nombre, string? Descripcion,
-    decimal? PrecioBaseRef, bool Activo, byte[] RowVersion) : IConVersion;
+    decimal? PrecioBaseRef, bool Activo, byte[] RowVersion, int? AnchoMinMm, int? AnchoMaxMm, int? AltoMinMm, int? AltoMaxMm,
+    IReadOnlyList<MedidaFijaProducto> MedidasFijas, IReadOnlyList<OpcionProducto> Opciones) : IConVersion;
 
 public sealed record FichaMaterial(int IdMaterial, string Nombre, string UnidadMedida, decimal CostoUnitarioAprox, bool Activo, byte[] RowVersion) : IConVersion;
 
@@ -183,7 +189,9 @@ public sealed class ServicioProductos(LetrerosHerreradbContext db)
 
     private static readonly Expression<Func<Producto, FichaProducto>> Ficha = p => new FichaProducto(
         p.IdProducto, p.IdCategoria, new CategoriaDelProducto(p.Categoria!.IdCategoria, p.Categoria.Nombre, p.Categoria.Activo),
-        p.Nombre, p.Descripcion, p.PrecioBaseRef, p.Activo, p.RowVersion);
+        p.Nombre, p.Descripcion, p.PrecioBaseRef, p.Activo, p.RowVersion, p.AnchoMinMm, p.AnchoMaxMm, p.AltoMinMm, p.AltoMaxMm,
+        p.MedidasFijas.OrderBy(m => m.AnchoMm).ThenBy(m => m.AltoMm).Select(m => new MedidaFijaProducto(m.AnchoMm, m.AltoMm)).ToList(),
+        p.Opciones.OrderBy(o => o.Orden).Select(o => new OpcionProducto(o.Grupo, o.Valor)).ToList());
 
     // Quien no es de gestion solo ve lo que se ofrece: activo y de una categoria activa.
     public Task<ResultadoPaginado<FichaProducto>> ListarAsync(ParametrosListado parametros, bool? activo, bool soloOfrecidos, int? idCategoria,

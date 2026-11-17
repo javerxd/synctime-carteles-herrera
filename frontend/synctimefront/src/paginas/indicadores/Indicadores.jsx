@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Aviso } from '../../componentes/ui';
-import { ES_DEMO, indicadores } from '../../api/indicadores';
+import { indicadores } from '../../api/indicadores';
 import { hoyChile } from '../../utilidades/fechas';
 import { filtrosDesde, paraDireccion, parametrosInvalidos } from '../../utilidades/filtrosUrl';
 import { useConsulta } from '../../utilidades/useConsulta';
@@ -19,7 +18,8 @@ import estilos from './Indicadores.module.css';
 
 const SIN_CATALOGOS = { categorias: [], clientes: [] };
 const METRICAS = [{ valor: 'ingresos', texto: 'Ingresos' }, { valor: 'pedidos', texto: 'Pedidos' }];
-const MEDIDAS = [{ valor: 'monto', texto: 'Monto' }, { valor: 'cantidad', texto: 'Unidades' }];
+const MEDIDAS = [{ valor: 'monto', texto: 'Ingresos' }, { valor: 'cantidad', texto: 'Unidades' }];
+const AGRUPACIONES = [{ valor: 'categoria', texto: 'Por categoría' }, { valor: 'producto', texto: 'Por tipo de letrero' }];
 
 /**
  * /panel/indicadores (RFS09, S10 a S14, S19, S24): dashboard de gestión con filtros combinables en la dirección,
@@ -67,12 +67,6 @@ export default function Indicadores() {
 
       <p role="status" className="solo-lectores">{anuncio}</p>
 
-      {ES_DEMO && (
-        <Aviso tono="info" titulo="Datos de demostración">
-          Estas cifras se calculan con pedidos y solicitudes de ejemplo, no con los del taller. Se conectarán a los datos reales en la fase 12B.
-        </Aviso>
-      )}
-
       <FiltrosIndicadores filtros={filtros} cambiar={cambiar} limpiar={limpiar} catalogos={catalogos.datos ?? SIN_CATALOGOS}
         periodo={periodo} comparacion={comparacion} anios={anios} />
 
@@ -98,19 +92,24 @@ export default function Indicadores() {
             : <GraficoCobranza datos={datos} elegido={filtros.cobro} alElegir={(cobro) => cambiar({ cobro })} />)}
         </BloqueIndicador>
 
-        <BloqueIndicador titulo="Embudo del canal web" estado={bloques.embudo} alReintentar={() => reintentar('embudo')} conTabla
+        <BloqueIndicador titulo="Embudo del canal web" descripcion="Solicitudes en línea del período; no depende del estado del pedido ni del pago." estado={bloques.embudo} alReintentar={() => reintentar('embudo')} conTabla
           narrativa={narrativaEmbudo} vacio={(d) => !d.pasos?.[0]?.cantidad} textoVacio="Sin solicitudes en línea en este período"
           className={estilos.areaEmbudo}>
           {(vista, datos) => (vista === 'tabla' ? <TablaEmbudo datos={datos} /> : <GraficoEmbudo datos={datos} />)}
         </BloqueIndicador>
 
         <BloqueIndicador titulo="Demanda por categoría" estado={bloques.demanda} alReintentar={() => reintentar('demanda')} conTabla
-          narrativa={(d) => narrativaDemanda(ordenarDemanda(d.categorias, medida), medida)} vacio={(d) => !d.categorias?.length}
-          textoVacio="Sin pedidos por categoría en este período" className={estilos.areaDemanda}
-          controles={<Conmutador etiqueta="Medir la demanda por" opciones={MEDIDAS} valor={medida} alCambiar={setMedida} />}>
+          narrativa={(d) => narrativaDemanda(ordenarDemanda(d.categorias, medida), medida, d.agrupar)} vacio={(d) => !d.categorias?.length}
+          textoVacio={filtros.agrupar === 'producto' ? 'Sin ingresos por tipo de letrero en este período' : 'Sin ingresos por categoría en este período'} className={estilos.areaDemanda}
+          controles={(
+            <>
+              <Conmutador etiqueta="Agrupar la demanda" opciones={AGRUPACIONES} valor={filtros.agrupar} alCambiar={(agrupar) => cambiar({ agrupar })} />
+              <Conmutador etiqueta="Medir la demanda por" opciones={MEDIDAS} valor={medida} alCambiar={setMedida} />
+            </>
+          )}>
           {(vista, datos) => {
             const categorias = ordenarDemanda(datos.categorias, medida);
-            return vista === 'tabla' ? <TablaDemanda categorias={categorias} /> : <GraficoDemanda categorias={categorias} medida={medida} />;
+            return vista === 'tabla' ? <TablaDemanda categorias={categorias} agrupar={datos.agrupar} /> : <GraficoDemanda categorias={categorias} medida={medida} />;
           }}
         </BloqueIndicador>
       </div>

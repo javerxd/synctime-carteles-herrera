@@ -68,7 +68,7 @@ public static class TransicionesSolicitud
 }
 
 // Lo que llega para crear o editar una solicitud, ya separado del formato de la peticion.
-public sealed record EntradaDetalle(int IdProducto, string? Descripcion, int? AnchoMm, int? AltoMm, int Cantidad);
+public sealed record EntradaDetalle(int IdProducto, string? Descripcion, int? AnchoMm, int? AltoMm, int Cantidad, IReadOnlyDictionary<string, string>? Opciones = null);
 
 public static class ValidacionSolicitud
 {

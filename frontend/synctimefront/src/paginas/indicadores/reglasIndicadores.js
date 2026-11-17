@@ -12,6 +12,8 @@ export const ESTADOS_PAGO_FILTRO = ['no_pagado', 'abonado', 'pagado_total'];
 export const ORIGENES = { online: 'En línea', presencial: 'Presencial' };
 export const TAMANO_POR_COBRAR = 10;
 
+// Exactamente aaaa-mm-dd: el servidor rechaza cualquier otra forma, y la dirección no debe llevar fechas que la API no acepte.
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const ultimoDia = (anio, mes) => new Date(Date.UTC(anio, mes, 0)).getUTCDate();
 const entero = (texto, min, max) => /^\d+$/.test(texto) && Number(texto) >= min && Number(texto) <= max;
 const lista = (permitidos) => (valor) => {
@@ -23,8 +25,8 @@ const lista = (permitidos) => (valor) => {
 export const DEFINICION_FILTROS = {
   campos: {
     periodo: (v) => v in PERIODOS,
-    desde: (v, f) => esFecha(v) && esFecha(f.hasta) && v <= f.hasta,
-    hasta: (v, f) => esFecha(v) && esFecha(f.desde) && f.desde <= v,
+    desde: (v, f) => FECHA.test(v) && FECHA.test(f.hasta ?? '') && esFecha(v) && esFecha(f.hasta) && v <= f.hasta,
+    hasta: (v, f) => FECHA.test(v) && FECHA.test(f.desde ?? '') && esFecha(v) && esFecha(f.desde) && f.desde <= v,
     anio: (v) => entero(v, 2020, 2100),
     mes: (v, f) => entero(v, 1, 12) && entero(f.anio ?? '', 2020, 2100),
     comparar: (v) => v in COMPARACIONES,
@@ -36,8 +38,10 @@ export const DEFINICION_FILTROS = {
     alcanceSaldo: (v) => v === 'periodo' || v === 'vigente',
     // Segmento elegido en el anillo de cobranza: solo filtra la tabla «Pedidos por cobrar».
     cobro: (v) => v === 'no_pagado' || v === 'abonado',
+    // Solo la demanda: por categoría (predeterminado) o por tipo de letrero.
+    agrupar: (v) => v === 'categoria' || v === 'producto',
   },
-  predeterminados: { periodo: 'mes', comparar: 'anterior', alcanceSaldo: 'periodo' },
+  predeterminados: { periodo: 'mes', comparar: 'anterior', alcanceSaldo: 'periodo', agrupar: 'categoria' },
   tamano: TAMANO_POR_COBRAR,
 };
 
@@ -47,11 +51,13 @@ const COMUNES = ['periodo', 'desde', 'hasta', 'anio', 'mes', 'comparar', 'estado
  * Los parámetros que viajan a /api/v1/indicadores (los vacíos no viajan). Con `listado` (GET /por-cobrar) se
  * agregan la página y su tamaño, y el segmento del anillo reemplaza al estado de pago.
  */
-export function parametrosIndicadores(filtros, { listado = false } = {}) {
+export function parametrosIndicadores(filtros, { listado = false, ruta = '' } = {}) {
   const parametros = {};
   for (const campo of COMUNES) {
     if (filtros[campo] !== '' && filtros[campo] !== undefined && filtros[campo] !== null) parametros[campo] = filtros[campo];
   }
+  // La agrupación es solo de la demanda.
+  if (ruta === 'demanda' && filtros.agrupar) parametros.agrupar = filtros.agrupar;
   if (listado) {
     // El segmento del anillo afina el estado de pago elegido, nunca lo contradice.
     const elegidos = !filtros.estadoPago || filtros.estadoPago === 'por_cobrar' ? null : filtros.estadoPago.split(',');

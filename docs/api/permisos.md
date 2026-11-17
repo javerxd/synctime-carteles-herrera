@@ -48,6 +48,7 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Ver una imagen subida (`GET /imagenes/{archivo}`) | Sí | Sí | Sí | Sí | Sí |
 | Cambiar el estado del local (dar vuelta el cartel, `PUT /cartel-digital`) | No | No | Sí | Sí | Sí |
 | Ver la métrica de conversión | No | No | No | No | Sí |
+| Ver el dashboard: ingresos, pedidos, cobranza, embudo, demanda y pedidos por cobrar (`GET /indicadores/*`, fase 12B). Cliente, operario y diseñador reciben `403`; sin sesión, `401` | No | No | No | No | Sí |
 | Activar su propio acceso con rostro (`PUT /auth/rostro`, `POST /auth/rostro/equipo`; los demás reciben `403 solo_gestion`) | No | No | No | No | Sí |
 | Desactivar su propio acceso con rostro (`DELETE /auth/rostro`) | No | No | Sí | Sí | Sí |
 | Ver los rostros registrados y registrar o desactivar el de otro empleado de gestión (`/rostros`) | No | No | No | No | Sí |

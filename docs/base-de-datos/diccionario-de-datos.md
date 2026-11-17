@@ -58,7 +58,7 @@ Restricciones: `pk_empleados`, `uq_empleados_rut`, `uq_empleados_email`, `ck_emp
 
 ## categorias
 
-Grandes grupos de trabajos (letreros, vehículos, estampados, muros, personalizado). Los mantiene el dueño.
+Grandes grupos de trabajos. **Desde la fase 12B** son las cuatro del catálogo real del taller: Impresión y publicidad gráfica, Letreros y estructuras, Papelería e impresión pequeña, y Estampados y personalización. Los mantiene el dueño.
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
@@ -68,11 +68,11 @@ Grandes grupos de trabajos (letreros, vehículos, estampados, muros, personaliza
 | `activo` | bit | No | 1 | 0 = no se ofrece |
 | `row_version` | rowversion | No | automática | **NUEVA (fase 9).** Control de concurrencia (RNFP10): la API la recibe en `If-Match` al editar o desactivar y la compara. Cambia en cada modificación |
 
-Datos iniciales: 5 categorías. Restricciones: `pk_categorias`, `uq_categorias_nombre`.
+Datos iniciales: **4 categorías** (ids 1 a 4; la migración `CatalogoRealDelTaller` borra las 5 de prueba y las rehace). Restricciones: `pk_categorias`, `uq_categorias_nombre`.
 
 ## productos
 
-**Tipos de letrero** que define el dueño (palomita, cartel metálico, lienzo, de ventana, de candidatura…), cada uno dentro de una categoría.
+**Tipos de letrero** (los productos del taller), cada uno dentro de una categoría. **Desde la fase 12B** son los 16 del catálogo real (gigantografías, banners, posteras, pendones, roll up, X banner, demo stand, adhesivos y vinilos, letreros luminosos, letras corpóreas, señalizaciones, caballete publicitario, rotulación vehicular y general, tarjetas de presentación, flyers y estampados), con sus medidas y opciones.
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
@@ -82,9 +82,36 @@ Datos iniciales: 5 categorías. Restricciones: `pk_categorias`, `uq_categorias_n
 | `descripcion` | nvarchar(500) | Sí | | **CAMBIA (fase 9).** Ampliada de 250 a 500 caracteres |
 | `precio_base_ref` | decimal(12,2) | Sí | | Precio referencial en pesos. CHECK ≥ 0 |
 | `activo` | bit | No | 1 | 0 = no se ofrece |
+| `ancho_min_mm`, `ancho_max_mm`, `alto_min_mm`, `alto_max_mm` | int | Sí | | **NUEVAS (fase 12B).** Límites de las medidas en milímetros (el taller las da en centímetros). Los cuatro o ninguno (`ck_productos_medidas`: mínimos > 0 y máximos ≥ mínimos). Nulos = sin medidas que validar (señalizaciones, estampados) o medidas fijas (`producto_medidas_fijas`) |
 | `row_version` | rowversion | No | automática | **NUEVA (fase 9).** Control de concurrencia (RNFP10): la API la recibe en `If-Match` al editar o desactivar y la compara. Cambia en cada modificación |
 
-Datos iniciales: 4 tipos. Restricciones: `pk_productos`, `fk_productos_categoria`, `uq_productos_nombre`, `ck_productos_precio`. Índice `ix_productos_categoria` (`id_categoria`, `activo`): lista los tipos activos de una categoría.
+Datos iniciales: **16 tipos de letrero** (ids 1 a 16, fase 12B). Restricciones: `pk_productos`, `fk_productos_categoria`, `uq_productos_nombre`, `ck_productos_precio`, `ck_productos_medidas`. Índice `ix_productos_categoria` (`id_categoria`, `activo`): lista los tipos activos de una categoría.
+
+## producto_medidas_fijas
+
+**Nueva (fase 12B).** Las medidas únicas o disponibles de un producto (X Banner 80 × 200 cm, Demo Stand 300 × 300 cm, caballete en tres tamaños, tarjeta 9 × 5,5 cm, flyers en tres tamaños). Un producto con filas aquí solo acepta esas combinaciones.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_medida` | int | No | autoincremental | PK |
+| `id_producto` | int | No | | FK a `productos` (se borra con él) |
+| `ancho_mm`, `alto_mm` | int | No | | Medida en milímetros. CHECK > 0 (`ck_producto_medidas_fijas`) |
+
+Restricciones: `pk_producto_medidas_fijas`, `fk_producto_medidas_fijas_producto` (en cascada), `uq_producto_medidas_fijas` (`id_producto`, `ancho_mm`, `alto_mm`). Datos iniciales: 9 filas.
+
+## producto_opciones
+
+**Nueva (fase 12B).** Lo que el cliente puede elegir de un producto: grupo «Material» con valores «Tela PVC de 13 onzas» y «Papel vinílico de una micra», grupo «Acabado», «Terminaciones», «Variante», «Espesor» (2 a 10 mm), «Diseño» (del cliente o de la oficina), etc. Elegir es opcional: lo que el cliente deja sin elegir lo define la oficina al cotizar.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_opcion` | int | No | autoincremental | PK |
+| `id_producto` | int | No | | FK a `productos` (se borra con él) |
+| `grupo` | nvarchar(60) | No | | Nombre del grupo (el selector) |
+| `valor` | nvarchar(80) | No | | Una opción del grupo |
+| `orden` | int | No | | Orden dentro del grupo |
+
+Restricciones: `pk_producto_opciones`, `fk_producto_opciones_producto` (en cascada), `uq_producto_opciones` (`id_producto`, `grupo`, `valor`). Datos iniciales: 72 filas. La API valida lo que llega contra estas filas y rechaza un grupo o un valor que el producto no tiene.
 
 ## catalogo
 
@@ -143,9 +170,10 @@ Restricciones: `pk_solicitudes`, `fk_solicitudes_cliente`, `fk_solicitudes_emple
 | `descripcion` | nvarchar(500) | No | | Glosa de especificaciones. **Fase 7:** hasta 500 caracteres (antes 300). Sigue siendo obligatoria: sin descripción se guarda vacía (`""`) |
 | `ancho_mm`, `alto_mm` | int | Sí | | Medidas en milímetros. CHECK: ambas nulas o ambas mayores que 0 |
 | `cantidad` | int | No | 1 | Cantidad. CHECK > 0 |
+| `opciones` | nvarchar(500) | Sí | | **NUEVA (fase 12B).** Lo que el cliente eligió entre las opciones del producto, como objeto JSON ordenado por grupo: `{"Material":"Tela PVC de 13 onzas"}`. Nulo = no eligió |
 | `area_m2` | decimal(12,4) | — | Calculada: ancho × alto / 1.000.000 | Área en m² |
 
-Restricciones: `pk_solicitud_detalles`, `fk_sol_detalles_solicitud` (en cascada), `fk_sol_detalles_producto`, `ck_sol_detalles_cantidad`, `ck_sol_detalles_medidas`. Índices: `ix_sol_detalles_solicitud`, `ix_sol_detalles_producto`.
+Restricciones: `pk_solicitud_detalles`, `fk_sol_detalles_solicitud` (en cascada), `fk_sol_detalles_producto`, `ck_sol_detalles_cantidad`, `ck_sol_detalles_medidas`. Índices: `ix_sol_detalles_solicitud` (`id_solicitud`, **ahora con `id_producto` y `cantidad` incluidas**, fase 12B), `ix_sol_detalles_producto`. Las medidas de cada letrero se validan en la API contra los límites de su producto; no hay una restricción en la tabla porque los datos anteriores a la fase 12B quedarían fuera de ella.
 
 ## solicitudes_historial
 
@@ -601,9 +629,13 @@ Restricciones: `pk_destinatarios_avisos_historial`, `fk_destinatarios_avisos_his
 
 | Objeto | Tipo | Qué hace |
 |---|---|---|
+| `vw_indicadores_pedidos` | Vista | **Nueva (fase 12B).** Un pedido vigente (`eliminado_logico = 0`) con el origen y el cliente de su solicitud. Fechas como día de Chile (`date`) y montos en pesos enteros. Alimenta los ingresos, los pedidos por estado, la cobranza, el saldo por cobrar y el listado «Pedidos por cobrar» del dashboard |
+| `vw_indicadores_solicitudes` | Vista | **Nueva (fase 12B).** Una solicitud vigente con su categoría principal (la del primer ítem) y su avance en el embudo: `cotizada` (tiene una cotización no eliminada), `aprobada` (una cotización aprobada) y `concretada` (tiene un pedido no anulado). Alimenta las solicitudes en línea y presenciales, las concretadas, la conversión y el embudo |
+| `vw_indicadores_items` | Vista | **Nueva (fase 12B).** Los ítems de cada pedido con su producto y categoría. `monto_asignado` reparte el monto final del pedido entre sus ítems en proporción a su cantidad, de modo que la suma de los ítems es el monto del pedido (decisión D del plan). Alimenta la demanda por categoría o por tipo de letrero |
 | `vw_metricas_conversion_online` | Vista | Por año y mes: solicitudes en línea, cuántas se concretaron en un pedido **no anulado** y el porcentaje de conversión. **Actualizada el 12-11-2026** (antes excluía los pedidos «cancelados») |
 | `trg_cotizacion_materiales_recalcular_total` | Trigger | Tras insertar, modificar o borrar líneas de materiales, recalcula `costo_materiales_total` de las cotizaciones afectadas |
 | `trg_pagos_recalcular_monto_abonado` | Trigger | **Nuevo (12-11-2026).** Tras insertar, modificar o borrar pagos, ajusta `monto_abonado` de los pedidos afectados con la diferencia, de modo que siempre sea la suma de sus pagos. **Reescrito el 14-11-2026 (fase 8):** solo cuenta los abonos vigentes (`anulado = 0`); anular un abono resta su monto, y reactivar uno anulado se rechaza con el error 50080 |
+| `trg_auditoria_inmutable` | Trigger | **Reescrito (fase 12B, RNFE01).** Sigue rechazando todo `UPDATE` y `DELETE` de la bitácora (error 50125) **salvo uno**: poner `ip = NULL` en filas de más de 90 días, sin cambiar ninguna otra columna. Una sentencia que no alcanza ninguna fila no cambia nada y pasa. El registro del evento queda intacto; solo se borra la dirección IP |
 | `sp_depurar_solicitudes_no_concretadas` | Procedimiento | Borra solicitudes rechazadas o eliminadas, sin pedido, con más de `@meses_antiguedad` meses (12 por defecto, RNFO04) |
 
 ## Historial de cambios del esquema
@@ -621,3 +653,18 @@ Restricciones: `pk_destinatarios_avisos_historial`, `fk_destinatarios_avisos_his
 | `SolicitudesYAdjuntos` | 14-11-2026 | Tablas nuevas `adjuntos_solicitud` (archivos de las solicitudes, privados) y `solicitudes_historial` (cambios de estado). En `solicitudes`, la columna nueva `huella_ip` con su índice `ix_solicitudes_huella_ip`, y se amplían `descripcion_general` (2000), `motivo_rechazo` (500) y `solicitud_detalles.descripcion` (500). No borra tablas, columnas ni filas (prueba `SolicitudesYAdjuntos_SoloAgrega`). Aplicada en la base demo; no en la real |
 | `CotizacionesYPedidos` | 14-11-2026 | Cotizaciones con `row_version`, respuesta (fecha, vía, quién y motivo de rechazo), borrado lógico y el índice único filtrado `uq_cotizaciones_una_pendiente`. Pedidos con motivo y fecha de anulación, borrado lógico y `uq_pedidos_cotizacion`. Tabla nueva `pedidos_historial`. En `pagos`, la anulación de abonos y el trigger `trg_pagos_recalcular_monto_abonado` reescrito (solo suma los vigentes). Amplía `cotizaciones.observaciones` (2000), `cotizacion_materiales.medida_aplicada` (100) y `pedidos.direccion_instalacion` (300). Antes de cada regla nueva completa los datos existentes: respuesta «presencial» de las cotizaciones ya respondidas, motivo «Anulado antes de la fase 8» de los pedidos anulados y una fila de creación en el historial de cada pedido. Revertirla se detiene (`THROW` 50081 o 50082) si hay abonos anulados o textos que no caben en las columnas anteriores, sin tocar nada. Solo agrega y amplía (prueba `CotizacionesYPedidos_SoloAgrega`). La API la aplica en la base demo al arrancar; la base real espera la autorización del usuario |
 | `MantenedoresYAvisos` | 14-11-2026 | Solo agrega. `row_version` en `categorias`, `productos`, `catalogo`, `materiales`, `empleados` y `clientes`. En `horarios_atencion`, `id_empleado_modifica` (FK), `fecha_modificacion` y la restricción `ck_horarios_cerrado`. Tablas nuevas `disponibilidad_empleados`, `destinatarios_avisos` y `destinatarios_avisos_historial`. Amplía `categorias.descripcion` (300), `productos.descripcion` (500) y `cartel_digital.tiempo_estimado_regreso` (100). `Down()` se detiene con `THROW 50090` o `50091` si hay datos en las tablas nuevas o textos que no caben en las columnas anteriores. Aplicada en la base demo; no en la real. Pruebas: `MigracionTests.MantenedoresYAvisos_SoloAgrega` y `RevertirMantenedoresYAvisos_SeDetieneAntesDePerderDatos` |
+| `CatalogoRealDelTaller` | 17-11-2026 | **Fase 12B.** Reemplaza el catálogo de prueba por el catálogo real del taller: borra las 5 categorías y los 4 a 19 productos anteriores y rehace 4 categorías (ids 1 a 4) y 16 productos (ids 1 a 16). En `productos`, los límites de medidas (`ancho_min_mm`…) y `ck_productos_medidas`; tablas nuevas `producto_medidas_fijas` y `producto_opciones`; en `solicitud_detalles`, `opciones`. Lo que usaba un producto viejo (publicaciones de la vitrina e ítems de solicitudes) se reasigna **antes** al producto nuevo más parecido, en dos pasos con productos temporales (ids 1001 en adelante); en una base sin referencias (la real) solo borra e inserta. Probada hacia adelante y hacia atrás sobre una copia de la demo. `Down()` restaura las 5 categorías y 4 productos originales y apunta todo al producto 1: no es reversible sin perder la equivalencia fina. Aplicada en la demo; no en la real. Prueba: `MigracionTests.CatalogoRealDelTaller_SoloBorraElCatalogoViejo` |
+| `IndicadoresDashboard` | 17-11-2026 | **Fase 12B (RNFO11, RNFP26, RNFE01).** Tres vistas (`vw_indicadores_pedidos`, `_solicitudes` e `_items`), cuatro índices (ver «Índices del dashboard») y el trigger de la bitácora reescrito para admitir solo el borrado de la IP a los 90 días. No borra tablas, columnas ni filas; reemplaza `ix_sol_detalles_solicitud` por una versión que lo cubre. `Down()` borra las vistas, restaura el trigger inmutable y quita los índices. Aplicada en la demo; no en la real. Pruebas: `MigracionTests.IndicadoresDashboard_SoloAgregaVistasEIndices_YElTriggerSoloAdmiteBorrarLaIp` y `PurgaIpAuditoriaTests` |
+
+## Índices del dashboard (fase 12B, RNFO11)
+
+Cada índice nuevo sirve a una consulta concreta del dashboard, que es siempre **una consulta agregada** (`GROUP BY`/`SUM`/`COUNT`) sobre las vistas; la API nunca trae los pedidos a memoria para sumarlos (RNFP26). Antes de crear cada uno se revisó que ninguno existente la sirviera:
+
+| Índice | Tabla y columnas | Consulta que sirve | Por qué no bastaba lo que ya había |
+|---|---|---|---|
+| `ix_pedidos_indicadores_fecha` | `pedidos (fecha_pedido)` + `estado_pedido`, `estado_pago`, `monto_total_final`, `monto_abonado`, `saldo_pendiente`, `id_solicitud`; filtrado `eliminado_logico = 0` | Pedidos creados en el período (S10), saldo por cobrar del período (S24), cobranza y listado «por cobrar» | `ix_pedidos_fecha_estado` solo tiene `fecha_pedido` y `estado_pedido`: cada suma de montos volvía a la tabla. Este lo cubre y solo guarda pedidos vigentes |
+| `ix_pedidos_entrega_real` | `pedidos (fecha_entrega_real)` + `fecha_entrega_estimada`, `monto_total_final`, `id_solicitud`; filtrado `estado_pedido = 'entregado' AND eliminado_logico = 0` | Ingresos (S11), ticket promedio y entregas a tiempo: la suma de los entregados en el período | No existía ningún índice por la fecha de entrega real. Al ser filtrado, solo guarda los entregados |
+| `ix_sol_detalles_solicitud` (reemplazado) | `solicitud_detalles (id_solicitud)` + `id_producto`, `cantidad` | La vista de ítems (demanda) y la categoría principal de cada solicitud | Mismo índice con las columnas que lee la vista, para no volver a la tabla |
+| `ix_auditoria_ip_vigente` | `auditoria (fecha)`; filtrado `ip IS NOT NULL` | La purga diaria de la IP a los 90 días: solo recorre las filas que aún la guardan | `ix_auditoria_fecha` incluye todas las filas, también las ya purgadas |
+
+Los que ya existían y el dashboard reutiliza: `ix_solicitudes_metricas` (`fecha_solicitud`, `origen`, `estado`, `eliminado_logico`) para las solicitudes por período y origen, `ix_pedidos_cobranza` (`estado_pago`, `estado_pedido` + `saldo_pendiente`) para la deuda vigente y `ix_cotizaciones_solicitud` (`id_solicitud`, `estado`) para el embudo. Con los pocos datos de la base demo no se puede medir la mejora: la medición con volumen real queda para la fase 15 (rendimiento).

@@ -181,6 +181,9 @@ public sealed class MigracionTests(ApiFixture api)
     // Seguimiento de la fase 10: RostroMuestrasPorLado solo reemplaza la regla de las muestras para admitir el
     // formato 3 (muestras atadas a su lado). No toca filas, tablas ni columnas.
     private const string Fase10b = "20261115151730_RostroMuestrasPorLado";
+    private const string Fase11 = "20261116002312_NotificacionesYAuditoria";
+    private const string Fase12b = "20261117043056_CatalogoRealDelTaller";
+    private const string Fase12c = "20261117044730_IndicadoresDashboard";
 
     [Fact]
     public async Task RostroMuestrasPorLado_SoloCambiaLaRegla()
@@ -213,8 +216,7 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task NotificacionesYAuditoria_SoloAgrega()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.EndsWith("_NotificacionesYAuditoria", ultima);
+        const string ultima = Fase11;
         var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase10b, ultima)));
 
         Assert.Contains("CREATE TABLE [auditoria]", script);
@@ -230,11 +232,53 @@ public sealed class MigracionTests(ApiFixture api)
             Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
     }
 
+    // Fase 12B: CatalogoRealDelTaller agrega columnas, dos tablas y una regla, y reemplaza el catalogo de prueba. Borra
+    // SOLO productos y categorias (despues de reasignar lo que los usa) y nunca filas de otras tablas.
+    [Fact]
+    public async Task CatalogoRealDelTaller_SoloBorraElCatalogoViejo()
+    {
+        var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase11, Fase12b)));
+
+        Assert.Contains("CREATE TABLE [producto_medidas_fijas]", script);
+        Assert.Contains("CREATE TABLE [producto_opciones]", script);
+        Assert.Contains("ck_productos_medidas", script);
+        Assert.Contains("ADD [opciones] nvarchar(500) NULL", script);
+        // Lo que usa un producto viejo se reasigna ANTES de borrarlo.
+        Assert.True(script.IndexOf("UPDATE dbo.catalogo SET id_producto = CASE", StringComparison.Ordinal)
+            < script.IndexOf("DELETE FROM dbo.productos WHERE id_producto < 1000", StringComparison.Ordinal));
+        Assert.True(script.IndexOf("UPDATE dbo.solicitud_detalles SET id_producto = CASE", StringComparison.Ordinal)
+            < script.IndexOf("DELETE FROM dbo.productos WHERE id_producto < 1000", StringComparison.Ordinal));
+        foreach (var borrado in System.Text.RegularExpressions.Regex.Matches(script, @"DELETE FROM \S+").Select(m => m.Value).Distinct())
+            Assert.Contains(borrado, new[] { "DELETE FROM dbo.productos", "DELETE FROM dbo.categorias", "DELETE FROM [__EFMigrationsHistory]" });
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN" })
+            Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
+    }
+
+    // Fase 12B: IndicadoresDashboard crea tres vistas e indices y reemplaza el trigger de la bitacora. No borra tablas, columnas
+    // ni filas (solo reemplaza un indice por otro que lo cubre) y el trigger sigue rechazando todo salvo borrar la IP vieja.
+    [Fact]
+    public async Task IndicadoresDashboard_SoloAgregaVistasEIndices_YElTriggerSoloAdmiteBorrarLaIp()
+    {
+        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        Assert.Equal(Fase12c, ultima);
+        var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase12b, Fase12c)));
+
+        foreach (var vista in new[] { "vw_indicadores_pedidos", "vw_indicadores_solicitudes", "vw_indicadores_items" })
+            Assert.Contains($"CREATE OR ALTER VIEW dbo.{vista}", script);
+        foreach (var indice in new[] { "ix_pedidos_indicadores_fecha", "ix_pedidos_entrega_real", "ix_auditoria_ip_vigente" })
+            Assert.Contains($"CREATE INDEX [{indice}]", script);
+        Assert.DoesNotContain("SELECT *", script, StringComparison.Ordinal);
+        Assert.Contains("CREATE OR ALTER TRIGGER dbo.trg_auditoria_inmutable", script);
+        Assert.Contains("DATEADD(DAY, -90, SYSDATETIMEOFFSET())", script);
+        foreach (var prohibido in new[] { "DROP TABLE", "DROP COLUMN", "DELETE FROM", "UPDATE [" })
+            Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
+    }
+
     // Revertir la fase 11 se detiene (THROW) si la bitacora, las claves o las columnas nuevas tienen datos. No borra filas.
     [Fact]
     public async Task RevertirNotificacionesYAuditoria_SeDetieneAntesDePerderDatos()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
+        const string ultima = Fase11;
         var abajo = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(ultima, Fase10b)));
 
         foreach (var codigo in new[] { "THROW 50120", "THROW 50121", "THROW 50122", "THROW 50123" })
@@ -334,7 +378,10 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(67, restricciones.Count);
+        Assert.Equal(69, restricciones.Count);
+        // Fase 12B: limites de medidas del producto y medidas fijas.
+        foreach (var nombre in new[] { "ck_productos_medidas", "ck_producto_medidas_fijas" })
+            Assert.Contains(nombre, restricciones);
         // Fase 11: preferencia de los destinos de avisos, quien en la bitacora y las claves de idempotencia.
         foreach (var nombre in new[] { "ck_destinatarios_avisos_preferencia", "ck_auditoria_quien", "ck_claves_idempotencia_tipo_usuario", "ck_claves_idempotencia_vence" })
             Assert.Contains(nombre, restricciones);
@@ -395,7 +442,7 @@ public sealed class MigracionTests(ApiFixture api)
         // Fase 7: los adjuntos y el historial de una solicitud se van con ella (sp_depurar_solicitudes_no_concretadas).
         Assert.Equal(
             ["fk_adjuntos_solicitud_solicitud", "fk_codigos_cuenta_cliente", "fk_codigos_cuenta_empleado", "fk_cot_mat_cotizacion", "fk_cotizaciones_solicitud",
-             "fk_sol_detalles_solicitud", "fk_solicitudes_historial_solicitud", "fk_tokens_renovacion_cliente", "fk_tokens_renovacion_empleado"],
+             "fk_producto_medidas_fijas_producto", "fk_producto_opciones_producto", "fk_sol_detalles_solicitud", "fk_solicitudes_historial_solicitud", "fk_tokens_renovacion_cliente", "fk_tokens_renovacion_empleado"],
             enCascada.Order());
     }
 
@@ -422,7 +469,7 @@ public sealed class MigracionTests(ApiFixture api)
         var horarios = await api.Cliente().GetAsync("/api/v1/horarios").EsperarAsync(HttpStatusCode.OK);
         var idCartel = await api.ConsultarAsync(db => db.CartelDigital.AsNoTracking().Select(c => c.IdCartel).SingleAsync());
 
-        Assert.Contains(categorias.GetProperty("elementos").EnumerateArray(), c => c.GetProperty("nombre").GetString() == "Vehículos");
+        Assert.Contains(categorias.GetProperty("elementos").EnumerateArray(), c => c.GetProperty("nombre").GetString() == "Papelería e impresión pequeña");
         Assert.Equal(7, horarios.GetArrayLength());
         Assert.Equal("Miércoles", DiaSemana(horarios, 3).GetProperty("nombreDia").GetString());
         Assert.Equal("Sábado", DiaSemana(horarios, 6).GetProperty("nombreDia").GetString());

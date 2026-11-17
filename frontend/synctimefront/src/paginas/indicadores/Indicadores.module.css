@@ -940,3 +940,14 @@ button.itemLeyenda[aria-pressed='true'] {
     outline: 2px solid Highlight;
   }
 }
+
+/* Pedidos por estado, bajo la tarjeta «Pedidos» */
+.porEstado {
+  display: grid;
+  gap: var(--espacio-0-5);
+  margin: var(--espacio-1) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}

@@ -24,6 +24,9 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<HorarioAtencion> HorariosAtencion { get; set; } = null!;
     public DbSet<CartelDigital> CartelDigital { get; set; } = null!;
     public DbSet<MetricaConversionOnline> MetricasConversionOnline { get; set; } = null!;
+    public DbSet<VistaIndicadorPedido> IndicadoresPedidos { get; set; } = null!;
+    public DbSet<VistaIndicadorSolicitud> IndicadoresSolicitudes { get; set; } = null!;
+    public DbSet<VistaIndicadorItem> IndicadoresItems { get; set; } = null!;
     public DbSet<RostroEmpleado> RostrosEmpleado { get; set; } = null!;
     public DbSet<CorreoSaliente> CorreosSalientes { get; set; } = null!;
     public DbSet<Consentimiento> Consentimientos { get; set; } = null!;
@@ -124,19 +127,21 @@ public class LetrerosHerreradbContext : DbContext
 
             entity.HasIndex(e => e.Nombre).IsUnique().HasDatabaseName("uq_categorias_nombre");
 
-            entity.HasData(
-                new Categoria { IdCategoria = 1, Nombre = "Letreros", Descripcion = "Letreros comerciales, luminosos, palomitas, metálicos o en madera" },
-                new Categoria { IdCategoria = 2, Nombre = "Vehículos", Descripcion = "Rotulación, ploteo y gráficas para vehículos" },
-                new Categoria { IdCategoria = 3, Nombre = "Estampados", Descripcion = "Estampado textil, promocional y serigrafía" },
-                new Categoria { IdCategoria = 4, Nombre = "Muros", Descripcion = "Pintura mural, fachadas y gráfica de gran formato" },
-                new Categoria { IdCategoria = 5, Nombre = "Personalizado / Otro", Descripcion = "Trabajos especiales a medida del cliente" });
+            // Fase 12B: el catalogo real del taller (CatalogoDelTaller); la migracion borra el de prueba.
+            entity.HasData(CatalogoDelTaller.Categorias.Select(c => new Categoria { IdCategoria = c.Id, Nombre = c.Nombre, Descripcion = c.Descripcion }));
         });
 
         // ── productos ──
         modelBuilder.Entity<Producto>(entity =>
         {
             entity.ToTable("productos", t =>
-                t.HasCheckConstraint("ck_productos_precio", "precio_base_ref IS NULL OR precio_base_ref >= 0"));
+            {
+                t.HasCheckConstraint("ck_productos_precio", "precio_base_ref IS NULL OR precio_base_ref >= 0");
+                // Fase 12B: o no hay limites, o los cuatro estan y son coherentes.
+                t.HasCheckConstraint("ck_productos_medidas",
+                    "(ancho_min_mm IS NULL AND ancho_max_mm IS NULL AND alto_min_mm IS NULL AND alto_max_mm IS NULL) OR " +
+                    "(ancho_min_mm > 0 AND ancho_max_mm >= ancho_min_mm AND alto_min_mm > 0 AND alto_max_mm >= alto_min_mm)");
+            });
             entity.HasKey(e => e.IdProducto).HasName("pk_productos");
             entity.Property(e => e.IdProducto).HasColumnName("id_producto");
             entity.Property(e => e.IdCategoria).HasColumnName("id_categoria");
@@ -145,6 +150,10 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.Descripcion).HasColumnName("descripcion").HasMaxLength(500);
             entity.Property(e => e.PrecioBaseRef).HasColumnName("precio_base_ref").HasColumnType("decimal(12,2)");
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
+            entity.Property(e => e.AnchoMinMm).HasColumnName("ancho_min_mm");
+            entity.Property(e => e.AnchoMaxMm).HasColumnName("ancho_max_mm");
+            entity.Property(e => e.AltoMinMm).HasColumnName("alto_min_mm");
+            entity.Property(e => e.AltoMaxMm).HasColumnName("alto_max_mm");
             // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
             entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
 
@@ -157,11 +166,42 @@ public class LetrerosHerreradbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_productos_categoria");
 
-            entity.HasData(
-                new Producto { IdProducto = 1, IdCategoria = 1, Nombre = "Cartel metálico impreso", Descripcion = "Estructura metálica con gráfica impresa", PrecioBaseRef = 45000m },
-                new Producto { IdProducto = 2, IdCategoria = 1, Nombre = "Lienzo publicitario", Descripcion = "Lienzo PVC con ojetillos perimetrales", PrecioBaseRef = 25000m },
-                new Producto { IdProducto = 3, IdCategoria = 1, Nombre = "Letrero tipo Palomita", Descripcion = "Letrero publicitario doble cara plegable", PrecioBaseRef = 35000m },
-                new Producto { IdProducto = 4, IdCategoria = 1, Nombre = "Trabajo personalizado", Descripcion = "Diseño y fabricación según medidas" });
+            entity.HasData(CatalogoDelTaller.Productos.Select(p => new Producto
+            {
+                IdProducto = p.Id, IdCategoria = p.IdCategoria, Nombre = p.Nombre, Descripcion = p.Descripcion,
+                AnchoMinMm = p.AnchoMin, AnchoMaxMm = p.AnchoMax, AltoMinMm = p.AltoMin, AltoMaxMm = p.AltoMax
+            }));
+        });
+
+        // ── producto_medidas_fijas (fase 12B) ──
+        modelBuilder.Entity<ProductoMedidaFija>(entity =>
+        {
+            entity.ToTable("producto_medidas_fijas", t => t.HasCheckConstraint("ck_producto_medidas_fijas", "ancho_mm > 0 AND alto_mm > 0"));
+            entity.HasKey(e => e.IdMedida).HasName("pk_producto_medidas_fijas");
+            entity.Property(e => e.IdMedida).HasColumnName("id_medida");
+            entity.Property(e => e.IdProducto).HasColumnName("id_producto");
+            entity.Property(e => e.AnchoMm).HasColumnName("ancho_mm");
+            entity.Property(e => e.AltoMm).HasColumnName("alto_mm");
+            entity.HasIndex(e => new { e.IdProducto, e.AnchoMm, e.AltoMm }).IsUnique().HasDatabaseName("uq_producto_medidas_fijas");
+            entity.HasOne(e => e.Producto).WithMany(p => p.MedidasFijas).HasForeignKey(e => e.IdProducto)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_producto_medidas_fijas_producto");
+            entity.HasData(CatalogoDelTaller.MedidasFijas());
+        });
+
+        // ── producto_opciones (fase 12B) ──
+        modelBuilder.Entity<ProductoOpcion>(entity =>
+        {
+            entity.ToTable("producto_opciones");
+            entity.HasKey(e => e.IdOpcion).HasName("pk_producto_opciones");
+            entity.Property(e => e.IdOpcion).HasColumnName("id_opcion");
+            entity.Property(e => e.IdProducto).HasColumnName("id_producto");
+            entity.Property(e => e.Grupo).HasColumnName("grupo").HasMaxLength(60);
+            entity.Property(e => e.Valor).HasColumnName("valor").HasMaxLength(80);
+            entity.Property(e => e.Orden).HasColumnName("orden");
+            entity.HasIndex(e => new { e.IdProducto, e.Grupo, e.Valor }).IsUnique().HasDatabaseName("uq_producto_opciones");
+            entity.HasOne(e => e.Producto).WithMany(p => p.Opciones).HasForeignKey(e => e.IdProducto)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_producto_opciones_producto");
+            entity.HasData(CatalogoDelTaller.Opciones());
         });
 
         // ── catalogo ──
@@ -282,10 +322,14 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.AnchoMm).HasColumnName("ancho_mm");
             entity.Property(e => e.AltoMm).HasColumnName("alto_mm");
             entity.Property(e => e.Cantidad).HasColumnName("cantidad").HasDefaultValue(1).HasSentinel(1);
+            // Fase 12B: lo elegido entre las opciones del producto (objeto JSON).
+            entity.Property(e => e.Opciones).HasColumnName("opciones").HasMaxLength(500);
             entity.Property(e => e.AreaM2).HasColumnName("area_m2").HasColumnType("decimal(12,4)")
                 .HasComputedColumnSql("CONVERT(DECIMAL(12,4), CONVERT(BIGINT, ancho_mm) * alto_mm / 1000000.0)", stored: true);
 
-            entity.HasIndex(e => e.IdSolicitud).HasDatabaseName("ix_sol_detalles_solicitud");
+            // Fase 12B: ahora cubre producto y cantidad, que lee la vista de items del dashboard.
+            entity.HasIndex(e => e.IdSolicitud).HasDatabaseName("ix_sol_detalles_solicitud")
+                .IncludeProperties(e => new { e.IdProducto, e.Cantidad });
             entity.HasIndex(e => e.IdProducto).HasDatabaseName("ix_sol_detalles_producto");
 
             entity.HasOne(e => e.Solicitud)
@@ -506,6 +550,14 @@ public class LetrerosHerreradbContext : DbContext
                 .HasDatabaseName("uq_pedidos_cotizacion");
             entity.HasIndex(e => new { e.FechaEntregaEstimada, e.EstadoPedido }).HasDatabaseName("ix_pedidos_calendario_entrega");
             entity.HasIndex(e => new { e.FechaPedido, e.EstadoPedido }).HasDatabaseName("ix_pedidos_fecha_estado");
+            // Fase 12B (RNFO11): el dashboard agrega por fecha del pedido y por fecha de entrega real; ambos indices cubren las
+            // columnas que suma (sin volver a la tabla) y solo guardan pedidos vigentes.
+            entity.HasIndex(e => e.FechaPedido).HasDatabaseName("ix_pedidos_indicadores_fecha")
+                .IncludeProperties(e => new { e.EstadoPedido, e.EstadoPago, e.MontoTotalFinal, e.MontoAbonado, e.SaldoPendiente, e.IdSolicitud })
+                .HasFilter("[eliminado_logico] = 0");
+            entity.HasIndex(e => e.FechaEntregaReal).HasDatabaseName("ix_pedidos_entrega_real")
+                .IncludeProperties(e => new { e.FechaEntregaEstimada, e.MontoTotalFinal, e.IdSolicitud })
+                .HasFilter("[estado_pedido] = N'entregado' AND [eliminado_logico] = 0");
             // Cobranza: pedidos no pagados o con abono, por estado operativo, con su saldo.
             entity.HasIndex(e => new { e.EstadoPago, e.EstadoPedido }).IncludeProperties(e => e.SaldoPendiente)
                 .HasDatabaseName("ix_pedidos_cobranza");
@@ -1183,6 +1235,8 @@ public class LetrerosHerreradbContext : DbContext
 
             // El visor ordena por fecha e id, del mas reciente al mas antiguo: los indices tienen esa misma clave.
             entity.HasIndex(e => new { e.Fecha, e.IdAuditoria }).IsDescending(true, true).HasDatabaseName("ix_auditoria_fecha");
+            // Fase 12B (RNFE01): la purga diaria de la IP a los 90 dias solo mira las filas que aun la guardan.
+            entity.HasIndex(e => e.Fecha).HasDatabaseName("ix_auditoria_ip_vigente").HasFilter("[ip] IS NOT NULL");
             entity.HasIndex(e => new { e.Entidad, e.IdEntidad }).HasDatabaseName("ix_auditoria_entidad");
             entity.HasIndex(e => new { e.IdEmpleado, e.Fecha, e.IdAuditoria }).IsDescending(false, true, true)
                 .HasFilter("[id_empleado] IS NOT NULL").HasDatabaseName("ix_auditoria_empleado");
@@ -1212,6 +1266,49 @@ public class LetrerosHerreradbContext : DbContext
 
             entity.HasIndex(e => new { e.Clave, e.Ambito, e.TipoUsuario, e.IdUsuario }).IsUnique().HasDatabaseName("uq_claves_idempotencia");
             entity.HasIndex(e => e.Vence).HasDatabaseName("ix_claves_idempotencia_vence");
+        });
+
+        // ── vistas del dashboard (las crea la migracion IndicadoresDashboard) ──
+        modelBuilder.Entity<VistaIndicadorPedido>(entity =>
+        {
+            entity.ToView("vw_indicadores_pedidos");
+            entity.HasNoKey();
+            entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
+            entity.Property(e => e.IdSolicitud).HasColumnName("id_solicitud");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.OrigenSolicitud).HasColumnName("origen_solicitud");
+            entity.Property(e => e.FechaPedido).HasColumnName("fecha_pedido");
+            entity.Property(e => e.FechaEntregaEstimada).HasColumnName("fecha_entrega_estimada");
+            entity.Property(e => e.FechaEntregaReal).HasColumnName("fecha_entrega_real");
+            entity.Property(e => e.EstadoPedido).HasColumnName("estado_pedido");
+            entity.Property(e => e.EstadoPago).HasColumnName("estado_pago");
+            entity.Property(e => e.MontoTotalFinal).HasColumnName("monto_total_final");
+            entity.Property(e => e.MontoAbonado).HasColumnName("monto_abonado");
+            entity.Property(e => e.SaldoPendiente).HasColumnName("saldo_pendiente");
+        });
+        modelBuilder.Entity<VistaIndicadorSolicitud>(entity =>
+        {
+            entity.ToView("vw_indicadores_solicitudes");
+            entity.HasNoKey();
+            entity.Property(e => e.IdSolicitud).HasColumnName("id_solicitud");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.Origen).HasColumnName("origen");
+            entity.Property(e => e.FechaSolicitud).HasColumnName("fecha_solicitud");
+            entity.Property(e => e.IdCategoriaPrincipal).HasColumnName("id_categoria_principal");
+            entity.Property(e => e.Cotizada).HasColumnName("cotizada");
+            entity.Property(e => e.Aprobada).HasColumnName("aprobada");
+            entity.Property(e => e.Concretada).HasColumnName("concretada");
+        });
+        modelBuilder.Entity<VistaIndicadorItem>(entity =>
+        {
+            entity.ToView("vw_indicadores_items");
+            entity.HasNoKey();
+            entity.Property(e => e.IdSolicitudDetalle).HasColumnName("id_solicitud_detalle");
+            entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
+            entity.Property(e => e.IdProducto).HasColumnName("id_producto");
+            entity.Property(e => e.IdCategoria).HasColumnName("id_categoria");
+            entity.Property(e => e.Cantidad).HasColumnName("cantidad");
+            entity.Property(e => e.MontoAsignado).HasColumnName("monto_asignado").HasColumnType("decimal(19,4)");
         });
 
         // ── vw_metricas_conversion_online (la crea la migracion ObjetosProgramablesV6) ──

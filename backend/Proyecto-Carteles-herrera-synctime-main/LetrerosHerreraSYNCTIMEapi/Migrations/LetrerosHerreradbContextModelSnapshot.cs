@@ -336,36 +336,29 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         {
                             IdCategoria = 1,
                             Activo = true,
-                            Descripcion = "Letreros comerciales, luminosos, palomitas, metálicos o en madera",
-                            Nombre = "Letreros"
+                            Descripcion = "Gigantografías, banners, posteras, pendones, roll up, X banner, demo stand, adhesivos y vinilos",
+                            Nombre = "Impresión y publicidad gráfica"
                         },
                         new
                         {
                             IdCategoria = 2,
                             Activo = true,
-                            Descripcion = "Rotulación, ploteo y gráficas para vehículos",
-                            Nombre = "Vehículos"
+                            Descripcion = "Letreros luminosos, letras corpóreas, señalizaciones, caballetes y rotulación vehicular",
+                            Nombre = "Letreros y estructuras"
                         },
                         new
                         {
                             IdCategoria = 3,
                             Activo = true,
-                            Descripcion = "Estampado textil, promocional y serigrafía",
-                            Nombre = "Estampados"
+                            Descripcion = "Tarjetas de presentación y folletería",
+                            Nombre = "Papelería e impresión pequeña"
                         },
                         new
                         {
                             IdCategoria = 4,
                             Activo = true,
-                            Descripcion = "Pintura mural, fachadas y gráfica de gran formato",
-                            Nombre = "Muros"
-                        },
-                        new
-                        {
-                            IdCategoria = 5,
-                            Activo = true,
-                            Descripcion = "Trabajos especiales a medida del cliente",
-                            Nombre = "Personalizado / Otro"
+                            Descripcion = "Tazas, poleras, bufandas y llaveros",
+                            Nombre = "Estampados y personalización"
                         });
                 });
 
@@ -2078,6 +2071,18 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.HasKey("IdPedido")
                         .HasName("pk_pedidos");
 
+                    b.HasIndex("FechaEntregaReal")
+                        .HasDatabaseName("ix_pedidos_entrega_real")
+                        .HasFilter("[estado_pedido] = N'entregado' AND [eliminado_logico] = 0");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("FechaEntregaReal"), new[] { "FechaEntregaEstimada", "MontoTotalFinal", "IdSolicitud" });
+
+                    b.HasIndex("FechaPedido")
+                        .HasDatabaseName("ix_pedidos_indicadores_fecha")
+                        .HasFilter("[eliminado_logico] = 0");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("FechaPedido"), new[] { "EstadoPedido", "EstadoPago", "MontoTotalFinal", "MontoAbonado", "SaldoPendiente", "IdSolicitud" });
+
                     b.HasIndex("IdCotizacion")
                         .IsUnique()
                         .HasDatabaseName("uq_pedidos_cotizacion")
@@ -2185,6 +2190,22 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("activo");
 
+                    b.Property<int?>("AltoMaxMm")
+                        .HasColumnType("int")
+                        .HasColumnName("alto_max_mm");
+
+                    b.Property<int?>("AltoMinMm")
+                        .HasColumnType("int")
+                        .HasColumnName("alto_min_mm");
+
+                    b.Property<int?>("AnchoMaxMm")
+                        .HasColumnType("int")
+                        .HasColumnName("ancho_max_mm");
+
+                    b.Property<int?>("AnchoMinMm")
+                        .HasColumnType("int")
+                        .HasColumnName("ancho_min_mm");
+
                     b.Property<string>("Descripcion")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
@@ -2223,6 +2244,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.ToTable("productos", null, t =>
                         {
+                            t.HasCheckConstraint("ck_productos_medidas", "(ancho_min_mm IS NULL AND ancho_max_mm IS NULL AND alto_min_mm IS NULL AND alto_max_mm IS NULL) OR (ancho_min_mm > 0 AND ancho_max_mm >= ancho_min_mm AND alto_min_mm > 0 AND alto_max_mm >= alto_min_mm)");
+
                             t.HasCheckConstraint("ck_productos_precio", "precio_base_ref IS NULL OR precio_base_ref >= 0");
                         });
 
@@ -2231,36 +2254,881 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         {
                             IdProducto = 1,
                             Activo = true,
-                            Descripcion = "Estructura metálica con gráfica impresa",
+                            AltoMaxMm = 50000,
+                            AltoMinMm = 10,
+                            AnchoMaxMm = 50000,
+                            AnchoMinMm = 10,
+                            Descripcion = "Impresión en tela PVC, brillante o mate. Ancho y alto de 1 a 5000 cm",
                             IdCategoria = 1,
-                            Nombre = "Cartel metálico impreso",
-                            PrecioBaseRef = 45000m
+                            Nombre = "Impresión en tela PVC / Gigantografías"
                         },
                         new
                         {
                             IdProducto = 2,
                             Activo = true,
-                            Descripcion = "Lienzo PVC con ojetillos perimetrales",
+                            AltoMaxMm = 50000,
+                            AltoMinMm = 10,
+                            AnchoMaxMm = 50000,
+                            AnchoMinMm = 10,
+                            Descripcion = "Tela PVC de 13 onzas o papel vinílico de una micra. Ancho y alto de 1 a 5000 cm",
                             IdCategoria = 1,
-                            Nombre = "Lienzo publicitario",
-                            PrecioBaseRef = 25000m
+                            Nombre = "Banners"
                         },
                         new
                         {
                             IdProducto = 3,
                             Activo = true,
-                            Descripcion = "Letrero publicitario doble cara plegable",
+                            AltoMaxMm = 2000,
+                            AltoMinMm = 300,
+                            AnchoMaxMm = 2000,
+                            AnchoMinMm = 300,
+                            Descripcion = "Impresión en tela PVC con bastidor. Ancho y alto de 30 a 200 cm",
                             IdCategoria = 1,
-                            Nombre = "Letrero tipo Palomita",
-                            PrecioBaseRef = 35000m
+                            Nombre = "Posteras"
                         },
                         new
                         {
                             IdProducto = 4,
                             Activo = true,
-                            Descripcion = "Diseño y fabricación según medidas",
+                            AltoMaxMm = 50000,
+                            AltoMinMm = 10,
+                            AnchoMaxMm = 50000,
+                            AnchoMinMm = 10,
+                            Descripcion = "Tela PVC. Ancho y alto de 1 a 5000 cm",
                             IdCategoria = 1,
-                            Nombre = "Trabajo personalizado"
+                            Nombre = "Pendones"
+                        },
+                        new
+                        {
+                            IdProducto = 5,
+                            Activo = true,
+                            AltoMaxMm = 3000,
+                            AltoMinMm = 2000,
+                            AnchoMaxMm = 1500,
+                            AnchoMinMm = 800,
+                            Descripcion = "Estructura de aluminio con bolso de transporte. Ancho de 80 a 150 cm y alto de 200 a 300 cm",
+                            IdCategoria = 1,
+                            Nombre = "Roll Up / Pendones Roller"
+                        },
+                        new
+                        {
+                            IdProducto = 6,
+                            Activo = true,
+                            Descripcion = "Estructura de aluminio con bolso de transporte. Medida única: 80 x 200 cm",
+                            IdCategoria = 1,
+                            Nombre = "X Banner / banner araña"
+                        },
+                        new
+                        {
+                            IdProducto = 7,
+                            Activo = true,
+                            Descripcion = "Marco de aluminio con gráfica en tela PVC. Medida única: 300 x 300 cm",
+                            IdCategoria = 1,
+                            Nombre = "Demo Stand"
+                        },
+                        new
+                        {
+                            IdProducto = 8,
+                            Activo = true,
+                            AltoMaxMm = 50000,
+                            AltoMinMm = 10,
+                            AnchoMaxMm = 50000,
+                            AnchoMinMm = 10,
+                            Descripcion = "Material según la variante elegida. Ancho y alto de 1 a 5000 cm",
+                            IdCategoria = 1,
+                            Nombre = "Adhesivos y vinilos"
+                        },
+                        new
+                        {
+                            IdProducto = 9,
+                            Activo = true,
+                            AltoMaxMm = 2000,
+                            AltoMinMm = 10,
+                            AnchoMaxMm = 2000,
+                            AnchoMinMm = 10,
+                            Descripcion = "Plancha galvanizada con iluminación LED y estructura metálica. Ancho y alto de 1 a 200 cm",
+                            IdCategoria = 2,
+                            Nombre = "Letreros luminosos"
+                        },
+                        new
+                        {
+                            IdProducto = 10,
+                            Activo = true,
+                            AltoMaxMm = 2000,
+                            AltoMinMm = 10,
+                            AnchoMaxMm = 2000,
+                            AnchoMinMm = 10,
+                            Descripcion = "Con iluminación LED. Ancho y alto de 1 a 200 cm",
+                            IdCategoria = 2,
+                            Nombre = "Letras corpóreas"
+                        },
+                        new
+                        {
+                            IdProducto = 11,
+                            Activo = true,
+                            Descripcion = "Material y soporte en zincalum, diseño predeterminado",
+                            IdCategoria = 2,
+                            Nombre = "Señalizaciones"
+                        },
+                        new
+                        {
+                            IdProducto = 12,
+                            Activo = true,
+                            Descripcion = "Gráfica en tela PVC sobre estructura de madera. Medidas disponibles: 100 x 50, 120 x 60 y 150 x 80 cm",
+                            IdCategoria = 2,
+                            Nombre = "Caballete publicitario / Paloma"
+                        },
+                        new
+                        {
+                            IdProducto = 13,
+                            Activo = true,
+                            AltoMaxMm = 50000,
+                            AltoMinMm = 10,
+                            AnchoMaxMm = 50000,
+                            AnchoMinMm = 10,
+                            Descripcion = "Diseño del cliente. Ancho y alto de 1 a 5000 cm",
+                            IdCategoria = 2,
+                            Nombre = "Rotulación vehicular y general"
+                        },
+                        new
+                        {
+                            IdProducto = 14,
+                            Activo = true,
+                            Descripcion = "Opalina lisa, una cara. Medida única: 9 x 5,5 cm",
+                            IdCategoria = 3,
+                            Nombre = "Tarjetas de presentación"
+                        },
+                        new
+                        {
+                            IdProducto = 15,
+                            Activo = true,
+                            Descripcion = "Couché de 130 gramos, una cara. Tamaños: 10 x 15, 21 x 15 y 21 x 29,7 cm",
+                            IdCategoria = 3,
+                            Nombre = "Flyers / Folletería"
+                        },
+                        new
+                        {
+                            IdProducto = 16,
+                            Activo = true,
+                            Descripcion = "Material según el producto. Indica la ubicación del estampado en la descripción",
+                            IdCategoria = 4,
+                            Nombre = "Estampados"
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.ProductoMedidaFija", b =>
+                {
+                    b.Property<int>("IdMedida")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_medida");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdMedida"));
+
+                    b.Property<int>("AltoMm")
+                        .HasColumnType("int")
+                        .HasColumnName("alto_mm");
+
+                    b.Property<int>("AnchoMm")
+                        .HasColumnType("int")
+                        .HasColumnName("ancho_mm");
+
+                    b.Property<int>("IdProducto")
+                        .HasColumnType("int")
+                        .HasColumnName("id_producto");
+
+                    b.HasKey("IdMedida")
+                        .HasName("pk_producto_medidas_fijas");
+
+                    b.HasIndex("IdProducto", "AnchoMm", "AltoMm")
+                        .IsUnique()
+                        .HasDatabaseName("uq_producto_medidas_fijas");
+
+                    b.ToTable("producto_medidas_fijas", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_producto_medidas_fijas", "ancho_mm > 0 AND alto_mm > 0");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            IdMedida = 1,
+                            AltoMm = 2000,
+                            AnchoMm = 800,
+                            IdProducto = 6
+                        },
+                        new
+                        {
+                            IdMedida = 2,
+                            AltoMm = 3000,
+                            AnchoMm = 3000,
+                            IdProducto = 7
+                        },
+                        new
+                        {
+                            IdMedida = 3,
+                            AltoMm = 500,
+                            AnchoMm = 1000,
+                            IdProducto = 12
+                        },
+                        new
+                        {
+                            IdMedida = 4,
+                            AltoMm = 600,
+                            AnchoMm = 1200,
+                            IdProducto = 12
+                        },
+                        new
+                        {
+                            IdMedida = 5,
+                            AltoMm = 800,
+                            AnchoMm = 1500,
+                            IdProducto = 12
+                        },
+                        new
+                        {
+                            IdMedida = 6,
+                            AltoMm = 55,
+                            AnchoMm = 90,
+                            IdProducto = 14
+                        },
+                        new
+                        {
+                            IdMedida = 7,
+                            AltoMm = 150,
+                            AnchoMm = 100,
+                            IdProducto = 15
+                        },
+                        new
+                        {
+                            IdMedida = 8,
+                            AltoMm = 150,
+                            AnchoMm = 210,
+                            IdProducto = 15
+                        },
+                        new
+                        {
+                            IdMedida = 9,
+                            AltoMm = 297,
+                            AnchoMm = 210,
+                            IdProducto = 15
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.ProductoOpcion", b =>
+                {
+                    b.Property<int>("IdOpcion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_opcion");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdOpcion"));
+
+                    b.Property<string>("Grupo")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)")
+                        .HasColumnName("grupo");
+
+                    b.Property<int>("IdProducto")
+                        .HasColumnType("int")
+                        .HasColumnName("id_producto");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<string>("Valor")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)")
+                        .HasColumnName("valor");
+
+                    b.HasKey("IdOpcion")
+                        .HasName("pk_producto_opciones");
+
+                    b.HasIndex("IdProducto", "Grupo", "Valor")
+                        .IsUnique()
+                        .HasDatabaseName("uq_producto_opciones");
+
+                    b.ToTable("producto_opciones", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            IdOpcion = 1,
+                            Grupo = "Acabado",
+                            IdProducto = 1,
+                            Orden = 1,
+                            Valor = "Brillante"
+                        },
+                        new
+                        {
+                            IdOpcion = 2,
+                            Grupo = "Acabado",
+                            IdProducto = 1,
+                            Orden = 2,
+                            Valor = "Mate"
+                        },
+                        new
+                        {
+                            IdOpcion = 3,
+                            Grupo = "Diseño",
+                            IdProducto = 1,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 4,
+                            Grupo = "Diseño",
+                            IdProducto = 1,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 5,
+                            Grupo = "Material",
+                            IdProducto = 2,
+                            Orden = 1,
+                            Valor = "Tela PVC de 13 onzas"
+                        },
+                        new
+                        {
+                            IdOpcion = 6,
+                            Grupo = "Material",
+                            IdProducto = 2,
+                            Orden = 2,
+                            Valor = "Papel vinílico de una micra"
+                        },
+                        new
+                        {
+                            IdOpcion = 7,
+                            Grupo = "Terminaciones",
+                            IdProducto = 2,
+                            Orden = 1,
+                            Valor = "Ojetillos con refuerzo perimetral"
+                        },
+                        new
+                        {
+                            IdOpcion = 8,
+                            Grupo = "Terminaciones",
+                            IdProducto = 2,
+                            Orden = 2,
+                            Valor = "Solo tela impresa"
+                        },
+                        new
+                        {
+                            IdOpcion = 9,
+                            Grupo = "Diseño",
+                            IdProducto = 2,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 10,
+                            Grupo = "Diseño",
+                            IdProducto = 2,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 11,
+                            Grupo = "Bastidor",
+                            IdProducto = 3,
+                            Orden = 1,
+                            Valor = "Madera"
+                        },
+                        new
+                        {
+                            IdOpcion = 12,
+                            Grupo = "Bastidor",
+                            IdProducto = 3,
+                            Orden = 2,
+                            Valor = "Metálico"
+                        },
+                        new
+                        {
+                            IdOpcion = 13,
+                            Grupo = "Diseño",
+                            IdProducto = 3,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 14,
+                            Grupo = "Diseño",
+                            IdProducto = 3,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 15,
+                            Grupo = "Terminaciones",
+                            IdProducto = 4,
+                            Orden = 1,
+                            Valor = "Ojetillos"
+                        },
+                        new
+                        {
+                            IdOpcion = 16,
+                            Grupo = "Terminaciones",
+                            IdProducto = 4,
+                            Orden = 2,
+                            Valor = "Bolsillos"
+                        },
+                        new
+                        {
+                            IdOpcion = 17,
+                            Grupo = "Diseño",
+                            IdProducto = 4,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 18,
+                            Grupo = "Diseño",
+                            IdProducto = 4,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 19,
+                            Grupo = "Diseño",
+                            IdProducto = 5,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 20,
+                            Grupo = "Diseño",
+                            IdProducto = 5,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 21,
+                            Grupo = "Diseño",
+                            IdProducto = 6,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 22,
+                            Grupo = "Diseño",
+                            IdProducto = 6,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 23,
+                            Grupo = "Diseño",
+                            IdProducto = 7,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 24,
+                            Grupo = "Diseño",
+                            IdProducto = 7,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 25,
+                            Grupo = "Variante",
+                            IdProducto = 8,
+                            Orden = 1,
+                            Valor = "Stickers"
+                        },
+                        new
+                        {
+                            IdOpcion = 26,
+                            Grupo = "Variante",
+                            IdProducto = 8,
+                            Orden = 2,
+                            Valor = "Vinilo transparente"
+                        },
+                        new
+                        {
+                            IdOpcion = 27,
+                            Grupo = "Variante",
+                            IdProducto = 8,
+                            Orden = 3,
+                            Valor = "Vinilo adhesivo"
+                        },
+                        new
+                        {
+                            IdOpcion = 28,
+                            Grupo = "Variante",
+                            IdProducto = 8,
+                            Orden = 4,
+                            Valor = "Vinilo de recorte"
+                        },
+                        new
+                        {
+                            IdOpcion = 29,
+                            Grupo = "Variante",
+                            IdProducto = 8,
+                            Orden = 5,
+                            Valor = "Vinilo microperforado"
+                        },
+                        new
+                        {
+                            IdOpcion = 30,
+                            Grupo = "Variante",
+                            IdProducto = 8,
+                            Orden = 6,
+                            Valor = "Floor Graphic"
+                        },
+                        new
+                        {
+                            IdOpcion = 31,
+                            Grupo = "Diseño",
+                            IdProducto = 8,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 32,
+                            Grupo = "Diseño",
+                            IdProducto = 8,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 33,
+                            Grupo = "Diseño",
+                            IdProducto = 9,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 34,
+                            Grupo = "Diseño",
+                            IdProducto = 9,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 35,
+                            Grupo = "Material",
+                            IdProducto = 10,
+                            Orden = 1,
+                            Valor = "Acrílico"
+                        },
+                        new
+                        {
+                            IdOpcion = 36,
+                            Grupo = "Material",
+                            IdProducto = 10,
+                            Orden = 2,
+                            Valor = "Aluminio"
+                        },
+                        new
+                        {
+                            IdOpcion = 37,
+                            Grupo = "Material",
+                            IdProducto = 10,
+                            Orden = 3,
+                            Valor = "Madera"
+                        },
+                        new
+                        {
+                            IdOpcion = 38,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 1,
+                            Valor = "2 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 39,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 2,
+                            Valor = "3 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 40,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 3,
+                            Valor = "4 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 41,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 4,
+                            Valor = "5 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 42,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 5,
+                            Valor = "6 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 43,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 6,
+                            Valor = "7 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 44,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 7,
+                            Valor = "8 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 45,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 8,
+                            Valor = "9 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 46,
+                            Grupo = "Espesor",
+                            IdProducto = 10,
+                            Orden = 9,
+                            Valor = "10 mm"
+                        },
+                        new
+                        {
+                            IdOpcion = 47,
+                            Grupo = "Diseño",
+                            IdProducto = 10,
+                            Orden = 1,
+                            Valor = "Personalizado"
+                        },
+                        new
+                        {
+                            IdOpcion = 48,
+                            Grupo = "Diseño",
+                            IdProducto = 10,
+                            Orden = 2,
+                            Valor = "Tipografía del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 49,
+                            Grupo = "Tipo",
+                            IdProducto = 11,
+                            Orden = 1,
+                            Valor = "Vial"
+                        },
+                        new
+                        {
+                            IdOpcion = 50,
+                            Grupo = "Tipo",
+                            IdProducto = 11,
+                            Orden = 2,
+                            Valor = "Industrial"
+                        },
+                        new
+                        {
+                            IdOpcion = 51,
+                            Grupo = "Diseño",
+                            IdProducto = 12,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 52,
+                            Grupo = "Diseño",
+                            IdProducto = 12,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 53,
+                            Grupo = "Material",
+                            IdProducto = 13,
+                            Orden = 1,
+                            Valor = "Vinilo adhesivo"
+                        },
+                        new
+                        {
+                            IdOpcion = 54,
+                            Grupo = "Material",
+                            IdProducto = 13,
+                            Orden = 2,
+                            Valor = "Vinilo de corte"
+                        },
+                        new
+                        {
+                            IdOpcion = 55,
+                            Grupo = "Material",
+                            IdProducto = 13,
+                            Orden = 3,
+                            Valor = "Vinilo microperforado"
+                        },
+                        new
+                        {
+                            IdOpcion = 56,
+                            Grupo = "Material",
+                            IdProducto = 13,
+                            Orden = 4,
+                            Valor = "Vinilo reflectante"
+                        },
+                        new
+                        {
+                            IdOpcion = 57,
+                            Grupo = "Material",
+                            IdProducto = 13,
+                            Orden = 5,
+                            Valor = "Otro (especificar en la descripción)"
+                        },
+                        new
+                        {
+                            IdOpcion = 58,
+                            Grupo = "Acabado",
+                            IdProducto = 14,
+                            Orden = 1,
+                            Valor = "Mate"
+                        },
+                        new
+                        {
+                            IdOpcion = 59,
+                            Grupo = "Acabado",
+                            IdProducto = 14,
+                            Orden = 2,
+                            Valor = "Brillante"
+                        },
+                        new
+                        {
+                            IdOpcion = 60,
+                            Grupo = "Diseño",
+                            IdProducto = 14,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 61,
+                            Grupo = "Diseño",
+                            IdProducto = 14,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 62,
+                            Grupo = "Diseño",
+                            IdProducto = 15,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 63,
+                            Grupo = "Diseño",
+                            IdProducto = 15,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
+                        },
+                        new
+                        {
+                            IdOpcion = 64,
+                            Grupo = "Producto",
+                            IdProducto = 16,
+                            Orden = 1,
+                            Valor = "Tazas"
+                        },
+                        new
+                        {
+                            IdOpcion = 65,
+                            Grupo = "Producto",
+                            IdProducto = 16,
+                            Orden = 2,
+                            Valor = "Poleras"
+                        },
+                        new
+                        {
+                            IdOpcion = 66,
+                            Grupo = "Producto",
+                            IdProducto = 16,
+                            Orden = 3,
+                            Valor = "Bufandas"
+                        },
+                        new
+                        {
+                            IdOpcion = 67,
+                            Grupo = "Producto",
+                            IdProducto = 16,
+                            Orden = 4,
+                            Valor = "Llaveros"
+                        },
+                        new
+                        {
+                            IdOpcion = 68,
+                            Grupo = "Técnica de estampado",
+                            IdProducto = 16,
+                            Orden = 1,
+                            Valor = "Sublimación"
+                        },
+                        new
+                        {
+                            IdOpcion = 69,
+                            Grupo = "Técnica de estampado",
+                            IdProducto = 16,
+                            Orden = 2,
+                            Valor = "Termotransferencia"
+                        },
+                        new
+                        {
+                            IdOpcion = 70,
+                            Grupo = "Técnica de estampado",
+                            IdProducto = 16,
+                            Orden = 3,
+                            Valor = "DTF"
+                        },
+                        new
+                        {
+                            IdOpcion = 71,
+                            Grupo = "Diseño",
+                            IdProducto = 16,
+                            Orden = 1,
+                            Valor = "Del cliente"
+                        },
+                        new
+                        {
+                            IdOpcion = 72,
+                            Grupo = "Diseño",
+                            IdProducto = 16,
+                            Orden = 2,
+                            Valor = "Desarrollado por la oficina"
                         });
                 });
 
@@ -2325,6 +3193,10 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.HasKey("IdAuditoria")
                         .HasName("pk_auditoria");
+
+                    b.HasIndex("Fecha")
+                        .HasDatabaseName("ix_auditoria_ip_vigente")
+                        .HasFilter("[ip] IS NOT NULL");
 
                     b.HasIndex("Entidad", "IdEntidad")
                         .HasDatabaseName("ix_auditoria_entidad");
@@ -2576,6 +3448,11 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("int")
                         .HasColumnName("id_solicitud");
 
+                    b.Property<string>("Opciones")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("opciones");
+
                     b.HasKey("IdSolicitudDetalle")
                         .HasName("pk_solicitud_detalles");
 
@@ -2584,6 +3461,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.HasIndex("IdSolicitud")
                         .HasDatabaseName("ix_sol_detalles_solicitud");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("IdSolicitud"), new[] { "IdProducto", "Cantidad" });
 
                     b.ToTable("solicitud_detalles", null, t =>
                         {
@@ -2722,6 +3601,135 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         {
                             t.HasCheckConstraint("ck_tokens_renovacion_titular", "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
                         });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.VistaIndicadorItem", b =>
+                {
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("int")
+                        .HasColumnName("cantidad");
+
+                    b.Property<int>("IdCategoria")
+                        .HasColumnType("int")
+                        .HasColumnName("id_categoria");
+
+                    b.Property<int>("IdPedido")
+                        .HasColumnType("int")
+                        .HasColumnName("id_pedido");
+
+                    b.Property<int>("IdProducto")
+                        .HasColumnType("int")
+                        .HasColumnName("id_producto");
+
+                    b.Property<int>("IdSolicitudDetalle")
+                        .HasColumnType("int")
+                        .HasColumnName("id_solicitud_detalle");
+
+                    b.Property<decimal>("MontoAsignado")
+                        .HasColumnType("decimal(19,4)")
+                        .HasColumnName("monto_asignado");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("vw_indicadores_items", (string)null);
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.VistaIndicadorPedido", b =>
+                {
+                    b.Property<string>("EstadoPago")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("estado_pago");
+
+                    b.Property<string>("EstadoPedido")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("estado_pedido");
+
+                    b.Property<DateOnly>("FechaEntregaEstimada")
+                        .HasColumnType("date")
+                        .HasColumnName("fecha_entrega_estimada");
+
+                    b.Property<DateOnly?>("FechaEntregaReal")
+                        .HasColumnType("date")
+                        .HasColumnName("fecha_entrega_real");
+
+                    b.Property<DateOnly>("FechaPedido")
+                        .HasColumnType("date")
+                        .HasColumnName("fecha_pedido");
+
+                    b.Property<int>("IdCliente")
+                        .HasColumnType("int")
+                        .HasColumnName("id_cliente");
+
+                    b.Property<int>("IdPedido")
+                        .HasColumnType("int")
+                        .HasColumnName("id_pedido");
+
+                    b.Property<int>("IdSolicitud")
+                        .HasColumnType("int")
+                        .HasColumnName("id_solicitud");
+
+                    b.Property<int>("MontoAbonado")
+                        .HasColumnType("int")
+                        .HasColumnName("monto_abonado");
+
+                    b.Property<int>("MontoTotalFinal")
+                        .HasColumnType("int")
+                        .HasColumnName("monto_total_final");
+
+                    b.Property<string>("OrigenSolicitud")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("origen_solicitud");
+
+                    b.Property<int>("SaldoPendiente")
+                        .HasColumnType("int")
+                        .HasColumnName("saldo_pendiente");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("vw_indicadores_pedidos", (string)null);
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.VistaIndicadorSolicitud", b =>
+                {
+                    b.Property<bool>("Aprobada")
+                        .HasColumnType("bit")
+                        .HasColumnName("aprobada");
+
+                    b.Property<bool>("Concretada")
+                        .HasColumnType("bit")
+                        .HasColumnName("concretada");
+
+                    b.Property<bool>("Cotizada")
+                        .HasColumnType("bit")
+                        .HasColumnName("cotizada");
+
+                    b.Property<DateOnly>("FechaSolicitud")
+                        .HasColumnType("date")
+                        .HasColumnName("fecha_solicitud");
+
+                    b.Property<int?>("IdCategoriaPrincipal")
+                        .HasColumnType("int")
+                        .HasColumnName("id_categoria_principal");
+
+                    b.Property<int>("IdCliente")
+                        .HasColumnType("int")
+                        .HasColumnName("id_cliente");
+
+                    b.Property<int>("IdSolicitud")
+                        .HasColumnType("int")
+                        .HasColumnName("id_solicitud");
+
+                    b.Property<string>("Origen")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("origen");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("vw_indicadores_solicitudes", (string)null);
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.AdjuntoSolicitud", b =>
@@ -3074,6 +4082,30 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("Categoria");
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.ProductoMedidaFija", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Producto", "Producto")
+                        .WithMany("MedidasFijas")
+                        .HasForeignKey("IdProducto")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_producto_medidas_fijas_producto");
+
+                    b.Navigation("Producto");
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.ProductoOpcion", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Producto", "Producto")
+                        .WithMany("Opciones")
+                        .HasForeignKey("IdProducto")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_producto_opciones_producto");
+
+                    b.Navigation("Producto");
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.RostroEmpleado", b =>
                 {
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
@@ -3224,6 +4256,10 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Producto", b =>
                 {
                     b.Navigation("Catalogos");
+
+                    b.Navigation("MedidasFijas");
+
+                    b.Navigation("Opciones");
 
                     b.Navigation("SolicitudDetalles");
                 });

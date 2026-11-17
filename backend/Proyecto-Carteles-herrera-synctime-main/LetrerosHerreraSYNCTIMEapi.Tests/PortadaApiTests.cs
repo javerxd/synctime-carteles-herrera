@@ -163,12 +163,12 @@ public sealed class PortadaApiTests(ApiFixture api)
 
         var tipos = documentos.EnumerateArray().Select(d => d.GetProperty("tipo").GetString()).Order();
         Assert.Equal(["cookies", "marketing", "privacidad", "terminos"], tipos);
-        Assert.All(documentos.EnumerateArray(), d => Assert.Equal("1.0", d.GetProperty("version").GetString()));
+        Assert.All(documentos.EnumerateArray(), d => Assert.Equal(d.GetProperty("tipo").GetString() == "privacidad" ? "1.1" : "1.0", d.GetProperty("version").GetString()));
     }
 
     // ── Formulario de contacto (RFS08, E22) ──
 
-    private Dictionary<string, object?> Consulta(string? sitioWeb = null, bool aceptaPrivacidad = true, string version = "1.0") => new()
+    private Dictionary<string, object?> Consulta(string? sitioWeb = null, bool aceptaPrivacidad = true, string version = "1.1") => new()
     {
         ["nombre"] = "Pedro Soto",
         ["correo"] = $"pedro{api.Siguiente()}@correo.cl",
@@ -194,7 +194,7 @@ public sealed class PortadaApiTests(ApiFixture api)
         Assert.Equal("Letrero para mi local", consulta.Asunto);
         Assert.False(consulta.Revisada);
         var consentimiento = await api.ConsultarAsync(db => db.Consentimientos.AsNoTracking().SingleAsync(c => c.ReferenciaEnvio == $"contacto:{consulta.IdConsulta}"));
-        Assert.Equal(("privacidad", "1.0"), (consentimiento.Tipo, consentimiento.VersionDocumento));
+        Assert.Equal(("privacidad", "1.1"), (consentimiento.Tipo, consentimiento.VersionDocumento));
         var aviso = await api.ConsultarAsync(db => db.CorreosSalientes.AsNoTracking().SingleAsync(c => c.Referencia == $"contacto:{consulta.IdConsulta}"));
         Assert.Equal("consulta_contacto", aviso.Tipo);
         Assert.Equal(ApiFixture.AvisosTaller, aviso.Destinatarios);

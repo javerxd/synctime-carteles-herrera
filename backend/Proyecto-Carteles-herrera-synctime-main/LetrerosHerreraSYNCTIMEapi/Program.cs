@@ -137,6 +137,8 @@ builder.Services.AddScoped<AvisosAlCliente>();
 builder.Services.AddScoped<ServicioBajaCorreos>();
 builder.Services.AddScoped<ServicioCorreosNoEnviados>();
 builder.Services.AddScoped<ServicioVisorAuditoria>();
+builder.Services.AddScoped<LetrerosHerreraSYNCTIMEapi.Datos.Indicadores.ConsultasIndicadores>();
+builder.Services.AddScoped<ServicioIndicadores>();
 builder.Services.AddScoped<ServicioPrivacidad>();
 builder.Services.AddSingleton<ServicioIdempotencia>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
@@ -353,6 +355,7 @@ app.MapPortadaApi();
 app.MapCuentaApi();
 app.MapCorreosApi();
 app.MapAuditoriaApi();
+app.MapIndicadoresApi();
 
 app.Run();
 

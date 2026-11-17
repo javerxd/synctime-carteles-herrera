@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, RotateCcw } from 'lucide-react';
-import { Aviso, Boton, Esqueleto, Insignia } from '../../componentes/ui';
-import { ES_DEMO, indicadores } from '../../api/indicadores';
+import { Aviso, Boton, Esqueleto } from '../../componentes/ui';
+import { indicadores } from '../../api/indicadores';
 import { useConsulta } from '../../utilidades/useConsulta';
 import { conMayuscula, formatearValor, TARJETAS } from './formatoIndicadores';
 import { Variacion } from './TarjetasResumen';
@@ -26,7 +26,6 @@ export function MetricasInicio() {
           {datos?.periodo && <p className={estilos.descripcionBloque}>{conMayuscula(datos.periodo.etiqueta)}{datos.comparacion ? `, comparado con ${datos.comparacion.etiqueta}` : ''}.</p>}
         </div>
         <div className={estilos.controlesBloque}>
-          {ES_DEMO && <Insignia tono="info">Datos de demostración</Insignia>}
           <Boton como={Link} to="/panel/indicadores" variante="secundario" tamano="compacto" iconoFin={ArrowRight}>Ver el dashboard</Boton>
         </div>
       </header>

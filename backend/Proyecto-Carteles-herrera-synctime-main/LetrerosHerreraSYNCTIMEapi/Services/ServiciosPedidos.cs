@@ -167,7 +167,8 @@ public sealed class ServicioPedidos(LetrerosHerreradbContext db, ColaEnTransacci
                 Descripcion = d.Descripcion?.Trim() ?? "",
                 AnchoMm = d.AnchoMm,
                 AltoMm = d.AltoMm,
-                Cantidad = d.Cantidad
+                Cantidad = d.Cantidad,
+                Opciones = ReglasCatalogo.Serializar(d.Opciones)
             }).ToList()
         };
         solicitud.Historial.Add(new SolicitudHistorial { EstadoNuevo = EstadosSolicitud.Aceptado, Motivo = nota, IdEmpleado = quien.IdEmpleado, Fecha = ahora });
@@ -797,22 +798,8 @@ public sealed class ServicioPedidos(LetrerosHerreradbContext db, ColaEnTransacci
     }
 
     // Los productos de los items deben estar activos (y su categoria tambien), igual que en una solicitud.
-    private async Task ValidarProductosAsync(IReadOnlyList<EntradaDetalle>? detalles, Dictionary<string, string[]> errores, CancellationToken ct)
-    {
-        if (detalles is not { Count: > 0 and <= ValidacionSolicitud.MaxDetalles })
-            return;
-        var pedidos = detalles.Select(d => d.IdProducto).Distinct().ToList();
-        var disponibles = await db.Productos.AsNoTracking()
-            .Where(p => pedidos.Contains(p.IdProducto) && p.Activo && p.Categoria!.Activo)
-            .Select(p => p.IdProducto)
-            .ToListAsync(ct);
-        for (var i = 0; i < detalles.Count; i++)
-        {
-            var campo = $"detalles[{i}].idProducto";
-            if (!errores.ContainsKey(campo) && !disponibles.Contains(detalles[i].IdProducto))
-                errores[campo] = [ValidacionSolicitud.MensajeProducto];
-        }
-    }
+    private Task ValidarProductosAsync(IReadOnlyList<EntradaDetalle>? detalles, Dictionary<string, string[]> errores, CancellationToken ct) =>
+        ValidadorCatalogo.ValidarAsync(db, detalles, errores, ct);
 
     // Los errores del abono inicial van con su prefijo (abonoInicial.monto...), como los ve el formulario.
     private static void ValidarAbonoInicial(EntradaAbono? abono, DateOnly hoy, Dictionary<string, string[]> errores)

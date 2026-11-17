@@ -140,10 +140,10 @@ public static class RespuestasSolicitud
     public static IReadOnlyList<EntradaDetalle> Detalles(List<CrearSolicitudDetalleRequest>? detalles) => DetallesONull(detalles) ?? [];
 
     public static IReadOnlyList<EntradaDetalle>? DetallesONull(List<CrearSolicitudDetalleRequest>? detalles) =>
-        detalles?.Select(d => new EntradaDetalle(d.IdProducto, d.Descripcion, d.AnchoMm, d.AltoMm, d.Cantidad)).ToList();
+        detalles?.Select(d => new EntradaDetalle(d.IdProducto, d.Descripcion, d.AnchoMm, d.AltoMm, d.Cantidad, d.Opciones)).ToList();
 }
 
 public record CrearSolicitudRequest(int IdCliente, string? DescripcionGeneral, List<CrearSolicitudDetalleRequest>? Detalles);
-public record CrearSolicitudDetalleRequest(int IdProducto, string? Descripcion, int? AnchoMm, int? AltoMm, int Cantidad = 1);
+public record CrearSolicitudDetalleRequest(int IdProducto, string? Descripcion, int? AnchoMm, int? AltoMm, int Cantidad = 1, Dictionary<string, string>? Opciones = null);
 public record ActualizarSolicitudRequest(string? DescripcionGeneral, List<CrearSolicitudDetalleRequest>? Detalles, byte[]? RowVersion);
 public record CambiarEstadoRequest(string? Estado, string? Motivo, byte[]? RowVersion);

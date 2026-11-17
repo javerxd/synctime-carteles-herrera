@@ -18,7 +18,8 @@ public sealed record ComprobanteSolicitud(
 
 public sealed record ClienteComprobante(string Nombre, string Apellido, string Telefono, string? Correo);
 
-public sealed record DetalleComprobante(int IdProducto, string Producto, string? Descripcion, int? AnchoMm, int? AltoMm, int Cantidad, decimal? AreaM2);
+public sealed record DetalleComprobante(int IdProducto, string Producto, string? Descripcion, int? AnchoMm, int? AltoMm, int Cantidad, decimal? AreaM2,
+    IReadOnlyDictionary<string, string>? Opciones = null);
 
 public sealed record AdjuntoComprobante(int IdAdjunto, string Tipo, string Nombre, int Bytes, int? Ancho, int? Alto, string? UrlMiniatura, string UrlArchivo);
 

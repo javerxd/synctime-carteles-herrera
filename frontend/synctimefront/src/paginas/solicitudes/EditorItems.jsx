@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Boton, Campo } from '../../componentes/ui';
-import { areaItem, areaTotal, campoItem, formatearArea, LIMITES_SOLICITUD } from './reglasSolicitud';
+import { areaItem, areaTotal, campoItem, formatearArea, gruposDeOpciones, LIMITES_SOLICITUD, textoMedidas } from './reglasSolicitud';
 import estilos from './Solicitudes.module.css';
 
 /**
@@ -27,6 +27,7 @@ export function EditorItems({ items, productos, cargandoProductos, errores, alCa
   const total = areaTotal(items);
   const opciones = [...(productos ?? [])].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   const lleno = items.length >= LIMITES_SOLICITUD.items;
+  const cm = (mm) => String(mm / 10).replace('.', ',');
 
   return (
     <div ref={refRaiz} className={estilos.items}>
@@ -41,6 +42,21 @@ export function EditorItems({ items, productos, cargandoProductos, errores, alCa
           onBlur: () => alTocar(nombre(campo)),
         });
         const area = areaItem(item);
+        const producto = (productos ?? []).find((p) => String(p.idProducto) === String(item.idProducto));
+        const medidas = textoMedidas(producto);
+        const fijas = producto?.medidasFijas ?? [];
+        const grupos = gruposDeOpciones(producto);
+        const medidaActual = fijas.findIndex((m) => cm(m.anchoMm) === item.ancho && cm(m.altoMm) === item.alto);
+        function elegirProducto(e) {
+          const nuevo = (productos ?? []).find((p) => String(p.idProducto) === e.target.value);
+          alCambiar(i, 'idProducto', e.target.value);
+          // Lo elegido era del producto anterior; una medida única se completa sola.
+          alCambiar(i, 'opciones', {});
+          if (nuevo?.medidasFijas?.length === 1) {
+            alCambiar(i, 'ancho', cm(nuevo.medidasFijas[0].anchoMm));
+            alCambiar(i, 'alto', cm(nuevo.medidasFijas[0].altoMm));
+          }
+        }
         return (
           <fieldset key={item.clave} className={estilos.item}>
             <legend className={estilos.leyendaItem}>Letrero {i + 1}</legend>
@@ -54,16 +70,39 @@ export function EditorItems({ items, productos, cargandoProductos, errores, alCa
                 Quitar <span className="solo-lectores">el letrero {i + 1}</span>
               </Boton>
             )}
-            <Campo etiqueta="Tipo de letrero" como="select" requerido {...propiedades('idProducto')}
+            <Campo etiqueta="Tipo de letrero" como="select" requerido {...propiedades('idProducto')} onChange={elegirProducto}
               disabled={deshabilitado || cargandoProductos}>
               <option value="">{cargandoProductos ? 'Cargando…' : 'Elige uno'}</option>
               {opciones.map((p) => <option key={p.idProducto} value={p.idProducto}>{p.nombre}</option>)}
             </Campo>
+            {fijas.length > 1 && (
+              <Campo etiqueta="Medida disponible" como="select" value={medidaActual >= 0 ? String(medidaActual) : ''} disabled={deshabilitado}
+                onChange={(e) => {
+                  const m = fijas[Number(e.target.value)];
+                  if (!m) return;
+                  alCambiar(i, 'ancho', cm(m.anchoMm));
+                  alCambiar(i, 'alto', cm(m.altoMm));
+                }}>
+                <option value="">Elige una</option>
+                {fijas.map((m, k) => <option key={`${m.anchoMm}x${m.altoMm}`} value={k}>{cm(m.anchoMm)} × {cm(m.altoMm)} cm</option>)}
+              </Campo>
+            )}
+            {medidas && <p className={estilos.ayudaMedidas}>{medidas}</p>}
             <div className={estilos.medidas}>
               <Campo etiqueta="Ancho (cm)" inputMode="decimal" autoComplete="off" {...propiedades('ancho')} />
               <Campo etiqueta="Alto (cm)" inputMode="decimal" autoComplete="off" {...propiedades('alto')} />
               <Campo etiqueta="Cantidad" inputMode="numeric" requerido autoComplete="off" {...propiedades('cantidad')} />
             </div>
+            {grupos.map(({ grupo, valores }, g) => (
+              <Campo key={grupo} etiqueta={grupo} como="select" disabled={deshabilitado} value={item.opciones?.[grupo] ?? ''}
+                // El primer grupo lleva el nombre del campo «opciones»: el error de la API se muestra y se enfoca ahí.
+                {...(g === 0 ? { name: nombre('opciones') } : {})}
+                error={g === 0 ? errores[nombre('opciones')] : undefined}
+                onChange={(e) => alCambiar(i, 'opciones', { ...item.opciones, [grupo]: e.target.value })}>
+                <option value="">Sin elegir</option>
+                {valores.map((v) => <option key={v} value={v}>{v}</option>)}
+              </Campo>
+            ))}
             <Campo etiqueta="Detalle de este letrero" como="textarea" rows={2} maxLength={LIMITES_SOLICITUD.descripcionItem}
               ayuda="Opcional. Textos, colores o materiales de este letrero." {...propiedades('descripcion')} />
             <p className={estilos.area}>

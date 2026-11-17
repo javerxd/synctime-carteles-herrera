@@ -61,24 +61,25 @@ export function narrativaEmbudo(datos) {
   return `De ${formatearNumero(primero.cantidad)} solicitudes en línea, ${formatearNumero(ultimo.cantidad)} terminaron en un pedido (${formatearPorcentaje(ultimo.porcentaje)}).`;
 }
 
-/** Demanda: la categoría que lidera y su parte del total. */
-export function narrativaDemanda(categorias, medida) {
+/** Demanda: el grupo que lidera y su parte de los ingresos (o de las unidades) del período. */
+export function narrativaDemanda(categorias, medida, agrupar = 'categoria') {
   if (!categorias.length) return '';
   const [lider] = categorias;
   const total = suma(categorias, medida);
   const parte = total ? Math.round((lider[medida] / total) * 100) : 0;
   const valor = medida === 'monto' ? formatearPesos(lider.monto) : `${formatearNumero(lider.cantidad)} unidades`;
-  return `${lider.nombre} lidera con ${valor}, el ${parte} % del total del período.`;
+  const de = medida === 'monto' ? 'de los ingresos' : 'de las unidades';
+  return `${lider.nombre} lidera ${agrupar === 'producto' ? 'entre los tipos de letrero' : 'entre las categorías'} con ${valor}, el ${parte} % ${de} del período.`;
 }
 
 /** Nombre y fórmula de cada tarjeta del resumen. */
 export const TARJETAS = {
   ingresos: { nombre: 'Ingresos', formula: 'Monto final de los pedidos entregados en el período (S11).' },
   pedidos: { nombre: 'Pedidos', formula: 'Pedidos creados en el período, sin contar los anulados (S10).' },
-  origen: { nombre: 'En línea y presenciales', formula: 'Pedidos del período que llegaron por la web y en el mostrador (S12).' },
+  origen: { nombre: 'Solicitudes en línea y presenciales', formula: 'Solicitudes del período que llegaron por la web y en el mostrador (S12).' },
   concretadas: { nombre: 'Solicitudes concretadas', formula: 'Solicitudes en línea que terminaron en un pedido no anulado (S13).' },
   conversion: { nombre: 'Conversión en línea', formula: 'Concretadas sobre solicitudes en línea; varía en puntos porcentuales (S14).' },
-  ticketPromedio: { nombre: 'Ticket promedio', formula: 'Monto final promedio de los pedidos no anulados del período.' },
+  ticketPromedio: { nombre: 'Ticket promedio', formula: 'Ingresos divididos por los pedidos entregados en el período.' },
   entregasATiempo: { nombre: 'Entregas a tiempo', formula: 'Entregados en o antes de la fecha estimada, sobre los entregados del período.' },
 };
 

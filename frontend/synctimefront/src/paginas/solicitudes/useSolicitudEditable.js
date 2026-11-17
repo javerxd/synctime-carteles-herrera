@@ -16,6 +16,7 @@ function leerGuardado(clave) {
       items: guardado.items.slice(0, 10).map((item) => ({
         ...itemVacio(item.idProducto ?? ''),
         ancho: String(item.ancho ?? ''), alto: String(item.alto ?? ''), cantidad: String(item.cantidad ?? '1'), descripcion: String(item.descripcion ?? ''),
+        opciones: item.opciones && typeof item.opciones === 'object' ? { ...item.opciones } : {},
       })),
       descripcionGeneral: String(guardado.descripcionGeneral ?? ''),
     };
@@ -63,7 +64,7 @@ export function useSolicitudEditable({ productoInicial = '', descripcionInicial 
     if (!guardarEn) return;
     try {
       sessionStorage.setItem(guardarEn, JSON.stringify({
-        items: items.map(({ idProducto, ancho, alto, cantidad, descripcion }) => ({ idProducto, ancho, alto, cantidad, descripcion })),
+        items: items.map(({ idProducto, ancho, alto, cantidad, descripcion, opciones }) => ({ idProducto, ancho, alto, cantidad, descripcion, opciones })),
         descripcionGeneral,
       }));
     } catch {

@@ -734,3 +734,10 @@
     background: CanvasText;
   }
 }
+
+/* Fase 12B: lo que el taller hace de cada producto (medidas) */
+.ayudaMedidas {
+  margin: 0;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}

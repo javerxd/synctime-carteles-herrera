@@ -7,12 +7,12 @@ export const BLOQUES = ['resumen', 'evolucion', 'cobranza', 'embudo', 'demanda',
 // Los filtros que NO cambian cada bloque: así un cambio solo vuelve a pedir los bloques que dependen de él (el
 // alcance del saldo no recarga la evolución; la página del listado solo recarga «por cobrar»).
 const IGNORA = {
-  resumen: ['cobro', 'pagina'],
-  evolucion: ['cobro', 'pagina', 'alcanceSaldo'],
-  cobranza: ['cobro', 'pagina'],
-  embudo: ['cobro', 'pagina', 'alcanceSaldo'],
+  resumen: ['cobro', 'pagina', 'agrupar'],
+  evolucion: ['cobro', 'pagina', 'alcanceSaldo', 'agrupar'],
+  cobranza: ['cobro', 'pagina', 'agrupar'],
+  embudo: ['cobro', 'pagina', 'alcanceSaldo', 'agrupar', 'estadoPedido', 'estadoPago'],
   demanda: ['cobro', 'pagina', 'alcanceSaldo'],
-  porCobrar: [],
+  porCobrar: ['agrupar'],
 };
 
 const claveDe = (bloque, filtros) => JSON.stringify(Object.entries(filtros).filter(([c]) => !IGNORA[bloque].includes(c)));

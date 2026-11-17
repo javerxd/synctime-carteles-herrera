@@ -384,7 +384,7 @@ public sealed class ServicioContacto(
 
 // ── Plazos de conservacion de la politica de privacidad ──
 
-public sealed record ResultadoPurga(int Consultas, int Consentimientos, int Adjuntos = 0, int CuerposDeCorreo = 0);
+public sealed record ResultadoPurga(int Consultas, int Consentimientos, int Adjuntos = 0, int CuerposDeCorreo = 0, int IpsDeAuditoria = 0);
 
 // Borra lo que la politica de privacidad dice que no se guarda mas:
 // - consultas del formulario de contacto, 12 meses despues de recibirlas;
@@ -396,12 +396,15 @@ public sealed record ResultadoPurga(int Consultas, int Consentimientos, int Adju
 // - fase 11: el asunto, el cuerpo, el enlace de baja y la direccion completa de los correos enviados hace mas de
 //   Correo:Cola:DiasCuerpoEnviados (30) y de los fallidos hace mas de Correo:Cola:DiasCuerpoFallidos (90); la fila queda
 //   con el tipo, la referencia, el estado, las fechas y el destino enmascarado. Y las claves de idempotencia vencidas.
-// La bitacora (auditoria) no se purga en esta fase: se conserva al menos 24 meses.
+// - fase 12B (RNFE01): la direccion IP de la bitacora, a los 90 dias; el registro del evento queda intacto, solo sin la IP.
+//   El trigger de la bitacora admite exactamente ese cambio (ip = NULL en filas de mas de 90 dias) y ningun otro.
+// La bitacora (auditoria) no se borra: se conserva al menos 24 meses.
 public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, AlmacenAdjuntos almacenAdjuntos,
     Microsoft.Extensions.Options.IOptions<Infraestructura.Correo.OpcionesCorreo> opcionesCorreo, TimeProvider reloj)
 {
     public const int MesesConsultas = 12;
     public const int MesesConsentimientos = 24;
+    public const int DiasIpAuditoria = 90;
 
     public async Task<ResultadoPurga> PurgarAsync(CancellationToken ct)
     {
@@ -430,7 +433,25 @@ public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, AlmacenAdj
         {
         }
         var cuerpos = await PurgarCuerposDeCorreoAsync(ahora, ct);
-        return new ResultadoPurga(consultas, consentimientos, await PurgarAdjuntosAsync(ahora, ct), cuerpos);
+        return new ResultadoPurga(consultas, consentimientos, await PurgarAdjuntosAsync(ahora, ct), cuerpos, await PurgarIpsDeAuditoriaAsync(ahora, ct));
+    }
+
+    // Fase 12B (RNFE01): pasados 90 dias se borra SOLO la IP de la bitacora. De a 5000 filas, por el indice filtrado
+    // ix_auditoria_ip_vigente (solo guarda las filas que aun tienen IP).
+    private async Task<int> PurgarIpsDeAuditoriaAsync(DateTimeOffset ahora, CancellationToken ct)
+    {
+        // 5 minutos de margen: el trigger revalida con el reloj de SQL Server, que puede ir un poco atras del de la aplicacion.
+        var limite = ahora.AddDays(-DiasIpAuditoria).AddMinutes(-5);
+        var total = 0;
+        int lote;
+        do
+        {
+            lote = await db.Auditoria.Where(a => a.Ip != null && a.Fecha < limite).OrderBy(a => a.Fecha).Take(5000)
+                .ExecuteUpdateAsync(s => s.SetProperty(a => a.Ip, (string?)null), ct);
+            total += lote;
+        }
+        while (lote > 0);
+        return total;
     }
 
     // Se cuenta desde que se envio o desde que fallo (proximo_intento guarda cuando fallo), no desde que se creo. Lo ya

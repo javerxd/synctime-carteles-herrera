@@ -15,7 +15,7 @@ export const LIMITES_SOLICITUD = {
 let siguiente = 1;
 /** Un letrero vacío del formulario. `clave` solo sirve a React para seguirle la pista. */
 export function itemVacio(idProducto = '') {
-  return { clave: `i${siguiente++}`, idProducto: idProducto ? String(idProducto) : '', ancho: '', alto: '', cantidad: '1', descripcion: '' };
+  return { clave: `i${siguiente++}`, idProducto: idProducto ? String(idProducto) : '', ancho: '', alto: '', cantidad: '1', descripcion: '', opciones: {} };
 }
 
 /** «120,5» → 120.5; vacío → null; texto que no es número → NaN. */
@@ -92,7 +92,7 @@ export function validarSolicitud({ items, descripcionGeneral }) {
 /** El orden visual de los campos, para llevar el foco al primer error. */
 export function ordenCampos(items) {
   return [
-    ...items.flatMap((_, i) => ['idProducto', 'ancho', 'alto', 'cantidad', 'descripcion'].map((c) => campoItem(i, c))),
+    ...items.flatMap((_, i) => ['idProducto', 'ancho', 'alto', 'cantidad', 'descripcion', 'opciones'].map((c) => campoItem(i, c))),
     'descripcionGeneral',
     'adjuntos',
   ];
@@ -110,8 +110,39 @@ export function detallesParaApi(items) {
       anchoMm: conMedidas ? cmAMm(ancho) : null,
       altoMm: conMedidas ? cmAMm(alto) : null,
       cantidad: numero(item.cantidad),
+      // Lo elegido entre las opciones del producto (material, acabado…); lo que no se eligió no viaja.
+      ...(opcionesElegidas(item.opciones) ? { opciones: opcionesElegidas(item.opciones) } : {}),
     };
   });
+}
+
+/** Solo los grupos con un valor elegido, o null si no eligió ninguno. */
+export function opcionesElegidas(opciones) {
+  const elegidas = Object.fromEntries(Object.entries(opciones ?? {}).filter(([, valor]) => valor));
+  return Object.keys(elegidas).length ? elegidas : null;
+}
+
+/** Las opciones de un producto agrupadas: [{ grupo, valores: [...] }] (la API las manda planas, en orden). */
+export function gruposDeOpciones(producto) {
+  const grupos = [];
+  for (const { grupo, valor } of producto?.opciones ?? []) {
+    const existente = grupos.find((g) => g.grupo === grupo);
+    if (existente) existente.valores.push(valor);
+    else grupos.push({ grupo, valores: [valor] });
+  }
+  return grupos;
+}
+
+const cmTexto = (mm) => formatoCm.format(mm / 10);
+
+/** Lo que el taller hace de un producto, en centímetros: «Ancho de 80 a 150 cm y alto de 200 a 300 cm», o null. */
+export function textoMedidas(producto) {
+  if (!producto) return null;
+  const fijas = producto.medidasFijas ?? [];
+  if (fijas.length === 1) return `Medida única: ${cmTexto(fijas[0].anchoMm)} × ${cmTexto(fijas[0].altoMm)} cm.`;
+  if (fijas.length > 1) return `Medidas disponibles: ${fijas.map((m) => `${cmTexto(m.anchoMm)} × ${cmTexto(m.altoMm)}`).join(', ')} cm.`;
+  if (producto.anchoMinMm == null) return null;
+  return `Ancho de ${cmTexto(producto.anchoMinMm)} a ${cmTexto(producto.anchoMaxMm)} cm y alto de ${cmTexto(producto.altoMinMm)} a ${cmTexto(producto.altoMaxMm)} cm.`;
 }
 
 const aTextoCm = (mm) => (mm ? String(mm / 10).replace('.', ',') : '');
@@ -123,7 +154,7 @@ const aTextoCm = (mm) => (mm ? String(mm / 10).replace('.', ',') : '');
 export function itemsDesdeDetalles(detalles = [], productos = []) {
   return detalles.map((d) => {
     const id = d.idProducto ?? productos.find((p) => p.nombre === (d.producto?.nombre ?? d.producto))?.idProducto ?? '';
-    return { ...itemVacio(id), ancho: aTextoCm(d.anchoMm), alto: aTextoCm(d.altoMm), cantidad: String(d.cantidad ?? 1), descripcion: d.descripcion ?? '' };
+    return { ...itemVacio(id), ancho: aTextoCm(d.anchoMm), alto: aTextoCm(d.altoMm), cantidad: String(d.cantidad ?? 1), descripcion: d.descripcion ?? '', opciones: { ...(d.opciones ?? {}) } };
   });
 }
 

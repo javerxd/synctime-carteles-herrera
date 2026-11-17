@@ -63,6 +63,8 @@ public static class ReglasAuditoria
     // Las demas entidades del modelo, con el motivo por el que el interceptor no las registra.
     public static readonly IReadOnlyDictionary<Type, string> NoAuditadas = new Dictionary<Type, string>
     {
+        [typeof(ProductoMedidaFija)] = "Medidas disponibles de un producto: forman parte del catálogo del taller, que cambia solo con una migración (fase 12B).",
+        [typeof(ProductoOpcion)] = "Opciones elegibles de un producto: forman parte del catálogo del taller, que cambia solo con una migración (fase 12B).",
         [typeof(CotizacionMaterial)] = "Líneas de la cotización: su total queda en la cotización, que sí se audita.",
         [typeof(AdjuntoSolicitud)] = "Archivo de una solicitud: quitarlo queda en solicitudes_historial y renueva la versión de la solicitud.",
         [typeof(SolicitudHistorial)] = "Es en sí un historial de estados (fase 7).",

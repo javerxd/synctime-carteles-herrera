@@ -89,7 +89,7 @@ public sealed partial class CuentasYSesionTests(ApiFixture api)
         var sinAceptar = new
         {
             nombre = "A", apellido = "B", telefono, correo = ApiFixture.CorreoDe(telefono), password = ApiFixture.AdminPassword,
-            aceptaTerminosYPrivacidad = false, versionTerminos = "1.0", versionPrivacidad = "1.0"
+            aceptaTerminosYPrivacidad = false, versionTerminos = "1.0", versionPrivacidad = "1.1"
         };
         var error = await api.Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", sinAceptar).EsperarAsync(HttpStatusCode.BadRequest);
         Assert.True(error.GetProperty("errores").TryGetProperty("aceptaTerminosYPrivacidad", out _));
@@ -123,7 +123,7 @@ public sealed partial class CuentasYSesionTests(ApiFixture api)
         var version = new
         {
             nombre = "A", apellido = "B", telefono = api.Telefono(), correo = $"v{api.Siguiente()}@correo.test", password = ApiFixture.AdminPassword,
-            aceptaTerminosYPrivacidad = true, versionTerminos = "0.9", versionPrivacidad = "1.0"
+            aceptaTerminosYPrivacidad = true, versionTerminos = "0.9", versionPrivacidad = "1.1"
         };
         await api.Cliente().PostAsJsonAsync("/api/v1/auth/registro-cliente", version).EsperarAsync(HttpStatusCode.Conflict);
     }

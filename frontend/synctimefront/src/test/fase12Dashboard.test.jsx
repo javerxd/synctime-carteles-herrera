@@ -1,16 +1,28 @@
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { api } from '../api/cliente';
 import { indicadores } from '../api/indicadores';
+import { CATALOGOS_FALSOS, respuestaIndicadores } from '../../e2e/indicadoresFalsos';
 import Indicadores from '../paginas/indicadores/Indicadores';
 import { BLOQUES, useIndicadores } from '../paginas/indicadores/useIndicadores';
 import { parametrosIndicadores } from '../paginas/indicadores/reglasIndicadores';
 
-// Fase 12A: la pantalla de indicadores con el adaptador de demostración (VITE_INDICADORES_DEMO). «Hoy» se fija
-// en el 16-11-2026 para que los datos de ejemplo no cambien.
+// Fase 12A y 12B: la pantalla de indicadores contra las respuestas simuladas del contrato (e2e/indicadoresFalsos.js); «hoy» se
+// fija en el 16-11-2026. Las cifras reales se prueban en el backend, contra SQL Server.
+const llamadas = [];
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-16T12:00:00-03:00'));
+  llamadas.length = 0;
+  vi.spyOn(api, 'get').mockImplementation(async (ruta, { parametros } = {}) => {
+    llamadas.push({ ruta, parametros });
+    if (ruta === '/categorias') return CATALOGOS_FALSOS.categorias;
+    if (ruta === '/clientes') return { elementos: CATALOGOS_FALSOS.clientes };
+    const respuesta = respuestaIndicadores(ruta.replace('/indicadores/', ''), parametros);
+    if (!respuesta) throw new Error(`Ruta sin simular: ${ruta}`);
+    return respuesta;
+  });
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -78,15 +90,38 @@ describe('carga en paralelo con fallo aislado (RNFP23)', () => {
 });
 
 describe('pantalla de indicadores', () => {
-  it('avisa que son datos de demostración y muestra las tarjetas con su comparación', async () => {
+  it('pide cada bloque a su ruta de la API, sin aviso de demostración, y muestra las tarjetas con su comparación', async () => {
     dibujar();
     expect(screen.getByRole('heading', { level: 1, name: 'Indicadores' })).toBeInTheDocument();
-    expect(screen.getByText('Datos de demostración')).toBeInTheDocument();
+    expect(screen.queryByText('Datos de demostración')).toBeNull();
     const resumen = bloque('Resumen del período');
     expect(await within(resumen).findByText('Ingresos')).toBeInTheDocument();
-    ['Pedidos', 'En línea y presenciales', 'Solicitudes concretadas', 'Conversión en línea', 'Ticket promedio', 'Entregas a tiempo']
+    ['Pedidos', 'Solicitudes en línea y presenciales', 'Solicitudes concretadas', 'Conversión en línea', 'Ticket promedio', 'Entregas a tiempo']
       .forEach((nombre) => expect(within(resumen).getByText(nombre)).toBeInTheDocument());
     expect(within(resumen).getAllByText(/respecto de octubre de 2026/).length).toBeGreaterThan(0);
+    const rutas = llamadas.map((l) => l.ruta);
+    ['resumen', 'evolucion', 'cobranza', 'embudo', 'demanda', 'por-cobrar'].forEach((r) => expect(rutas).toContain(`/indicadores/${r}`));
+  });
+
+  it('las tarjetas muestran los pedidos por estado y las solicitudes en línea', async () => {
+    dibujar();
+    const resumen = bloque('Resumen del período');
+    expect(await within(resumen).findByLabelText('Pedidos por estado')).toHaveTextContent('En proceso: 3');
+    expect(within(resumen).getByText('solicitudes en línea')).toBeInTheDocument();
+  });
+
+  it('la demanda se agrupa por tipo de letrero con un clic y pide solo ese bloque', async () => {
+    dibujar();
+    const demanda = bloque('Demanda por categoría');
+    expect(await within(demanda).findByText('Letreros y estructuras')).toBeInTheDocument();
+    const antes = llamadas.length;
+
+    fireEvent.click(within(demanda).getByRole('button', { name: 'Por tipo de letrero' }));
+
+    expect(await within(demanda).findByText('Letreros luminosos')).toBeInTheDocument();
+    expect(screen.getByTestId('ruta')).toHaveTextContent('agrupar=producto');
+    expect(llamadas.slice(antes).map((l) => l.ruta)).toEqual(['/indicadores/demanda']);
+    expect(llamadas.at(-1).parametros).toMatchObject({ agrupar: 'producto' });
   });
 
   it('si un bloque falla, los demás se ven y ese bloque ofrece «Reintentar»', async () => {
@@ -100,7 +135,7 @@ describe('pantalla de indicadores', () => {
 
     espia.mockImplementation(original);
     fireEvent.click(within(demanda).getByRole('button', { name: 'Reintentar' }));
-    expect(await within(demanda).findByText('Letreros luminosos')).toBeInTheDocument();
+    expect(await within(demanda).findByText('Letreros y estructuras')).toBeInTheDocument();
     expect(within(demanda).queryByRole('alert')).toBeNull();
   });
 
@@ -141,7 +176,7 @@ describe('pantalla de indicadores', () => {
   it('un bloque sin datos lo dice', async () => {
     vi.spyOn(indicadores, 'demanda').mockResolvedValue({ periodo: { etiqueta: 'noviembre de 2026' }, categorias: [] });
     dibujar();
-    expect(await within(bloque('Demanda por categoría')).findByText('Sin pedidos por categoría en este período')).toBeInTheDocument();
+    expect(await within(bloque('Demanda por categoría')).findByText('Sin ingresos por categoría en este período')).toBeInTheDocument();
   });
 
   it('los filtros viven en la dirección: elegir «Año» cambia el período de todos los bloques', async () => {
