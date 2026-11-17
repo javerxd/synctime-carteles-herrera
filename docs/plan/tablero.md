@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 16-11-2026 (fase 12A cerrada, esperando tu visto bueno).
+Última actualización: 16-11-2026 (fase 12A aprobada; fase 12B con plan aprobado).
 
 ## Hecho
 
@@ -20,19 +20,20 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 10 — Rostro según requisitos** · rama `fase-10-rostro-segun-requisitos` · informe: `informes/fase-10.md` · aprobada el 15-11-2026 · incluye la prueba de vida con giros, la calibración (umbral 0.45, calibrado por el usuario), el límite propio del desafío y el lado de cada muestra en el cifrado
 - **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` · informe: `informes/fase-11.md` · aprobada el 16-11-2026 · plazo de la IP en la bitácora decidido el 16-11-2026: 90 días (purga en la 12B)
 
+- **Fase 12A — Dashboard: contrato y frontend** · rama `fase-12a-dashboard-frontend` · informe: `informes/fase-12a.md` · aprobada el 16-11-2026 · el usuario autorizó subir la política de privacidad a 1.1 en la 12B
+
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 12A — Dashboard: contrato y frontend** · rama `fase-12a-dashboard-frontend` · informe: `informes/fase-12a.md` · con datos de demostración (`VITE_INDICADORES_DEMO`) hasta la 12B
+_(ninguna)_
 
 ## En curso
 
-_(ninguna)_
+- **Fase 12B — Backend de indicadores, vistas SQL, conexión real y catálogo real** · rama `fase-12b-indicadores-backend` · plan: `fase-12b-plan.md` (aprobado el 16-11-2026, construcción sin iniciar)
 
 ## Por hacer
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 12B | Dashboard: backend, vistas SQL, índices, purga de la IP y conexión real | 12A | — |
 | 13 | Reportes y exportaciones | 11, 12 | — |
 | 14 | Google y asistente de IA | 6, 7, 9 | ID de cliente OAuth de Google; clave de IA |
 | 15 | Calidad: rendimiento, accesibilidad y compatibilidad | 13, 14 | Prueba con NVDA; prueba en Safari real |
