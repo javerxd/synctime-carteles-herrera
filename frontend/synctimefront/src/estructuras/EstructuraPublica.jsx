@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { LayoutDashboard, Mail, Menu, Phone, UserRound, X } from 'lucide-react';
 import { Boton, Enlace, IconoWhatsapp } from '../componentes/ui';
 import { CartelMini } from '../paginas/publicas/cartel/CartelLocal';
@@ -38,6 +38,18 @@ export function EstructuraPublica() {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const refBotonMenu = useRef(null);
   const ubicacion = useLocation();
+
+  // Tocar «Letreros Herrera», «Consultas» o «Ingresar» lleva siempre arriba: en otra página, o en la misma
+  // (cada clic trae otra key, también si el destino es la dirección actual). No toca los anclas (/#vitrina,
+  // que baja la portada), ni «atrás/adelante» (el navegador devuelve la posición), ni la primera carga.
+  const tipoNavegacion = useNavigationType();
+  const keyVista = useRef(ubicacion.key);
+  useEffect(() => {
+    if (keyVista.current === ubicacion.key) return; // primera carga (o el doble montaje de desarrollo)
+    keyVista.current = ubicacion.key;
+    if (tipoNavegacion === 'POP' || ubicacion.hash) return;
+    window.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+  }, [ubicacion.key, ubicacion.hash, tipoNavegacion]);
 
   // Al cambiar de página o de sección, el menú del teléfono se cierra.
   const [rutaAnterior, setRutaAnterior] = useState(ubicacion.key);

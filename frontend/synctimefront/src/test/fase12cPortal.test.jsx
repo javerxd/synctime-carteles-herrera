@@ -8,6 +8,7 @@ import Portada from '../paginas/publicas/Portada';
 import SelectorIngreso from '../paginas/publicas/SelectorIngreso';
 import { Vitrina } from '../paginas/publicas/vitrina/Vitrina';
 import { almacenSesion } from '../sesion/sesion';
+import { simularMovimientoReducido } from './rostroAuxiliares';
 
 // Fase 12C: barra, cartel, consultas, vitrina e ingreso del portal público.
 vi.mock('../api/publico', () => ({
@@ -55,6 +56,7 @@ function Ruta({ nombre }) {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false, fecha: new Date().toISOString() }));
+  localStorage.removeItem('synctime.cartel.movimiento');
   almacenSesion.cerrar();
   publico.estadoLocal.mockResolvedValue(ESTADO_CERRADO);
   publico.categorias.mockResolvedValue(CATEGORIAS);
@@ -68,6 +70,7 @@ function estructura(entrada = '/') {
         <Route element={<EstructuraPublica />}>
           <Route index element={<Ruta nombre="Portada" />} />
           <Route path="consultas" element={<Ruta nombre="Consultas" />} />
+          <Route path="ingresar" element={<Ruta nombre="Ingresar" />} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -106,6 +109,37 @@ describe('barra superior', () => {
     estructura();
     expect(await screen.findByText('Cerrado')).toBeInTheDocument();
     publico.estadoLocal.mockResolvedValue(ESTADO_ABIERTO);
+  });
+
+  describe('al tocar la marca, «Consultas» o «Ingresar» vuelve arriba', () => {
+    let desplazar;
+    beforeEach(() => { desplazar = vi.spyOn(window, 'scrollTo').mockImplementation(() => {}); });
+    afterEach(() => { desplazar.mockRestore(); });
+
+    it('la marca lleva arriba desde otra página y también desde la misma', async () => {
+      estructura('/consultas');
+      expect(desplazar).not.toHaveBeenCalled(); // la primera carga no mueve la página
+      fireEvent.click(screen.getAllByRole('link', { name: 'Letreros Herrera' })[0]);
+      await waitFor(() => expect(desplazar).toHaveBeenCalledTimes(1));
+      expect(desplazar).toHaveBeenLastCalledWith({ top: 0, left: 0, behavior: 'auto' });
+      fireEvent.click(screen.getAllByRole('link', { name: 'Letreros Herrera' })[0]); // ya estamos en «/»
+      await waitFor(() => expect(desplazar).toHaveBeenCalledTimes(2));
+    });
+
+    it('«Consultas» e «Ingresar» también, incluso estando ya en ellas', async () => {
+      estructura('/consultas');
+      fireEvent.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Consultas' }));
+      await waitFor(() => expect(desplazar).toHaveBeenCalledTimes(1));
+      fireEvent.click(screen.getByRole('link', { name: 'Ingresar' }));
+      await waitFor(() => expect(desplazar).toHaveBeenCalledTimes(2));
+    });
+
+    it('un ancla de la portada (/#vitrina) no sube: baja a su sección', async () => {
+      estructura('/consultas');
+      fireEvent.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Trabajos' }));
+      await screen.findByText(/Portada/);
+      expect(desplazar).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -149,6 +183,45 @@ describe('cartel digital', () => {
     render(<CartelGrande estado={{ datos: undefined, cargando: false, error: new Error('x'), recargar }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(recargar).toHaveBeenCalled();
+  });
+
+  describe('balanceo continuo', () => {
+    afterEach(() => { delete window.matchMedia; });
+    const grande = (container) => container.firstChild;
+    const boton = (nombre) => screen.getByRole('button', { name: nombre });
+
+    it('por defecto se balancea y un botón permite pausarlo (WCAG 2.2.2)', () => {
+      const { container } = render(<CartelGrande estado={estado(ESTADO_CERRADO)} />);
+      expect(grande(container)).toHaveAttribute('data-movimiento', 'si');
+      fireEvent.click(boton('Pausar el balanceo'));
+      expect(grande(container)).toHaveAttribute('data-movimiento', 'no');
+      expect(boton('Balancear el cartel')).toBeInTheDocument();
+    });
+
+    it('con «reducir movimiento» en el sistema arranca quieto, pero la persona puede encenderlo', () => {
+      simularMovimientoReducido(true);
+      const { container } = render(<CartelGrande estado={estado(ESTADO_CERRADO)} />);
+      expect(grande(container)).toHaveAttribute('data-movimiento', 'no');
+      fireEvent.click(boton('Balancear el cartel'));
+      expect(grande(container)).toHaveAttribute('data-movimiento', 'si');
+    });
+
+    it('recuerda la elección en el navegador', () => {
+      const primera = render(<CartelGrande estado={estado(ESTADO_CERRADO)} />);
+      fireEvent.click(boton('Pausar el balanceo'));
+      expect(localStorage.getItem('synctime.cartel.movimiento')).toBe('no');
+      primera.unmount();
+      const segunda = render(<CartelGrande estado={estado(ESTADO_CERRADO)} />);
+      expect(grande(segunda.container)).toHaveAttribute('data-movimiento', 'no');
+    });
+
+    it('si el navegador no deja guardar, igual alterna', () => {
+      const guardar = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('lleno'); });
+      const { container } = render(<CartelGrande estado={estado(ESTADO_CERRADO)} />);
+      fireEvent.click(boton('Pausar el balanceo'));
+      expect(grande(container)).toHaveAttribute('data-movimiento', 'no');
+      guardar.mockRestore();
+    });
   });
 
   it('el botón flotante de WhatsApp lleva la imagen del taller, no el icono genérico', () => {

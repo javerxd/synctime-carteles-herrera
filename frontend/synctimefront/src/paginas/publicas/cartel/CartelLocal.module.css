@@ -27,8 +27,12 @@
   aspect-ratio: 400 / 350;
   margin-inline: auto;
   transform-origin: 50% 4%;
-  /* Se balancea apenas, desde el clavo, como un cartel colgado */
-  animation: balanceo 7s ease-in-out 900ms infinite;
+}
+
+/* Se balancea sin parar, desde el clavo, como un cartel colgado. Lo enciende el script: sigue la preferencia
+   de movimiento del sistema y el botón «Pausar el balanceo» / «Balancear el cartel» la cambia. */
+.grande[data-movimiento='si'] .colgante {
+  animation: balanceo 6s ease-in-out infinite;
 }
 
 .colgante[data-estado='abierto'] {
@@ -44,11 +48,11 @@
 @keyframes balanceo {
   0%,
   100% {
-    transform: rotate(-1.4deg);
+    transform: rotate(-2.2deg);
   }
 
   50% {
-    transform: rotate(1.4deg);
+    transform: rotate(2.2deg);
   }
 }
 
@@ -176,9 +180,32 @@
   letter-spacing: 0;
 }
 
+/* Pausa o inicia el balanceo; es el control que permite detener un movimiento que no termina */
+.movimiento {
+  display: inline-flex;
+  align-items: center;
+  justify-self: center;
+  gap: var(--espacio-1-5);
+  min-block-size: 2.75rem;
+  margin-block-start: var(--espacio-2);
+  padding: 0 var(--espacio-3);
+  border: 0;
+  border-radius: var(--radio-pildora);
+  background: transparent;
+  color: var(--color-texto-secundario);
+  font: inherit;
+  font-size: var(--tamano-sm);
+  cursor: pointer;
+}
+
+.movimiento:hover {
+  background: var(--color-fondo-hundido);
+  color: var(--color-texto);
+}
+
+/* La entrada y el fundido de color respetan la reducción de movimiento; el balanceo lo decide el botón */
 @media (prefers-reduced-motion: reduce) {
-  .grande,
-  .colgante {
+  .grande {
     animation: none;
   }
 

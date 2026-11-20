@@ -1,10 +1,11 @@
-import { DoorClosed, DoorOpen } from 'lucide-react';
+import { DoorClosed, DoorOpen, Pause, Play } from 'lucide-react';
 import { Aviso, Boton } from '../../../componentes/ui';
 import { unirClases } from '../../../componentes/ui/clases';
 import { formatearFechaHora } from '../../../utilidades/formato';
 import { textoEstado } from '../horario';
 import { useEstadoLocal } from '../useEstadoLocal';
 import { estadoCartel } from './estadoCartel';
+import { useMovimientoCartel } from './useMovimientoCartel';
 import estilos from './CartelLocal.module.css';
 
 /** Letrero colgado: cuerda, clavo, tablero con esquinas recortadas, ojales y doble filete (como el cartel del taller). */
@@ -28,13 +29,14 @@ function Letrero() {
  * abierto, rojo si está cerrado) con los textos reales dentro: «En el taller ahora.», «Abierto» o «Cerrado»,
  * la frase del estado y cuándo se actualizó. Los dibujos son decorativos; el lector de pantalla lee el
  * texto, y el contraste de las letras no depende de ninguna imagen. Entra deslizándose de izquierda a
- * derecha una sola vez al cargar y luego se balancea apenas, como un cartel colgado. Al abrir o cerrar el
+ * derecha una sola vez al cargar y luego se balancea sin parar, como un cartel colgado. Al abrir o cerrar el
  * local el tablero cambia de color con un fundido y la región `aria-live="polite"` lo anuncia.
- * Con `prefers-reduced-motion` no se mueve.
+ * Con `prefers-reduced-motion` arranca quieto (y sin entrada); el botón de abajo lo mueve o lo pausa.
  */
 export function CartelGrande({ estado }) {
   const { datos, cargando, error, recargar } = estado;
   const cartel = estadoCartel(datos);
+  const { mover, alternar } = useMovimientoCartel();
 
   if (error && !datos) {
     return (
@@ -47,7 +49,7 @@ export function CartelGrande({ estado }) {
   }
 
   return (
-    <div className={estilos.grande}>
+    <div className={estilos.grande} data-movimiento={mover ? 'si' : 'no'}>
       <div className={estilos.colgante} data-estado={cartel ? (cartel.abierto ? 'abierto' : 'cerrado') : 'cargando'}>
         <Letrero />
         <div className={estilos.contenido}>
@@ -69,6 +71,10 @@ export function CartelGrande({ estado }) {
           </div>
         </div>
       </div>
+      <button type="button" className={estilos.movimiento} onClick={alternar}>
+        {mover ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+        {mover ? 'Pausar el balanceo' : 'Balancear el cartel'}
+      </button>
     </div>
   );
 }

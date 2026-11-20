@@ -1595,6 +1595,46 @@ test('12C: con reducción de movimiento el cartel y los botones no se mueven', a
   await expect(boton).toHaveCSS('transform', 'none');
 });
 
+test('12C: el cartel se balancea sin parar; con reducción de movimiento arranca quieto y un botón lo mueve', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto('/');
+  const cartel = page.getByRole('complementary', { name: 'En el taller ahora.' });
+  const giro = () => cartel.evaluate((e) => getComputedStyle(e.querySelector('[data-estado]')).transform);
+  await expect.poll(giro).not.toBe('none');
+  const primero = await giro();
+  await expect.poll(giro).not.toBe(primero);
+  await cartel.getByRole('button', { name: 'Pausar el balanceo' }).click();
+  await expect.poll(giro).toBe('none');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => localStorage.removeItem('synctime.cartel.movimiento'));
+  await page.reload();
+  await expect(cartel.getByRole('button', { name: 'Balancear el cartel' })).toBeVisible();
+  expect(await giro()).toBe('none');
+  await cartel.getByRole('button', { name: 'Balancear el cartel' }).click();
+  await expect.poll(giro).not.toBe('none');
+});
+
+test('12C: la marca, «Consultas» y «Ingresar» llevan arriba aunque ya se esté en esa página', async ({ page }) => {
+  await simularApiPublica(page);
+  // Ventana baja: /consultas e /ingresar son cortas y así tienen algo que desplazar.
+  await page.setViewportSize({ width: 1440, height: 420 });
+  await page.goto('/');
+  const barra = page.getByRole('banner');
+  // Se repite el desplazamiento hasta que la página (que aún carga) sea lo bastante larga.
+  const bajar = () => expect.poll(() => page.evaluate(() => { window.scrollTo(0, 600); return window.scrollY; })).toBeGreaterThan(100);
+  for (const [enlace, ruta] of [['Letreros Herrera', '/'], ['Consultas', '/consultas'], ['Ingresar', '/ingresar']]) {
+    await bajar();
+    await barra.getByRole('link', { name: enlace }).click();
+    await expect(page).toHaveURL(new RegExp(`${ruta}$`));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await bajar(); // otra vez, ya en esa página
+    await barra.getByRole('link', { name: enlace }).click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  }
+});
+
 test('12C: sin reducción de movimiento el botón se eleva al pasar el cursor, pero no en el panel del taller', async ({ page }) => {
   await simularApiPublica(page);
   await page.setViewportSize({ width: 1440, height: 800 });
