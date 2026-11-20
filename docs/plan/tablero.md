@@ -31,6 +31,10 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 Nada por ahora.
 
+## Plan aprobado, construcción sin iniciar
+
+- **Fase 13 — Reportes y exportaciones** · plan `fase-13-plan.md` aprobado el 20-11-2026 con las nueve decisiones tal como se propusieron (13A backend y 13B frontend; DocumentFormat.OpenXml y PDFsharp/MigraDoc; CSV con `;`; archivos de 24 horas; operativo para todo el personal) · la construcción empieza cuando el usuario lo indique
+
 ## En curso
 
 _(ninguna)_
