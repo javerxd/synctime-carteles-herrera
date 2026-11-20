@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 20-11-2026 (fase 12C construida, esperando tu visto bueno).
+Última actualización: 20-11-2026 (fase 12C aprobada).
 
 ## Hecho
 
@@ -23,9 +23,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 12A — Dashboard: contrato y frontend** · rama `fase-12a-dashboard-frontend` · informe: `informes/fase-12a.md` · aprobada el 16-11-2026 · el usuario autorizó subir la política de privacidad a 1.1 en la 12B
 - **Fase 12B — Backend de indicadores, vistas SQL, conexión real y catálogo real** · rama `fase-12b-indicadores-backend` · informe: `informes/fase-12.md` (cubre la 12A y la 12B) · aprobada el 20-11-2026 · catálogo real del taller, política de privacidad 1.1, migraciones `CatalogoRealDelTaller` e `IndicadoresDashboard` aplicadas en la demo (no en la real)
 
+- **Fase 12C — Portal público: mapa, carteles, barra superior, vitrina e ingreso** · rama `fase-12c-portal-publico` · informe: `informes/fase-12c.md` · aprobada el 20-11-2026 · sin migración; solo frontend
+
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 12C — Portal público: mapa, carteles, barra superior, vitrina e ingreso** · rama `fase-12c-portal-publico` · informe: `informes/fase-12c.md` · sin migración; solo frontend
+_(ninguna)_
 
 ## En curso
 
