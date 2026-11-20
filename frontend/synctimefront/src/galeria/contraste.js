@@ -4,7 +4,7 @@ const TOKENS = [
   ['--color-texto', 'Tinta'],
   ['--color-texto-secundario', 'Texto secundario'],
   ['--color-texto-tenue', 'Texto tenue'],
-  ['--color-acento', 'Acento ámbar'],
+  ['--color-acento', 'Acento naranja'],
   ['--color-acento-hover', 'Acento al pasar'],
   ['--color-borde-control', 'Borde de campos'],
   ['--color-fondo', 'Fondo'],

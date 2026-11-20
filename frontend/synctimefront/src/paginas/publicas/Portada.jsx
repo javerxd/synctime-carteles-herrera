@@ -1,33 +1,30 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { ArrowRight, Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
+import { ArrowRight, Clock, Mail, MapPin, MessageSquareText, Phone } from 'lucide-react';
 import {
-  Aviso, Boton, Chip, Enlace, Esqueleto, EstadoCartel, EstadoVacio, Insignia, Tarjeta,
+  Aviso, Boton, Enlace, Esqueleto, IconoWhatsapp, Insignia, Tarjeta,
 } from '../../componentes/ui';
 import { publico } from '../../api/publico';
 import { enlaceTelefono, enlaceWhatsapp, TALLER } from '../../configuracion/taller';
 import { BotonSolicitar } from '../../estructuras/Solicitud';
-import { formatearFechaHora, formatearPesos } from '../../utilidades/formato';
 import { useConsulta } from '../../utilidades/useConsulta';
 import { ComprobanteBaja } from '../cuenta/ComprobanteBaja';
-import { FormularioContacto } from './contacto/FormularioContacto';
-import { franja, hora, textoEstado } from './horario';
+import { CartelGrande } from './cartel/CartelLocal';
+import { franja, hora } from './horario';
 import { MapaUbicacion } from './mapa/MapaUbicacion';
+import { useEstadoLocal } from './useEstadoLocal';
+import { Vitrina } from './vitrina/Vitrina';
 import estilos from './Portada.module.css';
-
-const POR_PAGINA = 9;
-// El estado «abierto ahora» cambia con la hora: una pestaña abierta todo el día se actualiza sola.
-const REFRESCO_ESTADO_MS = 60_000;
 
 /**
  * Portada pública, estructura «Mostrador» (elegida por el usuario el 13-11-2026): la propuesta de
  * valor y la acción principal a la izquierda; a la derecha, la ficha del mostrador con el estado del
  * local (horario en hora de Chile y cartel), el horario de hoy y cómo contactarnos. Debajo, la vitrina,
- * el horario semanal con el mapa y el formulario de contacto.
+ * el horario semanal con el mapa y los canales de contacto. El formulario «Escríbenos» vive en /consultas
+ * (fase 12C); el estado del local lo comparte la estructura pública con el cartel pequeño de la barra.
  */
 export default function Portada() {
-  const estado = useConsulta('estado-local', publico.estadoLocal);
-  const { recargar: recargarEstado } = estado;
+  const estado = useEstadoLocal();
   const { hash, key } = useLocation();
   const ajustePendiente = useRef(null);
 
@@ -46,17 +43,8 @@ export default function Portada() {
     document.getElementById(hash.slice(1))?.scrollIntoView();
   }, [estado.datos, hash, key]);
 
-  useEffect(() => {
-    const refrescar = () => {
-      if (!document.hidden) recargarEstado();
-    };
-    const cada = window.setInterval(refrescar, REFRESCO_ESTADO_MS);
-    document.addEventListener('visibilitychange', refrescar);
-    return () => {
-      window.clearInterval(cada);
-      document.removeEventListener('visibilitychange', refrescar);
-    };
-  }, [recargarEstado]);
+  // El enlace antiguo /#contacto (correos, marcadores) lleva al formulario, que ahora es /consultas.
+  if (hash === '#contacto') return <Navigate to="/consultas" replace />;
 
   return (
     <>
@@ -92,23 +80,7 @@ function Mostrador({ estado }) {
   return (
     <Tarjeta como="aside" aria-labelledby="titulo-mostrador" className={estilos.mostrador}>
       <h2 id="titulo-mostrador" className={estilos.tituloMostrador}>En el taller ahora</h2>
-      {estado.cargando && <Esqueleto forma="bloque" alto="3rem" />}
-      {estado.error && (
-        <Aviso tono="aviso" titulo="No pudimos cargar el estado del local"
-          accion={<Boton variante="secundario" tamano="compacto" onClick={estado.recargar}>Reintentar</Boton>} />
-      )}
-      {datos && (
-        <div className={estilos.cartel}>
-          <EstadoCartel abierto={datos.abiertoAhora} grande />
-          <p className={estilos.mensaje}>{textoEstado(datos)}</p>
-          {datos.motivo === 'ausente' && datos.cartel?.tiempoEstimadoRegreso && (
-            <p className={estilos.dato}>Regreso estimado: <strong>{datos.cartel.tiempoEstimadoRegreso}</strong></p>
-          )}
-          {datos.cartel && (
-            <p className={estilos.actualizado}>Cartel actualizado el {formatearFechaHora(datos.cartel.fechaUltimaModificacion)}</p>
-          )}
-        </div>
-      )}
+      <CartelGrande estado={estado} />
       <ul className={estilos.datos}>
         <li>
           <Clock size={18} strokeWidth={1.75} aria-hidden="true" />
@@ -134,173 +106,10 @@ function Mostrador({ estado }) {
       <div className={estilos.accionesMostrador}>
         <Boton como="a" href="#ubicacion" variante="secundario" tamano="compacto" iconoInicio={MapPin}>Cómo llegar</Boton>
         {whatsapp && (
-          <Boton como="a" href={whatsapp} target="_blank" rel="noopener noreferrer" variante="secundario" tamano="compacto" iconoInicio={MessageCircle}>
+          <Boton como="a" href={whatsapp} target="_blank" rel="noopener noreferrer" variante="secundario" tamano="compacto" iconoInicio={IconoWhatsapp}>
             Escribir por WhatsApp<span className="solo-lectores"> (se abre en otra pestaña)</span>
           </Boton>
         )}
-      </div>
-    </Tarjeta>
-  );
-}
-
-function medidas(trabajo) {
-  if (!trabajo.anchoMm || !trabajo.altoMm) return null;
-  const cm = (mm) => new Intl.NumberFormat('es-CL', { maximumFractionDigits: 1 }).format(mm / 10);
-  return `${cm(trabajo.anchoMm)} × ${cm(trabajo.altoMm)} cm`;
-}
-
-/**
- * Vitrina (RFS01, RNFP32): la API filtra por categoría y pagina; «Ver más trabajos» suma la página
- * siguiente. Las fotos se sirven en WebP, en dos tamaños, con carga diferida.
- */
-function Vitrina() {
-  const [categoria, setCategoria] = useState(null);
-  const [pagina, setPagina] = useState(1);
-  const categorias = useConsulta('categorias', publico.categorias);
-  const claveActual = categoria ?? 'todas';
-  const consulta = useConsulta(`catalogo:${claveActual}:${pagina}`,
-    () => publico.catalogo({ categoria: categoria ?? undefined, pagina, tamano: POR_PAGINA }));
-
-  // Las páginas ya vistas de la categoría actual se conservan al pedir la siguiente, con su total: así,
-  // mientras llega la página nueva, el botón «Ver más trabajos» sigue ahí (cargando) y no pierde el foco.
-  const [acumulado, setAcumulado] = useState({ clave: null, pagina: 0, trabajos: [], total: 0, totalPaginas: 0 });
-  if (consulta.datos && acumulado.clave !== `${claveActual}:${pagina}`) {
-    const previos = acumulado.clave?.startsWith(`${claveActual}:`) && pagina > 1 ? acumulado.trabajos : [];
-    const nuevos = consulta.datos.elementos.filter((t) => !previos.some((p) => p.idCatalogo === t.idCatalogo));
-    setAcumulado({
-      clave: `${claveActual}:${pagina}`, pagina, trabajos: [...previos, ...nuevos],
-      total: consulta.datos.total, totalPaginas: consulta.datos.totalPaginas,
-    });
-  }
-  const vigente = acumulado.clave?.startsWith(`${claveActual}:`) ?? false;
-  const trabajos = vigente ? acumulado.trabajos : [];
-  const total = vigente ? acumulado.total : 0;
-  const hayMas = vigente && acumulado.pagina < acumulado.totalPaginas;
-  const cargandoMas = vigente && acumulado.pagina < pagina && !consulta.error;
-
-  // Al llegar la página pedida, el foco pasa al primer trabajo nuevo: quien usa teclado o lector sigue
-  // leyendo desde ahí, sin volver a recorrer los anteriores.
-  const refLista = useRef(null);
-  const enfocarDesde = useRef(null);
-  useEffect(() => {
-    const desde = enfocarDesde.current;
-    if (desde === null || trabajos.length <= desde) return;
-    enfocarDesde.current = null;
-    refLista.current?.querySelectorAll('article')[desde]?.focus();
-  }, [trabajos.length]);
-
-  function verMas() {
-    if (cargandoMas) return;
-    enfocarDesde.current = trabajos.length;
-    setPagina(acumulado.pagina + 1);
-  }
-
-  const opciones = useMemo(
-    () => (categorias.datos ?? []).filter((c) => c.activo !== false).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
-    [categorias.datos],
-  );
-
-  function elegir(id) {
-    setCategoria(id);
-    setPagina(1);
-  }
-
-  const nombreCategoria = opciones.find((c) => c.idCategoria === categoria)?.nombre;
-
-  return (
-    <section id="vitrina" className={estilos.seccionAlterna} aria-labelledby="titulo-vitrina">
-      <div className={estilos.contenedorSimple}>
-        <div className={estilos.encabezado}>
-          <h2 id="titulo-vitrina">Trabajos realizados</h2>
-          <p className={estilos.descripcion}>Precios de referencia: cada trabajo se cotiza según medidas, materiales e instalación.</p>
-        </div>
-
-        {opciones.length > 1 && (
-          <div className={estilos.filtros} role="group" aria-label="Filtrar trabajos por categoría">
-            <Chip seleccionado={categoria === null} alCambiar={() => elegir(null)}>Todos</Chip>
-            {opciones.map((c) => (
-              <Chip key={c.idCategoria} seleccionado={categoria === c.idCategoria}
-                alCambiar={() => elegir(categoria === c.idCategoria ? null : c.idCategoria)}>
-                {c.nombre}
-              </Chip>
-            ))}
-          </div>
-        )}
-        <p className="solo-lectores" role="status">
-          {vigente
-            ? `Mostrando ${trabajos.length} de ${total} ${total === 1 ? 'trabajo' : 'trabajos'}${nombreCategoria ? ` en ${nombreCategoria}` : ''}`
-            : ''}
-        </p>
-
-        {consulta.cargando && trabajos.length === 0 && (
-          <div className={estilos.rejilla} aria-hidden="true">
-            {[1, 2, 3].map((i) => <Esqueleto key={i} forma="bloque" alto="20rem" />)}
-          </div>
-        )}
-        {consulta.error && (
-          <Aviso tono="aviso" titulo="No pudimos cargar la vitrina"
-            accion={<Boton variante="secundario" tamano="compacto" onClick={consulta.recargar}>Reintentar</Boton>} />
-        )}
-        {vigente && total === 0 && (
-          <EstadoVacio nivelTitulo={3}
-            titulo={nombreCategoria ? `Aún no publicamos trabajos de ${nombreCategoria}` : 'Aún no hay trabajos publicados'}
-            descripcion="Cuéntanos qué necesitas y te enviamos una cotización." accion={<BotonSolicitar />} />
-        )}
-        {trabajos.length > 0 && (
-          <ul ref={refLista} className={estilos.rejilla}>
-            {trabajos.map((trabajo) => (
-              <li key={trabajo.idCatalogo}>
-                <TarjetaTrabajo trabajo={trabajo} />
-              </li>
-            ))}
-          </ul>
-        )}
-        {hayMas && (
-          <div className={estilos.masTrabajos}>
-            <Boton variante="secundario" cargando={cargandoMas} textoCargando="Cargando…" onClick={verMas}>
-              Ver más trabajos
-            </Boton>
-            <p className={estilos.conteo}>Mostrando {trabajos.length} de {total}</p>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function TarjetaTrabajo({ trabajo }) {
-  const { imagen } = trabajo;
-  return (
-    <Tarjeta como="article" interactiva sinRelleno tabIndex={-1} className={estilos.trabajo} aria-labelledby={`trabajo-${trabajo.idCatalogo}`}>
-      <div className={estilos.marcoFoto}>
-        {imagen ? (
-          <img
-            src={imagen.urlMiniatura}
-            srcSet={`${imagen.urlMiniatura} 640w, ${imagen.urlGrande} 1600w`}
-            sizes="(min-width: 64rem) 22rem, (min-width: 40rem) 45vw, 92vw"
-            alt="" /* el título del trabajo, justo debajo, ya la nombra: así el lector no lo repite */
-            loading="lazy"
-            decoding="async"
-            width={imagen.ancho}
-            height={imagen.alto}
-            className={estilos.foto}
-          />
-        ) : (
-          <div className={estilos.sinFoto}><span>Foto del trabajo pendiente</span></div>
-        )}
-        {imagen?.esEjemplo && <span className={estilos.marcaEjemplo}>Imagen de ejemplo</span>}
-      </div>
-      <div className={estilos.cuerpoTrabajo}>
-        <Insignia tono="neutro">{trabajo.categoria.nombre}</Insignia>
-        <h3 id={`trabajo-${trabajo.idCatalogo}`} className={estilos.tituloTrabajo}>{trabajo.titulo}</h3>
-        {trabajo.descripcion && <p className={estilos.textoTrabajo}>{trabajo.descripcion}</p>}
-        <p className={estilos.ficha}>{[trabajo.tipoLetrero, medidas(trabajo)].filter(Boolean).join(' · ')}</p>
-        {trabajo.precioReferencial > 0 && (
-          <p className={estilos.precio}><span>Desde</span> <strong className="cifras">{formatearPesos(trabajo.precioReferencial)}</strong></p>
-        )}
-        <BotonSolicitar trabajo={trabajo} variante="secundario" tamano="compacto" iconoInicio={null} className={estilos.accionTrabajo}>
-          Cotizar uno similar <span className="solo-lectores">a {trabajo.titulo}</span>
-        </BotonSolicitar>
       </div>
     </Tarjeta>
   );
@@ -369,20 +178,36 @@ function HorarioYUbicacion({ estado }) {
   );
 }
 
+/** Canales directos; el formulario por escrito está en /consultas (fase 12C). */
 function Contacto() {
+  const whatsapp = enlaceWhatsapp();
+  const telefono = enlaceTelefono();
   return (
-    <section id="contacto" className={estilos.seccionAlterna} data-fondo="alterno" aria-labelledby="titulo-contacto">
+    <section data-fondo="alterno" className={estilos.seccionAlterna} aria-labelledby="titulo-contacto">
       <div className={estilos.contenedorContacto}>
         <div className={estilos.encabezado}>
-          <h2 id="titulo-contacto">Escríbenos</h2>
+          <h2 id="titulo-contacto">¿Tienes una consulta?</h2>
           <p className={estilos.descripcion}>
-            ¿Tienes una pregunta antes de pedir? Déjanos tu consulta y te respondemos a tu correo.
+            Llámanos o escríbenos por WhatsApp. Si prefieres dejarla por escrito, te respondemos a tu correo.
             Para cotizar un trabajo, usa «Solicitar cotización».
           </p>
         </div>
-        <Tarjeta>
-          <FormularioContacto />
-        </Tarjeta>
+        <div className={estilos.canales}>
+          <Boton como={Link} to="/consultas" variante="secundario" iconoInicio={MessageSquareText}>Escribir una consulta</Boton>
+          {whatsapp && (
+            <Boton como="a" href={whatsapp} target="_blank" rel="noopener noreferrer" variante="secundario" iconoInicio={IconoWhatsapp}>
+              Escribir por WhatsApp<span className="solo-lectores"> (se abre en otra pestaña)</span>
+            </Boton>
+          )}
+        </div>
+        <ul className={estilos.canalesLista}>
+          {telefono && (
+            <li><Phone size={16} strokeWidth={1.75} aria-hidden="true" /><Enlace href={telefono}>{TALLER.telefono}</Enlace></li>
+          )}
+          {TALLER.correo && (
+            <li><Mail size={16} strokeWidth={1.75} aria-hidden="true" /><Enlace href={`mailto:${TALLER.correo}`}>{TALLER.correo}</Enlace></li>
+          )}
+        </ul>
       </div>
     </section>
   );

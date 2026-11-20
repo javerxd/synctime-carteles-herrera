@@ -11,6 +11,8 @@ import { RequiereCliente, RequierePersonal } from './sesion/Guardas';
 
 // Cada pantalla se descarga al visitarla: la portada no carga el panel ni el reconocimiento facial.
 const Portada = lazy(() => import('./paginas/publicas/Portada'));
+const SelectorIngreso = lazy(() => import('./paginas/publicas/SelectorIngreso'));
+const Consultas = lazy(() => import('./paginas/publicas/Consultas'));
 const IngresoPersonal = lazy(() => import('./paginas/publicas/IngresoPersonal'));
 const DocumentoLegal = lazy(() => import('./paginas/publicas/legales/DocumentoLegal'));
 const IngresoCliente = lazy(() => import('./paginas/cuenta/IngresoCliente'));
@@ -70,7 +72,10 @@ export default function App() {
           <Routes>
             <Route element={<EstructuraPublica />}>
               <Route index element={enCarga(<Portada />)} />
-              <Route path="ingresar" element={enCarga(<IngresoCliente />)} />
+              <Route path="consultas" element={enCarga(<Consultas />)} />
+              {/* Fase 12C: /ingresar es el selector «¿Quién está iniciando sesión?»; el formulario del cliente pasa a /ingresar/cliente. */}
+              <Route path="ingresar" element={enCarga(<SelectorIngreso />)} />
+              <Route path="ingresar/cliente" element={enCarga(<IngresoCliente />)} />
               <Route path="cuenta" element={<RequiereCliente>{enCarga(<MiCuenta />)}</RequiereCliente>} />
               <Route path="cuenta/solicitud" element={<RequiereCliente>{enCarga(<NuevaSolicitud />)}</RequiereCliente>} />
               <Route path="cuenta/solicitudes" element={<RequiereCliente>{enCarga(<MisSolicitudes />)}</RequiereCliente>} />

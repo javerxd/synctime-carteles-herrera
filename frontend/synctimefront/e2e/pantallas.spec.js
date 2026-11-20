@@ -364,7 +364,9 @@ function entrarComoCliente(page, { verificado = false } = {}) {
 
 const PANTALLAS = [
   ['/', 'Letreros que se ven de lejos.'],
-  ['/ingresar', 'Ingresar a tu cuenta'],
+  ['/ingresar', '¿Quién está iniciando sesión?'],
+  ['/ingresar/cliente', 'Ingresar a tu cuenta'],
+  ['/consultas', 'Escríbenos'],
   ['/cuenta/registro', 'Crear cuenta'],
   ['/cuenta/recuperar', 'Recuperar tu contraseña'],
   ['/cuenta', 'Mi cuenta'],
@@ -553,8 +555,10 @@ test('el aviso de cookies ofrece dos opciones iguales y no vuelve tras decidir',
 test('el formulario de contacto valida, exige la privacidad y confirma el envío', async ({ page }) => {
   await simularApiPublica(page);
   await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
+  // Fase 12C: el formulario vive en /consultas; el enlace antiguo /#contacto lleva ahí.
   await page.goto('/#contacto');
-  const formulario = page.locator('#contacto');
+  await expect(page).toHaveURL(/\/consultas$/);
+  const formulario = page.locator('#contenido');
   await formulario.getByRole('button', { name: 'Enviar consulta' }).click();
   await expect(formulario.getByRole('textbox', { name: /Nombre/ })).toBeFocused();
   await formulario.getByRole('textbox', { name: /Nombre/ }).fill('Pedro Soto');
@@ -632,6 +636,9 @@ test('salir del panel avisa a la API y vuelve al acceso del personal', async ({ 
 test('sin sesión, Mi cuenta lleva al ingreso de clientes; el acceso del personal enlaza a su recuperación', async ({ page }) => {
   await simularApiPublica(page);
   await page.goto('/cuenta');
+  // Fase 12C: la guarda lleva al selector «¿Quién está iniciando sesión?»; el cliente elige su tarjeta.
+  await expect(page.getByRole('heading', { level: 1, name: '¿Quién está iniciando sesión?' })).toBeVisible();
+  await page.getByRole('main').getByRole('link', { name: /Cliente/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Ingresar a tu cuenta' })).toBeVisible();
   await expect(page.getByRole('button', { name: /rostro/i })).toHaveCount(0);
   await page.goto('/personal/ingresar');
@@ -650,7 +657,7 @@ test('registro: casillas desmarcadas, la obligatoria bloquea el envío y al crea
     return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
   });
   await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
-  await page.goto('/ingresar');
+  await page.goto('/ingresar/cliente');
   await page.getByRole('link', { name: 'Crear cuenta' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Crear cuenta' })).toBeVisible();
 
@@ -698,7 +705,7 @@ test('recuperación en dos pasos: pide el código, cambia la contraseña y vuelv
     }
     return ruta.fulfill({ json: RESPUESTAS[destino] ?? [] });
   });
-  await page.goto('/ingresar');
+  await page.goto('/ingresar/cliente');
   await page.getByRole('link', { name: '¿Olvidaste tu contraseña?' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Recuperar tu contraseña' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Correo electrónico' }).fill('rosa@correo.test');
@@ -772,6 +779,8 @@ test('sin sesión, «Solicitar cotización» pasa por el ingreso y vuelve al for
   await page.addInitScript(() => localStorage.setItem('synctime_cookies', JSON.stringify({ analitica: false })));
   await page.goto('/');
   await page.getByRole('main').getByRole('link', { name: 'Solicitar cotización' }).first().click();
+  // El selector conserva adónde volver: al elegir «Cliente» y entrar, termina en el formulario.
+  await page.getByRole('main').getByRole('link', { name: /Cliente/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Ingresar a tu cuenta' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Correo electrónico' }).fill('rosa@correo.test');
   await page.getByLabel(/^Contraseña/).fill('clave-de-prueba');
@@ -1538,4 +1547,118 @@ test('fase 11: un operario no ve auditoría ni correos no enviados en el menú y
   await expect(menu.getByRole('link', { name: /Correos no enviados/ })).toHaveCount(0);
   await page.goto('/panel/auditoria');
   await expect(page.getByRole('heading', { name: 'No tienes permiso para ver esta página' })).toBeVisible();
+});
+
+// ── Fase 12C: portal público (barra, cartel, consultas, vitrina e ingreso) ──
+
+test('12C: la barra tiene Trabajos, Horario y Consultas; sin «Cómo llegar»; el cartel pequeño dice el estado', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto('/');
+  const barra = page.getByRole('banner');
+  for (const nombre of ['Trabajos', 'Horario', 'Consultas']) await expect(barra.getByRole('link', { name: nombre })).toBeVisible();
+  await expect(barra.getByRole('link', { name: 'Cómo llegar' })).toHaveCount(0);
+  await expect(barra.getByRole('link', { name: 'Contacto' })).toHaveCount(0);
+  await expect(barra.getByText('Cerrado')).toBeVisible();
+  await barra.getByRole('link', { name: 'Consultas' }).click();
+  await expect(page).toHaveURL(/\/consultas$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Escríbenos' })).toBeVisible();
+});
+
+test('12C: los botones de la barra pasan a naranja con letras blancas al pasar el cursor y al enfocar', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto('/');
+  const enlace = page.getByRole('banner').getByRole('link', { name: 'Horario' });
+  await enlace.hover();
+  await expect(enlace).toHaveCSS('background-color', 'rgb(194, 65, 12)');
+  await expect(enlace).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await page.mouse.move(5, 400);
+  await expect(enlace).not.toHaveCSS('background-color', 'rgb(194, 65, 12)');
+  await enlace.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(enlace).toHaveCSS('background-color', 'rgb(194, 65, 12)');
+});
+
+test('12C: con reducción de movimiento el cartel y los botones no se mueven', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto('/');
+  await expect(page.getByRole('complementary', { name: 'En el taller ahora' }).getByText('Cerrado / Ausente')).toBeVisible();
+  const animacion = await page.evaluate(() => getComputedStyle(document.querySelector('aside [aria-live]').parentElement).animationName);
+  expect(animacion).toBe('none');
+  const boton = page.getByRole('main').getByRole('link', { name: 'Solicitar cotización' });
+  await boton.hover();
+  await page.waitForTimeout(250);
+  await expect(boton).toHaveCSS('transform', 'none');
+});
+
+test('12C: sin reducción de movimiento el botón se eleva al pasar el cursor, pero no en el panel del taller', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto('/');
+  const boton = page.getByRole('main').getByRole('link', { name: 'Solicitar cotización' });
+  await boton.hover();
+  await expect.poll(() => boton.evaluate((e) => getComputedStyle(e).transform)).not.toBe('none');
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel/pedidos');
+  const enPanel = page.getByRole('main').getByRole('button').first();
+  await enPanel.hover();
+  await page.waitForTimeout(250);
+  await expect(enPanel).toHaveCSS('transform', 'none');
+});
+
+test('12C: la vitrina filtra al escribir, sin tildes, y se combina con la categoría', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const vitrina = page.locator('#vitrina');
+  await expect(vitrina.getByRole('status')).toHaveText('2 trabajos');
+  await vitrina.getByRole('searchbox', { name: 'Buscar trabajos' }).fill('vitrina');
+  await expect(vitrina.getByRole('status')).toHaveText('1 trabajo');
+  await expect(vitrina.getByRole('heading', { level: 3, name: 'Vinilo para vitrina de ferretería' })).toBeVisible();
+  await vitrina.getByRole('searchbox', { name: 'Buscar trabajos' }).fill('zzz');
+  await expect(vitrina.getByRole('heading', { level: 3, name: 'No hay trabajos con esa búsqueda' })).toBeVisible();
+  await vitrina.getByRole('button', { name: 'Limpiar' }).click();
+  await expect(vitrina.getByRole('status')).toHaveText('2 trabajos');
+});
+
+test('12C: el selector de ingreso conserva adónde volver y el cliente entra por su formulario', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.goto('/cuenta/solicitud');
+  await expect(page.getByRole('heading', { level: 1, name: '¿Quién está iniciando sesión?' })).toBeVisible();
+  const tarjetas = page.getByRole('main').getByRole('link');
+  await expect(tarjetas.nth(0)).toContainText('Cliente');
+  await expect(tarjetas.nth(1)).toContainText('Personal del taller');
+  const a = await tarjetas.nth(0).boundingBox();
+  const b = await tarjetas.nth(1).boundingBox();
+  expect(a.x).toBeLessThan(b.x);
+  await tarjetas.nth(0).click();
+  await expect(page).toHaveURL(/\/ingresar\/cliente$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Ingresar a tu cuenta' })).toBeVisible();
+});
+
+test('12C: en el teléfono las tarjetas de ingreso quedan una bajo la otra, con el cliente primero', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/ingresar');
+  const tarjetas = page.getByRole('main').getByRole('link');
+  const a = await tarjetas.nth(0).boundingBox();
+  const b = await tarjetas.nth(1).boundingBox();
+  expect(a.y).toBeLessThan(b.y);
+  expect(Math.abs(a.x - b.x)).toBeLessThan(2);
+});
+
+test('12C: a 360 px la barra muestra marca, cartel, «Ingresar» y menú sin desbordar', async ({ page }) => {
+  await simularApiPublica(page);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/');
+  const barra = page.getByRole('banner');
+  await expect(barra.getByRole('link', { name: 'Ingresar' })).toBeVisible();
+  await expect(barra.getByRole('button', { name: 'Menú' })).toBeVisible();
+  await expect(barra.getByText('Cerrado')).toBeVisible();
+  await expect(barra.getByText('Ausente')).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });

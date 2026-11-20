@@ -36,6 +36,15 @@ export default function Verificar() {
   const [resultado, setResultado] = useState({ token: null, valor: null });
   const refTitulo = useRef(null);
 
+  // Como /baja y /avisos/confirmar: el enlace trae el token, así que esta página no envía Referer (fase 12C).
+  useEffect(() => {
+    const meta = document.createElement('meta');
+    meta.name = 'referrer';
+    meta.content = 'no-referrer';
+    document.head.appendChild(meta);
+    return () => meta.remove();
+  }, []);
+
   useEffect(() => {
     if (parametros.has('token')) navegar('/cuenta/verificar', { replace: true });
   }, [parametros, navegar]);
@@ -63,7 +72,7 @@ export default function Verificar() {
   const valor = token ? listo : SIN_TOKEN;
   const accion = esCliente
     ? <Boton como={Link} to="/cuenta">Ir a mi cuenta</Boton>
-    : <Boton como={Link} to="/ingresar">Ingresar</Boton>;
+    : <Boton como={Link} to="/ingresar/cliente">Ingresar</Boton>;
 
   return (
     <div className={estilos.pagina}>

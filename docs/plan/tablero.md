@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 20-11-2026 (fase 12 aprobada; sigue la fase 13).
+Última actualización: 20-11-2026 (fase 12C construida, esperando tu visto bueno).
 
 ## Hecho
 
@@ -25,7 +25,7 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-_(ninguna)_
+- **Fase 12C — Portal público: mapa, carteles, barra superior, vitrina e ingreso** · rama `fase-12c-portal-publico` · informe: `informes/fase-12c.md` · sin migración; solo frontend
 
 ## En curso
 
@@ -35,7 +35,6 @@ _(ninguna)_
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 12C | Portal público: mapa, carteles, barra superior, vitrina e ingreso · plan: `fase-12c-plan.md` | 12B | Tu aprobación del plan |
 | 12D | Paneles, cuentas, validaciones y catálogo editable · plan: `fase-12d-plan.md` | 12C | Tu aprobación del plan |
 | 13 | Reportes y exportaciones | 11, 12, 12D | — |
 | 14 | Ingreso con Google (sin asistente de IA) | 6, 7, 9 | ID de cliente OAuth de Google |

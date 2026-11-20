@@ -26,12 +26,12 @@
   --primitivo-pizarra-800: #1e293b;
   --primitivo-pizarra-900: #0f172a;
 
-  /* Ámbar de taller: el único acento */
-  --primitivo-ambar-50: #fffbeb;
-  --primitivo-ambar-100: #fef3c7;
-  --primitivo-ambar-700: #b45309;
-  --primitivo-ambar-800: #92400e;
-  --primitivo-ambar-900: #78350f;
+  /* Naranja de taller: el único acento. #C2410C da 5,2:1 con letras blancas (fase 12C; antes ámbar #B45309) */
+  --primitivo-naranja-50: #fff7ed;
+  --primitivo-naranja-100: #ffedd5;
+  --primitivo-naranja-700: #c2410c;
+  --primitivo-naranja-800: #9a3412;
+  --primitivo-naranja-900: #7c2d12;
 
   /* Familias de estado (fondo 50, borde 200, sólido 700, texto 800) */
   --primitivo-azul-50: #eff6ff;
@@ -120,18 +120,18 @@
   --color-borde-fuerte: var(--primitivo-pizarra-300);
   --color-borde-control: var(--primitivo-pizarra-450);
 
-  /* Acento ámbar: solo llamadas a la acción y estados activos */
-  --color-acento: var(--primitivo-ambar-700);
-  --color-acento-hover: var(--primitivo-ambar-800);
-  --color-acento-presionado: var(--primitivo-ambar-900);
-  --color-acento-suave: var(--primitivo-ambar-50);
-  --color-acento-suave-borde: var(--primitivo-ambar-100);
+  /* Acento naranja: solo llamadas a la acción y estados activos */
+  --color-acento: var(--primitivo-naranja-700);
+  --color-acento-hover: var(--primitivo-naranja-800);
+  --color-acento-presionado: var(--primitivo-naranja-900);
+  --color-acento-suave: var(--primitivo-naranja-50);
+  --color-acento-suave-borde: var(--primitivo-naranja-100);
 
   /* Interacción */
-  --color-foco: var(--primitivo-ambar-700);
+  --color-foco: var(--primitivo-naranja-700);
   --color-hover-neutro: var(--primitivo-pizarra-100);
   --color-presionado-neutro: var(--primitivo-pizarra-200);
-  --color-seleccion: var(--primitivo-ambar-100);
+  --color-seleccion: var(--primitivo-naranja-100);
   --color-cristal: rgb(255 255 255 / 0.8);
   --color-telon: rgb(15 23 42 / 0.4);
 
@@ -194,6 +194,8 @@
   --duracion-brillo: 1.6s;
   --escala-presion: 0.98;
   --elevacion-hover: -2px;
+  --elevacion-boton: -1px;
+  --escala-presion-boton: 0.97;
 
   /* Medidas de la página */
   --ancho-contenido: 1200px;

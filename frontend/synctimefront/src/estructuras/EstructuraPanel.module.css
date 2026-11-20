@@ -80,7 +80,7 @@
   }
 }
 
-/* Activa: velo y texto ámbar, más la marca de forma (peso) para no depender del color */
+/* Activa: velo y texto naranja, más la marca de forma (peso) para no depender del color */
 .activa {
   background: var(--color-acento-suave);
   color: var(--color-acento-hover);

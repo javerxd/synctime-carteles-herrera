@@ -17,7 +17,7 @@ html {
   scrollbar-gutter: stable;
   scroll-padding-top: calc(var(--altura-barra) + var(--espacio-4)); /* el foco no queda bajo la barra */
   /* ni bajo el aviso de cookies, que publica su alto mientras se ve (WCAG 2.4.11) */
-  scroll-padding-bottom: calc(var(--altura-banner-cookies, 0px) + var(--espacio-4));
+  scroll-padding-bottom: calc(var(--altura-banner-cookies, 0px) + 5rem); /* y bajo el botón fijo de WhatsApp (56 px) */
 }
 
 /* Con un diálogo abierto la página de fondo no se desplaza */
@@ -110,7 +110,7 @@ table,
   color: var(--color-texto);
 }
 
-/* Foco visible para todo lo enfocable, con el ámbar del documento y separado del borde */
+/* Foco visible para todo lo enfocable, con el naranja del documento y separado del borde */
 :focus-visible {
   outline: var(--foco-ancho) solid var(--color-foco);
   outline-offset: var(--foco-separacion);

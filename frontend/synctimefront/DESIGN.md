@@ -2,10 +2,10 @@
 name: SyncTime — Letreros Herrera
 description: Modo claro de alta gama para un taller de letreros real; sobrio, preciso y legible de lejos.
 colors:
-  ambar-taller: "#B45309"
-  ambar-taller-hondo: "#92400E"
-  ambar-taller-presionado: "#78350F"
-  ambar-velo: "#FFFBEB"
+  naranja-taller: "#C2410C"
+  naranja-taller-hondo: "#9A3412"
+  naranja-taller-presionado: "#7C2D12"
+  naranja-velo: "#FFF7ED"
   tinta-profunda: "#0F172A"
   pizarra-secundaria: "#475569"
   pizarra-tenue: "#64748B"
@@ -62,15 +62,15 @@ spacing:
   "16": "64px"
 components:
   boton-primario:
-    backgroundColor: "{colors.ambar-taller}"
+    backgroundColor: "{colors.naranja-taller}"
     textColor: "{colors.blanco-pulcro}"
     rounded: "{rounded.md}"
     padding: "0 20px"
     height: "44px"
   boton-primario-hover:
-    backgroundColor: "{colors.ambar-taller-hondo}"
+    backgroundColor: "{colors.naranja-taller-hondo}"
   boton-primario-presionado:
-    backgroundColor: "{colors.ambar-taller-presionado}"
+    backgroundColor: "{colors.naranja-taller-presionado}"
   boton-secundario:
     backgroundColor: "{colors.blanco-pulcro}"
     textColor: "{colors.tinta-profunda}"
@@ -91,8 +91,8 @@ components:
     typography: "{typography.label}"
     height: "26px"
   chip-activo:
-    backgroundColor: "{colors.ambar-velo}"
-    textColor: "{colors.ambar-taller-hondo}"
+    backgroundColor: "{colors.naranja-velo}"
+    textColor: "{colors.naranja-taller-hondo}"
     rounded: "{rounded.pildora}"
 ---
 
@@ -102,7 +102,7 @@ Fuente normativa de los valores: `src/estilos/tokens.css` (tres capas: primitivo
 
 ## Overview
 
-**Estrella polar: «El taller de precisión».** Un letrero bien hecho se lee de lejos, con letras firmes, márgenes medidos y un solo color que llama. El sistema hace lo mismo: blanco pulcro, tinta profunda, un ámbar de taller que aparece solo donde hay que actuar, y superficies que se separan con filos de 1 px y sombras difusas, nunca con decoración.
+**Estrella polar: «El taller de precisión».** Un letrero bien hecho se lee de lejos, con letras firmes, márgenes medidos y un solo color que llama. El sistema hace lo mismo: blanco pulcro, tinta profunda, un naranja de taller que aparece solo donde hay que actuar, y superficies que se separan con filos de 1 px y sombras difusas, nunca con decoración.
 
 - **Modo:** el portal público persuade (vitrina, cartel, solicitud); el panel del taller opera (pedidos, cobranza, reportes). Las dos comparten el sistema; el panel es más denso y casi sin movimiento.
 - **Prioridad de dispositivo:** portada pensada primero para el celular; panel pensado primero para el escritorio (PRODUCT.md).
@@ -112,9 +112,9 @@ Fuente normativa de los valores: `src/estilos/tokens.css` (tres capas: primitivo
 ## Colors
 
 ### Primary
-- **Ámbar de taller** (`#B45309`, 5,02:1 sobre blanco): la acción principal de cada vista (un solo botón primario), el estado activo (pestaña, página actual, filtro activo) y el anillo de foco. Nunca como fondo de sección ni decoración.
-- **Ámbar hondo** (`#92400E`, 7,09:1): el mismo botón al pasar el cursor; texto sobre el velo ámbar.
-- **Velo ámbar** (`#FFFBEB`): fondo de un filtro o una página activa.
+- **Naranja de taller** (`#C2410C`, 5,18:1 sobre blanco; fase 12C, reemplaza al naranja `#B45309`): la acción principal de cada vista (un solo botón primario), el estado activo (pestaña, página actual, filtro activo), el hover de la barra pública y el anillo de foco. Nunca como fondo de sección ni decoración.
+- **Naranja hondo** (`#9A3412`, 7,31:1): el mismo botón al pasar el cursor; texto sobre el velo naranja.
+- **Velo naranja** (`#FFF7ED`): fondo de un filtro o una página activa.
 
 ### Neutral
 - **Tinta profunda** (`#0F172A`, 17,85:1): todo el texto principal y los títulos.
@@ -131,7 +131,7 @@ Seis tonos con fondo, borde, texto (todos ≥6,6:1 sobre su fondo) y versión s�
 - Cartel electrónico: «Abierto / Disponible» → éxito sólido; «Cerrado / Ausente» → peligro sólido.
 
 ### Named Rules
-- **La regla del único ámbar:** en cada vista hay a lo más un elemento ámbar relleno. Si aparecen dos, uno de ellos no es la acción principal.
+- **La regla del único naranja:** en cada vista hay a lo más un elemento naranja relleno. Si aparecen dos, uno de ellos no es la acción principal.
 - **Nunca solo color:** cada estado lleva texto e icono propio; dos estados no comparten icono.
 
 ## Typography
@@ -183,19 +183,21 @@ Capas, no relieve: en reposo, un filo de 1 px y una sombra mínima; la elevació
 Biblioteca en `src/componentes/ui/` (importar desde `src/componentes/ui`). Cada componente tiene sus estados: normal, hover (solo con puntero fino), foco visible, presionado, deshabilitado, cargando, error y vacío donde corresponde.
 
 ### Buttons (`Boton`)
-- **Variantes:** primario (ámbar), secundario (blanco con borde de campo), fantasma y peligro (rojo sólido, para anular).
-- **Presión:** `scale(0.98)` con la curva `cubic-bezier(0.16, 1, 0.3, 1)` en 140 ms.
+- **Variantes:** primario (naranja), secundario (blanco con borde de campo), fantasma y peligro (rojo sólido, para anular).
+- **Presión:** `scale(0.97)` con la curva `cubic-bezier(0.16, 1, 0.3, 1)` en 140 ms (fase 12C; token `--escala-presion-boton`).
+- **Hover (fase 12C):** solo con puntero real (`hover: hover` y `pointer: fine`), cambio de color y elevación de 1 px con sombra, en 160 ms. Solo se animan `transform`, sombra y color. Con `prefers-reduced-motion` queda solo el cambio de color.
+- **Zona animada:** el atributo `data-animar` de la estructura pública (portal y cuenta del cliente) activa hover y presión; el panel del taller no lo trae y los botones solo cambian de color.
 - **Cargando:** gira el indicador, sigue enfocable (`aria-disabled`), no repite la acción y lo dice con texto (`textoCargando`, o «(cargando)» para el lector de pantalla).
 - **Como enlace:** `como="a"`; deshabilitado pierde el `href` y sale del orden de tabulación.
 
 ### Inputs / Fields (`Campo`, `Casilla`)
 - Etiqueta visible y vinculada; la ayuda va antes del control y el error después, en una región que se anuncia (`aria-live`), con icono.
-- Foco: anillo ámbar más borde ámbar; error: borde y anillo rojos y `aria-invalid`.
+- Foco: anillo naranja más borde naranja; error: borde y anillo rojos y `aria-invalid`.
 - Texto a 16 px para que el teléfono no acerque la página. Casillas siempre desmarcadas por defecto (consentimientos).
 - Los mensajes de error dicen qué pasó y cómo seguir («Escribe un correo completo, por ejemplo maria@correo.cl»).
 
 ### Chips (`Chip`)
-- Filtros rápidos de activar y desactivar (`aria-pressed`). Activo: velo ámbar, borde ámbar y una marca de verificación.
+- Filtros rápidos de activar y desactivar (`aria-pressed`). Activo: velo naranja, borde naranja y una marca de verificación.
 
 ### Cards / Containers (`Tarjeta`)
 - Radio de 14 px, fondo blanco, filo sutil y sombra de reposo; relleno de 24 px.
@@ -208,8 +210,8 @@ Biblioteca en `src/componentes/ui/` (importar desde `src/componentes/ui`). Cada 
 ### Data (`TablaAdaptable`, `BarraFiltros`, `Paginacion`, `Pestanas`)
 - Tabla real con `caption`, encabezados de columna y la columna principal como encabezado de fila. Cuando el espacio de la tabla (no la ventana: en el panel el menú lateral se lleva parte del ancho) baja de 768 px, cada fila es una ficha y cada dato muestra su columna; los roles ARIA explícitos conservan la semántica. Si en modo tabla las columnas no caben, la tabla se desplaza dentro de su marco y nunca ensancha la página.
 - La barra de filtros es una zona `search` con nombre propio, su resumen se anuncia al cambiar y «Limpiar filtros» aparece solo con filtros aplicados.
-- Paginación con la página actual en ámbar (`aria-current`) y extremos inactivos pero enfocables.
-- Pestañas con el patrón de WAI-ARIA (flechas, Inicio, Fin), indicador ámbar de 2 px que no se desliza (se usa muy seguido).
+- Paginación con la página actual en naranja (`aria-current`) y extremos inactivos pero enfocables.
+- Pestañas con el patrón de WAI-ARIA (flechas, Inicio, Fin), indicador naranja de 2 px que no se desliza (se usa muy seguido).
 
 ### Feedback (`Aviso`, `EstadoVacio`, `Esqueleto`)
 - Avisos en línea con borde de 1 px en su tono; el error usa `role="alert"`.
@@ -225,10 +227,18 @@ Biblioteca en `src/componentes/ui/` (importar desde `src/componentes/ui`). Cada 
 - Barra flotante de cristal de una sola fila (64 px, igual a `--altura-barra`, que reserva `scroll-padding-top` para que el foco no quede tapado). En el teléfono el menú se despliega bajo la barra. Con poca altura (zoom) deja de ser fija. Una barra que crezca a dos filas no puede ser fija (caso de la galería).
 - Enlace «Saltar al contenido» (`.enlace-salto`) como primer elemento enfocable.
 
+### Portal público (fase 12C)
+- **Barra:** Trabajos, Horario y Consultas; «Solicitar cotización» (naranja, el mismo estilo que en la portada), «Ingresar» (borde claro con el icono `user-round`) y el cartel pequeño del local en la esquina derecha. Hover y foco por teclado de los enlaces: fondo naranja con letras blancas. En el teléfono, «Ingresar» y el menú quedan en icono (el nombre accesible sigue en el texto) y, a 360 px, la marca queda en su logotipo.
+- **Cartel:** el pequeño dice el estado («Abierto / Disponible», «Cerrado / Ausente»; en el teléfono solo «Abierto» o «Cerrado»). El grande usa `cartel-abierto.webp` o `cartel-cerrado.webp` como imagen decorativa (`alt` vacío) y los textos como texto real sobre una base sólida. Entra deslizándose una vez al cargar; al cambiar de estado las imágenes se cruzan con un fundido y la región `aria-live="polite"` lo anuncia.
+- **Fondo:** `fondo-web.webp` en una capa fija con opacidad 0,14 detrás del portal, el ingreso y la cuenta del cliente; nunca en el panel del taller. Tarjetas y textos van sobre superficies sólidas.
+- **Vitrina:** búsqueda por «contiene» (los títulos que empiezan con lo escrito, primero; sin tildes ni mayúsculas), categoría en lista desplegable nativa, contador anunciado en voz baja y zoom de 1,03 de las tarjetas con puntero real.
+- **Ingreso:** `/ingresar` pregunta «¿Quién está iniciando sesión?» con dos tarjetas-enlace, cliente a la izquierda y personal del taller a la derecha (en el teléfono, cliente primero).
+- **Imágenes:** WebP generado con `scripts/imagenes-portal.py` desde `docs/image/` (fondo ≤ 200 KB, carteles ≤ 150 KB, icono ≤ 20 KB).
+
 ## Do's and Don'ts
 
 ### Do:
-- **Do** usar el ámbar solo para la acción principal y lo activo (la regla del único ámbar).
+- **Do** usar el naranja solo para la acción principal y lo activo (la regla del único naranja).
 - **Do** acompañar cada estado con texto e icono propio.
 - **Do** limitar el hover a `@media (hover: hover) and (pointer: fine)` y mantener 44 px en pantallas táctiles.
 - **Do** animar solo `transform`, `opacity`, colores y sombras, en menos de 300 ms, con la curva del documento; la salida, más rápida que la entrada.

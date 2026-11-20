@@ -40,7 +40,7 @@ describe('tokens del sistema de diseño', () => {
     expect(resolver('--color-fondo-alterno').toLowerCase()).toBe('#f8fafc');
     expect(resolver('--color-fondo-hundido').toLowerCase()).toBe('#f1f5f9');
     expect(resolver('--color-texto').toLowerCase()).toBe('#0f172a');
-    expect(resolver('--color-acento').toLowerCase()).toBe('#b45309');
+    expect(resolver('--color-acento').toLowerCase()).toBe('#c2410c');
     expect(resolver('--curva-resorte')).toBe('cubic-bezier(0.16, 1, 0.3, 1)');
     expect(resolver('--escala-presion')).toBe('0.98');
     expect(resolver('--tipografia-familia')).toMatch(/^'Plus Jakarta Sans'/);

@@ -1,0 +1,110 @@
+/* ── Cartel grande de la portada ── */
+.grande {
+  display: grid;
+  gap: var(--espacio-3);
+  animation: deslizarCartel 500ms var(--curva-resorte) both;
+}
+
+/* Las dos imágenes están apiladas; solo la del estado actual se ve (fundido breve al cambiar) */
+.letrero {
+  position: relative;
+  inline-size: min(100%, 17rem);
+  aspect-ratio: 4 / 3;
+  margin-inline: auto;
+}
+
+.imagen {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 320ms var(--curva-estandar);
+}
+
+.imagen[data-activo='true'] {
+  opacity: 1;
+}
+
+/* Los textos van sobre una base sólida: el contraste no depende de la foto */
+.textos {
+  display: grid;
+  justify-items: start;
+  gap: var(--espacio-2);
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo-alterno);
+}
+
+.mensaje {
+  font-size: var(--tamano-md);
+  font-weight: var(--peso-medio);
+}
+
+.dato,
+.actualizado {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.actualizado {
+  font-size: var(--tamano-xs);
+}
+
+@keyframes deslizarCartel {
+  from {
+    opacity: 0;
+    transform: translateX(-3rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grande {
+    animation: none;
+  }
+
+  .imagen {
+    transition: none;
+  }
+}
+
+/* ── Cartel pequeño de la barra ── */
+.mini {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1-5);
+  min-block-size: 2rem;
+  margin: 0;
+  padding: 0 var(--espacio-3);
+  border-radius: var(--radio-pildora);
+  color: var(--color-sobre-acento);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  white-space: nowrap;
+}
+
+.miniAbierto {
+  background: var(--tono-exito-solido);
+}
+
+.miniCerrado {
+  background: var(--tono-peligro-solido);
+}
+
+.mini svg {
+  flex: none;
+}
+
+/* Teléfono: solo el icono y «Abierto» o «Cerrado» */
+@media (max-width: 55.99rem) {
+  .complemento {
+    display: none;
+  }
+}

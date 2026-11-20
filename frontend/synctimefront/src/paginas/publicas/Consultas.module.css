@@ -1,0 +1,64 @@
+/* /consultas: el formulario «Escríbenos», angosto para leerse bien, con los canales directos debajo. */
+.pagina {
+  padding: var(--espacio-12) var(--margen-pagina) 0;
+}
+
+.contenedor {
+  display: grid;
+  gap: var(--espacio-6);
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+.encabezado {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.titulo {
+  font-size: var(--tamano-3xl);
+}
+
+.titulo:focus {
+  outline: none;
+}
+
+.bajada {
+  max-width: var(--medida-lectura);
+  color: var(--color-texto-secundario);
+}
+
+.directo {
+  display: grid;
+  gap: var(--espacio-3);
+  padding: var(--espacio-5) var(--espacio-6);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  background: var(--color-fondo-alterno);
+}
+
+.directoTitulo {
+  font-weight: var(--peso-seminegrita);
+}
+
+.canales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+}
+
+.lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2) var(--espacio-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--tamano-sm);
+}
+
+.lista li {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}

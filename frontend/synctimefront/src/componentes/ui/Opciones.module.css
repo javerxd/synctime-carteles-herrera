@@ -1,4 +1,4 @@
-/* Opciones excluyentes: filas de 44 px con el radio nativo en ámbar. La elegida toma el velo ámbar y su
+/* Opciones excluyentes: filas de 44 px con el radio nativo en naranja. La elegida toma el velo naranja y su
    borde, además del punto del radio, para que el estado no dependa de un solo detalle. */
 .grupo {
   display: grid;

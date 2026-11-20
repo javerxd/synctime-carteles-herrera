@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Mail, Menu, MessageCircle, Phone, UserRound, X } from 'lucide-react';
 import { Boton, Enlace } from '../componentes/ui';
+import { CartelMini } from '../paginas/publicas/cartel/CartelLocal';
+import { ProveedorEstadoLocal } from '../paginas/publicas/useEstadoLocal';
 import { unirClases } from '../componentes/ui/clases';
 import { enlaceTelefono, enlaceWhatsapp, TALLER } from '../configuracion/taller';
 import { abrirPreferenciasCookies } from '../utilidades/cookies';
@@ -17,16 +19,18 @@ const ANIO_ACTUAL = new Date().getFullYear();
 /** «Ingresar», o el acceso a la cuenta (cliente) o al panel (personal) cuando ya hay sesión. */
 function AccesoCuenta() {
   const { esCliente, esPersonal } = useSesion();
-  if (esCliente) return <Boton como={Link} to="/cuenta" variante="fantasma" tamano="compacto" iconoInicio={UserRound}>Mi cuenta</Boton>;
-  if (esPersonal) return <Boton como={Link} to="/panel" variante="fantasma" tamano="compacto" iconoInicio={LayoutDashboard}>Ir al panel</Boton>;
-  return <Boton como={Link} to="/ingresar" variante="fantasma" tamano="compacto">Ingresar</Boton>;
+  const etiqueta = (texto) => <span className={estilos.etiquetaAcceso}>{texto}</span>;
+  if (esCliente) return <Boton como={Link} to="/cuenta" variante="secundario" tamano="compacto" iconoInicio={UserRound}>{etiqueta('Mi cuenta')}</Boton>;
+  if (esPersonal) return <Boton como={Link} to="/panel" variante="secundario" tamano="compacto" iconoInicio={LayoutDashboard}>{etiqueta('Ir al panel')}</Boton>;
+  // El estilo que tenía «Solicitar cotización» (borde y fondo claro) más el icono de usuario; en el teléfono
+  // queda el icono y el nombre accesible, siempre visible junto al menú.
+  return <Boton como={Link} to="/ingresar" variante="secundario" tamano="compacto" iconoInicio={UserRound}>{etiqueta('Ingresar')}</Boton>;
 }
 
 const SECCIONES = [
   ['/#vitrina', 'Trabajos'],
   ['/#horario', 'Horario'],
-  ['/#ubicacion', 'Cómo llegar'],
-  ['/#contacto', 'Contacto'],
+  ['/consultas', 'Consultas'],
 ];
 
 /** Estructura del portal público: barra flotante de cristal, contenido y pie con enlaces legales. */
@@ -56,13 +60,15 @@ export function EstructuraPublica() {
   }, [menuAbierto]);
 
   return (
-    <>
+    <ProveedorEstadoLocal>
+      {/* data-animar: zona con botones animados y fondo de imagen. El panel del taller no la tiene (fase 12C). */}
+      <div data-animar className={estilos.zona}>
       <a href="#contenido" className="enlace-salto">Saltar al contenido</a>
       {/* Al principio del documento: quien navega con teclado o lector lo encuentra antes que el resto. */}
       <BannerCookies />
       <header className={estilos.barra}>
         <div className={estilos.interior}>
-          <Marca />
+          <Marca className={estilos.marcaBarra} />
           <button
             ref={refBotonMenu}
             type="button"
@@ -72,7 +78,7 @@ export function EstructuraPublica() {
             onClick={() => setMenuAbierto((abierto) => !abierto)}
           >
             {menuAbierto ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
-            <span>Menú</span>
+            <span className={estilos.textoMenu}>Menú</span>
           </button>
           <nav id="menu-publico" aria-label="Principal" className={unirClases(estilos.navegacion, menuAbierto && estilos.abierta)}>
             <ul className={estilos.enlaces}>
@@ -83,10 +89,15 @@ export function EstructuraPublica() {
               ))}
             </ul>
             <div className={estilos.acciones}>
-              <AccesoCuenta />
-              <BotonSolicitar tamano="compacto" variante="secundario" />
+              <BotonSolicitar tamano="compacto" />
             </div>
           </nav>
+          <div className={estilos.derecha}>
+            <div className={estilos.cuenta}>
+              <AccesoCuenta />
+            </div>
+            <CartelMini className={estilos.cartelBarra} />
+          </div>
         </div>
       </header>
 
@@ -146,6 +157,7 @@ export function EstructuraPublica() {
           <span className="solo-lectores">Escribir por WhatsApp (se abre en otra pestaña)</span>
         </a>
       )}
-    </>
+      </div>
+    </ProveedorEstadoLocal>
   );
 }

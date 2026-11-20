@@ -37,7 +37,7 @@
   transform: scale(var(--escala-presion));
 }
 
-/* Activo: el ámbar marca el estado activo, como pide el documento */
+/* Activo: el naranja marca el estado activo, como pide el documento */
 .chip[aria-pressed='true'],
 .quitable {
   border-color: var(--chip-borde-activo);

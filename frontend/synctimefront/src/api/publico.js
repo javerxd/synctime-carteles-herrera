@@ -5,6 +5,20 @@ const lista = (r) => (Array.isArray(r) ? r : r?.elementos ?? []);
 export const publico = {
   /** Vitrina paginada: { elementos, total, pagina, tamano, totalPaginas }. `categoria` es opcional. */
   catalogo: ({ categoria, pagina, tamano } = {}) => api.get('/catalogo', { parametros: { categoria, pagina, tamano } }),
+  /**
+   * Toda la vitrina (fase 12C): pide páginas de 100 (el máximo de la API) hasta completar, para que la
+   * búsqueda se haga en el navegador al escribir, sin una consulta por letra. Tope de seguridad: 20 páginas.
+   */
+  catalogoCompleto: async (senal) => {
+    const porId = new Map();
+    for (let pagina = 1; pagina <= 20; pagina += 1) {
+      const resultado = await api.get('/catalogo', { parametros: { pagina, tamano: 100 }, senal });
+      // La paginación es por posición: si el taller publica algo a mitad de camino, un trabajo puede repetirse.
+      for (const trabajo of resultado?.elementos ?? []) porId.set(trabajo.idCatalogo, trabajo);
+      if (pagina >= (resultado?.totalPaginas ?? 1)) break;
+    }
+    return [...porId.values()];
+  },
   /** Las categorías activas (la API pagina desde la fase 9: se piden de una vez). */
   categorias: () => api.get('/categorias', { parametros: { activo: true, tamano: 100 } }).then(lista),
   /** Tipos de letrero activos, para la lista del modal de solicitud. */

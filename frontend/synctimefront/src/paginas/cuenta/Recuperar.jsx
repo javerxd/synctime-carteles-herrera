@@ -23,7 +23,7 @@ const mensajeDe = (error, porDefecto) => error?.message || porDefecto;
 export default function Recuperar() {
   const [parametros] = useSearchParams();
   const tipo = parametros.get('tipo') === 'personal' ? 'personal' : 'cliente';
-  const ingreso = tipo === 'personal' ? '/personal/ingresar' : '/ingresar';
+  const ingreso = tipo === 'personal' ? '/personal/ingresar' : '/ingresar/cliente';
   const navegar = useNavigate();
 
   const [paso, setPaso] = useState('correo');

@@ -91,7 +91,7 @@ function SeccionColor() {
   // Los estilos ya están cargados al montar (main.jsx los importa antes), así que se mide una vez.
   const [medidas] = useState(contrasteDeTokens);
   return (
-    <Seccion id="color" titulo="Color" descripcion="Blanco pulcro, gris seda y tinta profunda. El ámbar aparece solo en la acción principal y en lo activo. Los contrastes se miden en vivo sobre los tokens.">
+    <Seccion id="color" titulo="Color" descripcion="Blanco pulcro, gris seda y tinta profunda. El naranja aparece solo en la acción principal y en lo activo. Los contrastes se miden en vivo sobre los tokens.">
       <ul className={estilos.muestras}>
         {medidas.map((m) => (
           <li key={m.token} className={estilos.muestra}>

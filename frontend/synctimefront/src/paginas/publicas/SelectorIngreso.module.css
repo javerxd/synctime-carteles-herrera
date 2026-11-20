@@ -1,0 +1,82 @@
+/* /ingresar: dos tarjetas grandes. Cliente a la izquierda; en el teléfono, una bajo la otra. */
+.pagina {
+  padding: var(--espacio-12) var(--margen-pagina);
+}
+
+.contenedor {
+  display: grid;
+  justify-items: center;
+  gap: var(--espacio-3);
+  max-width: 52rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.titulo {
+  font-size: var(--tamano-2xl);
+}
+
+.bajada {
+  color: var(--color-texto-secundario);
+}
+
+.opciones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espacio-6);
+  inline-size: 100%;
+  margin-block-start: var(--espacio-6);
+}
+
+@media (max-width: 39.99rem) {
+  .opciones {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--espacio-4);
+  }
+}
+
+.opcion {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: var(--espacio-2);
+  padding: var(--espacio-8) var(--espacio-6);
+  color: inherit;
+  text-decoration: none;
+}
+
+.icono {
+  display: grid;
+  place-items: center;
+  inline-size: 4.5rem;
+  block-size: 4.5rem;
+  margin-block-end: var(--espacio-2);
+  border-radius: var(--radio-pildora);
+  background: var(--color-acento-suave);
+  color: var(--color-acento);
+}
+
+.nombre {
+  font-size: var(--tamano-xl);
+}
+
+.descripcion {
+  max-width: 28ch;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.accion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  margin-block-start: var(--espacio-3);
+  color: var(--color-acento);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+}
+
+.opcion:focus-visible {
+  outline: 3px solid var(--color-foco);
+  outline-offset: 3px;
+}

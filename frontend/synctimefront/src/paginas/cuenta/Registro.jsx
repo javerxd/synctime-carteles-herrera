@@ -142,7 +142,7 @@ export default function Registro() {
         </form>
 
         <p className={estilos.nota}>
-          ¿Ya tienes cuenta? <Enlace como={Link} to="/ingresar" state={ubicacion.state}>Ingresa aquí</Enlace>.
+          ¿Ya tienes cuenta? <Enlace como={Link} to="/ingresar/cliente" state={ubicacion.state}>Ingresa aquí</Enlace>.
         </p>
       </Tarjeta>
     </div>
