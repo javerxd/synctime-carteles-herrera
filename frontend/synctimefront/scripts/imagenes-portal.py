@@ -2,7 +2,8 @@
 
 Uso, desde frontend/synctimefront:  python scripts/imagenes-portal.py
 Los originales quedan en docs/image/. Cada imagen se reduce hasta cumplir su tope de peso (RNFP01):
-fondo ≤ 200 KB, carteles ≤ 150 KB, icono de WhatsApp ≤ 20 KB.
+fondo ≤ 200 KB, icono de WhatsApp ≤ 20 KB. Los carteles (docs/image/cartel-*.png) ya no se usan como imagen:
+el letrero se dibuja en CartelLocal.jsx a partir de ellos, con el texto adentro.
 """
 from pathlib import Path
 from PIL import Image
@@ -14,8 +15,6 @@ DESTINO = Path(__file__).resolve().parents[1] / "public" / "imagenes"
 # nombre de origen -> (nombre de salida, ancho máximo, tope en bytes)
 IMAGENES = {
     "fondo-web.jpg": ("fondo-web.webp", 1920, 200_000),
-    "cartel-abierto.png": ("cartel-abierto.webp", 960, 150_000),
-    "cartel-cerrado.png": ("cartel-cerrado.webp", 960, 150_000),
     "icono-whatsapp.png": ("icono-whatsapp.webp", 128, 20_000),
 }
 

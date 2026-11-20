@@ -1586,8 +1586,8 @@ test('12C: con reducción de movimiento el cartel y los botones no se mueven', a
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1440, height: 800 });
   await page.goto('/');
-  await expect(page.getByRole('complementary', { name: 'En el taller ahora' }).getByText('Cerrado / Ausente')).toBeVisible();
-  const animacion = await page.evaluate(() => getComputedStyle(document.querySelector('aside [aria-live]').parentElement).animationName);
+  await expect(page.getByRole('complementary', { name: 'En el taller ahora.' }).getByText('Cerrado', { exact: true })).toBeVisible();
+  const animacion = await page.evaluate(() => getComputedStyle(document.querySelector('aside h2').closest('[data-estado]').parentElement).animationName);
   expect(animacion).toBe('none');
   const boton = page.getByRole('main').getByRole('link', { name: 'Solicitar cotización' });
   await boton.hover();
@@ -1659,6 +1659,5 @@ test('12C: a 360 px la barra muestra marca, cartel, «Ingresar» y menú sin des
   await expect(barra.getByRole('link', { name: 'Ingresar' })).toBeVisible();
   await expect(barra.getByRole('button', { name: 'Menú' })).toBeVisible();
   await expect(barra.getByText('Cerrado')).toBeVisible();
-  await expect(barra.getByText('Ausente')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });

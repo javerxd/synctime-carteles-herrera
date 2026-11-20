@@ -1,70 +1,79 @@
 import { DoorClosed, DoorOpen } from 'lucide-react';
-import { Aviso, Boton, Esqueleto, EstadoCartel } from '../../../componentes/ui';
+import { Aviso, Boton } from '../../../componentes/ui';
 import { unirClases } from '../../../componentes/ui/clases';
 import { formatearFechaHora } from '../../../utilidades/formato';
 import { textoEstado } from '../horario';
 import { useEstadoLocal } from '../useEstadoLocal';
-import { CARTEL_ABIERTO, CARTEL_CERRADO, estadoCartel } from './estadoCartel';
+import { estadoCartel } from './estadoCartel';
 import estilos from './CartelLocal.module.css';
 
+/** Letrero colgado: cuerda, clavo, tablero con esquinas recortadas, ojales y doble filete (como el cartel del taller). */
+function Letrero() {
+  return (
+    <svg className={estilos.dibujo} viewBox="0 0 400 350" aria-hidden="true" focusable="false">
+      <path className={estilos.cuerda} d="M200 14 L62 124 M200 14 L338 124" />
+      <path className={estilos.cuerdaHebra} d="M200 14 L62 124 M200 14 L338 124" />
+      <circle className={estilos.clavo} cx="200" cy="14" r="8" />
+      <path className={estilos.tablero} d="M42 90H358A22 22 0 0 0 380 112V316A22 22 0 0 0 358 338H42A22 22 0 0 0 20 316V112A22 22 0 0 0 42 90Z" />
+      <path className={estilos.filete} d="M46 102H354A16 16 0 0 0 370 118V310A16 16 0 0 0 354 326H46A16 16 0 0 0 30 310V118A16 16 0 0 0 46 102Z" />
+      <path className={estilos.fileteFino} d="M50 112H350A12 12 0 0 0 360 122V306A12 12 0 0 0 350 316H50A12 12 0 0 0 40 306V122A12 12 0 0 0 50 112Z" />
+      <circle className={estilos.ojal} cx="62" cy="124" r="8" />
+      <circle className={estilos.ojal} cx="338" cy="124" r="8" />
+    </svg>
+  );
+}
+
 /**
- * Cartel grande de la portada (fase 12C): la imagen del cartel según el estado real del local y, a su lado,
- * los textos como texto real sobre una base sólida. La imagen es decorativa (alt vacío): el lector de
- * pantalla lee el estado, y el contraste no depende de la foto. Al abrir o cerrar el local las dos imágenes
- * se cruzan con un fundido; la región `aria-live="polite"` anuncia el cambio. Entra deslizándose una sola
- * vez al cargar la página (el contenedor no se vuelve a montar al actualizarse el estado).
+ * Cartel grande de la portada (fase 12C): un letrero hecho de cuerda, clavo y tablero (verde si el local está
+ * abierto, rojo si está cerrado) con los textos reales dentro: «En el taller ahora.», «Abierto» o «Cerrado»,
+ * la frase del estado y cuándo se actualizó. Los dibujos son decorativos; el lector de pantalla lee el
+ * texto, y el contraste de las letras no depende de ninguna imagen. Entra deslizándose de izquierda a
+ * derecha una sola vez al cargar y luego se balancea apenas, como un cartel colgado. Al abrir o cerrar el
+ * local el tablero cambia de color con un fundido y la región `aria-live="polite"` lo anuncia.
+ * Con `prefers-reduced-motion` no se mueve.
  */
 export function CartelGrande({ estado }) {
   const { datos, cargando, error, recargar } = estado;
   const cartel = estadoCartel(datos);
+
+  if (error && !datos) {
+    return (
+      <div className={estilos.grande}>
+        <h2 id="titulo-mostrador" className={estilos.tituloAviso}>En el taller ahora</h2>
+        <Aviso tono="aviso" titulo="No pudimos cargar el estado del local"
+          accion={<Boton variante="secundario" tamano="compacto" onClick={recargar}>Reintentar</Boton>} />
+      </div>
+    );
+  }
+
   return (
     <div className={estilos.grande}>
-      <div className={estilos.letrero} aria-hidden="true">
-        {[CARTEL_CERRADO, CARTEL_ABIERTO].map((imagen) => (
-          <img
-            key={imagen}
-            src={imagen}
-            alt=""
-            width="960"
-            height="720"
-            decoding="async"
-            data-activo={cartel?.imagen === imagen ? 'true' : 'false'}
-            className={estilos.imagen}
-          />
-        ))}
-      </div>
-      <div className={estilos.textos} aria-live="polite" aria-atomic="true">
-        {cargando && (
-          <>
-            <span className="solo-lectores">Cargando el estado del local…</span>
-            <Esqueleto forma="bloque" alto="3rem" />
-          </>
-        )}
-        {error && !datos && (
-          <Aviso tono="aviso" titulo="No pudimos cargar el estado del local"
-            accion={<Boton variante="secundario" tamano="compacto" onClick={recargar}>Reintentar</Boton>} />
-        )}
-        {datos && (
-          <>
-            <EstadoCartel abierto={datos.abiertoAhora} grande />
-            <p className={estilos.mensaje}>{textoEstado(datos)}</p>
-            {datos.motivo === 'ausente' && datos.cartel?.tiempoEstimadoRegreso && (
-              <p className={estilos.dato}>Regreso estimado: <strong>{datos.cartel.tiempoEstimadoRegreso}</strong></p>
+      <div className={estilos.colgante} data-estado={cartel ? (cartel.abierto ? 'abierto' : 'cerrado') : 'cargando'}>
+        <Letrero />
+        <div className={estilos.contenido}>
+          <h2 id="titulo-mostrador" className={estilos.titulo}>En el taller ahora.</h2>
+          <div className={estilos.textos} aria-live="polite" aria-atomic="true">
+            {cargando && <span className="solo-lectores">Cargando el estado del local…</span>}
+            {datos && (
+              <>
+                <p className={estilos.estado}>{cartel.etiqueta}</p>
+                <p className={estilos.cinta}><span>{textoEstado(datos)}</span></p>
+                {datos.motivo === 'ausente' && datos.cartel?.tiempoEstimadoRegreso && (
+                  <p className={estilos.regreso}>Regreso estimado: <strong>{datos.cartel.tiempoEstimadoRegreso}</strong></p>
+                )}
+                {datos.cartel && (
+                  <p className={estilos.actualizado}>Cartel actualizado el {formatearFechaHora(datos.cartel.fechaUltimaModificacion)}</p>
+                )}
+              </>
             )}
-            {datos.cartel && (
-              <p className={estilos.actualizado}>Cartel actualizado el {formatearFechaHora(datos.cartel.fechaUltimaModificacion)}</p>
-            )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/**
- * Cartel pequeño de la esquina derecha de la barra: icono y estado. En pantallas angostas queda solo
- * «Abierto» o «Cerrado» (el complemento «/ Disponible», «/ Ausente» se oculta con CSS, no se duplica).
- */
+/** Cartel pequeño de la esquina derecha de la barra: icono y «Abierto» o «Cerrado». */
 export function CartelMini({ className }) {
   const { datos } = useEstadoLocal();
   const cartel = estadoCartel(datos);
@@ -76,10 +85,7 @@ export function CartelMini({ className }) {
       data-estado={cartel.abierto ? 'abierto' : 'cerrado'}
     >
       <Icono size={16} strokeWidth={2} aria-hidden="true" />
-      <span>
-        {cartel.etiqueta}
-        <span className={estilos.complemento}> / {cartel.abierto ? 'Disponible' : 'Ausente'}</span>
-      </span>
+      <span>{cartel.etiqueta}</span>
     </p>
   );
 }

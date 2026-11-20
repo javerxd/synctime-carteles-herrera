@@ -69,9 +69,9 @@ describe('búsqueda de la vitrina (decisión 5: «contiene»)', () => {
 });
 
 describe('cartel del local', () => {
-  it('abierto muestra el cartel verde; cerrado, el rojo', () => {
-    expect(estadoCartel({ abiertoAhora: true })).toMatchObject({ abierto: true, imagen: '/imagenes/cartel-abierto.webp' });
-    expect(estadoCartel({ abiertoAhora: false })).toMatchObject({ abierto: false, imagen: '/imagenes/cartel-cerrado.webp' });
+  it('dice solo «Abierto» o «Cerrado»', () => {
+    expect(estadoCartel({ abiertoAhora: true })).toEqual({ abierto: true, etiqueta: 'Abierto' });
+    expect(estadoCartel({ abiertoAhora: false })).toEqual({ abierto: false, etiqueta: 'Cerrado' });
   });
 
   it('el estado manual manda: dentro del horario pero ausente es cerrado, y fuera de horario también', () => {

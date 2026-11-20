@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Mail, Menu, MessageCircle, Phone, UserRound, X } from 'lucide-react';
-import { Boton, Enlace } from '../componentes/ui';
+import { LayoutDashboard, Mail, Menu, Phone, UserRound, X } from 'lucide-react';
+import { Boton, Enlace, IconoWhatsapp } from '../componentes/ui';
 import { CartelMini } from '../paginas/publicas/cartel/CartelLocal';
 import { ProveedorEstadoLocal } from '../paginas/publicas/useEstadoLocal';
 import { unirClases } from '../componentes/ui/clases';
@@ -132,7 +132,7 @@ export function EstructuraPublica() {
               {enlaceWhatsapp() && (
                 <li>
                   <Enlace href={enlaceWhatsapp()} externo className={estilos.pieContacto}>
-                    <MessageCircle size={16} aria-hidden="true" />Escribir por WhatsApp
+                    <IconoWhatsapp size={16} />Escribir por WhatsApp
                   </Enlace>
                 </li>
               )}
@@ -153,7 +153,7 @@ export function EstructuraPublica() {
 
       {enlaceWhatsapp() && (
         <a href={enlaceWhatsapp()} target="_blank" rel="noopener noreferrer" className={estilos.whatsapp}>
-          <MessageCircle size={24} strokeWidth={2} aria-hidden="true" />
+          <IconoWhatsapp size={56} />
           <span className="solo-lectores">Escribir por WhatsApp (se abre en otra pestaña)</span>
         </a>
       )}

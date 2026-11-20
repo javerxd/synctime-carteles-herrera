@@ -79,7 +79,6 @@ function Mostrador({ estado }) {
   const telefono = enlaceTelefono();
   return (
     <Tarjeta como="aside" aria-labelledby="titulo-mostrador" className={estilos.mostrador}>
-      <h2 id="titulo-mostrador" className={estilos.tituloMostrador}>En el taller ahora</h2>
       <CartelGrande estado={estado} />
       <ul className={estilos.datos}>
         <li>

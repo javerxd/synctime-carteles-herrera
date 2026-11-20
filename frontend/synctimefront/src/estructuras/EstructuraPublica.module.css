@@ -20,7 +20,7 @@
   inset: 0;
   z-index: -1;
   background: url('/imagenes/fondo-web.webp') center / cover no-repeat;
-  opacity: 0.14;
+  opacity: 0.6;
   pointer-events: none;
 }
 
@@ -329,8 +329,7 @@
   color: var(--color-texto);
 }
 
-/* Acceso directo a WhatsApp: en tinta, no en el verde de la marca, para no competir con el naranja de la
-   acción principal. 56 px de diámetro, sobre el borde inferior derecho y respetando la zona segura. */
+/* Acceso directo a WhatsApp con el icono entregado por el taller (fase 12C). 56 px de diámetro, sobre el borde inferior derecho y respetando la zona segura. */
 .whatsapp {
   position: fixed;
   inset-inline-end: max(var(--espacio-4), env(safe-area-inset-right));
@@ -342,9 +341,9 @@
   inline-size: 3.5rem;
   block-size: 3.5rem;
   border-radius: var(--radio-pildora);
-  background: var(--color-texto);
-  color: var(--color-superficie);
-  box-shadow: var(--sombra-flotante);
+  /* El icono de WhatsApp entregado por el taller es la imagen del botón: sin fondo propio */
+  background: transparent;
+  filter: drop-shadow(0 6px 10px rgb(15 23 42 / 0.28));
   transition: transform var(--duracion-estado) var(--curva-estandar);
 }
 

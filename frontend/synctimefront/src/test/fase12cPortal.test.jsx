@@ -111,32 +111,37 @@ describe('barra superior', () => {
 
 describe('cartel digital', () => {
   const estado = (datos) => ({ datos, cargando: !datos, error: null, recargar: vi.fn() });
-  const imagenes = (c) => [...c.querySelectorAll('img')];
 
-  it('cerrado: cartel rojo con los textos reales y la imagen decorativa', () => {
+  it('cerrado: letrero rojo con los textos reales adentro y solo «Cerrado»', () => {
     const { container } = render(<CartelGrande estado={estado(ESTADO_CERRADO)} />);
-    expect(imagenes(container).every((i) => i.getAttribute('alt') === '')).toBe(true);
-    const activa = imagenes(container).find((i) => i.dataset.activo === 'true');
-    expect(activa.getAttribute('src')).toBe('/imagenes/cartel-cerrado.webp');
-    expect(screen.getByText('Cerrado / Ausente')).toBeInTheDocument();
+    expect(container.querySelector('[data-estado="cerrado"]')).not.toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: 'En el taller ahora.' })).toBeInTheDocument();
+    expect(screen.getByText('Cerrado')).toBeInTheDocument();
+    expect(screen.queryByText(/Ausente|Disponible/)).not.toBeInTheDocument();
     expect(screen.getByText('Cerrado. Abrimos hoy a las 9:00.')).toBeInTheDocument();
     expect(screen.getByText(/Cartel actualizado el/)).toBeInTheDocument();
   });
 
-  it('abierto: cartel verde y mensaje «En el taller ahora.»', () => {
+  it('abierto: letrero verde con solo «Abierto» y el mensaje del cartel', () => {
     const { container } = render(<CartelGrande estado={estado(ESTADO_ABIERTO)} />);
-    expect(imagenes(container).find((i) => i.dataset.activo === 'true').getAttribute('src')).toBe('/imagenes/cartel-abierto.webp');
-    expect(screen.getByText('En el taller ahora.')).toBeInTheDocument();
-    expect(screen.getByText('Abierto / Disponible')).toBeInTheDocument();
+    expect(container.querySelector('[data-estado="abierto"]')).not.toBeNull();
+    expect(screen.getByText('Abierto')).toBeInTheDocument();
+    expect(screen.getByText('En el taller ahora.', { selector: 'span' })).toBeInTheDocument();
   });
 
-  it('al cambiar el estado cambia la imagen sin volver a montar el cartel y anuncia con aria-live', () => {
+  it('el dibujo es decorativo y los textos van en una región viva', () => {
+    const { container } = render(<CartelGrande estado={estado(ESTADO_CERRADO)} />);
+    expect(container.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(container.querySelector('[aria-live="polite"][aria-atomic="true"]')).not.toBeNull();
+  });
+
+  it('al cambiar el estado cambia el color sin volver a montar el cartel', () => {
     const { container, rerender } = render(<CartelGrande estado={estado(ESTADO_CERRADO)} />);
     const cartel = container.firstChild;
-    expect(container.querySelector('[aria-live="polite"]')).not.toBeNull();
     rerender(<CartelGrande estado={estado(ESTADO_ABIERTO)} />);
     expect(container.firstChild).toBe(cartel);
-    expect(imagenes(container).find((i) => i.dataset.activo === 'true').getAttribute('src')).toBe('/imagenes/cartel-abierto.webp');
+    expect(container.querySelector('[data-estado="abierto"]')).not.toBeNull();
   });
 
   it('si el estado no carga, lo dice y permite reintentar', () => {
@@ -144,6 +149,13 @@ describe('cartel digital', () => {
     render(<CartelGrande estado={{ datos: undefined, cargando: false, error: new Error('x'), recargar }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(recargar).toHaveBeenCalled();
+  });
+
+  it('el botón flotante de WhatsApp lleva la imagen del taller, no el icono genérico', () => {
+    const { container } = estructura();
+    const flotante = container.querySelector('a[href*="wa.me"][class*="whatsapp"]');
+    expect(flotante.querySelector('img').getAttribute('src')).toBe('/imagenes/icono-whatsapp.webp');
+    expect(flotante.querySelector('svg')).toBeNull();
   });
 });
 
