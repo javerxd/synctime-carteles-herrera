@@ -129,4 +129,16 @@ describe('color y animación de los botones', () => {
     // El panel del taller no lleva estas animaciones: solo donde hay una zona animada.
     expect(boton).toMatch(/\[data-animar\]/);
   });
+
+  it('el zoom de las tarjetas de la vitrina se ve con puntero real aunque se reduzca el movimiento, y solo en la zona animada', () => {
+    const portada = leer('src/paginas/publicas/Portada.module.css');
+    const regla = portada.match(/@media \(hover: hover\) and \(pointer: fine\)\s*\{\s*:global\(\[data-animar\]\) \.trabajo:hover\s*\{([^}]*)\}/);
+    expect(regla).not.toBeNull();
+    expect(regla[1]).toMatch(/transform:\s*scale\(1\.03\)/);
+    // Con «reducir movimiento» no desaparece: base.css solo lo hace instantáneo (sin recorrido animado).
+    expect(portada).not.toMatch(/prefers-reduced-motion:\s*no-preference\)\s*\{\s*:global\(\[data-animar\]\) \.trabajo/);
+    expect(leer('src/estilos/base.css')).toMatch(/prefers-reduced-motion: reduce[\s\S]*--duracion-entrada:\s*1ms/);
+    // La tarjeta anima solo transform y sombra (propiedades baratas).
+    expect(leer('src/componentes/ui/Tarjeta.module.css')).toMatch(/transition:\s*transform[\s\S]*box-shadow/);
+  });
 });

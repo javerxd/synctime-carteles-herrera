@@ -371,6 +371,7 @@ Pendientes que quedan para después de la fase 11:
 - **Bandeja de solicitudes.** `FilaSolicitud` suma `primerProducto` (opcional) para las filas cortas de «Solicitudes por atender».
 - **Colores del menú lateral.** Azul `#1D4ED8` con letras blancas (6,7:1); hover y activo son blanco al 10 % y al 16 % sobre ese azul. El rojo de «Cerrar sesión» (`#B91C1C`) tiene casi la misma luminancia que el azul: lo identifican su texto blanco y su borde.
 - **Pruebas bajo carga.** Con el equipo ocupado, a veces fallan solas `cotizaciones.test.jsx` o `pedidosFase8.test.jsx` por tiempo; pasan al repetirlas.
+- **Zoom de las tarjetas de la vitrina (ajuste del 20-11-2026).** El zoom 1,03 al pasar el cursor ya existía desde la 12C, pero estaba condicionado a `prefers-reduced-motion: no-preference`: en equipos con «Efectos de animación» desactivados en Windows (como el de desarrollo) no se veía nunca. Ahora se aplica con cualquier puntero real; con «reducir movimiento» el zoom se mantiene pero **sin animación** (base.css pone la duración en 1 ms), porque 3 % es un cambio de estado y no un recorrido. Esto ajusta lo escrito en `fase-12c-plan.md` §6 («sin movimiento con `prefers-reduced-motion`»). Se sigue viendo solo en la zona animada del portal público; el panel del taller no lo lleva.
 
 ## Restricciones del equipo de desarrollo
 

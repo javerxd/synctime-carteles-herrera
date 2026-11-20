@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 12D: paneles, cuentas, validaciones y catálogo editable
 
-Fecha: 20-11-2026 · Rama: `fase-12d-paneles-y-cuentas` (nace de `fase-12c-portal-publico`) · Estado: **esperando tu visto bueno**
+Fecha: 20-11-2026 · Rama: `fase-12d-paneles-y-cuentas` (nace de `fase-12c-portal-publico`) · Estado: **aprobada el 20-11-2026** (incluye el ajuste del zoom de las tarjetas de la vitrina, ver `desviaciones.md`)
 
 Plan: `fase-12d-plan.md`. Migración: **ninguna** (las tablas `producto_medidas_fijas` y `producto_opciones` ya existían). Cambios de permisos: **ninguno**.
 

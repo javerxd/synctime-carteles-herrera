@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 20-11-2026 (fase 12D en revisión).
+Última actualización: 20-11-2026 (fase 12D aprobada).
 
 ## Hecho
 
@@ -25,9 +25,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 - **Fase 12C — Portal público: mapa, carteles, barra superior, vitrina e ingreso** · rama `fase-12c-portal-publico` · informe: `informes/fase-12c.md` · aprobada el 20-11-2026 · sin migración; solo frontend
 
+- **Fase 12D — Paneles, cuentas, validaciones y catálogo editable** · rama `fase-12d-paneles-y-cuentas` · informe: `informes/fase-12d.md` · aprobada el 20-11-2026 · sin migración ni cambios de permisos; endpoint nuevo `PUT /productos/{id}/medidas-y-opciones`; incluye el ajuste del zoom de la vitrina
+
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 12D — Paneles, cuentas, validaciones y catálogo editable** · rama `fase-12d-paneles-y-cuentas` · informe: `informes/fase-12d.md` · sin migración ni cambios de permisos; endpoint nuevo `PUT /productos/{id}/medidas-y-opciones`
+Nada por ahora.
 
 ## En curso
 

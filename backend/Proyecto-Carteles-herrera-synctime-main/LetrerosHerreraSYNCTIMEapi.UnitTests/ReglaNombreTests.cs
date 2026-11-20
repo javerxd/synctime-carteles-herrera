@@ -36,8 +36,8 @@ public class ReglaNombreTests
     [Fact]
     public void LosLimites_CoincidenConLaTablaCompartida()
     {
-        Assert.Equal(Datos.GetProperty("maximoCaracteres").GetInt32(), ReglaNombre.MaximoCaracteres);
-        Assert.Equal(Datos.GetProperty("maximoEspacios").GetInt32(), ReglaNombre.MaximoEspacios);
+        Assert.Equal(ReglaNombre.MaximoCaracteres, Datos.GetProperty("maximoCaracteres").GetInt32());
+        Assert.Equal(ReglaNombre.MaximoEspacios, Datos.GetProperty("maximoEspacios").GetInt32());
     }
 
     [Fact]

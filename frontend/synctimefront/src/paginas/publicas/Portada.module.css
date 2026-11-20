@@ -351,9 +351,10 @@
   font-size: var(--tamano-sm);
 }
 
-/* Zoom ligero al pasar el cursor (solo con puntero real y sin reducción de movimiento): la tarjeta sube
-   sobre sus vecinas sin tapar su texto ni generar desplazamiento horizontal. */
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+/* Zoom ligero al pasar el cursor (solo con puntero real): la tarjeta sube sobre sus vecinas sin tapar su texto
+   ni generar desplazamiento horizontal. Con «reducir movimiento» el zoom se mantiene (3 %: es un cambio de
+   estado, no un recorrido), pero sin animación: los tokens de duración de base.css lo hacen instantáneo. */
+@media (hover: hover) and (pointer: fine) {
   :global([data-animar]) .trabajo:hover {
     z-index: 1;
     transform: scale(1.03);
