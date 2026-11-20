@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 17-11-2026 (fase 12 completa; 12B esperando tu visto bueno).
+Última actualización: 20-11-2026 (fase 12 aprobada; sigue la fase 13).
 
 ## Hecho
 
@@ -21,10 +21,11 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 11 — Notificaciones, auditoría y privacidad** · rama `fase-11-notificaciones-auditoria-y-privacidad` · informe: `informes/fase-11.md` · aprobada el 16-11-2026 · plazo de la IP en la bitácora decidido el 16-11-2026: 90 días (purga en la 12B)
 
 - **Fase 12A — Dashboard: contrato y frontend** · rama `fase-12a-dashboard-frontend` · informe: `informes/fase-12a.md` · aprobada el 16-11-2026 · el usuario autorizó subir la política de privacidad a 1.1 en la 12B
+- **Fase 12B — Backend de indicadores, vistas SQL, conexión real y catálogo real** · rama `fase-12b-indicadores-backend` · informe: `informes/fase-12.md` (cubre la 12A y la 12B) · aprobada el 20-11-2026 · catálogo real del taller, política de privacidad 1.1, migraciones `CatalogoRealDelTaller` e `IndicadoresDashboard` aplicadas en la demo (no en la real)
 
 ## En revisión (esperando el visto bueno del usuario)
 
-- **Fase 12B — Backend de indicadores, vistas SQL, conexión real y catálogo real** · rama `fase-12b-indicadores-backend` · informe: `informes/fase-12.md` (cubre la 12A y la 12B) · migraciones `CatalogoRealDelTaller` e `IndicadoresDashboard` aplicadas en la demo, no en la real · política de privacidad 1.1
+_(ninguna)_
 
 ## En curso
 
