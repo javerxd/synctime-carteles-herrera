@@ -35,10 +35,12 @@ _(ninguna)_
 
 | # | Fase | Depende de | Necesita del usuario |
 |---|---|---|---|
-| 13 | Reportes y exportaciones | 11, 12 | — |
-| 14 | Google y asistente de IA | 6, 7, 9 | ID de cliente OAuth de Google; clave de IA |
-| 15 | Calidad: rendimiento, accesibilidad y compatibilidad | 13, 14 | Prueba con NVDA; prueba en Safari real |
-| 16 | Contenedores, CI/CD y operación | 15 | Permiso para subir la rama; ejecutar la verificación en un Codespace |
+| 12C | Portal público: mapa, carteles, barra superior, vitrina e ingreso · plan: `fase-12c-plan.md` | 12B | Tu aprobación del plan |
+| 12D | Paneles, cuentas, validaciones y catálogo editable · plan: `fase-12d-plan.md` | 12C | Tu aprobación del plan |
+| 13 | Reportes y exportaciones | 11, 12, 12D | — |
+| 14 | Ingreso con Google (sin asistente de IA) | 6, 7, 9 | ID de cliente OAuth de Google |
+| 15 | Calidad: rendimiento, accesibilidad y compatibilidad (Chrome, Edge y Brave) | 13, 14 | Prueba con NVDA |
+| 16 | Contenedores, CI/CD, nube y operación (Docker local, Vercel, Render y Azure SQL) | 15 | Permiso para subir la rama; ejecutar la verificación en un Codespace; claves de cada plataforma |
 | 17 | Cierre y verificación de trazabilidad | 16 | — |
 
 ## Reglas del tablero
