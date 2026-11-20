@@ -15,7 +15,10 @@ import {
 } from './reglasMantenedores';
 import estilos from './Mantenedores.module.css';
 
-const enlace = (tipo, id, texto) => <Link to={`/panel/mantenedores/${tipo}/${id}`} className={estilos.enlaceFila}>{texto}</Link>;
+/** Dónde vive cada mantenedor. Desde la fase 12D el personal tiene su propia pantalla, fuera del mantenedor genérico. */
+export const baseDe = (clave) => (clave === 'personal' ? '/panel/empleados' : `/panel/mantenedores/${clave}`);
+
+const enlace = (tipo, id, texto) => <Link to={`${baseDe(tipo)}/${id}`} className={estilos.enlaceFila}>{texto}</Link>;
 /**
  * Los cinco mantenedores. Cada uno dice cómo se llama, con qué API habla, cómo se ve en el listado y qué
  * campos tiene su formulario. La pantalla genérica (listado y editor) hace el resto.
@@ -132,8 +135,8 @@ export const TIPOS = {
   },
   personal: {
     clave: 'personal',
-    titulo: 'Personal',
-    bajada: 'Quiénes entran al panel y con qué rol. Al desactivar a alguien se borra su acceso con rostro y se cierran sus sesiones.',
+    titulo: 'Empleados',
+    bajada: 'Quiénes entran al panel y con qué rol. Al desactivar a alguien se borra su acceso con rostro y se cierran sus sesiones; su historial se conserva.',
     nuevo: 'Agregar persona',
     singular: 'persona',
     entidad: 'esta persona',
@@ -157,4 +160,5 @@ export const TIPOS = {
   },
 };
 
-export const ORDEN_TIPOS = ['categorias', 'tipos-de-letrero', 'vitrina', 'materiales', 'personal'];
+/** Las pestañas del mantenedor genérico. El personal ya no está: se administra en /panel/empleados (fase 12D). */
+export const ORDEN_TIPOS = ['categorias', 'tipos-de-letrero', 'vitrina', 'materiales'];

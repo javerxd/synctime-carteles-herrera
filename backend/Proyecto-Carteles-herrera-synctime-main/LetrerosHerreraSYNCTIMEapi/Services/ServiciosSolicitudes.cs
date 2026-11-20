@@ -317,7 +317,9 @@ public sealed class ServicioSolicitudes(
                 s.Estado,
                 s.Detalles.Count(),
                 s.Adjuntos.Count(),
-                s.EmpleadoRegistra == null ? null : s.EmpleadoRegistra.Nombre + " " + s.EmpleadoRegistra.Apellido))
+                s.EmpleadoRegistra == null ? null : s.EmpleadoRegistra.Nombre + " " + s.EmpleadoRegistra.Apellido,
+                // Fase 12D: el primer letrero (para las filas cortas de «Solicitudes por atender»).
+                s.Detalles.OrderBy(d => d.IdSolicitudDetalle).Select(d => d.Producto!.Nombre).FirstOrDefault()))
             .PaginarAsync(parametros, ct);
     }
 

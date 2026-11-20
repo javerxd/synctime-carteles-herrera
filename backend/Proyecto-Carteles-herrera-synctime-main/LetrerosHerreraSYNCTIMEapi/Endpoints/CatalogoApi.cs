@@ -91,6 +91,14 @@ public static class CatalogoApi
                 : RespuestasGestion.Responder(await servicio.EditarAsync(id, req.Entrada(), version, ct), http, Results.Ok, ServicioProductos.MensajeVersionObsoleta))
             .RequireAuthorization(Politicas.Gestion);
 
+        // Fase 12D: limites de medida, medidas fijas y opciones de un producto (solo gestion, con If-Match).
+        productos.MapPut("/{id:int}/medidas-y-opciones", async (int id, MedidasYOpcionesRequest req, HttpContext http, ServicioProductos servicio, CancellationToken ct) =>
+            !RespuestasGestion.TryVersion(http.Request, req.RowVersion, out var version)
+                ? RespuestasGestion.IfMatchIlegible()
+                : RespuestasGestion.Responder(await servicio.EditarMedidasYOpcionesAsync(id, req.Entrada(), version, ct), http, Results.Ok,
+                    ServicioProductos.MensajeVersionObsoleta))
+            .RequireAuthorization(Politicas.Gestion);
+
         productos.MapPatch("/{id:int}/activo", async (int id, CambioActivoRequest req, HttpContext http, ServicioProductos servicio, CancellationToken ct) =>
         {
             if (req.Activo is not bool activo)
@@ -193,6 +201,13 @@ public record CategoriaRequest(string? Nombre, string? Descripcion, bool? Activo
 public record ProductoRequest(int? IdCategoria, string? Nombre, string? Descripcion, decimal? PrecioBaseRef, bool? Activo = null, byte[]? RowVersion = null)
 {
     public EntradaProducto Entrada() => new(IdCategoria, Nombre, Descripcion, PrecioBaseRef);
+}
+
+// Fase 12D: medidas en milimetros (la pantalla las muestra y recibe en centimetros).
+public record MedidasYOpcionesRequest(int? AnchoMinMm, int? AnchoMaxMm, int? AltoMinMm, int? AltoMaxMm, List<MedidaFijaEntrada>? MedidasFijas,
+    List<GrupoOpcionesEntrada>? Opciones, byte[]? RowVersion = null)
+{
+    public EntradaMedidasYOpciones Entrada() => new(AnchoMinMm, AnchoMaxMm, AltoMinMm, AltoMaxMm, MedidasFijas, Opciones);
 }
 
 // imagenUrl queda por compatibilidad con las fotos anteriores a la subida de imagenes (fase 5).

@@ -37,6 +37,8 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Ver las alertas de entregas y cobranza (`GET /pedidos/alertas`) | No | No | No | No | Sí |
 | Eliminar cotizaciones y pedidos (borrado lógico, con la versión vista). Desde la fase 9 no hay borrado de clientes, categorías, productos ni publicaciones: se desactivan | No | No | No | No | Sí |
 | Mantener categorías, productos, publicaciones y materiales (crear, editar y activar o desactivar, con la versión vista) | No | No | No | No | Sí |
+| Editar los límites de medida, las medidas fijas y las opciones de un tipo de letrero (fase 12D) | No | No | No | No | Sí |
+| Administrar empleados en `/panel/empleados` (alta, datos, rol, desactivar; la API es la misma de la fase 9, sin cambios de permisos) | No | No | No | No | Sí |
 | Mantener el personal (`/empleados`): listar, dar de alta, editar, cambiar el rol y desactivar. Dar de alta y cambiar el correo o el rol piden además la contraseña de quien lo hace | No | No | No | No | Sí |
 | Ver y cambiar los destinos de los avisos del taller y enviar la prueba (`/avisos-taller`). Agregar, reemplazar y quitar piden además la contraseña de quien lo hace | No | No | No | No | Sí |
 | Confirmar un destino de avisos desde el enlace del correo (`POST /avisos-taller/confirmar`) | Sí | Sí | Sí | Sí | Sí |

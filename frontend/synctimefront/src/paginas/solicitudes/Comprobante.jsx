@@ -1,8 +1,9 @@
-import { EstadoSolicitud, Insignia, ListaAdjuntos, TablaAdaptable } from '../../componentes/ui';
+import { EstadoSolicitud, ListaAdjuntos, TablaAdaptable } from '../../componentes/ui';
 import { adjuntos as apiAdjuntos } from '../../api/solicitudes';
 import { formatearFechaHora } from '../../utilidades/formato';
+import { OrigenSolicitud } from './OrigenSolicitud';
 import {
-  formatearArea, medidasCm, nombreCompleto, numeroSolicitud, ORIGENES_SOLICITUD, telefonoVisible,
+  formatearArea, medidasCm, nombreCompleto, numeroSolicitud, telefonoVisible,
 } from './reglasSolicitud';
 import estilos from './Solicitudes.module.css';
 
@@ -51,7 +52,7 @@ export function Comprobante({ solicitud, nivel = 2, conContacto = false, sinAdju
           <p className={estilos.numero}><span className="cifras">{numeroSolicitud(solicitud)}</span></p>
           <div className={estilos.insignias}>
             <EstadoSolicitud estado={solicitud.estado} />
-            {solicitud.origen && <Insignia tono="neutro">{ORIGENES_SOLICITUD[solicitud.origen] ?? solicitud.origen}</Insignia>}
+            {solicitud.origen && <OrigenSolicitud origen={solicitud.origen} />}
           </div>
         </div>
       )}

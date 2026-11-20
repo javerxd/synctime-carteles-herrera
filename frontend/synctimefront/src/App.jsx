@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ProveedorAvisos } from './avisos/Avisos';
 import ErrorBoundary from './componentes/ErrorBoundary';
 import { Esqueleto } from './componentes/ui';
+import { EstructuraCuenta } from './estructuras/EstructuraCuenta';
 import { EstructuraPanel } from './estructuras/EstructuraPanel';
 import { EstructuraPublica } from './estructuras/EstructuraPublica';
 import { GESTION } from './estructuras/navegacion';
@@ -46,6 +47,8 @@ const Mantenedores = lazy(() => import('./paginas/mantenedores/Mantenedores'));
 const InicioMantenedores = lazy(() => import('./paginas/mantenedores/Mantenedores').then((m) => ({ default: m.InicioMantenedores })));
 const ListaMantenedor = lazy(() => import('./paginas/mantenedores/ListaMantenedor'));
 const EditorMantenedor = lazy(() => import('./paginas/mantenedores/EditorMantenedor'));
+const Empleados = lazy(() => import('./paginas/empleados/Empleados'));
+const FichaEmpleado = lazy(() => import('./paginas/empleados/Empleados').then((m) => ({ default: m.FichaEmpleado })));
 const RostrosRegistrados = lazy(() => import('./paginas/rostros/RostrosRegistrados'));
 const CalibrarRostro = lazy(() => import('./paginas/rostros/CalibrarRostro'));
 const BajaCorreos = lazy(() => import('./paginas/correos/BajaCorreos'));
@@ -76,10 +79,6 @@ export default function App() {
               {/* Fase 12C: /ingresar es el selector «¿Quién está iniciando sesión?»; el formulario del cliente pasa a /ingresar/cliente. */}
               <Route path="ingresar" element={enCarga(<SelectorIngreso />)} />
               <Route path="ingresar/cliente" element={enCarga(<IngresoCliente />)} />
-              <Route path="cuenta" element={<RequiereCliente>{enCarga(<MiCuenta />)}</RequiereCliente>} />
-              <Route path="cuenta/solicitud" element={<RequiereCliente>{enCarga(<NuevaSolicitud />)}</RequiereCliente>} />
-              <Route path="cuenta/solicitudes" element={<RequiereCliente>{enCarga(<MisSolicitudes />)}</RequiereCliente>} />
-              <Route path="cuenta/solicitudes/:id" element={<RequiereCliente>{enCarga(<MiSolicitud />)}</RequiereCliente>} />
               <Route path="cuenta/registro" element={enCarga(<Registro />)} />
               <Route path="cuenta/recuperar" element={enCarga(<Recuperar />)} />
               <Route path="cuenta/verificar" element={enCarga(<Verificar />)} />
@@ -94,6 +93,15 @@ export default function App() {
               <Route path="login" element={<Navigate to="/personal/ingresar" replace />} />
               <Route path="dashboard" element={<Navigate to="/panel" replace />} />
               <Route path="*" element={<Pagina404 />} />
+            </Route>
+
+            {/* Fase 12D: la cuenta del cliente con sesión tiene su propio menú lateral (Mis solicitudes, Solicitar cotización, Mi cuenta).
+                Registro, recuperación y verificación siguen en la estructura pública: aún no hay sesión. */}
+            <Route path="cuenta" element={<RequiereCliente><EstructuraCuenta /></RequiereCliente>}>
+              <Route index element={enCarga(<MiCuenta />)} />
+              <Route path="solicitud" element={enCarga(<NuevaSolicitud />)} />
+              <Route path="solicitudes" element={enCarga(<MisSolicitudes />)} />
+              <Route path="solicitudes/:id" element={enCarga(<MiSolicitud />)} />
             </Route>
 
             <Route path="panel" element={<RequierePersonal><EstructuraPanel /></RequierePersonal>}>
@@ -123,6 +131,9 @@ export default function App() {
                 </Route>
                 <Route path="mantenedores/:tipo/nuevo" element={enCarga(<EditorMantenedor />)} />
                 <Route path="mantenedores/:tipo/:id" element={enCarga(<EditorMantenedor />)} />
+                <Route path="empleados" element={enCarga(<Empleados />)} />
+                <Route path="empleados/nuevo" element={enCarga(<FichaEmpleado />)} />
+                <Route path="empleados/:id" element={enCarga(<FichaEmpleado />)} />
                 <Route path="rostros" element={enCarga(<RostrosRegistrados />)} />
                 <Route path="rostros/calibrar" element={enCarga(<CalibrarRostro />)} />
                 <Route path="correos-no-enviados" element={enCarga(<CorreosNoEnviados />)} />

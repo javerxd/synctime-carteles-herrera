@@ -30,4 +30,9 @@
     <None Update="CasosGiro.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Fase 12D: casos fijos de la regla de nombres, compartidos con el frontend (src/utilidades/reglaNombre.js). -->
+  <ItemGroup>
+    <None Update="CasosNombre.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

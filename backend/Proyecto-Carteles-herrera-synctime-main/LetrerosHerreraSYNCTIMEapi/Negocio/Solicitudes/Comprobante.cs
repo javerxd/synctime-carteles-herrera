@@ -62,7 +62,8 @@ public sealed record FilaSolicitud(
     string Estado,
     int CantidadItems,
     int CantidadAdjuntos,
-    string? RegistradaPor);
+    string? RegistradaPor,
+    string? PrimerProducto = null);
 
 public sealed record ClienteFila(int IdCliente, string Nombre, string Apellido, string Telefono);
 

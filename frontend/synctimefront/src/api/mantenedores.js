@@ -19,7 +19,14 @@ function mantenedor(ruta) {
 /** { nombre, descripcion? } */
 export const categorias = mantenedor('/categorias');
 /** Tipos de letrero: { idCategoria, nombre, descripcion?, precioBaseRef? } */
-export const productos = mantenedor('/productos');
+export const productos = {
+  ...mantenedor('/productos'),
+  /**
+   * Fase 12D: { anchoMinMm, anchoMaxMm, altoMinMm, altoMaxMm, medidasFijas: [{ anchoMm, altoMm }], opciones: [{ grupo, valores }] }
+   * (milímetros). Exige la versión vista (If-Match): 409 version_obsoleta si otra persona lo cambió.
+   */
+  editarMedidasYOpciones: (id, datos, rowVersion) => api.put(`/productos/${id}/medidas-y-opciones`, datos, siVersion(rowVersion)),
+};
 /** { nombre, unidadMedida, costoUnitarioAprox } */
 export const materialesTaller = mantenedor('/materiales');
 

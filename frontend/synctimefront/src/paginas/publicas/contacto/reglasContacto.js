@@ -1,6 +1,8 @@
+import { MAXIMO_CARACTERES, errorNombre } from '../../../utilidades/reglaNombre';
+
 // Reglas del formulario de contacto: las mismas que valida la API (Negocio/Portada/ValidacionContacto.cs),
 // para que el visitante vea el mismo mensaje antes y después de enviar.
-export const LIMITES = { nombre: 100, asunto: 150, mensajeMinimo: 10, mensaje: 2000 };
+export const LIMITES = { nombre: MAXIMO_CARACTERES, asunto: 150, mensajeMinimo: 10, mensaje: 2000 };
 
 const CORREO = /^[^\s@;,"]+@[^\s@;,"]+\.[^\s@;,"]+$/;
 
@@ -13,9 +15,8 @@ function esTelefono(valor) {
 /** Errores por campo, en español. Un objeto vacío significa que se puede enviar. */
 export function validarContacto({ nombre = '', correo = '', telefono = '', asunto = '', mensaje = '', aceptaPrivacidad = false }) {
   const errores = {};
-  const n = nombre.trim();
-  if (!n) errores.nombre = 'Escribe tu nombre.';
-  else if (n.length > LIMITES.nombre) errores.nombre = `El nombre puede tener hasta ${LIMITES.nombre} caracteres.`;
+  const errorDelNombre = errorNombre(nombre, 'Escribe tu nombre.');
+  if (errorDelNombre) errores.nombre = errorDelNombre;
 
   const c = correo.trim();
   if (!CORREO.test(c) || c.length > 254) errores.correo = 'Escribe un correo válido, por ejemplo nombre@correo.cl, para poder responderte.';

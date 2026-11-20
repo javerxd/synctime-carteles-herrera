@@ -74,3 +74,10 @@ export function registradaPor(s) {
 
 /** Lo que muestra el inicio del panel: las «Solicitadas», de la más antigua a la más nueva. */
 export const FILTRO_PENDIENTES = { estado: 'solicitado', orden: 'fecha_asc', pagina: 1, tamano: 5 };
+
+/** «Banners», o «Banners y 2 más» cuando la solicitud trae varios letreros (fila corta de «Solicitudes por atender»). */
+export function resumenProducto(solicitud) {
+  const cantidad = solicitud.cantidadItems ?? 0;
+  if (!solicitud.primerProducto) return cantidad ? `${cantidad} ${cantidad === 1 ? 'letrero' : 'letreros'}` : '';
+  return cantidad > 1 ? `${solicitud.primerProducto} y ${cantidad - 1} más` : solicitud.primerProducto;
+}

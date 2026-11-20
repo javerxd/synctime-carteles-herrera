@@ -76,7 +76,7 @@ const FICHA = {
   historial: [{ estadoAnterior: null, estadoNuevo: 'solicitado', motivo: null, fechaChile: COMPROBANTE.fechaChile, actor: 'cliente', por: 'Rosa Pino' }],
 };
 const FILA = (id, estado, origen, cliente, items, adjuntos) => ({
-  idSolicitud: id, numero: `#${id}`, fechaChile: fecha(0, (id % 9) + 1), estado, origen, cliente, cantidadItems: items, cantidadAdjuntos: adjuntos,
+  idSolicitud: id, numero: `#${id}`, fechaChile: fecha(0, (id % 9) + 1), estado, origen, cliente, cantidadItems: items, cantidadAdjuntos: adjuntos, primerProducto: items > 1 ? 'Banners' : 'Cartel metálico impreso',
   registradaPor: origen === 'presencial' ? { nombre: 'Hugo', apellido: 'Vera' } : null,
 });
 const BANDEJA = {
@@ -263,6 +263,13 @@ Object.assign(RESPUESTAS, {
   '/api/v1/empleados/activos': EMPLEADOS,
   '/api/v1/empleados': paginaDe(PERSONAL),
   '/api/v1/empleados/2': PERSONAL[1],
+  // Fase 12D: la ficha de un tipo de letrero con sus límites en milímetros, medidas fijas y opciones.
+  '/api/v1/productos/1': {
+    idProducto: 1, idCategoria: 1, categoria: { idCategoria: 1, nombre: 'Impresión y publicidad gráfica', activo: true }, nombre: 'Roll Up / Pendones Roller',
+    descripcion: 'Estructura de aluminio con bolso de transporte.', precioBaseRef: null, activo: true, rowVersion: 'AAAAAAAAPRO=',
+    anchoMinMm: 800, anchoMaxMm: 1500, altoMinMm: 2000, altoMaxMm: 3000, medidasFijas: [],
+    opciones: [{ grupo: 'Diseño', valor: 'Del cliente' }, { grupo: 'Diseño', valor: 'Desarrollado por la oficina' }],
+  },
   '/api/v1/categorias/1': { idCategoria: 1, nombre: 'Luminosos', descripcion: 'Cajas de luz y letras corpóreas', activo: true, rowVersion: 'AAAAAAAACA1=' },
   '/api/v1/catalogo/1': PUBLICACION,
   '/api/v1/catalogo/2': PUBLICACION_LOGO,
@@ -400,11 +407,12 @@ const PANTALLAS = [
   ['/panel/rostros/calibrar', 'Calibrar el rostro'],
   ['/panel/mantenedores/categorias', 'Catálogo y mantenedores'],
   ['/panel/mantenedores/vitrina', 'Catálogo y mantenedores'],
-  ['/panel/mantenedores/personal', 'Catálogo y mantenedores'],
+  ['/panel/empleados', 'Empleados'],
   ['/panel/mantenedores/categorias/1', 'Luminosos'],
   ['/panel/mantenedores/vitrina/2', 'Vinilo para vitrina de ferretería'],
-  ['/panel/mantenedores/personal/2', 'Hugo Vera'],
-  ['/panel/mantenedores/personal/nuevo', 'Agregar persona'],
+  ['/panel/empleados/2', 'Hugo Vera'],
+  ['/panel/mantenedores/tipos-de-letrero/1', 'Roll Up / Pendones Roller'],
+  ['/panel/empleados/nuevo', 'Agregar persona'],
   ['/avisos/confirmar?token=abc123', 'Correo confirmado'],
   // Fase 11
   ['/panel/correos-no-enviados', 'Correos no enviados'],
@@ -628,7 +636,7 @@ test('salir del panel avisa a la API y vuelve al acceso del personal', async ({ 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/panel');
   const salida = page.waitForRequest((r) => r.url().endsWith('/api/v1/auth/salir') && r.method() === 'POST');
-  await page.getByRole('button', { name: 'Salir' }).click();
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click();
   await salida;
   await expect(page.getByRole('heading', { name: 'Acceso del personal' })).toBeVisible();
 });
@@ -684,7 +692,7 @@ test('registro: casillas desmarcadas, la obligatoria bloquea el envío y al crea
   expect(registro).toMatchObject({
     correo: 'rosa@correo.test', aceptaTerminosYPrivacidad: true, aceptaMarketing: false, versionTerminos: '1.0', versionPrivacidad: '1.0',
   });
-  await expect(page.getByRole('banner').getByRole('link', { name: 'Mi cuenta' })).toHaveCount(1);
+  await expect(page.getByRole('navigation', { name: 'Mi cuenta' }).getByRole('link', { name: 'Mi cuenta' })).toHaveAttribute('aria-current', 'page');
 });
 
 test('recuperación en dos pasos: pide el código, cambia la contraseña y vuelve al ingreso con un aviso', async ({ page }) => {
@@ -1432,7 +1440,7 @@ test('desactivar a una persona pide confirmar y envía la versión vista', async
     cambio = { cuerpo: ruta.request().postDataJSON(), version: ruta.request().headers()['if-match'] };
     return ruta.fulfill({ json: { ...PERSONAL[1], activo: false } });
   });
-  await page.goto('/panel/mantenedores/personal');
+  await page.goto('/panel/empleados');
   await page.getByRole('link', { name: 'Hugo Vera' }).click();
   await page.getByRole('button', { name: 'Desactivar a esta persona' }).click();
   const dialogo = page.getByRole('dialog', { name: 'Desactivar a Hugo Vera' });
@@ -1700,4 +1708,163 @@ test('12C: a 360 px la barra muestra marca, cartel, «Ingresar» y menú sin des
   await expect(barra.getByRole('button', { name: 'Menú' })).toBeVisible();
   await expect(barra.getByText('Cerrado')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+});
+
+// ── Fase 12D: paneles con menú lateral azul, cuenta del cliente, inicio en dos columnas, origen y catálogo editable ──
+
+for (const ancho of [360, 768, 1440]) {
+  test(`fase 12D: la cuenta del cliente tiene su menú lateral (${ancho} px), con el pie anclado y sin fallas graves`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await entrarComoCliente(page, { verificado: true });
+    await page.goto('/cuenta');
+    await expect(page.getByRole('heading', { level: 1, name: 'Mi cuenta' })).toBeVisible();
+
+    // «Mi cuenta» ya no trae los accesos que pasaron al menú.
+    await expect(page.getByRole('link', { name: 'Solicitar una cotización' })).toHaveCount(0);
+    if (ancho < 1024) {
+      await page.getByRole('button', { name: 'Menú' }).click();
+      const cajon = page.getByRole('dialog', { name: 'Menú: Mi cuenta' });
+      await expect(cajon.getByRole('link', { name: 'Mis solicitudes' })).toBeVisible();
+      await expect(cajon.getByRole('link', { name: 'Solicitar cotización' })).toBeVisible();
+      await expect(cajon.getByRole('button', { name: 'Cerrar sesión' })).toBeInViewport();
+      await expect(cajon.getByRole('link', { name: 'Volver a la página principal' })).toBeInViewport();
+      await sinFallasGraves(page);
+      await page.keyboard.press('Escape');
+      await expect(cajon).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Menú' })).toBeFocused();
+    } else {
+      const menu = page.getByRole('navigation', { name: 'Mi cuenta' });
+      await expect(menu.getByRole('link', { name: 'Mis solicitudes' })).toBeVisible();
+      await expect(menu.getByRole('link', { name: 'Solicitar cotización' })).toBeVisible();
+      await expect(menu.getByRole('link', { name: 'Mi cuenta' })).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeInViewport();
+      const fondo = await menu.evaluate((el) => getComputedStyle(el.parentElement).backgroundColor);
+      expect(fondo).toBe('rgb(29, 78, 216)');
+      await sinFallasGraves(page);
+    }
+  });
+}
+
+test('fase 12D: el pie del panel queda siempre visible aunque el menú sea largo y la ventana baja', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 560 });
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel');
+  await expect(page.getByRole('heading', { level: 1, name: 'Hola, Marta' })).toBeVisible();
+
+  await expect(page.getByRole('link', { name: 'Volver a la página principal' })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeInViewport();
+  const menu = page.getByRole('navigation', { name: 'Panel del taller' });
+  expect(await menu.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  // El menú se desplaza solo: el lateral entero no.
+  expect(await page.evaluate(() => document.querySelector('nav[aria-label="Panel del taller"]').parentElement.scrollHeight <= document.querySelector('nav[aria-label="Panel del taller"]').parentElement.clientHeight)).toBe(true);
+  await expect(page.getByRole('link', { name: 'Volver a la página principal' })).toHaveAttribute('href', '/');
+  await expect(page.locator('[data-animar]')).toHaveCount(0);
+});
+
+test('fase 12D: el dueño ve «Empleados» en el menú y la pantalla lista al personal', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel');
+  await page.getByRole('navigation', { name: 'Panel del taller' }).getByRole('link', { name: 'Empleados' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Empleados' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Hugo Vera' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Agregar persona' })).toBeVisible();
+  // Ya no es una pestaña del mantenedor genérico.
+  await page.goto('/panel/mantenedores/categorias');
+  await expect(page.getByRole('navigation', { name: 'Mantenedores' }).getByRole('link', { name: 'Personal' })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Mantenedores' }).getByRole('link', { name: 'Empleados' })).toHaveCount(0);
+});
+
+test('fase 12D: diseñador y operario no ven «Empleados» y reciben 403 en su ruta', async ({ page }) => {
+  await entrarComo(page, 'diseñador');
+  await page.goto('/panel');
+  await expect(page.getByRole('navigation', { name: 'Panel del taller' }).getByRole('link', { name: 'Empleados' })).toHaveCount(0);
+  await page.goto('/panel/empleados');
+  await expect(page.getByRole('heading', { name: 'No tienes permiso para ver esta página' })).toBeVisible();
+});
+
+test('fase 12D: el inicio pone las solicitudes a la izquierda y los indicadores a la derecha; en el teléfono, apilados', async ({ page }) => {
+  await entrarComo(page, 'dueño');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/panel');
+  const solicitudes = page.getByRole('region', { name: /Solicitudes por atender/ });
+  const indicadores = page.getByRole('region', { name: 'Indicadores del mes' });
+  await expect(solicitudes).toBeVisible();
+  await expect(indicadores).toBeVisible();
+  const a = await solicitudes.boundingBox();
+  const b = await indicadores.boundingBox();
+  expect(a.x).toBeLessThan(b.x);
+  expect(Math.abs(a.y - b.y)).toBeLessThan(40);
+
+  await page.setViewportSize({ width: 360, height: 900 });
+  const apilada = await solicitudes.boundingBox();
+  const debajo = await indicadores.boundingBox();
+  expect(apilada.y).toBeLessThan(debajo.y);
+  expect(Math.abs(apilada.x - debajo.x)).toBeLessThan(8);
+});
+
+test('fase 12D: el diseñador ve solo las solicitudes por atender, a todo el ancho', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await entrarComo(page, 'diseñador');
+  await page.goto('/panel');
+  await expect(page.getByRole('region', { name: /Solicitudes por atender/ })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Indicadores del mes' })).toHaveCount(0);
+});
+
+test('fase 12D: el origen de cada solicitud lleva color, texto e icono, en la lista de solicitudes', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel/solicitudes');
+  await expect(page.getByRole('heading', { level: 1, name: 'Solicitudes' })).toBeVisible();
+  const enLinea = page.getByRole('table').getByText('En línea').first();
+  const presencial = page.getByRole('table').getByText('Presencial').first();
+  await expect(enLinea).toBeVisible();
+  await expect(presencial).toBeVisible();
+  const fondo = (etiqueta) => etiqueta.evaluate((n) => getComputedStyle(n.parentElement).backgroundColor);
+  expect(await fondo(enLinea)).toBe('rgb(220, 252, 231)');
+  expect(await fondo(presencial)).toBe('rgb(254, 249, 195)');
+  // Cada etiqueta lleva su icono además del texto.
+  expect(await enLinea.evaluate((n) => n.parentElement.querySelectorAll('svg').length)).toBe(1);
+  expect(await presencial.evaluate((n) => n.parentElement.querySelectorAll('svg').length)).toBe(1);
+  await sinFallasGraves(page);
+});
+
+test('fase 12D: el editor de medidas y opciones guarda en milímetros con la versión vista', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await entrarComo(page, 'dueño');
+  let envio = null;
+  await page.route('**/api/v1/productos/1/medidas-y-opciones', (ruta) => {
+    envio = { cuerpo: ruta.request().postDataJSON(), version: ruta.request().headers()['if-match'] };
+    return ruta.fulfill({ json: RESPUESTAS['/api/v1/productos/1'] });
+  });
+  await page.goto('/panel/mantenedores/tipos-de-letrero/1');
+  await expect(page.getByRole('heading', { name: 'Medidas y opciones' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Ancho mínimo (cm)' })).toHaveValue('80');
+
+  await page.getByRole('textbox', { name: 'Ancho mínimo (cm)' }).fill('70,5');
+  await page.getByRole('button', { name: 'Agregar valor' }).click();
+  await page.getByRole('textbox', { name: 'Valor 3 de Diseño' }).fill('Mixto');
+  await sinFallasGraves(page);
+  await page.getByRole('button', { name: 'Guardar medidas y opciones' }).click();
+
+  await expect(page.getByText('Medidas y opciones guardadas', { exact: true })).toBeVisible();
+  expect(envio.version).toBe('"AAAAAAAAPRO="');
+  expect(envio.cuerpo).toEqual({
+    anchoMinMm: 705, anchoMaxMm: 1500, altoMinMm: 2000, altoMaxMm: 3000, medidasFijas: [],
+    opciones: [{ grupo: 'Diseño', valores: ['Del cliente', 'Desarrollado por la oficina', 'Mixto'] }],
+  });
+});
+
+test('fase 12D: un nombre con números se rechaza en el registro, junto a su campo y sin cambiar lo escrito', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 900 });
+  await page.route('**/api/v1/**', (r) => r.fulfill({ json: RESPUESTAS[new URL(r.request().url()).pathname.replace(/\/$/, '')] ?? [] }));
+  await page.goto('/cuenta/registro');
+  const nombre = page.getByRole('textbox', { name: /^Nombre/ });
+  await expect(nombre).toHaveAttribute('maxlength', '20');
+  await nombre.fill('Ana2');
+  await page.getByRole('textbox', { name: /^Apellido/ }).fill('Pérez');
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByText('Usa solo letras, hasta 20 caracteres.').first()).toBeVisible();
+  await expect(nombre).toHaveAttribute('aria-invalid', 'true');
+  await expect(nombre).toHaveValue('Ana2');
 });

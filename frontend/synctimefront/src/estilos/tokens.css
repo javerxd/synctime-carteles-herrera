@@ -35,7 +35,11 @@
 
   /* Familias de estado (fondo 50, borde 200, sólido 700, texto 800) */
   --primitivo-azul-50: #eff6ff;
+  --primitivo-azul-100: #dbeafe;
   --primitivo-azul-200: #bfdbfe;
+  /* Menú lateral (fase 12D): el azul de la empresa. Hover y activo son blanco al 10 % y al 16 % sobre #1d4ed8, en sólido para poder medirlos */
+  --primitivo-azul-hover: #3460da;
+  --primitivo-azul-activo: #416ade;
   --primitivo-azul-700: #1d4ed8;
   --primitivo-azul-800: #1e40af;
   --primitivo-violeta-50: #f5f3ff;
@@ -43,10 +47,12 @@
   --primitivo-violeta-700: #6d28d9;
   --primitivo-violeta-800: #5b21b6;
   --primitivo-verde-50: #f0fdf4;
+  --primitivo-verde-100: #dcfce7;
   --primitivo-verde-200: #bbf7d0;
   --primitivo-verde-700: #15803d;
   --primitivo-verde-800: #166534;
   --primitivo-amarillo-50: #fefce8;
+  --primitivo-amarillo-100: #fef9c3;
   --primitivo-amarillo-200: #fde68a;
   --primitivo-amarillo-700: #a16207;
   --primitivo-amarillo-800: #854d0e;
@@ -127,6 +133,16 @@
   --color-acento-suave: var(--primitivo-naranja-50);
   --color-acento-suave-borde: var(--primitivo-naranja-100);
 
+  /* Menú lateral del panel del taller y de la cuenta del cliente (fase 12D): azul con letras blancas (6,7:1) */
+  --color-lateral-fondo: var(--primitivo-azul-700);
+  --color-lateral-texto: var(--primitivo-blanco);
+  --color-lateral-texto-suave: var(--primitivo-azul-100);
+  --color-lateral-hover: var(--primitivo-azul-hover);
+  --color-lateral-activo: var(--primitivo-azul-activo);
+  --color-lateral-foco: var(--primitivo-blanco);
+  --color-lateral-salir: var(--primitivo-rojo-700);
+  --color-lateral-salir-hover: var(--primitivo-rojo-800);
+
   /* Interacción */
   --color-foco: var(--primitivo-naranja-700);
   --color-hover-neutro: var(--primitivo-pizarra-100);
@@ -160,6 +176,14 @@
   --tono-peligro-borde: var(--primitivo-rojo-200);
   --tono-peligro-solido: var(--primitivo-rojo-700);
   --tono-peligro-texto: var(--primitivo-rojo-800);
+
+  /* Origen de una solicitud (fase 12D): «En línea» en verde y «Presencial» en amarillo; siempre con texto e icono */
+  --tono-origen-linea-fondo: var(--primitivo-verde-100);
+  --tono-origen-linea-borde: var(--primitivo-verde-200);
+  --tono-origen-linea-texto: var(--primitivo-verde-800);
+  --tono-origen-presencial-fondo: var(--primitivo-amarillo-100);
+  --tono-origen-presencial-borde: var(--primitivo-amarillo-200);
+  --tono-origen-presencial-texto: var(--primitivo-amarillo-800);
 
   /* Tipografía */
   --tipografia-familia: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;

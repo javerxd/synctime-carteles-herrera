@@ -7,6 +7,20 @@
   margin: 0 auto;
 }
 
+/* Inicio del panel (fase 12D): solicitudes por atender e indicadores del mes en dos columnas; apiladas debajo de 75 rem */
+.inicioDosColumnas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-6);
+  align-items: start;
+}
+
+@media (min-width: 75rem) {
+  .inicioDosColumnas {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
 .cabecera {
   display: flex;
   flex-wrap: wrap;

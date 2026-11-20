@@ -59,7 +59,6 @@ public static class ValidacionMantenedores
     public const int LargoDescripcionProducto = 500;
     public const int LargoNombreMaterial = 100;
     public const int LargoUnidad = 20;
-    public const int LargoNombrePersona = 80;
     public const int LargoCorreoEmpleado = 100;
     public const int LargoMensajeCartel = 200;
     public const int LargoRegresoCartel = 100;
@@ -102,8 +101,10 @@ public static class ValidacionMantenedores
         var errores = new Dictionary<string, string[]>();
         if (!Negocio.Rut.TryNormalizar(e.Rut, out _))
             errores["rut"] = ["El RUT no es válido. Revisa el número y el dígito verificador, por ejemplo 12.345.678-5."];
-        Texto(errores, "nombre", e.Nombre, 1, LargoNombrePersona, "El nombre");
-        Texto(errores, "apellido", e.Apellido, 1, LargoNombrePersona, "El apellido");
+        if (ReglaNombre.Error(e.Nombre, "El nombre es obligatorio.") is { } errorNombre)
+            errores["nombre"] = [errorNombre];
+        if (ReglaNombre.Error(e.Apellido, "El apellido es obligatorio.") is { } errorApellido)
+            errores["apellido"] = [errorApellido];
         if (ValidacionCuenta.NormalizarTelefono(e.Telefono) is null)
             errores["telefono"] = ["Escribe un teléfono de 9 dígitos, por ejemplo 9 1234 5678."];
         var correo = NormalizarCorreo(e.Email);

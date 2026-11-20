@@ -41,6 +41,8 @@ function abrir(entrada) {
           </Route>
           <Route path="/panel/mantenedores/:tipo/nuevo" element={<EditorMantenedor />} />
           <Route path="/panel/mantenedores/:tipo/:id" element={<EditorMantenedor />} />
+          <Route path="/panel/empleados/nuevo" element={<EditorMantenedor tipo="personal" />} />
+          <Route path="/panel/empleados/:id" element={<EditorMantenedor tipo="personal" />} />
         </Routes>
         <Ruta />
       </MemoryRouter>
@@ -107,7 +109,7 @@ describe('reglas de los mantenedores', () => {
   it('cambiar el correo o el rol de otra persona pide la contraseña de quien lo cambia', () => {
     const registro = { email: 'hugo@taller.cl', rol: 'operario' };
     const datos = { rut: '12.345.678-5', nombre: 'Hugo', apellido: 'Vera', telefono: '912345678', email: 'hugo@taller.cl', rol: 'operario', passwordActual: '' };
-    expect(requierePasswordEmpleado({ ...datos, nombre: 'Hugo A.' }, registro)).toBe(false);
+    expect(requierePasswordEmpleado({ ...datos, nombre: 'Hugo Andrés' }, registro)).toBe(false);
     expect(requierePasswordEmpleado({ ...datos, email: ' HUGO@taller.cl ' }, registro)).toBe(false);
     expect(requierePasswordEmpleado({ ...datos, email: 'otro@taller.cl' }, registro)).toBe(true);
     expect(requierePasswordEmpleado({ ...datos, rol: 'diseñador' }, registro)).toBe(true);
@@ -262,8 +264,8 @@ describe('ficha de un mantenedor', () => {
     personal.editar
       .mockRejectedValueOnce(new ErrorApi({ estado: 400, codigo: 'datos_invalidos', mensaje: 'La contraseña actual no es correcta.' }))
       .mockResolvedValue({});
-    abrir('/panel/mantenedores/personal/5');
-    escribir(await screen.findByRole('textbox', { name: /^Nombre/ }), 'Hugo A.');
+    abrir('/panel/empleados/5');
+    escribir(await screen.findByRole('textbox', { name: /^Nombre/ }), 'Hugo Andrés');
     expect(screen.queryByLabelText(/Tu contraseña, para confirmar el cambio/)).not.toBeInTheDocument();
     escribir(screen.getByRole('textbox', { name: /^Correo/ }), 'hugo.vera@taller.cl');
     const password = screen.getByLabelText(/Tu contraseña, para confirmar el cambio/);
@@ -278,7 +280,7 @@ describe('ficha de un mantenedor', () => {
     escribir(password, 'mia12345');
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => expect(personal.editar).toHaveBeenLastCalledWith('5', expect.objectContaining({
-      email: 'hugo.vera@taller.cl', nombre: 'Hugo A.', passwordActual: 'mia12345',
+      email: 'hugo.vera@taller.cl', nombre: 'Hugo Andrés', passwordActual: 'mia12345',
     }), 'e5'));
   });
 
@@ -324,7 +326,7 @@ describe('ficha de un mantenedor', () => {
   it('desactivar a una persona pide confirmar: se borra su rostro y se cierran sus sesiones', async () => {
     personal.obtener.mockResolvedValue(HUGO);
     personal.cambiarActivo.mockResolvedValue({});
-    abrir('/panel/mantenedores/personal/5');
+    abrir('/panel/empleados/5');
     fireEvent.click(await screen.findByRole('button', { name: 'Desactivar a esta persona' }));
     const dialogo = await screen.findByRole('dialog', { name: 'Desactivar a Hugo Vera' });
     expect(dialogo).toHaveAccessibleDescription('Se borrará su acceso con rostro y se cerrarán sus sesiones.');
@@ -336,7 +338,7 @@ describe('ficha de un mantenedor', () => {
   it('si es el último dueño (409 ultimo_dueno), el diálogo lo explica', async () => {
     personal.obtener.mockResolvedValue({ ...HUGO, rol: 'dueño' });
     personal.cambiarActivo.mockRejectedValue(new ErrorApi({ estado: 409, codigo: 'ultimo_dueno', mensaje: 'Otra persona cambió este registro. Recarga para ver la última versión.' }));
-    abrir('/panel/mantenedores/personal/5');
+    abrir('/panel/empleados/5');
     fireEvent.click(await screen.findByRole('button', { name: 'Desactivar a esta persona' }));
     const dialogo = await screen.findByRole('dialog');
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Desactivar' }));
@@ -346,7 +348,7 @@ describe('ficha de un mantenedor', () => {
   it('nadie se desactiva ni se cambia el rol a sí mismo', async () => {
     entrarComo('administrador', 5);
     personal.obtener.mockResolvedValue({ ...HUGO, rol: 'administrador' });
-    abrir('/panel/mantenedores/personal/5');
+    abrir('/panel/empleados/5');
     const boton = await screen.findByRole('button', { name: 'Desactivar a esta persona' });
     expect(boton).toHaveAttribute('aria-disabled', 'true');
     expect(boton).toHaveAccessibleDescription(/No puedes desactivarte a ti mismo/);
@@ -357,7 +359,7 @@ describe('ficha de un mantenedor', () => {
 
   it('el alta lleva la contraseña inicial que escribe quien la da y su propia contraseña', async () => {
     personal.crear.mockResolvedValue({ ...HUGO, idEmpleado: 9 });
-    abrir('/panel/mantenedores/personal/nuevo');
+    abrir('/panel/empleados/nuevo');
     escribir(await screen.findByRole('textbox', { name: /^Nombre/ }), 'Hugo');
     escribir(screen.getByRole('textbox', { name: /^Apellido/ }), 'Vera');
     escribir(screen.getByRole('textbox', { name: /^RUT/ }), '12.345.678-5');
@@ -371,6 +373,6 @@ describe('ficha de un mantenedor', () => {
     escribir(screen.getByLabelText(/^Tu contraseña actual/), 'mia12345');
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(personal.crear).toHaveBeenCalledWith(expect.objectContaining({ password: 'inicial123', passwordActual: 'mia12345', rol: 'operario' })));
-    await waitFor(() => expect(screen.getByTestId('ruta')).toHaveTextContent('/panel/mantenedores/personal/9'));
+    await waitFor(() => expect(screen.getByTestId('ruta')).toHaveTextContent('/panel/empleados/9'));
   });
 });

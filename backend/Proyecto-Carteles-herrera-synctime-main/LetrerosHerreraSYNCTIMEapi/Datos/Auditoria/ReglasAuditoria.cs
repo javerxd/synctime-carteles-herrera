@@ -47,7 +47,10 @@ public static class ReglasAuditoria
         [typeof(Pago)] = new("pago", "Abono", C("IdPedido", "Monto", "FechaPago", "MedioPago", "Anulado", "FechaAnulacion", "IdEmpleadoAnula"),
             Siempre: C("Monto", "IdPedido")),
         [typeof(Catalogo)] = new("catalogo", "Publicación de la vitrina", C("IdProducto", "Visible", "IncluyeLogoCliente", "PrecioReferencial", "FechaAutorizacionLogo")),
-        [typeof(Producto)] = new("producto", "Tipo de letrero", C("IdCategoria", "Activo", "PrecioBaseRef")),
+        [typeof(Producto)] = new("producto", "Tipo de letrero", C("IdCategoria", "Activo", "PrecioBaseRef", "AnchoMinMm", "AnchoMaxMm", "AltoMinMm", "AltoMaxMm")),
+        // Fase 12D: el taller edita las medidas fijas y las opciones de cada producto desde el mantenedor.
+        [typeof(ProductoMedidaFija)] = new("producto_medida", "Medida fija de un tipo de letrero", C("IdProducto", "AnchoMm", "AltoMm")),
+        [typeof(ProductoOpcion)] = new("producto_opcion", "Opción de un tipo de letrero", C("IdProducto", "Grupo", "Valor", "Orden")),
         [typeof(Categoria)] = new("categoria", "Categoría", C("Activo")),
         [typeof(Material)] = new("material", "Material", C("Activo", "CostoUnitarioAprox", "UnidadMedida")),
         [typeof(Cliente)] = new("cliente", "Cliente", C("Activo", "RecibeAvisosEstado", "InhabilitadoEn", "FechaVerificacionCorreo")),
@@ -63,8 +66,6 @@ public static class ReglasAuditoria
     // Las demas entidades del modelo, con el motivo por el que el interceptor no las registra.
     public static readonly IReadOnlyDictionary<Type, string> NoAuditadas = new Dictionary<Type, string>
     {
-        [typeof(ProductoMedidaFija)] = "Medidas disponibles de un producto: forman parte del catálogo del taller, que cambia solo con una migración (fase 12B).",
-        [typeof(ProductoOpcion)] = "Opciones elegibles de un producto: forman parte del catálogo del taller, que cambia solo con una migración (fase 12B).",
         [typeof(CotizacionMaterial)] = "Líneas de la cotización: su total queda en la cotización, que sí se audita.",
         [typeof(AdjuntoSolicitud)] = "Archivo de una solicitud: quitarlo queda en solicitudes_historial y renueva la versión de la solicitud.",
         [typeof(SolicitudHistorial)] = "Es en sí un historial de estados (fase 7).",

@@ -1,9 +1,33 @@
-/* Panel del taller: denso y sereno. Menú lateral fijo desde 64 rem; debajo, barra y cajón. */
+/* Estructura con menú lateral azul (fase 12D): panel del taller y cuenta del cliente. Menú fijo desde 64 rem;
+   debajo, barra y cajón. El pie (volver y cerrar sesión) queda anclado abajo: solo el menú se desplaza. */
 .panel {
   display: grid;
   grid-template-columns: 16.5rem minmax(0, 1fr);
   min-height: 100dvh;
   background: var(--color-fondo-alterno);
+}
+
+/* Zona con fondo de imagen de baja opacidad (cuenta del cliente, como el portal público). El panel del taller no
+   la lleva. El contenido va sobre superficies sólidas: el contraste no depende de la foto. */
+.zona {
+  position: relative;
+  isolation: isolate;
+}
+
+.zona::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url('/imagenes/fondo-web.webp') center / cover no-repeat;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .zona::before {
+    display: none;
+  }
 }
 
 .lateral {
@@ -14,12 +38,12 @@
   gap: var(--espacio-4);
   height: 100dvh;
   padding: var(--espacio-4) var(--espacio-3);
-  border-right: 1px solid var(--color-borde);
-  background: var(--color-superficie);
-  overflow-y: auto;
+  background: var(--color-lateral-fondo);
+  color: var(--color-lateral-texto);
 }
 
 .cabeceraLateral {
+  flex: none;
   padding: 0 var(--espacio-2);
 }
 
@@ -28,6 +52,11 @@
   flex: 1;
   align-content: start;
   gap: var(--espacio-5);
+  min-height: 0;
+  overflow-y: auto;
+  /* Espacio para que el anillo de foco de las entradas no se recorte en el borde del área que se desplaza */
+  margin: -4px;
+  padding: 4px;
 }
 
 .grupo {
@@ -37,7 +66,7 @@
 
 .tituloGrupo {
   padding: 0 var(--espacio-3);
-  color: var(--color-texto-secundario);
+  color: var(--color-lateral-texto-suave);
   font-size: var(--tamano-xs);
   font-weight: var(--peso-seminegrita);
   letter-spacing: 0;
@@ -52,13 +81,14 @@
 }
 
 .entrada {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--espacio-3);
   min-height: var(--tamano-control);
   padding: 0 var(--espacio-3);
   border-radius: var(--radio-md);
-  color: var(--color-texto-secundario);
+  color: var(--color-lateral-texto);
   font-size: var(--tamano-sm);
   font-weight: var(--peso-medio);
   text-decoration: none;
@@ -75,16 +105,26 @@
 
 @media (hover: hover) and (pointer: fine) {
   .entrada:hover {
-    background: var(--color-hover-neutro);
-    color: var(--color-texto);
+    background: var(--color-lateral-hover);
   }
 }
 
-/* Activa: velo y texto naranja, más la marca de forma (peso) para no depender del color */
+/* Activa: fondo claro translúcido, texto blanco y una barra blanca a la izquierda (más el peso de la letra,
+   para no depender del color) */
 .activa {
-  background: var(--color-acento-suave);
-  color: var(--color-acento-hover);
+  background: var(--color-lateral-activo);
   font-weight: var(--peso-seminegrita);
+}
+
+.activa::before {
+  content: '';
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  left: 0;
+  width: 3px;
+  border-radius: 0 var(--radio-sm) var(--radio-sm) 0;
+  background: var(--color-lateral-texto);
 }
 
 .etiqueta {
@@ -92,18 +132,18 @@
   min-width: 0;
 }
 
-.fase {
-  flex: none;
-  color: var(--color-texto-tenue);
-  font-size: var(--tamano-xs);
-  font-weight: var(--peso-medio);
+/* Foco por teclado: anillo blanco, que se ve sobre el azul (el naranja del resto del sistema no) */
+.lateral :focus-visible,
+.cajon :focus-visible {
+  outline-color: var(--color-lateral-foco);
 }
 
 .pieLateral {
   display: grid;
+  flex: none;
   gap: var(--espacio-3);
   padding: var(--espacio-3) var(--espacio-2) 0;
-  border-top: 1px solid var(--color-borde);
+  border-top: 1px solid rgb(255 255 255 / 0.28);
 }
 
 .usuario {
@@ -115,6 +155,25 @@
 .nombreUsuario {
   font-size: var(--tamano-sm);
   font-weight: var(--peso-seminegrita);
+  overflow-wrap: anywhere;
+}
+
+/* «Volver a la página principal»: borde y letras blancas sobre el azul */
+.pieLateral .volver {
+  --_texto: var(--color-lateral-texto);
+  --_borde: var(--color-lateral-texto);
+  --_fondo-hover: var(--color-lateral-hover);
+  --_fondo-presionado: var(--color-lateral-activo);
+}
+
+/* «Cerrar sesión»: rojo con letras blancas (6,5:1) */
+.pieLateral .salir {
+  --_fondo: var(--color-lateral-salir);
+  --_fondo-hover: var(--color-lateral-salir-hover);
+  --_fondo-presionado: var(--color-lateral-salir-hover);
+  --_texto: var(--color-lateral-texto);
+  --_borde: rgb(255 255 255 / 0.85);
+  --_sombra: none;
 }
 
 .legales {
@@ -124,6 +183,14 @@
   padding: 0;
   list-style: none;
   font-size: var(--tamano-xs);
+}
+
+.legales a {
+  color: var(--color-lateral-texto-suave);
+}
+
+.legales a:hover {
+  color: var(--color-lateral-texto);
 }
 
 .contenido {
@@ -147,8 +214,8 @@
   margin: 0;
   padding: 0;
   border: none;
-  border-right: 1px solid transparent;
-  background: var(--color-superficie);
+  background: var(--color-lateral-fondo);
+  color: var(--color-lateral-texto);
   box-shadow: var(--sombra-flotante);
   transform: translateX(-100%);
   transition:
@@ -175,20 +242,40 @@
   background: var(--dialogo-telon);
 }
 
+/* El pie queda fijo al final del cajón; solo el menú se desplaza */
 .cajonContenido {
   display: flex;
   flex-direction: column;
   gap: var(--espacio-4);
   height: 100%;
   padding: var(--espacio-4) var(--espacio-3);
-  overflow-y: auto;
 }
 
 .cabeceraCajon {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   padding-left: var(--espacio-2);
+}
+
+.cerrarCajon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tamano-control);
+  min-height: var(--tamano-control);
+  border: 1px solid var(--color-lateral-texto);
+  border-radius: var(--radio-md);
+  background: transparent;
+  color: var(--color-lateral-texto);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cerrarCajon:hover {
+    background: var(--color-lateral-hover);
+  }
 }
 
 @media (max-width: 63.99rem) {
@@ -221,9 +308,20 @@
   }
 }
 
+/* Poca altura (o zoom de 300 a 400 %): el menú y el pie se desplazan juntos en vez de dejar el menú sin espacio */
 @media (max-height: 30rem) {
   .barraMovil {
     position: static;
+  }
+
+  .lateral,
+  .cajonContenido {
+    overflow-y: auto;
+  }
+
+  .menu {
+    flex: none;
+    overflow: visible;
   }
 }
 
@@ -247,5 +345,9 @@
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
+  }
+
+  .activa::before {
+    background: HighlightText;
   }
 }

@@ -10,7 +10,7 @@ import { useListadoEnDireccion } from '../../utilidades/useListadoEnDireccion';
 import {
   MENSAJE_LOGO, parametrosMantenedor, puedeSerVisible, TEXTOS_ACTIVO, TEXTOS_VISIBLE, textoConflicto,
 } from './reglasMantenedores';
-import { TIPOS } from './tipos';
+import { baseDe, TIPOS } from './tipos';
 import estilosPanel from '../panel/Panel.module.css';
 import estilos from './Mantenedores.module.css';
 
@@ -24,7 +24,12 @@ export default function ListaMantenedor() {
   return <Listado key={claveTipo} tipo={tipo} />;
 }
 
-function Listado({ tipo }) {
+/**
+ * El listado de un tipo. `h1`: la pantalla propia (Empleados, fase 12D) lo usa como título de la página; dentro del
+ * mantenedor genérico es un h2 bajo el título «Catálogo y mantenedores».
+ */
+export function Listado({ tipo, h1 = false }) {
+  const Titulo = h1 ? 'h1' : 'h2';
   const refTitulo = useRef(null);
   const {
     filtros, consulta, cambiar, limpiar, texto, escribir, hayFiltros, errorVisible, actualizando,
@@ -44,10 +49,10 @@ function Listado({ tipo }) {
     <section aria-labelledby="titulo-mantenedor" className={estilos.listado}>
       <div className={estilosPanel.cabecera}>
         <div>
-          <h2 ref={refTitulo} tabIndex={-1} id="titulo-mantenedor" className={estilos.tituloSeccion}>{tipo.titulo}</h2>
+          <Titulo ref={refTitulo} tabIndex={-1} id="titulo-mantenedor" className={h1 ? estilosPanel.titulo : estilos.tituloSeccion}>{tipo.titulo}</Titulo>
           <p className={estilosPanel.bajada}>{tipo.bajada}</p>
         </div>
-        <Boton como={Link} to={`/panel/mantenedores/${tipo.clave}/nuevo`} iconoInicio={Plus}>{tipo.nuevo}</Boton>
+        <Boton como={Link} to={`${baseDe(tipo.clave)}/nuevo`} iconoInicio={Plus}>{tipo.nuevo}</Boton>
       </div>
 
       <BarraFiltros titulo={`Filtros de ${tipo.titulo.toLowerCase()}`} hayFiltros={hayFiltros} alLimpiar={limpiar}

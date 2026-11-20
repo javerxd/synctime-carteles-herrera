@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ClipboardList, LogOut, Send } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Send } from 'lucide-react';
 import { Aviso, Boton, Campo, Esqueleto, Tarjeta } from '../../componentes/ui';
 import authService from '../../api/authService';
 import { cuenta as apiCuenta } from '../../api/cuenta';
@@ -249,16 +249,15 @@ function CorreoSinConfirmar({ correo }) {
 
 /**
  * /cuenta (RNFE01): el cliente ve y corrige sus datos, cambia su correo o su contraseña, elige qué correos opcionales
- * recibe y, desde la fase 11, descarga sus datos o da de baja la cuenta. Desde aquí llega a sus solicitudes (fase 7); sus pedidos llegan en una fase posterior.
+ * recibe y, desde la fase 11, descarga sus datos o da de baja la cuenta. Desde la fase 12D sus solicitudes y la
+ * solicitud nueva están en el menú lateral (EstructuraCuenta), no en esta pantalla.
  */
 export default function MiCuenta() {
-  const { usuario, salir } = useSesion();
-  const navegar = useNavigate();
+  const { usuario } = useSesion();
   const ubicacion = useLocation();
   const consulta = useConsulta('mi-cuenta', apiCuenta.obtener);
   const [actualizada, setActualizada] = useState(null);
   const datosCuenta = actualizada ?? consulta.datos;
-  const { anunciar } = useAvisos();
   // Actualizador funcional: cada cambio parte de la última versión, no de una copia capturada antes.
   const guardarCuenta = (cambio) => setActualizada((previa) => (typeof cambio === 'function' ? cambio(previa ?? consulta.datos) : cambio));
   const refTitulo = useRef(null);
@@ -267,12 +266,6 @@ export default function MiCuenta() {
   useEffect(() => {
     if (bienvenida) refTitulo.current?.focus();
   }, [bienvenida]);
-
-  function cerrarSesion() {
-    // Primero se sale de la página protegida y luego se cierra la sesión: así no se pasa por el ingreso.
-    navegar('/', { replace: true });
-    salir().catch((error) => anunciar({ tono: 'peligro', titulo: error.message }));
-  }
 
   return (
     <div className={estilos.cuenta}>
@@ -284,7 +277,6 @@ export default function MiCuenta() {
             {datosCuenta?.correo ? ` · ${datosCuenta.correo}` : ''}
           </p>
         </div>
-        <Boton variante="secundario" iconoInicio={LogOut} onClick={cerrarSesion}>Cerrar sesión</Boton>
       </div>
 
       {bienvenida && (
@@ -310,14 +302,6 @@ export default function MiCuenta() {
       {datosCuenta && (
         <>
           {!datosCuenta.correoVerificado && <CorreoSinConfirmar correo={datosCuenta.correo} />}
-          <Tarjeta como="section" aria-labelledby="titulo-solicitudes" className={estilos.seccion}>
-            <h2 id="titulo-solicitudes" className={estilos.subtitulo}>Solicitudes</h2>
-            <p className={estilos.explicacion}>Revisa el estado y el comprobante de lo que nos pediste, o pide una cotización nueva.</p>
-            <div className={estilos.pieSeccion}>
-              <Boton como={Link} to="/cuenta/solicitudes" variante="secundario" iconoInicio={ClipboardList}>Mis solicitudes</Boton>
-              <Boton como={Link} to="/cuenta/solicitud" variante="secundario" iconoInicio={Send}>Solicitar una cotización</Boton>
-            </div>
-          </Tarjeta>
           <FormularioDatos datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
           <FormularioCorreo datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
           <FormularioPassword />

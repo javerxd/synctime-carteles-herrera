@@ -205,6 +205,15 @@
         "x-acceso": "gestion"
       }
     },
+    "/api/v1/productos/{id}/medidas-y-opciones": {
+      "put": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Fase 12D. Reemplaza los límites de medida, las medidas fijas y las opciones de un tipo de letrero: { anchoMinMm, anchoMaxMm, altoMinMm, altoMaxMm (los cuatro o ninguno, 1 a 50 000 mm), medidasFijas: [{ anchoMm, altoMm }] (hasta 20, sin repetir; no se mezclan con los límites), opciones: [{ grupo (≤60), valores: [texto ≤80] }] (hasta 10 grupos de hasta 30 valores, sin repetidos, al menos uno por grupo) }. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta. Errores 400 por campo. Responde la ficha del producto; cada cambio queda en la auditoría.",
+        "x-acceso": "gestion"
+      }
+    },
     "/api/v1/catalogo": {
       "get": {
         "tags": [

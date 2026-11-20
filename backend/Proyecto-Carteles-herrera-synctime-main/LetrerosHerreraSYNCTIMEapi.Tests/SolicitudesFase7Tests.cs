@@ -701,7 +701,8 @@ public sealed class SolicitudesFase7Tests(ApiFixture api)
         var admin = api.Cliente(await api.TokenAdminAsync());
         var rut = "12.345.678-5";
         var telefono = api.Telefono();
-        var apellido = $"Buscable{api.Siguiente()}";
+        // Solo letras (regla de nombres de la fase 12D): el contador se escribe con letras, a-j en lugar de 0-9.
+        var apellido = "Buscable" + string.Concat(api.Siguiente().ToString().Select(d => (char)('a' + (d - '0'))));
         var existente = await api.ConsultarAsync(db => db.Clientes.Where(c => c.Rut == "12345678-5").Select(c => (int?)c.IdCliente).FirstOrDefaultAsync());
         var creado = existente ?? (await admin.PostAsJsonAsync("/api/v1/clientes/", new { rut = "12345678-5", nombre = "Rosa", apellido, telefono })
             .EsperarAsync(HttpStatusCode.Created)).GetProperty("idCliente").GetInt32();

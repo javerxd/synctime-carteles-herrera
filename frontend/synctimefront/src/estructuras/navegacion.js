@@ -1,6 +1,6 @@
 import {
-  BarChart3, CalendarDays, ClipboardList, FileSpreadsheet, FileText, House, MailWarning, Package, ScanFace, ScrollText, Settings2, Store, UserRound,
-  Users,
+  BarChart3, CalendarDays, ClipboardList, FilePlus2, FileSpreadsheet, FileText, House, MailWarning, Package, ScanFace, ScrollText, Settings2, Store,
+  UserCog, UserRound, Users,
 } from 'lucide-react';
 
 export const GESTION = ['dueño', 'administrador'];
@@ -29,6 +29,8 @@ export const MENU_PANEL = [
       { ruta: '/panel/indicadores', etiqueta: 'Indicadores', icono: BarChart3, roles: GESTION },
       { ruta: '/panel/reportes', etiqueta: 'Reportes', icono: FileSpreadsheet, roles: GESTION },
       { ruta: '/panel/mantenedores', etiqueta: 'Catálogo y mantenedores', icono: Settings2, roles: GESTION },
+      // Fase 12D: administrar al personal (alta, datos, rol y desactivar). Solo dueño y administrador.
+      { ruta: '/panel/empleados', etiqueta: 'Empleados', icono: UserCog, roles: GESTION },
       { ruta: '/panel/rostros', etiqueta: 'Rostros registrados', icono: ScanFace, roles: GESTION },
       // Fase 11: solo dueño y administrador (la API también lo exige).
       { ruta: '/panel/correos-no-enviados', etiqueta: 'Correos no enviados', icono: MailWarning, roles: GESTION },
@@ -38,6 +40,21 @@ export const MENU_PANEL = [
   {
     grupo: 'Cuenta',
     entradas: [{ ruta: '/panel/perfil', etiqueta: 'Mi perfil', icono: UserRound, roles: PERSONAL }],
+  },
+];
+
+/**
+ * Menú de la cuenta del cliente (fase 12D): lo que antes eran accesos dentro de «Mi cuenta» ahora vive en el
+ * menú lateral. Registro, recuperación y verificación no lo llevan (todavía no hay sesión).
+ */
+export const MENU_CUENTA = [
+  {
+    grupo: 'Mi cuenta',
+    entradas: [
+      { ruta: '/cuenta/solicitudes', etiqueta: 'Mis solicitudes', icono: ClipboardList },
+      { ruta: '/cuenta/solicitud', etiqueta: 'Solicitar cotización', icono: FilePlus2, exacta: true },
+      { ruta: '/cuenta', etiqueta: 'Mi cuenta', icono: UserRound, exacta: true },
+    ],
   },
 ];
 

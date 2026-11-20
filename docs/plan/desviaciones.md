@@ -360,6 +360,18 @@ Pendientes que quedan para después de la fase 11:
 | Revisión ECC | La migración `CatalogoRealDelTaller` se detiene con el error 50130 si hay productos con publicaciones o solicitudes que no están en la lista de equivalencias, en vez de remapearlos en silencio | Agregar el producto a la migración y repetir |
 | Demostración | ~~La verificación en la app la hace el usuario al iniciar sesión~~ | **Hecha el 17-11-2026** con la sesión de dueño que abrió el usuario (ver `informes/fase-12.md`) |
 
+## Decisiones y pendientes de la fase 12D (20-11-2026)
+
+- **Regla de nombres y apellidos.** Solo letras (tildes, diéresis y ñ), hasta 20 caracteres, sin espacios en los bordes y un solo espacio entre palabras (hasta 6 palabras). Rechaza guiones, apóstrofes, puntos y números («Pérez-Gil», «O'Higgins»). Una sola regla en cada capa (`ReglaNombre.cs`, `reglaNombre.js`) con la misma tabla de casos (`CasosNombre.json`). **No hay restricción en la base de datos** (las columnas siguen en 80) para no romper registros existentes: la regla se aplica al crear y al editar, y editar un registro antiguo con un nombre fuera de la regla pide corregir ese campo. Revisión de solo lectura al 20-11-2026: ningún nombre actual de la base demo ni de la real la incumple.
+- **Sin normalización a NFC.** Una tilde escrita como letra y marca combinante se acepta tal cual (no se cambia lo que la persona escribió); la base podría ver como distintos dos nombres visualmente iguales.
+- **El campo limita la escritura a 20** (`maxLength`): lo pegado se corta sin aviso. El mensaje de largo solo aparece si el texto llega por otra vía.
+- **Empleados.** El administrador conserva el acceso a `/panel/empleados` y a `/api/v1/empleados` (decisión del 20-11-2026): `permisos.md` no cambia en lo esencial. La ruta propia reemplaza a la pestaña «Personal» del mantenedor; `/panel/mantenedores/personal…` redirige.
+- **Catálogo editable.** Los límites, medidas fijas y opciones de un producto se editan desde el mantenedor (antes, solo con una migración). Un producto usa límites o medidas fijas, no los dos. Un producto sin medidas ni opciones es válido. Cambiar solo las mayúsculas de una opción actualiza la fila; una solicitud abierta con el formulario cargado antes puede fallar al validar (la comparación es sensible a mayúsculas). `CatalogoDelTaller.cs` queda como la **semilla inicial**: lo que el taller edita después vive en la base y la migración nunca lo pisa.
+- **Auditoría.** `producto_medida` y `producto_opcion` pasan de «no auditadas» a auditadas (cada cambio con quién y cuándo).
+- **Bandeja de solicitudes.** `FilaSolicitud` suma `primerProducto` (opcional) para las filas cortas de «Solicitudes por atender».
+- **Colores del menú lateral.** Azul `#1D4ED8` con letras blancas (6,7:1); hover y activo son blanco al 10 % y al 16 % sobre ese azul. El rojo de «Cerrar sesión» (`#B91C1C`) tiene casi la misma luminancia que el azul: lo identifican su texto blanco y su borde.
+- **Pruebas bajo carga.** Con el equipo ocupado, a veces fallan solas `cotizaciones.test.jsx` o `pedidosFase8.test.jsx` por tiempo; pasan al repetirlas.
+
 ## Restricciones del equipo de desarrollo
 
 | Tema | Situación | Consecuencia |

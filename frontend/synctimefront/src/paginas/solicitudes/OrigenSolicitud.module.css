@@ -1,0 +1,13 @@
+/* Origen de la solicitud (fase 12D): fondos claros con texto oscuro, ≥ 4,5:1 (la prueba de tokens lo mide). Dos clases
+   para ganarle a las variables de la insignia sin depender del orden de las hojas. */
+.origen.enLinea {
+  --_fondo: var(--tono-origen-linea-fondo);
+  --_borde: var(--tono-origen-linea-borde);
+  --_texto: var(--tono-origen-linea-texto);
+}
+
+.origen.presencial {
+  --_fondo: var(--tono-origen-presencial-fondo);
+  --_borde: var(--tono-origen-presencial-borde);
+  --_texto: var(--tono-origen-presencial-texto);
+}
