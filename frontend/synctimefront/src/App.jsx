@@ -40,7 +40,7 @@ const FichaCotizacion = lazy(() => import('./paginas/cotizaciones/FichaCotizacio
 const EditorCotizacion = lazy(() => import('./paginas/cotizaciones/EditorCotizacion'));
 const EstadoLocal = lazy(() => import('./paginas/panel/EstadoLocal'));
 const Indicadores = lazy(() => import('./paginas/indicadores/Indicadores'));
-const Reportes = lazy(() => import('./paginas/panel/Reportes'));
+const Reportes = lazy(() => import('./paginas/reportes/Reportes'));
 const Perfil = lazy(() => import('./paginas/panel/Perfil'));
 const ConfirmarDestino = lazy(() => import('./paginas/avisosTaller/ConfirmarDestino'));
 const Mantenedores = lazy(() => import('./paginas/mantenedores/Mantenedores'));
@@ -122,9 +122,10 @@ export default function App() {
               <Route path="calendario" element={enCarga(<CalendarioEntregas />)} />
               <Route path="clientes" element={enCarga(<Clientes />)} />
               <Route path="clientes/:id" element={enCarga(<FichaCliente />)} />
+              {/* Fase 13B: el operativo es de todo el personal; cada pestaña limita por rol (y la API también). */}
+              <Route path="reportes" element={enCarga(<Reportes />)} />
               <Route element={<RequierePersonal roles={GESTION} />}>
                 <Route path="indicadores" element={enCarga(<Indicadores />)} />
-                <Route path="reportes" element={enCarga(<Reportes />)} />
                 <Route path="mantenedores" element={enCarga(<Mantenedores />)}>
                   <Route index element={enCarga(<InicioMantenedores />)} />
                   <Route path=":tipo" element={enCarga(<ListaMantenedor />)} />

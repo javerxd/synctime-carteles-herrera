@@ -351,3 +351,22 @@
     background: HighlightText;
   }
 }
+
+/* Impresión (fase 13B, RFU24): solo el contenido de la página, sin el menú lateral, la barra ni el cajón. */
+@media print {
+  .lateral,
+  .barraMovil,
+  .cajon {
+    display: none !important;
+  }
+
+  .panel {
+    display: block;
+    min-height: 0;
+    background: none;
+  }
+
+  .contenido {
+    padding: 0;
+  }
+}

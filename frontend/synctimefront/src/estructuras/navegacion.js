@@ -20,6 +20,8 @@ export const MENU_PANEL = [
       { ruta: '/panel/pedidos', etiqueta: 'Pedidos', icono: Package, roles: PERSONAL },
       { ruta: '/panel/calendario', etiqueta: 'Calendario', icono: CalendarDays, roles: PERSONAL },
       { ruta: '/panel/clientes', etiqueta: 'Clientes', icono: Users, roles: PERSONAL },
+      // Fase 13B: todo el personal ve el reporte operativo; el gerencial y el parametrizable, solo dueño y administrador (pestañas).
+      { ruta: '/panel/reportes', etiqueta: 'Reportes', icono: FileSpreadsheet, roles: PERSONAL },
       { ruta: '/panel/local', etiqueta: 'Estado del local', icono: Store, roles: PERSONAL },
     ],
   },
@@ -27,7 +29,6 @@ export const MENU_PANEL = [
     grupo: 'Gestión',
     entradas: [
       { ruta: '/panel/indicadores', etiqueta: 'Indicadores', icono: BarChart3, roles: GESTION },
-      { ruta: '/panel/reportes', etiqueta: 'Reportes', icono: FileSpreadsheet, roles: GESTION },
       { ruta: '/panel/mantenedores', etiqueta: 'Catálogo y mantenedores', icono: Settings2, roles: GESTION },
       // Fase 12D: administrar al personal (alta, datos, rol y desactivar). Solo dueño y administrador.
       { ruta: '/panel/empleados', etiqueta: 'Empleados', icono: UserCog, roles: GESTION },

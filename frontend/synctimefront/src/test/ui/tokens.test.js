@@ -96,6 +96,18 @@ describe('tokens del sistema de diseño', () => {
     expect(contraste('--color-lateral-texto', '--color-lateral-salir-hover')).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Fase 13B: los tres botones de exportación. Parten de los colores de las imágenes de referencia (docs/image) y se
+  // oscurecen lo justo para que el texto blanco se lea (las de referencia, más claras, no llegan a 4,5:1).
+  it('botones de exportación: Excel verde, CSV azul y PDF rojo con letras blancas ≥ 4,5:1, también al pasar el cursor', () => {
+    for (const formato of ['excel', 'csv', 'pdf']) {
+      expect(contraste('--color-sobre-exportar', `--color-exportar-${formato}`), formato).toBeGreaterThanOrEqual(4.5);
+      expect(contraste('--color-sobre-exportar', `--color-exportar-${formato}-hover`), `${formato} hover`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(resolver('--color-exportar-excel').toLowerCase()).toBe('#15803d');
+    expect(resolver('--color-exportar-csv').toLowerCase()).toBe('#1d4ed8');
+    expect(resolver('--color-exportar-pdf').toLowerCase()).toBe('#b91c1c');
+  });
+
   it('origen de la solicitud: verde («En línea») y amarillo («Presencial») con texto oscuro ≥ 4,5:1', () => {
     expect(contraste('--tono-origen-linea-texto', '--tono-origen-linea-fondo')).toBeGreaterThanOrEqual(4.5);
     expect(contraste('--tono-origen-presencial-texto', '--tono-origen-presencial-fondo')).toBeGreaterThanOrEqual(4.5);

@@ -143,6 +143,16 @@
   --color-lateral-salir: var(--primitivo-rojo-700);
   --color-lateral-salir-hover: var(--primitivo-rojo-800);
 
+  /* Botones de exportación de reportes (fase 13B): Excel verde, CSV azul y PDF rojo, con texto blanco ≥ 4,5:1. Color liso: el
+     panel del taller no lleva degradados ni resplandor. El rojo es el mismo de «Cerrar sesión». */
+  --color-exportar-excel: var(--primitivo-verde-700);
+  --color-exportar-excel-hover: var(--primitivo-verde-800);
+  --color-exportar-csv: var(--primitivo-azul-700);
+  --color-exportar-csv-hover: var(--primitivo-azul-800);
+  --color-exportar-pdf: var(--primitivo-rojo-700);
+  --color-exportar-pdf-hover: var(--primitivo-rojo-800);
+  --color-sobre-exportar: var(--primitivo-blanco);
+
   /* Interacción */
   --color-foco: var(--primitivo-naranja-700);
   --color-hover-neutro: var(--primitivo-pizarra-100);

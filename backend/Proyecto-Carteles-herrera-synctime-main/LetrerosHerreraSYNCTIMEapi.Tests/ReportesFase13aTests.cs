@@ -43,8 +43,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Tests;
 //   P5      01-15   01-30     —      terminado    90.000        0  90.000  no_pagado     —
 //   P6      02-12   02-20     02-20  entregado   120.000   40.000  80.000  abonado       7.501,50 mat (→ 7.502) + 40.000 mo = 47.502
 //
-//   Marzo: ingresos = P1 + P3 = 180.000 (de los cuales 100.000 tienen costo); costos = 55.000 (materiales 20.000); margen = 100.000 − 20.000 = 80.000 (80 %).
-//   Febrero: ingresos 120.000; costos 47.502 (materiales 7.502); margen 112.498.
+//   Marzo: ingresos = P1 + P3 = 180.000 (de los cuales 100.000 tienen costo); costos = 55.000 (materiales 20.000); margen = 100.000 − 20.000 (materiales) − 5.000 (otros) = 75.000 (75 %).
+//   Febrero: ingresos 120.000; costos 47.502 (materiales 7.502, sin otros costos); margen 112.498 (sin otros costos no cambia).
 [Collection(ApiCollection.Name)]
 public sealed class ReportesFase13aTests(ApiFixture api)
 {
@@ -414,11 +414,11 @@ public sealed class ReportesFase13aTests(ApiFixture api)
         Assert.Equal(30_000m, resumen["Costo de mano de obra"][1].GetDecimal());
         Assert.Equal(5_000m, resumen["Otros costos"][1].GetDecimal());
         Assert.Equal(55_000m, resumen["Costos totales"][1].GetDecimal());
-        Assert.Equal(80_000m, resumen["Margen (ingresos con costo − materiales)"][1].GetDecimal());    // 100.000 − 20.000 de materiales: ni los 80.000 sin costo ni la mano de obra
+        Assert.Equal(75_000m, resumen["Margen (ingresos con costo − materiales − otros costos)"][1].GetDecimal());    // 100.000 − 20.000 de materiales − 5.000 de otros: ni los 80.000 sin costo ni la mano de obra
 
         Assert.Equal(120_000m, resumen["Ingresos (pedidos entregados)"][2].GetDecimal());          // febrero: P6
         Assert.Equal(47_502m, resumen["Costos totales"][2].GetDecimal());                          // 7.501,50 se redondea al peso: 7.502 + 40.000
-        Assert.Equal(112_498m, resumen["Margen (ingresos con costo − materiales)"][2].GetDecimal());   // 120.000 − 7.502
+        Assert.Equal(112_498m, resumen["Margen (ingresos con costo − materiales − otros costos)"][2].GetDecimal());   // 120.000 − 7.502
         Assert.Equal(50m, resumen["Ingresos (pedidos entregados)"][3].GetDecimal());               // (180.000 − 120.000) ÷ 120.000 × 100
 
         // Un pedido sin cotizacion NO tiene costo: aparece sin costo, no se inventa uno.
@@ -426,12 +426,18 @@ public sealed class ReportesFase13aTests(ApiFixture api)
         var filas = Filas(detalle).ToDictionary(f => f[0].GetInt32());
         Assert.Equal(55_000m, filas[d.Pedidos["P1"]][4].GetDecimal());
         Assert.Equal(20_000m, filas[d.Pedidos["P1"]][5].GetDecimal());   // materiales
-        Assert.Equal(80_000m, filas[d.Pedidos["P1"]][6].GetDecimal());   // margen: 100.000 − 20.000
+        Assert.Equal(5_000m, filas[d.Pedidos["P1"]][6].GetDecimal());    // otros costos (la columna que hace transparente el margen)
+        Assert.Equal(75_000m, filas[d.Pedidos["P1"]][7].GetDecimal());   // margen: 100.000 − 20.000 − 5.000
         Assert.Equal(JsonValueKind.Null, filas[d.Pedidos["P3"]][4].ValueKind);
-        Assert.Equal(JsonValueKind.Null, filas[d.Pedidos["P3"]][6].ValueKind);
+        Assert.Equal(JsonValueKind.Null, filas[d.Pedidos["P3"]][6].ValueKind);   // sin cotizacion: sin costo, tampoco otros costos
+        Assert.Equal(JsonValueKind.Null, filas[d.Pedidos["P3"]][7].ValueKind);
         Assert.Equal("Sin costo", detalle.GetProperty("columnas")[4].GetProperty("textoNulo").GetString());
-        Assert.Equal([null, null, null, 180_000m, 55_000m, 20_000m, 80_000m], Totales(detalle));
-        Assert.Contains(reporte.GetProperty("notas").EnumerateArray(), n => n.GetString()!.Contains("1 no") && n.GetString()!.Contains("80,0 %"));
+        Assert.Equal(["Pedido N.º", "Cliente", "Entrega real", "Ingreso", "Costo total", "Materiales", "Otros costos", "Margen"],
+            detalle.GetProperty("columnas").EnumerateArray().Select(c => c.GetProperty("titulo").GetString()));
+        Assert.True(detalle.GetProperty("columnas")[6].GetProperty("suma").GetBoolean());
+        Assert.Equal("Sin costo", detalle.GetProperty("columnas")[6].GetProperty("textoNulo").GetString());
+        Assert.Equal([null, null, null, 180_000m, 55_000m, 20_000m, 5_000m, 75_000m], Totales(detalle));
+        Assert.Contains(reporte.GetProperty("notas").EnumerateArray(), n => n.GetString()!.Contains("1 no") && n.GetString()!.Contains("75,0 %"));
     }
 
     [Fact]

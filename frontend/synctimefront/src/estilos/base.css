@@ -158,6 +158,13 @@ table,
   transform: none;
 }
 
+/* Es de fijo (se repite en cada hoja): en papel no tiene sentido y se imprimía su texto */
+@media print {
+  .enlace-salto {
+    display: none;
+  }
+}
+
 /* Movimiento reducido: se mantienen los cambios de color y opacidad, que ayudan a entender, y se
    quitan los desplazamientos y las escalas. Cada componente apaga además sus animaciones repetidas
    (el brillo del esqueleto); el indicador de carga sigue girando, porque es lo único que dice que

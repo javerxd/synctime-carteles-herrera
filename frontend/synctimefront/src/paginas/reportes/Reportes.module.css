@@ -1,0 +1,330 @@
+/* Reportes (fase 13B): pestañas, filtros, botones de exportación, tablas y hoja de impresión. Solo tokens: ningún color directo. */
+.pagina {
+  display: grid;
+  gap: var(--espacio-5);
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--tamano-2xl);
+  font-weight: var(--peso-negrita);
+  letter-spacing: var(--tracking-titulo);
+}
+
+.bajada {
+  margin: var(--espacio-1) 0 0;
+  color: var(--color-texto-secundario);
+}
+
+/* ── Exportar ── */
+.exportar {
+  display: grid;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  background: var(--color-superficie);
+}
+
+.filaExportar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-3) var(--espacio-4);
+}
+
+.rotuloExportar {
+  margin: 0;
+  font-size: var(--tamano-md);
+  font-weight: var(--peso-negrita);
+}
+
+.botonesExportar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2) var(--espacio-3);
+}
+
+/* Un botón por formato: color liso con borde fino, esquinas redondeadas, el icono con su insignia y el texto completo. En el
+   teléfono mide al menos 44 px de alto. */
+.botonExportar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-2);
+  min-height: 2.75rem;
+  padding: 0 var(--espacio-4);
+  border: 1px solid var(--_borde);
+  border-radius: var(--radio-md);
+  background: var(--_fondo);
+  color: var(--color-sobre-exportar);
+  font: inherit;
+  font-size: var(--tamano-base);
+  font-weight: var(--peso-seminegrita);
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--duracion-estado) var(--curva-estandar);
+}
+
+.exportar-xlsx {
+  --_fondo: var(--color-exportar-excel);
+  --_fondo-hover: var(--color-exportar-excel-hover);
+  --_borde: var(--color-exportar-excel-hover);
+}
+
+.exportar-csv {
+  --_fondo: var(--color-exportar-csv);
+  --_fondo-hover: var(--color-exportar-csv-hover);
+  --_borde: var(--color-exportar-csv-hover);
+}
+
+.exportar-pdf {
+  --_fondo: var(--color-exportar-pdf);
+  --_fondo-hover: var(--color-exportar-pdf-hover);
+  --_borde: var(--color-exportar-pdf-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .botonExportar:hover:not([aria-disabled='true']) {
+    background: var(--_fondo-hover);
+  }
+}
+
+.botonExportar:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+/* Inactivo: enfocable pero sin la mano de «puedes pulsarme». El que se está preparando no se apaga (tiene su giro y su
+   texto); los otros quedan tenues, pero su texto se sigue leyendo. */
+.botonExportar[aria-disabled='true'] {
+  cursor: default;
+}
+
+.botonExportar[aria-disabled='true']:not([aria-busy='true']) {
+  opacity: 0.7;
+}
+
+.giro {
+  animation: girar 1s linear infinite;
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .giro { animation-duration: 3s; }
+}
+
+.anuncio {
+  margin: 0;
+  font-weight: var(--peso-seminegrita);
+}
+
+.listo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2) var(--espacio-3);
+  padding: var(--espacio-2) var(--espacio-3);
+  border-radius: var(--radio-md);
+  background: var(--tono-exito-fondo);
+  color: var(--tono-exito-texto);
+  font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
+}
+
+.leyenda {
+  margin: 0;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* ── Contenido de cada reporte ── */
+.panelReporte {
+  display: grid;
+  gap: var(--espacio-5);
+  min-width: 0;
+  padding-top: var(--espacio-4);
+}
+
+.seccion {
+  display: grid;
+  gap: var(--espacio-3);
+  min-width: 0;
+}
+
+.tituloSeccion {
+  margin: 0;
+  font-size: var(--tamano-lg);
+  font-weight: var(--peso-negrita);
+}
+
+.deQue {
+  font-weight: var(--peso-negrita);
+}
+
+.notaTabla {
+  margin: 0;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.notas {
+  display: grid;
+  gap: var(--espacio-1);
+  margin: 0;
+  padding-left: var(--espacio-5);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* Los totales de una tabla: una línea por columna que suma. */
+.totales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2) var(--espacio-5);
+  margin: 0;
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radio-md);
+  background: var(--color-fondo-hundido);
+  list-style: none;
+}
+
+.totales li {
+  display: grid;
+}
+
+.totales span {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-xs);
+}
+
+.totales strong {
+  font-size: var(--tamano-md);
+}
+
+.filtrosAplicados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-1) var(--espacio-4);
+  margin: 0;
+  padding: 0;
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  list-style: none;
+}
+
+/* ── Gráfico ── */
+.grafico {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+}
+
+/* En el teléfono el gráfico conserva un ancho legible y se desplaza dentro de su marco (nunca ensancha la página). */
+.marcoGrafico {
+  overflow-x: auto;
+}
+
+.marcoGrafico:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+.marcoGrafico svg {
+  display: block;
+  width: 100%;
+  min-width: 32rem;
+  max-width: 44rem;
+  height: auto;
+  max-height: 18rem;
+  overflow: visible;
+}
+
+.leyendaGrafico {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2) var(--espacio-4);
+  margin: 0;
+  padding: 0;
+  font-size: var(--tamano-sm);
+  list-style: none;
+}
+
+.leyendaGrafico li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.muestra {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+}
+
+.serie0 { fill: var(--color-acento); background: var(--color-acento); }
+.serie1 { fill: var(--tono-info-solido); background: var(--tono-info-solido); }
+/* La segunda serie lleva rayas además del color: se distingue también sin verlo. */
+.rayas { fill: var(--color-superficie); }
+.leyendaGrafico li:nth-child(even) .muestra {
+  background-image: repeating-linear-gradient(45deg, var(--color-superficie) 0 2px, transparent 2px 5px);
+}
+.ejeTexto { fill: var(--color-texto-secundario); font-size: 11px; }
+.rejilla { stroke: var(--color-borde); stroke-width: 1; }
+
+/* ── Impresión (RFU24): hoja limpia con título, emisión, filtros y las tablas completas ── */
+.portadaImpresion {
+  display: none;
+}
+
+/* El papel de los reportes es A4 apaisado: ahí caben las columnas como tabla (en vertical el espacio es angosto y la tabla se
+   volvía una pila de fichas, con los totales descuadrados). Solo esta página; el resto del panel imprime como siempre. */
+@page reportes {
+  size: A4 landscape;
+  margin: 12mm;
+}
+
+@media print {
+  :global([data-no-imprimir]),
+  :global([role='tablist']) {
+    display: none !important;
+  }
+
+  .portadaImpresion {
+    display: block;
+    margin-bottom: var(--espacio-4);
+  }
+
+  .pagina {
+    page: reportes;
+    gap: var(--espacio-4);
+  }
+
+  .panelReporte {
+    padding-top: 0;
+  }
+
+  /* Una sección con tabla puede ocupar varias hojas: no se obliga a que quepa en una (dejaba la primera hoja casi vacía). Sí se
+     mantienen enteros los totales y el gráfico, y el título no queda solo al final de una hoja. */
+  .totales,
+  .grafico {
+    break-inside: avoid;
+  }
+
+  .tituloSeccion {
+    break-after: avoid;
+  }
+
+  .seccion tr {
+    break-inside: avoid;
+  }
+
+  .seccion thead {
+    display: table-header-group;
+  }
+}

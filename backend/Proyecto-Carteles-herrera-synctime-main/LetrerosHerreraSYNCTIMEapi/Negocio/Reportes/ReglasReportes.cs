@@ -195,12 +195,12 @@ public static class ReglasGerencial
     public static CostoPedido? CostoDe(bool tieneCotizacion, decimal materiales, decimal manoObra, decimal otros) =>
         tieneCotizacion ? new CostoPedido(materiales, manoObra, otros) : null;
 
-    /// <summary>Ganancia bruta: los ingresos de los pedidos con costo menos su costo de materiales (decision del usuario, 21-11-2026). La mano de obra y los otros costos se muestran, pero no se descuentan.</summary>
-    public static decimal Margen(decimal ingresosConCosto, decimal materiales) => ingresosConCosto - materiales;
+    /// <summary>Ganancia bruta: los ingresos de los pedidos con costo menos su costo de materiales y sus otros costos (decision del usuario, 21-11-2026). Los otros costos son opcionales: sin ellos (cero) el margen no cambia. La mano de obra se muestra, pero no se descuenta.</summary>
+    public static decimal Margen(decimal ingresosConCosto, decimal materiales, decimal otros = 0) => ingresosConCosto - materiales - otros;
 
     /// <summary>Margen ÷ ingresos con costo × 100, con un decimal; sin ingresos con costo, nulo (nunca una division por cero).</summary>
-    public static decimal? MargenPorcentaje(decimal ingresosConCosto, decimal materiales) =>
-        ingresosConCosto == 0 ? null : Math.Round(Margen(ingresosConCosto, materiales) / ingresosConCosto * 100, 1, MidpointRounding.AwayFromZero);
+    public static decimal? MargenPorcentaje(decimal ingresosConCosto, decimal materiales, decimal otros = 0) =>
+        ingresosConCosto == 0 ? null : Math.Round(Margen(ingresosConCosto, materiales, otros) / ingresosConCosto * 100, 1, MidpointRounding.AwayFromZero);
 }
 
 /// <summary>Como se muestra lo que se escribe a mano en un archivo (el PDF y la hoja de filtros). Sin depender de la cultura del equipo.</summary>

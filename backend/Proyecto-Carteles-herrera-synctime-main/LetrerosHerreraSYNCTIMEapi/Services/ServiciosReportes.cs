@@ -119,15 +119,15 @@ public sealed class ServicioReportes(ConsultasReportes consultas, IOptions<Opcio
         var graficos = new List<GraficoReporte> { graficoTramos, graficoTipos };
 
         var sinCosto = actual.Entregados - actual.ConCosto;
-        var margen = ReglasGerencial.MargenPorcentaje(actual.IngresosConCosto, actual.Materiales);
+        var margen = ReglasGerencial.MargenPorcentaje(actual.IngresosConCosto, actual.Materiales, actual.Otros);
         var notas = new List<string>
         {
             "Ingresos: pedidos entregados con fecha de entrega real dentro del período (la misma definición del panel de gestión). Los pedidos anulados no cuentan.",
-            "Costos: los de la cotización aceptada de cada pedido (materiales, mano de obra y otros costos). Un pedido sin cotización aparece como «Sin costo» y no entra en el margen. Margen = ingresos de los pedidos con costo − costo de materiales (la ganancia bruta); la mano de obra y los otros costos se muestran, pero no se descuentan.",
+            "Costos: los de la cotización aceptada de cada pedido (materiales, mano de obra y otros costos). Un pedido sin cotización aparece como «Sin costo» y no entra en el margen. Margen = ingresos de los pedidos con costo − costo de materiales − otros costos (la ganancia bruta; los otros costos son opcionales: sin ellos, no restan nada); la mano de obra se muestra, pero no se descuenta.",
             actual.Entregados == 0
                 ? "No hubo pedidos entregados en el período."
                 : $"De {actual.Entregados} pedido(s) entregado(s), {actual.ConCosto} tiene(n) costo registrado y {sinCosto} no. "
-                  + (margen is decimal m ? $"El margen (ingresos − materiales) es {FormatoReporte.Porcentaje(m)} de los ingresos de los pedidos con costo." : "No hay pedidos con costo: no se calcula margen.")
+                  + (margen is decimal m ? $"El margen (ingresos − materiales − otros costos) es {FormatoReporte.Porcentaje(m)} de los ingresos de los pedidos con costo." : "No hay pedidos con costo: no se calcula margen.")
         };
         return new DocumentoReporte(TiposReporte.Gerencial, "Reporte gerencial", emitido, ReglasReportes.DescribirFiltros(filtro, periodo, comparacion), tablas, graficos, notas);
     }
@@ -142,8 +142,8 @@ public sealed class ServicioReportes(ConsultasReportes consultas, IOptions<Opcio
             ("Costo de mano de obra", actual.ManoObra, previa?.ManoObra),
             ("Otros costos", actual.Otros, previa?.Otros),
             ("Costos totales", actual.Costos, previa?.Costos),
-            ("Margen (ingresos con costo − materiales)", ReglasGerencial.Margen(actual.IngresosConCosto, actual.Materiales),
-                previa is null ? null : ReglasGerencial.Margen(previa.IngresosConCosto, previa.Materiales))
+            ("Margen (ingresos con costo − materiales − otros costos)", ReglasGerencial.Margen(actual.IngresosConCosto, actual.Materiales, actual.Otros),
+                previa is null ? null : ReglasGerencial.Margen(previa.IngresosConCosto, previa.Materiales, previa.Otros))
         ];
         var columnas = new List<ColumnaReporte> { new("concepto", "Concepto", TiposColumna.Texto), new("actual", "Período", TiposColumna.Pesos) };
         if (previa is not null)
@@ -205,11 +205,13 @@ public sealed class ServicioReportes(ConsultasReportes consultas, IOptions<Opcio
                 new ColumnaReporte("ingreso", "Ingreso", TiposColumna.Pesos, Suma: true),
                 new ColumnaReporte("costo", "Costo total", TiposColumna.Pesos, Suma: true, TextoNulo: "Sin costo"),
                 new ColumnaReporte("materiales", "Materiales", TiposColumna.Pesos, Suma: true, TextoNulo: "Sin costo"),
+                new ColumnaReporte("otros", "Otros costos", TiposColumna.Pesos, Suma: true, TextoNulo: "Sin costo"),
                 new ColumnaReporte("margen", "Margen", TiposColumna.Pesos, Suma: true, TextoNulo: "Sin costo")],
             entregados.Select(e =>
             {
                 var costo = ReglasGerencial.CostoDe(e.Materiales is not null, e.Materiales ?? 0, e.ManoObra ?? 0, e.Otros ?? 0);
-                return new object?[] { e.IdPedido, e.Cliente, e.Entrega, e.Ingreso, costo?.Total, costo?.Materiales, costo is null ? null : ReglasGerencial.Margen(e.Ingreso, costo.Materiales) };
+                // Materiales y otros costos son los dos que se descuentan: se muestran juntos para que el margen se pueda verificar a ojo.
+                return new object?[] { e.IdPedido, e.Cliente, e.Entrega, e.Ingreso, costo?.Total, costo?.Materiales, costo?.Otros, costo is null ? null : ReglasGerencial.Margen(e.Ingreso, costo.Materiales, costo.Otros) };
             }).ToList(), Principal: true);
 
     // ── Piezas comunes ──

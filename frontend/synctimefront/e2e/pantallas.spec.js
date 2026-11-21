@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { respuestaIndicadores } from './indicadoresFalsos.js';
+import { DOCUMENTOS, trabajo } from './reportesFalsos.js';
 
 // Recorrido de las pantallas de la revisión (fase 3) con la API simulada: así se prueban sin la
 // contraseña de la base demo. Los datos imitan la semilla de demostración.
@@ -52,6 +53,8 @@ const RESPUESTAS = {
   // Fase 12B: el dashboard de gestión (cifras simuladas con el formato del contrato).
   ...Object.fromEntries(['resumen', 'evolucion', 'cobranza', 'embudo', 'demanda', 'por-cobrar']
     .map((r) => [`/api/v1/indicadores/${r}`, (parametros) => respuestaIndicadores(r, parametros)])),
+  // Fase 13B: los tres reportes (documentos con el formato del contrato).
+  ...Object.fromEntries(Object.entries(DOCUMENTOS).map(([r, documento]) => [`/api/v1/reportes/${r}`, documento])),
 };
 
 // ── Fase 7: solicitudes, adjuntos y clientes ──
@@ -385,6 +388,9 @@ const PANTALLAS = [
   ['/panel/local', 'Estado del local'],
   ['/panel/indicadores', 'Indicadores'],
   ['/panel/reportes', 'Reportes'],
+  // Fase 13B: el gerencial (con sus gráficos) y la cobranza que llega desde el dashboard.
+  ['/panel/reportes?reporte=gerencial', 'Reportes'],
+  ['/panel/reportes?reporte=parametrizable&estadoPago=por_cobrar&alcanceSaldo=vigente', 'Reportes'],
   ['/cuenta/solicitud', 'Solicitar una cotización'],
   ['/cuenta/solicitudes', 'Mis solicitudes'],
   ['/cuenta/solicitudes/123', 'Solicitud #123'],
@@ -1867,4 +1873,168 @@ test('fase 12D: un nombre con números se rechaza en el registro, junto a su cam
   await expect(page.getByText('Usa solo letras, hasta 20 caracteres.').first()).toBeVisible();
   await expect(nombre).toHaveAttribute('aria-invalid', 'true');
   await expect(nombre).toHaveValue('Ana2');
+});
+
+// ── Fase 13B: reportes y exportaciones (RFS10, RFU24 a RFU26, RFU36, RNFP18) ──
+
+const ARCHIVO_DE_PRUEBA = Buffer.from('PK-archivo-de-prueba');
+
+/** La API de exportaciones simulada: el POST responde 202 y el estado pasa por «procesando» antes de «listo». */
+async function exportacionesSimuladas(page, { formato = 'xlsx', fallar = false, consultasAntes = 1 } = {}) {
+  const nombre = `reporte-operativo-2026-11-20.${formato}`;
+  const trabajoBase = { formato, nombreArchivo: nombre };
+  const registro = { pedidos: [], consultas: 0 };
+  await page.route('**/api/v1/reportes/*/exportaciones', (ruta) => {
+    registro.pedidos.push(ruta.request().postDataJSON());
+    return fallar
+      ? ruta.fulfill({ status: 500, json: { error: 'El servidor tuvo un problema.', codigo: 'error_interno', nivel: 'api' } })
+      : ruta.fulfill({ status: 202, json: trabajo('pendiente', trabajoBase), headers: { Location: '/api/v1/reportes/exportaciones/3f2b6c1e-0000-4000-8000-000000000001' } });
+  });
+  await page.route('**/api/v1/reportes/exportaciones/*/archivo', (ruta) => ruta.fulfill({
+    status: 200, body: ARCHIVO_DE_PRUEBA, headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename=${nombre}` },
+  }));
+  await page.route(/\/api\/v1\/reportes\/exportaciones\/[0-9a-f-]+$/, (ruta) => {
+    registro.consultas += 1;
+    return ruta.fulfill({ json: registro.consultas <= consultasAntes
+      ? trabajo('procesando', trabajoBase)
+      : trabajo('listo', { ...trabajoBase, fechaTermino: '2026-11-20T14:35:09-03:00', filas: 6, tamanoBytes: ARCHIVO_DE_PRUEBA.length }) });
+  });
+  return registro;
+}
+
+for (const ancho of [360, 768, 1440]) {
+  test(`reportes a ${ancho} px: pedir un Excel, ver cómo se prepara y bajarlo, sin desborde ni fallas graves de accesibilidad`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 900 });
+    await entrarComo(page, 'dueño');
+    const registro = await exportacionesSimuladas(page);
+    await page.goto('/panel/reportes?anio=2026&mes=11');
+    await expect(page.getByRole('table', { name: 'Pedidos' })).toBeVisible();
+    await sinFallasGraves(page);
+
+    const descarga = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Exportar a Excel' }).click();
+
+    // Mientras se prepara: el botón dice «Preparando…», los tres quedan inactivos y la pantalla sigue usable.
+    const preparando = page.getByRole('button', { name: /Preparando/ });
+    await expect(preparando).toBeVisible();
+    await expect(preparando).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByRole('button', { name: 'Exportar a CSV' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByRole('button', { name: 'Exportar a PDF' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByRole('status').filter({ hasText: 'Preparando tu archivo' })).toBeVisible();
+    await sinFallasGraves(page);
+
+    expect((await descarga).suggestedFilename()).toBe('reporte-operativo-2026-11-20.xlsx');
+    await expect(page.getByRole('status').filter({ hasText: 'Tu archivo está listo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Descargar de nuevo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Exportar a CSV' })).not.toHaveAttribute('aria-disabled', 'true');
+    // Los filtros de pantalla viajaron tal cual y solo los que el operativo admite.
+    expect(registro.pedidos).toEqual([{ formato: 'xlsx', filtros: { periodo: 'mes', anio: '2026', mes: '11' } }]);
+    await sinFallasGraves(page);
+  });
+}
+
+test('reportes: un fallo al pedir el archivo es una alerta con el motivo y «Reintentar», sin perder los filtros', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 900 });
+  await entrarComo(page, 'dueño');
+  await exportacionesSimuladas(page, { fallar: true });
+  await page.goto('/panel/reportes?anio=2026&mes=11&estadoPago=por_cobrar');
+  await expect(page.getByRole('table', { name: 'Pedidos' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Exportar a PDF' }).click();
+
+  const alerta = page.getByRole('alert').filter({ hasText: 'No pudimos preparar tu archivo' });
+  await expect(alerta).toBeVisible();
+  await expect(alerta).toContainText('El servidor tuvo un problema.');
+  await expect(alerta.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+  await expect(page).toHaveURL(/estadoPago=por_cobrar/);
+  await sinFallasGraves(page);
+});
+
+test('reportes: el gerencial lleva su resumen, sus gráficos con su tabla y el margen con los otros costos a la vista', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 900 });
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel/reportes');
+  await page.getByRole('tab', { name: 'Gerencial' }).click();
+
+  await expect(page).toHaveURL(/reporte=gerencial/);
+  await expect(page.getByRole('table', { name: 'Resumen del período' })).toBeVisible();
+  await expect(page.getByText('Margen (ingresos con costo − materiales − otros costos)').first()).toBeVisible();
+  await expect(page.getByRole('img', { name: /Ingresos y costos por tramo/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /Ingresos por tipo de letrero/ })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Pedidos entregados' })).toBeVisible();
+  await sinFallasGraves(page);
+});
+
+test('reportes: el diseñador ve solo el operativo; el cajón del teléfono lleva la entrada «Reportes»', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 900 });
+  await entrarComo(page, 'diseñador');
+  await page.goto('/panel/reportes?reporte=gerencial');
+
+  await expect(page.getByRole('heading', { level: 1, name: 'Reportes' })).toBeVisible();
+  await expect(page.getByRole('tab')).toHaveCount(1);
+  await expect(page.getByRole('tab', { name: 'Operativo' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Pedidos' })).toBeVisible();
+  await expect(page).not.toHaveURL(/reporte=gerencial/);
+
+  await page.getByRole('button', { name: 'Menú' }).click();
+  await expect(page.getByRole('dialog').getByRole('link', { name: 'Reportes' })).toBeVisible();
+  await sinFallasGraves(page);
+});
+
+test('reportes: el dashboard enlaza a la cobranza con el período y el alcance que tiene', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel/indicadores?alcanceSaldo=vigente');
+  const enlace = page.getByRole('link', { name: 'Exportar cobranza' });
+  await expect(enlace).toBeVisible();
+
+  await enlace.click();
+
+  await expect(page).toHaveURL(/\/panel\/reportes\?/);
+  await expect(page).toHaveURL(/reporte=parametrizable/);
+  await expect(page).toHaveURL(/estadoPago=por_cobrar/);
+  await expect(page).toHaveURL(/alcanceSaldo=vigente/);
+  await expect(page.getByRole('table', { name: 'Pedidos por cobrar' })).toBeVisible();
+});
+
+test('reportes: al imprimir queda una hoja limpia, con título, emisión y filtros, y sin menú ni botones', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await entrarComo(page, 'dueño');
+  await page.goto('/panel/reportes?anio=2026&mes=11');
+  await expect(page.getByRole('table', { name: 'Pedidos' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exportar a Excel' })).toBeVisible();
+
+  await page.emulateMedia({ media: 'print' });
+
+  const hoja = page.getByRole('region', { name: 'Datos para imprimir' });
+  await expect(hoja).toBeVisible();
+  await expect(hoja.getByRole('heading', { name: 'Reporte operativo' })).toBeVisible();
+  await expect(hoja).toContainText('Emitido el 20-11-2026 14:35');
+  await expect(hoja).toContainText('noviembre de 2026');
+  await expect(page.getByRole('table', { name: 'Pedidos' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Entregas' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exportar a Excel' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Imprimir' })).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Panel del taller' })).toBeHidden();
+  await expect(page.getByRole('tablist')).toBeHidden();
+  await expect(page.getByRole('search', { name: 'Filtros del reporte' })).toBeHidden();
+  await page.emulateMedia({ media: 'screen' });
+});
+
+test('reportes: el papel sale apaisado, con el título del reporte, sin el enlace de salto y con las tablas como tablas', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await entrarComo(page, 'dueño');
+  // Se viene de otra página que puso su propio título: el papel no puede decir «Auditoría».
+  await page.goto('/panel/reportes?reporte=parametrizable&estadoPago=por_cobrar&alcanceSaldo=vigente');
+  await expect(page.getByRole('table', { name: 'Pedidos por cobrar' })).toBeVisible();
+  await expect(page).toHaveTitle('Reporte parametrizable · SyncTime');
+
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeHidden();
+  const pdf = await page.pdf({ preferCSSPageSize: true });
+  if (process.env.PDF_SALIDA) (await import('node:fs')).writeFileSync(process.env.PDF_SALIDA, pdf);
+  // A4 apaisado: 842 × 595 puntos (la tabla conserva sus columnas; en vertical se volvía una pila de fichas).
+  expect(pdf.toString('latin1')).toMatch(/\/MediaBox\s*\[\s*0\s+0\s+841\.\d+\s+59[45]\.\d+\s*\]/);
+  expect(await page.getByRole('table', { name: 'Pedidos por cobrar' }).evaluate((el) => getComputedStyle(el).display)).toBe('table');
+  await page.emulateMedia({ media: 'screen' });
 });

@@ -240,6 +240,16 @@ public class ReportesTests
     }
 
     [Fact]
+    public void LosOtrosCostos_SonOpcionales_SinEllosElMargenNoCambia_ConEllosSeDescuentan()
+    {
+        Assert.Equal(50_000, ReglasGerencial.Margen(200_000, 150_000));
+        Assert.Equal(50_000, ReglasGerencial.Margen(200_000, 150_000, otros: 0));
+        Assert.Equal(40_000, ReglasGerencial.Margen(200_000, 150_000, otros: 10_000));
+        Assert.Equal(20m, ReglasGerencial.MargenPorcentaje(200_000, 150_000, 10_000));
+        Assert.Equal(25m, ReglasGerencial.MargenPorcentaje(200_000, 150_000));
+    }
+
+    [Fact]
     public void SinPedidosConCosto_NoHayMargenPorcentual_NuncaUnaDivisionPorCero()
     {
         Assert.Null(ReglasGerencial.MargenPorcentaje(0, 0));

@@ -18,7 +18,7 @@ const listaDe = (texto) => (texto ? texto.split(',') : []);
  * el campo muestra su nombre y el botón «Quitar» lo borra. Si el cliente de la dirección no está en el catálogo,
  * se muestra igual («Cliente N.º 9») para que siempre se pueda quitar.
  */
-function FiltroCliente({ clientes, valor, alCambiar }) {
+export function FiltroCliente({ clientes, valor, alCambiar }) {
   const id = useId();
   const refCampo = useRef(null);
   const elegido = valor ? clientes.find((c) => String(c.idCliente) === valor) ?? { idCliente: valor, nombre: `Cliente N.º ${valor}` } : null;
@@ -63,7 +63,7 @@ function FiltroCliente({ clientes, valor, alCambiar }) {
 }
 
 /** Rango propio: se aplica con el botón, cuando las dos fechas son válidas y están en orden. */
-function RangoPropio({ filtros, alAplicar }) {
+export function RangoPropio({ filtros, alAplicar }) {
   const [desde, setDesde] = useState(filtros.desde);
   const [hasta, setHasta] = useState(filtros.hasta);
   const [visto, setVisto] = useState(`${filtros.desde}|${filtros.hasta}`);

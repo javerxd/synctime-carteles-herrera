@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 21-11-2026 (fase 13A aprobada; fase 13B en curso).
+Última actualización: 21-11-2026 (fases 13A y 13B aprobadas).
 
 ## Hecho
 
@@ -27,7 +27,8 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 - **Fase 12D — Paneles, cuentas, validaciones y catálogo editable** · rama `fase-12d-paneles-y-cuentas` · informe: `informes/fase-12d.md` · aprobada el 20-11-2026 · sin migración ni cambios de permisos; endpoint nuevo `PUT /productos/{id}/medidas-y-opciones`; incluye el ajuste del zoom de la vitrina
 
-- **Fase 13A — Backend de reportes y exportaciones** · rama `fase-13a-reportes-backend` · informe: `informes/fase-13a.md` · aprobada el 21-11-2026 · margen = ingresos − materiales · migración `ExportacionesDeReportes` aplicada solo en la demo
+- **Fase 13A — Backend de reportes y exportaciones** · rama `fase-13a-reportes-backend` · informe: `informes/fase-13a.md` · aprobada el 21-11-2026 · margen = ingresos − materiales − otros costos · migración `ExportacionesDeReportes` aplicada solo en la demo
+- **Fase 13B — Frontend de reportes y exportaciones** · rama `fase-13b-reportes-frontend` · informe: `informes/fase-13b.md` · aprobada el 21-11-2026 · margen = ingresos − materiales − otros costos, con la columna «Otros costos» en el detalle · impresión de reportes en A4 apaisado
 
 ## En revisión (esperando el visto bueno del usuario)
 
@@ -39,7 +40,7 @@ Nada por ahora.
 
 ## En curso
 
-- **Fase 13B — Frontend de reportes y exportaciones** · rama `fase-13b-reportes-frontend` (nace de la 13A) · plan `fase-13-plan.md` (sección 5) · iniciada el 21-11-2026
+Nada por ahora.
 
 ## Por hacer
 
