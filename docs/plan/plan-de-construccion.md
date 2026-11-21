@@ -316,7 +316,7 @@ Plan: `fase-12d-plan.md`. Depende de la 12C.
 
 ### Fase 14 — Ingreso con Google
 **Ajuste del 20-11-2026:** se **elimina el asistente de IA**; queda solo el botón de Google como alternativa de ingreso. RFU23, E19, S17 y RNFE07 pasan a `desviaciones.md` (decisión del usuario) y RNFO13 sigue sin IA.
-**Requisitos:** RFS03 (Google), RFS11, RFS12 (consentimiento al completar el registro con Google), RNFE02, RNFP17, RFU05 (la parte de Google).
+**Requisitos:** RFS03 (Google; en la numeración antigua, RFS05; el RFS11 que se citaba aquí es el asistente de IA, ya desviado), RFS12 (consentimiento al completar el registro con Google), RNFE02, RNFP17, RFU05 (la parte de Google).
 - **Google:** validación del token de identidad exigiendo correo verificado; si el correo ya tiene cuenta con contraseña, no se fusiona sola: se pide iniciar sesión para vincularla; una cuenta nueva pasa por una pantalla que completa el registro con las casillas de consentimiento.
 - **Frontend:** botón de Google en la pantalla de ingreso del cliente (tras la elección «¿Quién está iniciando sesión?» de la 12C), cuyo script se carga solo cuando el usuario lo pide.
 - **Necesito de ti:** el ID de cliente OAuth de Google Cloud. Sin él queda construido y probado con un verificador simulado.
