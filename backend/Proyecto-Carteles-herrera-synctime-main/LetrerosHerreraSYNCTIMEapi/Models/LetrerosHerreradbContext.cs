@@ -44,6 +44,7 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<MedicionCalibracionRostro> CalibracionRostro { get; set; } = null!;
     public DbSet<RegistroAuditoria> Auditoria { get; set; } = null!;
     public DbSet<ClaveIdempotencia> ClavesIdempotencia { get; set; } = null!;
+    public DbSet<TrabajoExportacion> TrabajosExportacion { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1266,6 +1267,52 @@ public class LetrerosHerreradbContext : DbContext
 
             entity.HasIndex(e => new { e.Clave, e.Ambito, e.TipoUsuario, e.IdUsuario }).IsUnique().HasDatabaseName("uq_claves_idempotencia");
             entity.HasIndex(e => e.Vence).HasDatabaseName("ix_claves_idempotencia_vence");
+        });
+
+        // ── trabajos_exportacion (fase 13A, migracion ExportacionesDeReportes) ──
+        // Las exportaciones de reportes en segundo plano. Un solo trabajo activo por persona lo garantiza la base (indice unico filtrado).
+        modelBuilder.Entity<TrabajoExportacion>(entity =>
+        {
+            entity.ToTable("trabajos_exportacion", t =>
+            {
+                t.HasCheckConstraint("ck_trabajos_exportacion_reporte", "reporte IN ('operativo', 'gerencial', 'parametrizable')");
+                t.HasCheckConstraint("ck_trabajos_exportacion_formato", "formato IN ('xlsx', 'csv', 'pdf')");
+                t.HasCheckConstraint("ck_trabajos_exportacion_estado", "estado IN ('pendiente', 'procesando', 'listo', 'fallido')");
+                t.HasCheckConstraint("ck_trabajos_exportacion_intentos", "intentos >= 0");
+                t.HasCheckConstraint("ck_trabajos_exportacion_listo", "estado <> 'listo' OR (fecha_termino IS NOT NULL AND fecha_vencimiento IS NOT NULL AND nombre_archivo IS NOT NULL AND filas IS NOT NULL)");
+                t.HasCheckConstraint("ck_trabajos_exportacion_fallido", "estado <> 'fallido' OR error IS NOT NULL");
+            });
+            entity.HasKey(e => e.IdTrabajo).HasName("pk_trabajos_exportacion");
+            entity.Property(e => e.IdTrabajo).HasColumnName("id_trabajo").ValueGeneratedNever();
+            entity.Property(e => e.Reporte).HasColumnName("reporte").HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.Formato).HasColumnName("formato").HasMaxLength(5).IsUnicode(false);
+            entity.Property(e => e.Filtros).HasColumnName("filtros").HasMaxLength(1000).IsUnicode(false);
+            entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(12).IsUnicode(false).HasDefaultValue(EstadosExportacion.Pendiente);
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.RolSolicitante).HasColumnName("rol_solicitante").HasMaxLength(20);
+            entity.Property(e => e.FechaPedido).HasColumnName("fecha_pedido").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaInicio).HasColumnName("fecha_inicio").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaTermino).HasColumnName("fecha_termino").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaVencimiento).HasColumnName("fecha_vencimiento").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.BloqueadoHasta).HasColumnName("bloqueado_hasta").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.Intentos).HasColumnName("intentos").HasDefaultValue((byte)0);
+            entity.Property(e => e.NombreArchivo).HasColumnName("nombre_archivo").HasMaxLength(80).IsUnicode(false);
+            entity.Property(e => e.TamanoBytes).HasColumnName("tamano_bytes");
+            entity.Property(e => e.Filas).HasColumnName("filas");
+            entity.Property(e => e.Error).HasColumnName("error").HasMaxLength(300);
+            entity.Property(e => e.ArchivoBorradoEn).HasColumnName("archivo_borrado_en").HasColumnType("datetimeoffset(0)");
+            entity.HasOne(e => e.Empleado).WithMany()
+                .HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_trabajos_exportacion_empleado");
+            // Un solo trabajo pendiente o en proceso por persona (RNFP18): la base lo impone, no solo la API.
+            entity.HasIndex(e => e.IdEmpleado).IsUnique().HasFilter("[estado] IN ('pendiente', 'procesando')").HasDatabaseName("ux_trabajos_exportacion_activo");
+            // La cola: lo pendiente en orden de llegada, y lo que quedo «procesando» de un proceso que se cayo.
+            entity.HasIndex(e => new { e.Estado, e.FechaPedido }).HasDatabaseName("ix_trabajos_exportacion_estado");
+            // La purga: los archivos que vencieron y todavia no se borraron.
+            entity.HasIndex(e => e.FechaVencimiento).HasFilter("[estado] = 'listo' AND [archivo_borrado_en] IS NULL").HasDatabaseName("ix_trabajos_exportacion_vencimiento");
+            // La persona consulta sus trabajos.
+            entity.HasIndex(e => new { e.IdEmpleado, e.FechaPedido }).HasDatabaseName("ix_trabajos_exportacion_empleado");
         });
 
         // ── vistas del dashboard (las crea la migracion IndicadoresDashboard) ──

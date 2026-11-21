@@ -272,6 +272,43 @@ Filtros: `periodo` (`semana`, `mes`, `anio`), `desde` y `hasta`, `anio` y `mes`,
 
 **Nombres de los filtros.** El contrato aprobado en la fase 12A usa `estadoPago=por_cobrar`, `categoria` y `cliente`, que ya viven en las direcciones del panel. Equivalen a `soloPorCobrar`, `categoriaId` y `clienteId` de otros borradores; se mantuvieron los de la 12A (decisión C, 16-11-2026).
 
+### Reportes y exportaciones (fase 13A)
+
+Tres reportes, todos en hora de Chile y con los **pedidos anulados fuera de los totales** (como el dashboard). Cada reporte responde un mismo documento (`DocumentoReporte`): título, fecha de emisión, filtros aplicados, tablas (columnas, filas y totales), gráficos (solo el gerencial) y notas. **Es el mismo documento que se exporta**: lo que se ve en pantalla es lo que sale en Excel, CSV y PDF. El detalle de los esquemas está en `openapi.json`.
+
+| Ruta | Quién | Qué devuelve |
+| --- | --- | --- |
+| `GET /reportes/operativo` | Todo el personal | Tres tablas: **pedidos** (cliente, fechas, estado del pedido, estado de pago, monto, abonado y saldo; los anulados se muestran marcados y no suman), **entregas** (fecha estimada y real, y si fue a tiempo; la regla del dashboard) y **solicitudes** (número, fecha, cliente, origen y estado) |
+| `GET /reportes/gerencial` | Dueño y administrador | Resumen del período (ingresos, costos desglosados, margen y su variación con el período de comparación), ingresos y costos por tramo, ingresos por tipo de letrero y el detalle de los pedidos entregados. Dos gráficos (`tramos` y `tipos`) con los mismos datos de sus tablas |
+| `GET /reportes/parametrizable` | Dueño y administrador | Pedidos filtrados, con totales. Con `estadoPago=por_cobrar` es el **listado de cobranza** (pedidos no anulados con pago «No pagado» o «Abonado», con su saldo) |
+| `POST /reportes/{reporte}/exportaciones` | El mismo permiso del reporte | Pide un archivo. Cuerpo: `{ "formato": "xlsx" \| "csv" \| "pdf", "filtros": { … } }`. Responde **`202`** con el trabajo y su `Location`, sin esperar el archivo |
+| `GET /reportes/exportaciones/{id}` | Quien lo pidió | El estado: `pendiente`, `procesando`, `listo` o `fallido` (con su motivo), más `filas`, `tamanoBytes`, `nombreArchivo` y `vencido` |
+| `GET /reportes/exportaciones/{id}/archivo` | Quien lo pidió | La descarga (`Content-Disposition: attachment`, `Cache-Control: no-store`). `409` si todavía se prepara o falló; `410` si venció |
+
+**Filtros.** Los mismos nombres y reglas del dashboard: `periodo` (`semana`, `mes`, `anio`), `desde` y `hasta`, `anio` y `mes`, `estadoPedido` y `estadoPago` (varios separados por coma; `estadoPago=por_cobrar`) y `cliente` (por su número). El gerencial suma `comparar` (`anterior`, `anio_anterior`, `ninguno`) y el parametrizable, `alcanceSaldo` (`periodo` o `vigente`: toda la deuda, sin límite de fechas). Un filtro inválido, o que el reporte no tiene, responde `400` con el error por campo: **nada se ignora en silencio**. En el cuerpo de una exportación, un filtro es un texto, un número o una lista de textos.
+
+**Período de cada tabla.** Pedidos y cobranza: pedidos **creados** en el período. Entregas e ingresos: pedidos **entregados** con fecha de entrega real en el período (la misma definición del dashboard, así los números coinciden). Solicitudes: las de la fecha de solicitud dentro del período; solo las filtra `cliente`.
+
+**Costos y margen (gerencial).** El costo de un pedido es el de su cotización aceptada (materiales, mano de obra y otros costos). Un pedido sin cotización no tiene costo registrado: aparece como «Sin costo» y **no entra en el margen**. **Margen = ingresos de los pedidos con costo − costo de materiales** (la ganancia bruta, definición del usuario del 21-11-2026): la mano de obra y los otros costos se muestran en el resumen, pero no se descuentan. El costo de materiales se redondea al peso en cada pedido. El detalle de pedidos entregados lleva el costo total, los materiales y el margen de cada uno.
+
+**Tope de tamaño.** Un reporte con más de 50.000 filas (en todas sus tablas) se rechaza con `400` y el código `reporte_muy_grande` («acota el rango…»), tanto al leerlo como al pedir su archivo. Nunca se genera a medias. El **PDF tiene un tope propio de 10.000 filas** (medido: 10.000 filas, 9,5 s; 50.000 filas, 232 s y 1,3 GB): con más, el mensaje sugiere Excel o CSV, que sí llegan a 50.000.
+
+**Límites de uso.** Leer un reporte: 30 por minuto por persona (`429`). Pedir un archivo: 10 por minuto. El cuerpo del pedido no puede pasar de 4 KB. Cada persona puede tener a la vez hasta 5 archivos listos sin vencer (`409`; cada uno ocupa disco hasta las 24 horas). Un pedido que lleva más de 1 hora «pendiente» sin que nadie lo procese (la cola apagada o rota) se cierra como `fallido` para no bloquear a la persona. Las lecturas llevan `Cache-Control: private, no-store`.
+
+**Exportaciones en segundo plano.** Pedir el archivo solo deja un trabajo en la tabla `trabajos_exportacion`; un proceso en segundo plano lo genera (hasta 2 a la vez, 120 s por trabajo) y lo guarda en `almacen/exportaciones/` con un nombre que sale del identificador del trabajo, nunca de texto de la persona. El archivo **vence a las 24 horas** (después, `410` y el registro queda sin el contenido). Una persona tiene **un trabajo pendiente o en proceso a la vez** (`409` si pide otro) y puede pedir **10 archivos por minuto** (`429`). De un trabajo ajeno, o inexistente, se responde `404` igual en los dos casos. Si el servidor se reinicia a mitad, el trabajo vuelve a `pendiente`.
+
+**Formatos.**
+
+| Formato | Contenido |
+| --- | --- |
+| Excel (`.xlsx`) | Una hoja por tabla, encabezado en negrita y fijo al desplazar, fechas como fechas (`dd-mm-yyyy`), pesos como números con formato de miles, anchos de columna ajustados y una fila de totales con fórmula `SUM` (o `SUMIF`, que deja fuera los anulados). Una hoja «Filtros» con lo aplicado y la fecha de emisión. Los textos se escriben siempre como texto, nunca como fórmula |
+| PDF | A4 horizontal, título, fecha y hora de emisión, filtros aplicados, tablas con el encabezado repetido en cada página y los totales al final, «Página X de Y», texto seleccionable con la fuente Plus Jakarta Sans incrustada. En el gerencial, los dos gráficos van como imagen sobre la tabla de sus datos. **No es un PDF accesible etiquetado (PDF/UA)** |
+| CSV | UTF-8 **con marca de orden de bytes** (para que Excel respete las tildes), separador **`;`** (el de Excel en español de Chile), líneas terminadas en CRLF, fechas `aaaa-mm-dd`, pesos enteros sin separador de miles y porcentajes con coma, comillas según RFC 4180. **Sin fila de totales**. Contra la inyección de fórmulas, un texto que empiece con `=`, `+`, `-`, `@`, tabulación o retorno se escribe con un apóstrofo delante. Un CSV es una sola tabla: exporta la **tabla principal** (pedidos en el operativo y el parametrizable; el detalle de pedidos entregados en el gerencial) |
+
+El archivo se llama `reporte-{tipo}-{aaaa-mm-dd}.{formato}` (el tipo y la fecha de emisión, sin datos personales).
+
+**Bitácora.** Cada exportación pedida queda con la acción `exportar_reporte` («Exportó un reporte»), entidad `reporte` e identificador del trabajo: quién (empleado y rol), qué reporte, qué formato y con qué filtros; al terminar queda otra fila con las filas del archivo, o con el motivo si falló. Nunca el contenido del archivo.
+
 ### Portal del cliente (fase 7)
 
 Todas las rutas `/mis` salen del token: el cliente nunca viene en la ruta ni en el cuerpo. Las de envió exigen **correo confirmado**.

@@ -377,7 +377,7 @@ erDiagram
     }
 ```
 
-`horarios_atencion` se relaciona solo con `empleados`, por quién lo cambió por última vez. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
+`horarios_atencion` se relaciona solo con `empleados`, por quién lo cambió por última vez. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`. `trabajos_exportacion` (fase 13A) guarda los archivos de reportes que se preparan en segundo plano y se relaciona solo con `empleados`, por quién los pidió; el contenido del reporte no se guarda en la base, solo el archivo temporal en `almacen/exportaciones/`.
 
 `adjuntos_solicitud` guarda los logos y diseños que acompañan a una solicitud. Mientras no tiene solicitud es un borrador del cliente, y se vincula al enviarla. Sus archivos son privados (carpeta `Adjuntos:Carpeta`, fuera del repositorio). `solicitudes_historial` guarda cada cambio de estado de una solicitud, con quién lo hizo: un empleado, el cliente o, si ninguno, el sistema.
 

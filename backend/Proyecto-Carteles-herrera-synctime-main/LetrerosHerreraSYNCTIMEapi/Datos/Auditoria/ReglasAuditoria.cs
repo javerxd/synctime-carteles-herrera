@@ -81,12 +81,13 @@ public static class ReglasAuditoria
         [typeof(MedicionCalibracionRostro)] = "Mediciones técnicas de la calibración del rostro.",
         [typeof(Imagen)] = "Archivo de imagen: su uso queda en la publicación de la vitrina, que sí se audita.",
         [typeof(ConsultaContacto)] = "Mensaje de un visitante: su aviso al taller queda en la bitácora.",
-        [typeof(DisponibilidadEmpleado)] = "Franjas que cada persona marca para sí misma, sin efecto en datos del negocio."
+        [typeof(DisponibilidadEmpleado)] = "Franjas que cada persona marca para sí misma, sin efecto en datos del negocio.",
+        [typeof(TrabajoExportacion)] = "Cola de exportaciones de reportes: quién lo pidió, con qué filtros y cuántas filas salieron quedan en la bitácora (exportar_reporte), sin el contenido."
     };
 
     public static readonly IReadOnlyDictionary<string, string> TextosEntidad =
         Entidades.Values.ToDictionary(e => e.Nombre, e => e.Texto)
-            .Concat(new Dictionary<string, string> { ["correo"] = "Correo", ["cuenta"] = "Cuenta del cliente" })
+            .Concat(new Dictionary<string, string> { ["correo"] = "Correo", ["cuenta"] = "Cuenta del cliente", ["reporte"] = "Reporte" })
             .ToDictionary(p => p.Key, p => p.Value);
 
     public static readonly IReadOnlyDictionary<string, string> TextosAccion = new Dictionary<string, string>
@@ -100,7 +101,8 @@ public static class ReglasAuditoria
         [AccionesAuditoria.CorreoRevisado] = "Marcó un correo como revisado",
         [AccionesAuditoria.BajaCorreo] = "Se dio de baja de correos",
         [AccionesAuditoria.BajaCuenta] = "Dio de baja su cuenta",
-        [AccionesAuditoria.DescargaDatos] = "Descargó sus datos"
+        [AccionesAuditoria.DescargaDatos] = "Descargó sus datos",
+        [AccionesAuditoria.ExportarReporte] = "Exportó un reporte"
     };
 
     public static string Camello(string propiedad) => propiedad.Length == 0 ? propiedad : char.ToLowerInvariant(propiedad[0]) + propiedad[1..];
@@ -180,6 +182,8 @@ public static class DetalleAuditoria
         DateOnly d1 => JsonValue.Create(d1.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)),
         TimeOnly t => JsonValue.Create(t.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)),
         IEnumerable<string> lista => new JsonArray(lista.Select(x => Nodo(x)).ToArray()),
+        // Fase 13A: los filtros de un reporte (nombre y valor, ya validados y sin datos personales).
+        IReadOnlyDictionary<string, string> mapa => new JsonObject(mapa.Select(p => KeyValuePair.Create(p.Key, Nodo(p.Value)))),
         _ => JsonValue.Create(valor.ToString())
     };
 }

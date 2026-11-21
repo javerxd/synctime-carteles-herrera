@@ -11,7 +11,7 @@ Estado del esquema: migración `MantenedoresYAvisos` (14-11-2026), 27 tablas. Ap
 - Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`) y las de la fase 5 (`consultas_contacto` y la autorización del logo en `catalogo`) y la fase 6 (`tokens_renovacion`, `codigos_cuenta` y `clientes.fecha_verificacion_correo`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local. Desde la fase 9 también lo usan `destinatarios_avisos`, `destinatarios_avisos_historial` y `horarios_atencion.fecha_modificacion`; `disponibilidad_empleados` usa `time(0)`.
 - `row_version` es un `rowversion`: cambia en cada modificación y permite rechazar el cambio de un registro que otra persona modificó después de abrirlo (RNFP10).
 
-Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026). Las de la fase 8 (14-11-2026) se marcan **NUEVA (fase 8)** o **CAMBIA (fase 8)**, y la tabla `pedidos_historial` también es de esa fecha. Las de la fase 9 (14-11-2026) se marcan **NUEVA (fase 9)** o **CAMBIA (fase 9)**: `row_version` en los seis mantenedores, las columnas nuevas de `horarios_atencion` y las tablas `disponibilidad_empleados`, `destinatarios_avisos` y `destinatarios_avisos_historial`.
+Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026). Las de la fase 8 (14-11-2026) se marcan **NUEVA (fase 8)** o **CAMBIA (fase 8)**, y la tabla `pedidos_historial` también es de esa fecha. Las de la fase 9 (14-11-2026) se marcan **NUEVA (fase 9)** o **CAMBIA (fase 9)**: `row_version` en los seis mantenedores, las columnas nuevas de `horarios_atencion` y las tablas `disponibilidad_empleados`, `destinatarios_avisos` y `destinatarios_avisos_historial`. La tabla `trabajos_exportacion` es de la fase 13A (20-11-2026).
 
 ---
 
@@ -424,6 +424,35 @@ Datos del ingreso facial (RFS03). Guarda solo el descriptor numérico cifrado y 
 | `fecha_autorizacion_equipo` | datetimeoffset(0) | Sí | | Cuándo se autorizó el equipo |
 
 Restricciones: `pk_rostros_empleado`, `fk_rostros_empleado_empleado`. Índice único filtrado `uq_rostros_empleado_vigente` (`id_empleado` con `fecha_revocacion` nula): a lo más un rostro vigente por empleado.
+
+---
+
+## trabajos_exportacion
+
+**Tabla nueva (20-11-2026, fase 13A, migración `ExportacionesDeReportes`).** Los archivos de reportes (Excel, PDF y CSV) que se preparan en segundo plano (RNFP18). Pedir un reporte solo inserta una fila; un proceso en segundo plano toma los pendientes (hasta 2 a la vez), genera el archivo y lo guarda en `almacen/exportaciones/` con el nombre `{id_trabajo en 32 hex}.{formato}`. El archivo vence a las 24 horas; el registro queda sin el contenido. No se audita con el interceptor: el pedido y el término quedan en la bitácora con la acción `exportar_reporte`.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_trabajo` | uniqueidentifier | No | lo genera la aplicación (aleatorio) | PK. No adivinable: quien no lo conoce no puede pedir el archivo de otra persona |
+| `reporte` | varchar(20) | No | | `operativo`, `gerencial` o `parametrizable` |
+| `formato` | varchar(5) | No | | `xlsx`, `csv` o `pdf` |
+| `filtros` | varchar(1000) | No | | Los filtros ya validados, en JSON: solo lo que se pidió, sin datos personales (el cliente va por su número) |
+| `estado` | varchar(12) | No | `pendiente` | `pendiente`, `procesando`, `listo` o `fallido` |
+| `id_empleado` | int | No | | FK a `empleados`: quién lo pidió |
+| `rol_solicitante` | nvarchar(20) | No | | El rol con el que lo pidió (la bitácora lo registra también al terminar) |
+| `fecha_pedido` | datetimeoffset(0) | No | | Cuándo se pidió. También fija el «hoy» del reporte (un período relativo no cambia si se genera después de medianoche) |
+| `fecha_inicio` | datetimeoffset(0) | Sí | | Cuándo lo tomó el proceso |
+| `fecha_termino` | datetimeoffset(0) | Sí | | Cuándo terminó, o falló |
+| `fecha_vencimiento` | datetimeoffset(0) | Sí | | `fecha_termino` + 24 horas |
+| `bloqueado_hasta` | datetimeoffset(0) | Sí | | Mientras está `procesando`, hasta cuándo es de quien lo tomó; pasado ese momento se considera abandonado |
+| `intentos` | tinyint | No | 0 | Veces que se tomó. Un trabajo interrumpido 3 veces queda `fallido` |
+| `nombre_archivo` | varchar(80) | Sí | | Lo que ve quien descarga: `reporte-operativo-2026-11-20.xlsx` |
+| `tamano_bytes` | int | Sí | | Tamaño del archivo |
+| `filas` | int | Sí | | Filas del reporte (todas sus tablas) |
+| `error` | nvarchar(300) | Sí | | El motivo, en español y sin datos internos, si falló |
+| `archivo_borrado_en` | datetimeoffset(0) | Sí | | Cuándo se borró el contenido al vencer |
+
+Restricciones: `pk_trabajos_exportacion`, `fk_trabajos_exportacion_empleado`, `ck_trabajos_exportacion_reporte`, `ck_trabajos_exportacion_formato`, `ck_trabajos_exportacion_estado`, `ck_trabajos_exportacion_intentos`, `ck_trabajos_exportacion_listo` (un trabajo `listo` tiene fecha de término y de vencimiento, nombre y filas) y `ck_trabajos_exportacion_fallido` (uno `fallido` tiene su motivo). Índices: `ux_trabajos_exportacion_activo` (único filtrado: `id_empleado` con estado `pendiente` o `procesando`; **una persona no puede tener más de un trabajo activo**), `ix_trabajos_exportacion_estado` (la cola), `ix_trabajos_exportacion_vencimiento` (filtrado: la purga) e `ix_trabajos_exportacion_empleado`.
 
 ---
 

@@ -35,6 +35,8 @@ public static class AccionesAuditoria
     public const string BajaCorreo = "baja_correo";
     public const string BajaCuenta = "baja_cuenta";
     public const string DescargaDatos = "descarga_datos";
+    // Fase 13A (RFS12, RFU28): cada exportacion de un reporte (la pide un empleado; al terminar, o fallar, queda otra fila).
+    public const string ExportarReporte = "exportar_reporte";
 
     public const string RolSistema = "sistema";
 }

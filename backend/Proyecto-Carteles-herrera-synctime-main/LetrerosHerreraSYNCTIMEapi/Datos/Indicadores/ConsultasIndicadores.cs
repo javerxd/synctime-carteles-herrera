@@ -29,10 +29,16 @@ public sealed class ConsultasIndicadores(LetrerosHerreradbContext db)
 {
     // ── Filtros combinables ──
 
-    /// <summary>Pedidos vigentes y no anulados que cumplen los filtros (no las fechas: esas las pone cada indicador).</summary>
-    private IQueryable<VistaIndicadorPedido> Pedidos(FiltroIndicadores f)
+    /// <summary>
+    /// Pedidos vigentes y no anulados que cumplen los filtros (no las fechas: esas las pone cada indicador). Fase 13A: los reportes
+    /// usan esta misma consulta, para que sus cifras coincidan con las del dashboard; el reporte operativo es el unico que pide los
+    /// anulados (marcados), con <paramref name="incluirAnulados"/>.
+    /// </summary>
+    public IQueryable<VistaIndicadorPedido> Pedidos(FiltroIndicadores f, bool incluirAnulados = false)
     {
-        var consulta = db.IndicadoresPedidos.AsNoTracking().Where(p => p.EstadoPedido != "anulado");
+        var consulta = db.IndicadoresPedidos.AsNoTracking();
+        if (!incluirAnulados)
+            consulta = consulta.Where(p => p.EstadoPedido != "anulado");
         if (f.EstadosPedido.Count > 0)
         {
             var estados = f.EstadosPedido.ToList();
@@ -69,10 +75,10 @@ public sealed class ConsultasIndicadores(LetrerosHerreradbContext db)
         return consulta;
     }
 
-    private static IQueryable<VistaIndicadorPedido> CreadosEn(IQueryable<VistaIndicadorPedido> pedidos, Periodo p) =>
+    public static IQueryable<VistaIndicadorPedido> CreadosEn(IQueryable<VistaIndicadorPedido> pedidos, Periodo p) =>
         pedidos.Where(x => x.FechaPedido >= p.Desde && x.FechaPedido <= p.Hasta);
 
-    private static IQueryable<VistaIndicadorPedido> EntregadosEn(IQueryable<VistaIndicadorPedido> pedidos, Periodo p) =>
+    public static IQueryable<VistaIndicadorPedido> EntregadosEn(IQueryable<VistaIndicadorPedido> pedidos, Periodo p) =>
         pedidos.Where(x => x.EstadoPedido == "entregado" && x.FechaEntregaReal >= p.Desde && x.FechaEntregaReal <= p.Hasta);
 
     // ── Resumen ──

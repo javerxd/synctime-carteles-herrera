@@ -259,8 +259,10 @@ public sealed class MigracionTests(ApiFixture api)
     [Fact]
     public async Task IndicadoresDashboard_SoloAgregaVistasEIndices_YElTriggerSoloAdmiteBorrarLaIp()
     {
-        var ultima = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().Last()));
-        Assert.Equal(Fase12c, ultima);
+        // Fase 13A: ya no es la ultima (la sigue ExportacionesDeReportes); lo que importa es que exista y siga en su lugar.
+        var migraciones = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().ToList()));
+        Assert.Contains(Fase12c, migraciones);
+        Assert.Equal("20261120231956_ExportacionesDeReportes", migraciones[migraciones.IndexOf(Fase12c) + 1]);
         var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(Fase12b, Fase12c)));
 
         foreach (var vista in new[] { "vw_indicadores_pedidos", "vw_indicadores_solicitudes", "vw_indicadores_items" })
@@ -378,7 +380,10 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(69, restricciones.Count);
+        Assert.Equal(75, restricciones.Count);   // 69 + las 6 de trabajos_exportacion (fase 13A)
+        foreach (var nombre in new[] { "ck_trabajos_exportacion_reporte", "ck_trabajos_exportacion_formato", "ck_trabajos_exportacion_estado",
+            "ck_trabajos_exportacion_intentos", "ck_trabajos_exportacion_listo", "ck_trabajos_exportacion_fallido" })
+            Assert.Contains(nombre, restricciones);
         // Fase 12B: limites de medidas del producto y medidas fijas.
         foreach (var nombre in new[] { "ck_productos_medidas", "ck_producto_medidas_fijas" })
             Assert.Contains(nombre, restricciones);

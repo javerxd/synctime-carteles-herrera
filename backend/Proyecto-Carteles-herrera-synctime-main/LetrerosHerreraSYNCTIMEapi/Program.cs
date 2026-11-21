@@ -142,6 +142,15 @@ builder.Services.AddScoped<ServicioIndicadores>();
 builder.Services.AddScoped<ServicioPrivacidad>();
 builder.Services.AddSingleton<ServicioIdempotencia>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
+// Fase 13A: reportes y exportaciones a Excel, PDF y CSV en segundo plano (mismo patron que la cola de correo).
+builder.Services.AddOptions<LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.OpcionesReportes>().Bind(builder.Configuration.GetSection(LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.OpcionesReportes.Seccion));
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.AlmacenExportaciones>();
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.SenalExportaciones>();
+builder.Services.AddScoped<LetrerosHerreraSYNCTIMEapi.Datos.Reportes.ConsultasReportes>();
+builder.Services.AddScoped<ServicioReportes>();
+builder.Services.AddScoped<ServicioExportaciones>();
+builder.Services.AddSingleton<TrabajadorExportaciones>();
+builder.Services.AddHostedService<ProcesadorExportaciones>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
 builder.Services.AddProblemDetails(options =>
@@ -221,6 +230,10 @@ var limiteCookies = builder.Configuration.GetValue("RateLimiting:CookiesPorHora"
 var limiteImagenes = builder.Configuration.GetValue("RateLimiting:Imagenes", 600);
 // Fase 7: subidas de adjuntos (procesar una foto cuesta), por usuario y por minuto.
 var limiteAdjuntos = builder.Configuration.GetValue("RateLimiting:Adjuntos", 10);
+// Fase 13A: pedir una exportacion cuesta (genera un archivo): 10 por minuto por persona.
+var limiteExportaciones = builder.Configuration.GetValue("RateLimiting:Exportaciones", 10);
+// Leer un reporte tambien cuesta (varias consultas y hasta 50.000 filas): 30 por minuto por persona.
+var limiteReportes = builder.Configuration.GetValue("RateLimiting:Reportes", 30);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -238,6 +251,8 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(Salud.PoliticaDeLimite, context => Ventana(Ip(context), limiteSalud));
     options.AddPolicy("Imagenes", context => Ventana(Ip(context), limiteImagenes));
     options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.ArchivoSubido.PoliticaDeLimite, context => Ventana(UsuarioOIp(context), limiteAdjuntos));
+    options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.ReportesApi.PoliticaDeLectura, context => Ventana(UsuarioOIp(context), limiteReportes));
+    options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.ReportesApi.PoliticaDeLimite, context => Ventana(UsuarioOIp(context), limiteExportaciones));
 });
 // El limite por IP no basta contra quien reparte sus intentos entre muchas IP: este cuenta por cuenta.
 builder.Services.AddSingleton(new LimitadorPorCuenta(builder.Configuration.GetValue("RateLimiting:PorCuenta", limiteLogin)));
@@ -356,6 +371,7 @@ app.MapCuentaApi();
 app.MapCorreosApi();
 app.MapAuditoriaApi();
 app.MapIndicadoresApi();
+app.MapReportesApi();
 
 app.Run();
 

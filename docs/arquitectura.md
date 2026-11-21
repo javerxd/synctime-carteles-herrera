@@ -37,6 +37,28 @@ Las comprueba `ArquitecturaTests` (proyecto `LetrerosHerreraSYNCTIMEapi.UnitTest
 | **Inyección de dependencias** | `Program.cs` | Cada pieza recibe lo que necesita; las pruebas pueden sustituir cualquiera |
 | **Cadena de responsabilidad** | Middleware de `Program.cs` | Compresión, cabeceras, errores, CORS, autenticación, límites y permisos se aplican en orden, sin que los endpoints los conozcan |
 
+## Reportes y exportaciones en segundo plano (fase 13A)
+
+Los tres reportes y su exportación (RFS10, RNFP18) siguen el mismo patrón de la cola de correo:
+
+```
+POST /reportes/{reporte}/exportaciones ──► ServicioExportaciones ──► trabajos_exportacion (pendiente) + bitácora (exportar_reporte)
+        │ 202 + id                                                       │  SenalExportaciones despierta al proceso
+        ▼                                                                ▼
+GET /reportes/exportaciones/{id}   ◄── estado ──   ProcesadorExportaciones (BackgroundService) ─► TrabajadorExportaciones
+GET …/{id}/archivo ◄─ almacen/exportaciones/{id}.{xlsx|csv|pdf}                                  │ reclama (UPDATE condicional), 2 a la vez
+                                                                                                 ▼
+                                    ServicioReportes ─► ConsultasReportes ─► vistas vw_indicadores_* ──► DocumentoReporte
+                                                                                                 │
+                                                   GeneradorExcel │ GeneradorCsv │ GeneradorPdf (+ GraficosReporte, SkiaSharp)
+```
+
+- **Un solo documento.** `ServicioReportes` arma un `DocumentoReporte` (tablas, totales, gráficos, notas). La pantalla lo recibe como JSON y los tres generadores lo escriben: lo que se ve es lo que sale. Las reglas puras (filtros, tope, costos y margen) están en `Negocio/Reportes/`; los generadores, en `Infraestructura/Reportes/`.
+- **Mismas definiciones que el dashboard.** `ConsultasReportes` usa la misma consulta de «pedido vigente» (`ConsultasIndicadores.Pedidos`) y las mismas vistas, así los ingresos y el saldo por cobrar coinciden con los de `GET /indicadores/*`.
+- **El trabajo.** Se reclama con una actualización condicional (`pendiente → procesando`, suma el intento y fija `bloqueado_hasta`), con un tiempo límite por trabajo. Si el servidor se reinicia a mitad, vuelve a `pendiente` (o queda `fallido` tras 3 interrupciones). Al terminar o fallar queda una fila en la bitácora. La purga (cada hora) borra los archivos vencidos y los que quedaron sin registro.
+- **Seguridad.** El permiso por reporte se valida en la ruta y de nuevo al pedir el archivo y al descargarlo; el archivo se llama como el identificador del trabajo (aleatorio), nunca con texto de la persona; un trabajo ajeno responde `404`; los filtros guardados no llevan datos personales.
+- **Dependencias.** `DocumentFormat.OpenXml` (Excel) y `PDFsharp-MigraDoc` (PDF), ambas MIT (ver `docs/licencias.md`); la fuente del PDF viaja incrustada en el programa.
+
 ## Cómo se agrega un módulo
 
 1. Declarar sus rutas en `docs/api/openapi.json` (resumen y `x-acceso`). La prueba de contrato falla hasta implementarlas.

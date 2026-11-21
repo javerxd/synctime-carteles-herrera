@@ -40,6 +40,7 @@ public sealed class ApiFixture : IAsyncLifetime
     public string CarpetaBandeja => Path.Combine(carpetaTemporal, "bandeja");
     public string CarpetaImagenes => Path.Combine(carpetaTemporal, "imagenes");
     public string CarpetaAdjuntos => Path.Combine(carpetaTemporal, "adjuntos");
+    public string CarpetaExportaciones => Path.Combine(carpetaTemporal, "exportaciones");
 
     // Fase 7: la regla contra solicitudes falsas mira la IP. El servidor de pruebas no tiene una, asi que
     // una prueba puede elegirla con esta cabecera (solo existe en las pruebas, nunca en la API real).
@@ -101,7 +102,13 @@ public sealed class ApiFixture : IAsyncLifetime
             ["Correo__Remitente__Direccion"] = "synctime@test.local",
             ["Sitio__UrlPublica"] = "https://synctime.test",
             ["Imagenes__Carpeta"] = CarpetaImagenes,
-            ["Adjuntos__Carpeta"] = CarpetaAdjuntos
+            ["Adjuntos__Carpeta"] = CarpetaAdjuntos,
+            // Fase 13A: las exportaciones van a una carpeta temporal y el proceso en segundo plano no corre solo: cada prueba lo ejecuta
+            // cuando lo necesita (TrabajadorExportaciones), asi nada depende de cuando despierte.
+            ["Reportes__Carpeta"] = CarpetaExportaciones,
+            ["Reportes__ColaActiva"] = "false",
+            ["RateLimiting__Exportaciones"] = "100000",
+            ["RateLimiting__Reportes"] = "100000"
         };
 
         // Program lee la configuracion antes de que WebApplicationFactory pueda cambiarla,
