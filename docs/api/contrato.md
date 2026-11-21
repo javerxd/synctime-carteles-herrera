@@ -24,6 +24,7 @@ El token de acceso va en la cabecera `Authorization: Bearer <token>` y dura 15 m
 | `POST /auth/login` (personal) | `{ email, password }` | `{ token, tipo: "empleado", usuario: { idEmpleado, nombre, apellido, email, rol } }` |
 | `POST /auth/login-cliente` | `{ correo, password }` | `{ token, tipo: "cliente", usuario: { idCliente, nombre, apellido, telefono, email, correoVerificado } }`. El cliente entra con su correo, no con su telefono |
 | `POST /auth/login-facial` (personal) | `{ email, desafio, tokenEquipo, capturas }`, despues de pedir el desafio | Lo mismo que `/auth/login`, mas `nombre` y `rol`. Ver seccion 7 |
+| `POST /auth/google` (cliente) | `{ idToken, nonce }`, despues de pedir el nonce | Lo mismo que `/auth/login-cliente`, o `{ estado: "registro_pendiente", pase, ... }` si el correo es nuevo. Solo clientes; el personal no entra por Google. Ver «Ingreso con Google (fase 14A)» en la seccion 4 |
 
 Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administrador`, `diseñador`, `operario` y `cliente`. En la tabla de rutas:
 
@@ -77,6 +78,9 @@ Todas llevan el prefijo `/api/v1`. Un `?` indica un campo opcional.
 | Ruta | Quien | Cuerpo y notas |
 | --- | --- | --- |
 | `POST /auth/registro-cliente` | Publico | `{ rut?, nombre, apellido, telefono, correo, direccion?, password, aceptaTerminosYPrivacidad, aceptaMarketing, versionTerminos, versionPrivacidad, versionMarketing? }`. `201` con la sesion iniciada (`{ token, tipo, usuario }`), la cookie de renovacion y el envio del enlace para confirmar el correo. Terminos y privacidad son obligatorios; el marketing es otra casilla, sin marcar por defecto. Password de 8 a 72 caracteres. `400` con los errores por campo; `409` si el correo ya tiene cuenta, si el telefono o el RUT ya estan en el taller, o si cambiaron las versiones de los textos; `413` si supera 16 KB |
+| `GET /auth/google/nonce` | Publico | `{ nonce, venceEn }` con `Cache-Control: no-store`. Aleatorio, de un solo uso, vence a los 5 minutos. Limite: 10 por minuto por IP (`429`). Detalle en «Ingreso con Google (fase 14A)» |
+| `POST /auth/google` | Publico | `{ idToken, nonce }`. Ver «Ingreso con Google (fase 14A)» |
+| `POST /auth/google/completar` | Publico | `{ pase, rut?, nombre?, apellido?, telefono, direccion?, aceptaTerminosYPrivacidad, aceptaMarketing, versionTerminos, versionPrivacidad, versionMarketing? }`. Ver «Ingreso con Google (fase 14A)» |
 | `GET /auth/me` | Con sesion | Lista de claims del token |
 | `POST /auth/login-facial/desafio` | Publico | `{ email }`. Responde `200` exista o no el email: `{ desafio, orden: ["izquierda","derecha"] o ["derecha","izquierda"], venceEnSegundos }`. `400` solo si falta el email o es demasiado largo. De un solo uso; vence a los 30 s |
 | `POST /auth/login-facial` | Publico | `{ email, desafio, tokenEquipo, capturas }`, con tres capturas `{ descriptor: float[128], puntos: [[x,y] x 68], ancho, alto }` (frente, primer giro, segundo giro). Todo fallo responde el mismo `401` vacio. Ver seccion 7 |
@@ -107,13 +111,46 @@ La sesion tiene dos piezas. El **token de acceso** (15 minutos) va en `Authoriza
 | `POST /auth/reenviar-verificacion` | Cliente | Sin cuerpo. `202`. Envia un enlace nuevo solo si el correo aun no esta confirmado; el anterior deja de servir. `404` si la cuenta ya no esta activa |
 | `POST /auth/recuperar` | Publico | `{ tipo, correo }`, con `tipo` `cliente` o `personal`. `202` con el mismo mensaje exista o no la cuenta, y tarda lo mismo. Envia un codigo de 6 digitos que vence en 15 minutos. Como maximo 1 codigo por minuto y 5 por hora por cuenta: si se supera, no se envia nada y la respuesta sigue igual. `400` si el tipo no es valido |
 | `POST /auth/restablecer` | Publico | `{ tipo, correo, codigo, password }`. `204`: cambia la contraseña, consume el codigo y cierra todas las sesiones de la cuenta. Solo sirve el codigo enviado al correo actual de la cuenta, de un solo uso y con 5 intentos. `400` con `errores.codigo` (incorrecto, vencido o agotado) o `errores.password` |
-| `GET /mi-cuenta` | Cliente | `{ idCliente, nombre, apellido, rut, telefono, correo, direccion, correoVerificado, marketing }`. Solo los datos del propio cliente: el id sale del token |
+| `GET /mi-cuenta` | Cliente | `{ idCliente, nombre, apellido, rut, telefono, correo, direccion, correoVerificado, marketing, avisosEstado, googleVinculado, tieneContrasena }`. Solo los datos del propio cliente: el id sale del token. Fase 14A: `googleVinculado` y `tieneContrasena` dicen si tiene un Google vinculado y si puede ingresar con contraseña (una cuenta creada con Google no la tiene hasta que la crea con «Olvide mi contraseña») |
 | `PUT /mi-cuenta` | Cliente | `{ rut?, nombre, apellido, telefono, direccion? }`. Responde la cuenta. `400` por campo. `409` si el telefono o el RUT ya son de otra persona. El RUT es opcional y puede quitarse |
 | `PUT /mi-cuenta/correo` | Cliente | `{ correo, passwordActual }`. Responde la cuenta con `correoVerificado: false`, avisa al correo anterior y envia el enlace al nuevo. `400` si la contraseña no es correcta (`errores.passwordActual`) o el correo no sirve; `409` si ya esta en otra cuenta. Limite: 10 fallos por minuto |
 | `PUT /mi-cuenta/password` | Cliente | `{ passwordActual, passwordNueva }`. Responde `{ token }`: cierra todas las sesiones de la cuenta, incluida la actual, y abre una nueva en este equipo. `400` con `errores.passwordActual` o `errores.passwordNueva`. Limite: 10 fallos por minuto |
 | `PUT /mi-cuenta/marketing` | Cliente | `{ acepta, version? }`. `204`. Aceptar exige la version vigente del marketing (`409` si cambio). Retirarlo no pide version y no afecta a los terminos |
+| `POST /mi-cuenta/google` | Cliente | Vincula su Google (fase 14A): `{ idToken, nonce, passwordActual }`. `200 { vinculado: true, correo }`. `400` con `errores.passwordActual` si la contraseña no es correcta, o `google_token_invalido` si el token no sirve; `409` con `google_correo_distinto` (el correo verificado de Google no es el de la cuenta), `google_en_uso` (ese Google ya esta en otra cuenta) o `google_ya_vinculada`; `503` con `google_no_disponible` o `google_no_configurado`. Limite: 10 fallos por minuto. Ver «Ingreso con Google (fase 14A)» |
+| `DELETE /mi-cuenta/google` | Cliente | Desvincula su Google: cuerpo JSON `{ passwordActual }`. `204`. `400` con `errores.passwordActual`; `409 sin_contrasena` si la cuenta no tiene contraseña (quedaria sin forma de entrar: primero la crea con «Olvide mi contraseña»); `404` si no tenia Google vinculado |
 
 **Correo y enlaces.** El correo es el usuario para ingresar y para recuperar la contraseña, así que una cuenta con contraseña siempre tiene correo. El cliente puede usar su cuenta sin confirmar el correo. Confirmarlo es necesario para las campañas (fase 11) y, desde la fase 7, para enviar solicitudes en línea y adjuntar archivos. El enlace de confirmación dura 24 horas, sirve una sola vez y sale desde `Sitio:UrlPublica`.
+
+### Ingreso con Google (fase 14A)
+
+Solo para clientes (RFS03, RFU05): el personal no entra por Google. Usa el *token de identidad* de Google Identity Services (un JWT firmado por Google): **no hay redireccion ni «secreto de cliente»**, y la API (`https://localhost:7112`) no se registra en Google; solo importa el origen de la pagina (`http://localhost:3000`). El ID de cliente OAuth se configura en la API con `Google:ClientId` (User Secrets en desarrollo, variable de entorno `Google__ClientId` en produccion). **Sin el, `POST /auth/google` y `/auth/google/completar` responden `503 google_no_configurado` y el frontend no debe mostrar el boton.**
+
+**Flujo.** (1) La pagina pide `GET /auth/google/nonce` y se lo pasa a Google; (2) Google devuelve el token, que la pagina manda a `POST /auth/google` con ese nonce; (3) la API decide:
+
+| Caso | Respuesta |
+| --- | --- |
+| La identidad (`sub`) ya esta vinculada a una cuenta activa | `200` con la misma sesion que `/auth/login-cliente` (`{ token, tipo: "cliente", usuario }`) y la cookie de renovacion |
+| El correo ya tiene una cuenta y ese Google no esta vinculado | `409` con `codigo: "cuenta_existente"`. **Nunca se fusiona sola:** la persona ingresa con su contraseña y vincula Google desde Mi cuenta |
+| Correo nuevo | `200 { estado: "registro_pendiente", pase, venceEn, correo, nombre, apellido }`. No se crea nada todavia. El `pase` esta firmado, vence a los 10 minutos y se usa una sola vez; `nombre` y `apellido` son los de Google (el apellido puede venir vacio) |
+
+`POST /auth/google/completar` recibe el `pase` y lo que Google no entrega: `telefono` (obligatorio y unico), `apellido` (si falta), `rut?`, `direccion?` y las casillas de consentimiento (sin marcar por defecto). Crea en **una sola transaccion** la cuenta (correo ya verificado, **sin contraseña**), su identidad y los consentimientos, y responde `201` con la sesion. Mismas validaciones y mismos mensajes que `/auth/registro-cliente`: `400` con `errores` por campo (el pase sigue sirviendo para corregir); `409` con el mensaje de siempre si el telefono o el RUT ya estan en el taller, o si cambiaron las versiones de los textos legales. `401 google_pase_invalido` si el pase vencio, esta manipulado o ya se uso. Maximo 16 KB.
+
+**Que verifica la API** (RNFE02, RNFP17): firma de Google, emisor (`accounts.google.com`), **audiencia = nuestro ID de cliente**, vencimiento, **nonce igual al emitido y sin usar**, `email_verified` verdadero, y `email` y `sub` presentes. **La identidad es el `sub`, no el correo.** Un mismo `sub` no puede estar en dos cuentas ni una cuenta tener dos Google (indices unicos en la base). El nonce se gasta al presentarlo, salga bien o mal (tambien si Google no responde): **ante cualquier fallo la pagina pide un nonce nuevo antes de reintentar.** El `sub` debe ser ASCII alfanumerico y el correo de Google no puede superar los 100 caracteres (el largo de `clientes.email`): si no, `401 google_token_invalido`. El **pase** debe viajar solo en el cuerpo de la peticion: nunca en la URL, en `localStorage` ni en los registros.
+
+**Errores de `POST /auth/google`:**
+
+| Estado | `codigo` | Cuando |
+| --- | --- | --- |
+| `400` | `datos_invalidos` | Falta `idToken` o `nonce` |
+| `401` | `google_token_invalido` | Firma, emisor, audiencia, vencimiento, correo sin verificar, sin `sub` o sin correo, nonce ausente, distinto o reutilizado; **y tambien una cuenta dada de baja o desactivada**. Una sola respuesta para todos los motivos: no revela que la cuenta existia |
+| `409` | `cuenta_existente` | Ver arriba |
+| `409` | `sin_acceso_web` | El correo es de un cliente creado en el local que nunca tuvo acceso web (no tiene contraseña que usar ni se puede recuperar). El mensaje dice que pida en el local que activen su acceso |
+| `413` | `solicitud_muy_grande` | Cuerpo de mas de 8 KB |
+| `429` | `demasiados_intentos` | Politica propia `IngresoGoogle` (`RateLimiting:IngresoGoogle`, 20 por minuto por IP; una IPv6 se agrupa por su bloque /64) para el nonce y el ingreso: no gasta el cupo del ingreso con contraseña. Cada intento con Google son dos peticiones |
+| `503` | `google_no_disponible` | Google no responde o tarda mas de 5 segundos (no bloquea a los demas) |
+| `503` | `google_no_configurado` | La API no tiene `Google:ClientId` |
+
+Ni el token, ni el nonce, ni el pase aparecen en los registros ni en las respuestas de error. Las dos rutas de Mi cuenta (`POST` y `DELETE /mi-cuenta/google`, mas arriba) responden `400 google_token_invalido` en vez de `401`, porque un `401` alli significaria «tu sesion vencio». **Una cuenta sin contraseña** crea una con el codigo de recuperacion que ya existe (`/auth/recuperar` con `tipo: "cliente"` y `/auth/restablecer`); las acciones delicadas (cambiar correo o contraseña, bajar sus datos, darse de baja) siguen pidiendo la contraseña actual. La bitacora registra `ingreso_google`, `vincular_google` y `desvincular_google` (entidad `cuenta`) con quien y cuando, sin el token ni el `sub`.
 
 ### Clientes, personal y materiales
 
@@ -424,7 +461,7 @@ Todo el personal cotiza, registra la respuesta del cliente, crea pedidos, los av
 | `GET /auditoria` | Gestion | Paginado con `desde`, `hasta`, `entidad`, `accion`, `idEmpleado`, `q` (id exacto). Filas `{ idAuditoria, fecha, usuario { tipo, id, nombre }, rol, entidad, entidadTexto, idEntidad, accion, accionTexto, detalle, ip }`. `detalle` es `{ campos: [...], valores?: { campo: { antes, despues } } }` para los cambios, u otro objeto para las acciones |
 | `GET /auditoria/consentimientos` | Gestion | Paginado con `tipo`, `desde`, `hasta`. Filas `{ titular { tipo, id, nombre }, tipo, version, acepta, fecha }` |
 | `PUT /mi-cuenta/preferencias` | Cliente | `{ avisosEstado, marketing, versionMarketing? }`. Devuelve la cuenta. `PUT /mi-cuenta/marketing` queda como alias |
-| `POST /mi-cuenta/datos` | Cliente | `{ password }` → archivo `mis-datos-letreros-herrera-AAAAMMDD.json`, `Cache-Control: no-store`. `400 datos_invalidos` (`errores.password`) |
+| `POST /mi-cuenta/datos` | Cliente | `{ password }` → archivo `mis-datos-letreros-herrera-AAAAMMDD.json`, `Cache-Control: no-store`. `400 datos_invalidos` (`errores.password`). Fase 14A: el archivo suma `ingresoConGoogle` (`{ proveedor, correo, fechaVinculacion, fechaUltimoIngreso }`, o nulo si no tiene Google vinculado), sin el identificador interno de Google |
 | `POST /mi-cuenta/baja` | Cliente | `{ password, confirmacion: "DAR DE BAJA" }` → `200 { comprobante: { numero, fecha } }`. Inhabilita la cuenta y conserva sus pedidos. Despues, su login responde `401` |
 
 **Correos al cliente:** `estado_solicitud` (cotizada, rechazada o aceptada), `estado_pedido` (en proceso, terminado, entregado o anulado) y `cotizacion_lista` son opcionales y llevan enlace de baja y las cabeceras `List-Unsubscribe` y `List-Unsubscribe-Post`. Los de cuenta (`verificacion_correo`, `recuperacion_cuenta`, `aviso_cambio_correo`, `baja_cuenta`) se envian siempre.
@@ -533,4 +570,5 @@ Son reglas que la API aplica hoy por decision tecnica, sin que las haya definido
 - Solo se pueden pedir productos activos.
 - El login facial es solo para `dueño` y `administrador`, con un solo equipo autorizado por persona (seccion 7).
 - Una cuenta web de cliente exige correo: el correo es el usuario para ingresar y para recuperar la contraseña. El RUT tambien es opcional en la cuenta (decision de la fase 6, en `docs/plan/desviaciones.md`).
+- Fase 14A: un correo que ya tiene cuenta con contraseña nunca se fusiona solo con un Google (`409 cuenta_existente`); vincular exige la contraseña actual y que el correo verificado de Google sea el de la cuenta. Quien nace con Google no tiene contraseña y el telefono es obligatorio al completar el registro (la base lo exige unico y no nulo).
 - Registrarse con un telefono o un RUT que ya estan en el taller da el mismo mensaje, sin decir cual de los dos coincide. El correo si se revela («Ya existe una cuenta con ese correo»).

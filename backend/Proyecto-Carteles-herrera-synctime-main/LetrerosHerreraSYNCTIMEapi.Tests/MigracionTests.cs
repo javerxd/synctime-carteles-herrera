@@ -254,6 +254,27 @@ public sealed class MigracionTests(ApiFixture api)
             Assert.DoesNotContain(prohibido, script, StringComparison.Ordinal);
     }
 
+    // Fase 14A: IngresoConGoogle solo agrega la tabla de identidades (con sus dos indices unicos y su CHECK); no toca nada existente.
+    [Fact]
+    public async Task IngresoConGoogle_SoloCreaLaTablaDeIdentidades()
+    {
+        var migraciones = await api.ConsultarAsync(db => Task.FromResult(db.Database.GetMigrations().ToList()));
+        var anterior = "20261120231956_ExportacionesDeReportes";
+        Assert.Equal("IngresoConGoogle", migraciones[migraciones.IndexOf(anterior) + 1][15..]);
+        var script = await api.ConsultarAsync(db => Task.FromResult(db.GetService<IMigrator>().GenerateScript(anterior, migraciones[migraciones.IndexOf(anterior) + 1])));
+
+        Assert.Contains("CREATE TABLE [identidades_externas]", script);
+        Assert.Contains("uq_identidades_externas_sub", script);
+        Assert.Contains("uq_identidades_externas_cliente", script);
+        Assert.Contains("ck_identidades_externas_proveedor", script);
+        Assert.DoesNotContain("DROP ", script);
+        Assert.DoesNotContain("ALTER TABLE [clientes]", script);
+        Assert.DoesNotContain("ALTER TABLE [auditoria]", script);
+        Assert.DoesNotContain("DELETE FROM", script);
+        // La columna del sub es binaria: «a» y «A» son identidades distintas.
+        Assert.Contains("COLLATE Latin1_General_BIN2", script);
+    }
+
     // Fase 12B: IndicadoresDashboard crea tres vistas e indices y reemplaza el trigger de la bitacora. No borra tablas, columnas
     // ni filas (solo reemplaza un indice por otro que lo cubre) y el trigger sigue rechazando todo salvo borrar la IP vieja.
     [Fact]
@@ -380,9 +401,9 @@ public sealed class MigracionTests(ApiFixture api)
     {
         var restricciones = await Valores("SELECT name AS Value FROM sys.check_constraints");
 
-        Assert.Equal(75, restricciones.Count);   // 69 + las 6 de trabajos_exportacion (fase 13A)
+        Assert.Equal(76, restricciones.Count);   // 69 + las 6 de trabajos_exportacion (fase 13A) + la del proveedor de identidades_externas (fase 14A)
         foreach (var nombre in new[] { "ck_trabajos_exportacion_reporte", "ck_trabajos_exportacion_formato", "ck_trabajos_exportacion_estado",
-            "ck_trabajos_exportacion_intentos", "ck_trabajos_exportacion_listo", "ck_trabajos_exportacion_fallido" })
+            "ck_trabajos_exportacion_intentos", "ck_trabajos_exportacion_listo", "ck_trabajos_exportacion_fallido", "ck_identidades_externas_proveedor" })
             Assert.Contains(nombre, restricciones);
         // Fase 12B: limites de medidas del producto y medidas fijas.
         foreach (var nombre in new[] { "ck_productos_medidas", "ck_producto_medidas_fijas" })
@@ -447,7 +468,8 @@ public sealed class MigracionTests(ApiFixture api)
         // Fase 7: los adjuntos y el historial de una solicitud se van con ella (sp_depurar_solicitudes_no_concretadas).
         Assert.Equal(
             ["fk_adjuntos_solicitud_solicitud", "fk_codigos_cuenta_cliente", "fk_codigos_cuenta_empleado", "fk_cot_mat_cotizacion", "fk_cotizaciones_solicitud",
-             "fk_producto_medidas_fijas_producto", "fk_producto_opciones_producto", "fk_sol_detalles_solicitud", "fk_solicitudes_historial_solicitud", "fk_tokens_renovacion_cliente", "fk_tokens_renovacion_empleado"],
+             // Fase 14A: la identidad de Google se va con su cuenta.
+             "fk_identidades_externas_cliente", "fk_producto_medidas_fijas_producto", "fk_producto_opciones_producto", "fk_sol_detalles_solicitud", "fk_solicitudes_historial_solicitud", "fk_tokens_renovacion_cliente", "fk_tokens_renovacion_empleado"],
             enCascada.Order());
     }
 

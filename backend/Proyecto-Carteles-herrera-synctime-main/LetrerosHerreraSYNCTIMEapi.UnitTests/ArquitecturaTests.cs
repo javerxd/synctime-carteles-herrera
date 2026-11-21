@@ -149,7 +149,9 @@ public class ArquitecturaTests
     private static readonly string[] TablasAuditadas =
     [
         "solicitudes", "solicitud_detalles", "cotizaciones", "pedidos", "pagos", "catalogo", "productos", "categorias", "materiales",
-        "clientes", "empleados", "destinatarios_avisos", "rostros_empleado", "horarios_atencion", "cartel_digital"
+        "clientes", "empleados", "destinatarios_avisos", "rostros_empleado", "horarios_atencion", "cartel_digital",
+        // Fase 14A: vincular y desvincular Google se registran solos; ninguna escritura a mano debe saltarse el interceptor.
+        "identidades_externas"
     ];
 
     private static IEnumerable<(string Ruta, string[] Lineas)> FuentesDeProduccion() =>

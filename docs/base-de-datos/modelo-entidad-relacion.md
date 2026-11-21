@@ -53,6 +53,7 @@ erDiagram
     empleados |o--o{ tokens_renovacion : "tiene sesiones"
     clientes |o--o{ codigos_cuenta : "recibe enlace o código"
     empleados |o--o{ codigos_cuenta : "recibe código de recuperación"
+    clientes |o--o| identidades_externas : "vincula su Google"
 
     empleados |o--o{ horarios_atencion : "modifica (fase 9)"
     empleados ||--o{ disponibilidad_empleados : "tiene sus franjas"
@@ -336,6 +337,15 @@ erDiagram
         datetimeoffset fecha_uso
         int intentos
     }
+    identidades_externas {
+        int id_identidad PK
+        int id_cliente FK
+        varchar proveedor "google"
+        varchar sub "único por proveedor"
+        nvarchar correo
+        datetimeoffset fecha_vinculacion
+        datetimeoffset fecha_ultimo_ingreso
+    }
     correos_salientes {
         bigint id_correo PK
         varchar tipo
@@ -381,7 +391,7 @@ erDiagram
 
 `adjuntos_solicitud` guarda los logos y diseños que acompañan a una solicitud. Mientras no tiene solicitud es un borrador del cliente, y se vincula al enviarla. Sus archivos son privados (carpeta `Adjuntos:Carpeta`, fuera del repositorio). `solicitudes_historial` guarda cada cambio de estado de una solicitud, con quién lo hizo: un empleado, el cliente o, si ninguno, el sistema.
 
-`tokens_renovacion` y `codigos_cuenta` son de la cuenta: cada fila pertenece a un cliente o a un empleado, nunca a los dos, y se borran con su titular. `clientes.fecha_verificacion_correo` dice si el correo del cliente está confirmado.
+`tokens_renovacion` y `codigos_cuenta` son de la cuenta: cada fila pertenece a un cliente o a un empleado, nunca a los dos, y se borran con su titular. `clientes.fecha_verificacion_correo` dice si el correo del cliente está confirmado. `identidades_externas` (fase 14A) guarda la cuenta de Google vinculada a un cliente: a lo más una por cliente (`uq_identidades_externas_cliente`) y un mismo `sub` de Google en una sola cuenta (`uq_identidades_externas_sub`); se borra con su cliente. Una cuenta creada con Google no tiene contraseña (`clientes.password_hash` nulo). El personal no tiene identidades externas.
 
 `pedidos_historial` guarda cada cambio de estado de un pedido, con quién lo hizo (fase 8). Una cotización o un pedido eliminados no se borran: se marcan con `eliminado_logico`, y el pedido eliminado sigue ocupando su cotización (`uq_pedidos_cotizacion`). Un abono anulado tampoco se borra: queda en `pagos` con `anulado = 1`.
 

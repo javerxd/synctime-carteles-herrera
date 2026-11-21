@@ -34,6 +34,7 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<ConsultaContacto> ConsultasContacto { get; set; } = null!;
     public DbSet<TokenRenovacion> TokensRenovacion { get; set; } = null!;
     public DbSet<CodigoCuenta> CodigosCuenta { get; set; } = null!;
+    public DbSet<IdentidadExterna> IdentidadesExternas { get; set; } = null!;
     public DbSet<AdjuntoSolicitud> AdjuntosSolicitud { get; set; } = null!;
     public DbSet<SolicitudHistorial> SolicitudesHistorial { get; set; } = null!;
     public DbSet<PedidoHistorial> PedidosHistorial { get; set; } = null!;
@@ -937,6 +938,27 @@ public class LetrerosHerreradbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_codigos_cuenta_cliente");
             entity.HasOne(e => e.Empleado).WithMany().HasForeignKey(e => e.IdEmpleado)
                 .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_codigos_cuenta_empleado");
+        });
+
+        // ── identidades_externas (fase 14A) ──
+        modelBuilder.Entity<IdentidadExterna>(entity =>
+        {
+            entity.ToTable("identidades_externas", t => t.HasCheckConstraint("ck_identidades_externas_proveedor", "proveedor IN ('google')"));
+            entity.HasKey(e => e.IdIdentidad).HasName("pk_identidades_externas");
+            entity.Property(e => e.IdIdentidad).HasColumnName("id_identidad");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.Proveedor).HasColumnName("proveedor").HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.Sub).HasColumnName("sub").HasMaxLength(255).IsUnicode(false).UseCollation("Latin1_General_BIN2");
+            entity.Property(e => e.Correo).HasColumnName("correo").HasMaxLength(254);
+            entity.Property(e => e.FechaVinculacion).HasColumnName("fecha_vinculacion").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaUltimoIngreso).HasColumnName("fecha_ultimo_ingreso").HasColumnType("datetimeoffset(0)");
+
+            // Un mismo Google no puede estar en dos cuentas, ni una cuenta tener dos Google (por proveedor).
+            entity.HasIndex(e => new { e.Proveedor, e.Sub }).IsUnique().HasDatabaseName("uq_identidades_externas_sub");
+            entity.HasIndex(e => new { e.IdCliente, e.Proveedor }).IsUnique().HasDatabaseName("uq_identidades_externas_cliente");
+
+            entity.HasOne(e => e.Cliente).WithMany(c => c.IdentidadesExternas).HasForeignKey(e => e.IdCliente)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_identidades_externas_cliente");
         });
 
         // ── adjuntos_solicitud (fase 7) ──

@@ -36,4 +36,8 @@ public class Cliente
 
     [JsonIgnore]
     public virtual ICollection<Solicitud> Solicitudes { get; set; } = new List<Solicitud>();
+
+    // Fase 14A (RFS03): sus cuentas de Google vinculadas (a lo mas una). Una cuenta creada con Google no tiene contraseña.
+    [JsonIgnore]
+    public virtual ICollection<IdentidadExterna> IdentidadesExternas { get; set; } = new List<IdentidadExterna>();
 }

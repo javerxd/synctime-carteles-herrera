@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 21-11-2026 (fases 13A y 13B aprobadas; plan de la fase 14 aprobado).
+Última actualización: 21-11-2026 (fases 13A y 13B aprobadas; plan de la fase 14 aprobado; fase 14A construida, en revisión).
 
 ## Hecho
 
@@ -28,6 +28,7 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 - **Fase 12D — Paneles, cuentas, validaciones y catálogo editable** · rama `fase-12d-paneles-y-cuentas` · informe: `informes/fase-12d.md` · aprobada el 20-11-2026 · sin migración ni cambios de permisos; endpoint nuevo `PUT /productos/{id}/medidas-y-opciones`; incluye el ajuste del zoom de la vitrina
 
 - **Fase 13A — Backend de reportes y exportaciones** · rama `fase-13a-reportes-backend` · informe: `informes/fase-13a.md` · aprobada el 21-11-2026 · margen = ingresos − materiales − otros costos · migración `ExportacionesDeReportes` aplicada solo en la demo
+- **Fase 14A — Backend del ingreso con Google** · rama `fase-14a-google-backend` (nace de `fase-13b-reportes-frontend`) · informe: `informes/fase-14a.md` · aprobada el 21-11-2026 · migración `IngresoConGoogle` (tabla `identidades_externas`) aplicada solo en la demo · dependencia nueva `Google.Apis.Auth` 1.78.0 (Apache-2.0)
 - **Fase 13B — Frontend de reportes y exportaciones** · rama `fase-13b-reportes-frontend` · informe: `informes/fase-13b.md` · aprobada el 21-11-2026 · margen = ingresos − materiales − otros costos, con la columna «Otros costos» en el detalle · impresión de reportes en A4 apaisado
 
 ## En revisión (esperando el visto bueno del usuario)
@@ -37,11 +38,11 @@ Nada por ahora.
 
 ## Plan aprobado, construcción sin iniciar
 
-- **Fase 14 — Ingreso con Google** · ramas `fase-14a-google-backend` y `fase-14b-google-frontend` · plan `fase-14-plan.md` · aprobado el 21-11-2026 · necesita del usuario: configurar el ID de cliente en Google Cloud (orígenes autorizados) y probar el ingreso real
+Nada por ahora.
 
 ## En curso
 
-Nada por ahora.
+- **Fase 14B — Frontend del ingreso con Google** · rama `fase-14b-google-frontend` (nace de la 14A) · plan `fase-14-plan.md` · iniciada el 21-11-2026, con la 14A aprobada · el usuario pidió el botón de Google **arriba** del campo de correo, con un separador «— o con tu correo —» debajo · el ID de cliente ya está en los User Secrets de la API y en `.env.local` del frontend
 
 ## Por hacer
 

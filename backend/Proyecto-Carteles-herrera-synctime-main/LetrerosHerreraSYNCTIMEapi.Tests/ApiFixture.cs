@@ -51,6 +51,10 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public IServiceProvider Services => factory.Services;
 
+    // Fase 14A: el ID de cliente de Google de las pruebas es inventado, y los tokens los fabrica el verificador simulado.
+    public const string GoogleClientId = "pruebas-synctime.apps.googleusercontent.com";
+    public VerificadorGoogleSimulado Google { get; } = new();
+
     public async Task InitializeAsync()
     {
         var servidor = Environment.GetEnvironmentVariable("TEST_SQL_SERVER") ?? ServidorPredeterminado;
@@ -108,7 +112,12 @@ public sealed class ApiFixture : IAsyncLifetime
             ["Reportes__Carpeta"] = CarpetaExportaciones,
             ["Reportes__ColaActiva"] = "false",
             ["RateLimiting__Exportaciones"] = "100000",
-            ["RateLimiting__Reportes"] = "100000"
+            ["RateLimiting__Reportes"] = "100000",
+            // Fase 14A: un ID de cliente INVENTADO (no es el real): el verificador simulado nunca llama a Google. El limite de espera
+            // baja a 1 segundo para que las pruebas de «Google lento» no tarden; el tope real es de 5 (OpcionesGoogle).
+            ["Google__ClientId"] = GoogleClientId,
+            ["RateLimiting__IngresoGoogle"] = "100000",
+            ["Google__SegundosLimite"] = "1"
         };
 
         // Program lee la configuracion antes de que WebApplicationFactory pueda cambiarla,
@@ -117,7 +126,12 @@ public sealed class ApiFixture : IAsyncLifetime
             Environment.SetEnvironmentVariable(clave, valor);
 
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
-            host.ConfigureServices(services => services.AddTransient<IStartupFilter, IpDePrueba>()));
+            host.ConfigureServices(services =>
+            {
+                services.AddTransient<IStartupFilter, IpDePrueba>();
+                // Fase 14A: la API de las pruebas verifica los tokens de Google con este simulado, nunca con Google.
+                services.AddSingleton<Negocio.IngresoGoogle.IVerificadorGoogle>(Google);
+            }));
         _ = factory.Server;
 
         var conexion = await ConsultarAsync(db => Task.FromResult(db.Database.GetConnectionString()));

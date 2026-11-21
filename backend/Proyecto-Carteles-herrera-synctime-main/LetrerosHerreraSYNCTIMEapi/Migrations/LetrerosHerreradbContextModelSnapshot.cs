@@ -1581,6 +1581,65 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.IdentidadExterna", b =>
+                {
+                    b.Property<int>("IdIdentidad")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_identidad");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdIdentidad"));
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)")
+                        .HasColumnName("correo");
+
+                    b.Property<DateTimeOffset?>("FechaUltimoIngreso")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_ultimo_ingreso");
+
+                    b.Property<DateTimeOffset>("FechaVinculacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_vinculacion");
+
+                    b.Property<int>("IdCliente")
+                        .HasColumnType("int")
+                        .HasColumnName("id_cliente");
+
+                    b.Property<string>("Proveedor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("proveedor");
+
+                    b.Property<string>("Sub")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("sub")
+                        .UseCollation("Latin1_General_BIN2");
+
+                    b.HasKey("IdIdentidad")
+                        .HasName("pk_identidades_externas");
+
+                    b.HasIndex("IdCliente", "Proveedor")
+                        .IsUnique()
+                        .HasDatabaseName("uq_identidades_externas_cliente");
+
+                    b.HasIndex("Proveedor", "Sub")
+                        .IsUnique()
+                        .HasDatabaseName("uq_identidades_externas_sub");
+
+                    b.ToTable("identidades_externas", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_identidades_externas_proveedor", "proveedor IN ('google')");
+                        });
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Imagen", b =>
                 {
                     b.Property<int>("IdImagen")
@@ -4088,6 +4147,18 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasConstraintName("fk_horarios_empleado_modifica");
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.IdentidadExterna", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Cliente", "Cliente")
+                        .WithMany("IdentidadesExternas")
+                        .HasForeignKey("IdCliente")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_identidades_externas_cliente");
+
+                    b.Navigation("Cliente");
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Imagen", b =>
                 {
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoSube")
@@ -4361,6 +4432,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Cliente", b =>
                 {
+                    b.Navigation("IdentidadesExternas");
+
                     b.Navigation("Solicitudes");
                 });
 

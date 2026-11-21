@@ -32,7 +32,9 @@ public static class ReglasAuditoria
     public static readonly IReadOnlySet<string> Sensibles = C(
         "PasswordHash", "TokenHash", "TokenEquipoHash", "Hash", "DescriptorCifrado", "DescriptorFrente", "DescriptorIzquierda", "DescriptorDerecha",
         "Email", "Correo", "Destinatarios", "ResponderA", "Asunto", "CuerpoHtml", "CuerpoTexto", "EnlaceBaja", "HuellaIp", "Telefono", "Rut",
-        "Direccion", "DireccionInstalacion");
+        "Direccion", "DireccionInstalacion",
+        // Fase 14A: el identificador de la cuenta de Google es un dato de la persona; no se muestra.
+        "Sub");
 
     public static readonly IReadOnlyDictionary<Type, EntidadAuditada> Entidades = new Dictionary<Type, EntidadAuditada>
     {
@@ -55,6 +57,9 @@ public static class ReglasAuditoria
         [typeof(Material)] = new("material", "Material", C("Activo", "CostoUnitarioAprox", "UnidadMedida")),
         [typeof(Cliente)] = new("cliente", "Cliente", C("Activo", "RecibeAvisosEstado", "InhabilitadoEn", "FechaVerificacionCorreo")),
         [typeof(Empleado)] = new("empleado", "Empleado", C("Activo", "Rol")),
+        // Fase 14A: vincular y desvincular Google quedan en la bitacora. El ultimo ingreso cambia en cada ingreso (y ese ya queda
+        // como «ingreso_google»): no es un cambio del negocio.
+        [typeof(IdentidadExterna)] = new("identidad_externa", "Cuenta de Google vinculada", C("IdCliente", "Proveedor"), Ignorados: C("FechaUltimoIngreso")),
         [typeof(DestinatarioAviso)] = new("destinatario_aviso", "Destino de avisos", C("Estado", "RecibeEnLinea", "RecibePresenciales", "FechaConfirmacion", "FechaRetiro")),
         // Los contadores del ingreso con rostro cambian en cada intento: no son un cambio del negocio.
         [typeof(RostroEmpleado)] = new("rostro_empleado", "Rostro", C("IdEmpleado", "FechaRevocacion", "VersionConsentimiento", "FormatoMuestras", "FechaAutorizacionEquipo"),
@@ -102,7 +107,10 @@ public static class ReglasAuditoria
         [AccionesAuditoria.BajaCorreo] = "Se dio de baja de correos",
         [AccionesAuditoria.BajaCuenta] = "Dio de baja su cuenta",
         [AccionesAuditoria.DescargaDatos] = "Descargó sus datos",
-        [AccionesAuditoria.ExportarReporte] = "Exportó un reporte"
+        [AccionesAuditoria.ExportarReporte] = "Exportó un reporte",
+        [AccionesAuditoria.IngresoGoogle] = "Ingresó con Google",
+        [AccionesAuditoria.VincularGoogle] = "Vinculó su cuenta de Google",
+        [AccionesAuditoria.DesvincularGoogle] = "Desvinculó su cuenta de Google"
     };
 
     public static string Camello(string propiedad) => propiedad.Length == 0 ? propiedad : char.ToLowerInvariant(propiedad[0]) + propiedad[1..];

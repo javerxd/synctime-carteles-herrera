@@ -151,6 +151,15 @@ builder.Services.AddScoped<ServicioReportes>();
 builder.Services.AddScoped<ServicioExportaciones>();
 builder.Services.AddSingleton<TrabajadorExportaciones>();
 builder.Services.AddHostedService<ProcesadorExportaciones>();
+// Fase 14A: ingreso con Google (token de identidad; sin clave secreta de cliente). Google:ClientId llega por User Secrets o por la
+// variable de entorno Google__ClientId, nunca desde un archivo del repositorio. Sin el, el ingreso responde 503 y el frontend no muestra el boton.
+builder.Services.AddOptions<LetrerosHerreraSYNCTIMEapi.Infraestructura.Google.OpcionesGoogle>().Bind(builder.Configuration.GetSection(LetrerosHerreraSYNCTIMEapi.Infraestructura.Google.OpcionesGoogle.Seccion));
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Negocio.IngresoGoogle.IVerificadorGoogle, LetrerosHerreraSYNCTIMEapi.Infraestructura.Google.VerificadorGoogleReal>();
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Negocio.IngresoGoogle.NoncesGoogle>(sp => new(sp.GetRequiredService<TimeProvider>()));
+// El pase del registro pendiente se firma con una clave derivada de Jwt:Key (otro proposito, otra clave: no sirve para falsificar tokens de sesion).
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Negocio.IngresoGoogle.PaseGoogle>(sp => new(
+    System.Security.Cryptography.HMACSHA256.HashData(Encoding.UTF8.GetBytes(jwtKey), Encoding.UTF8.GetBytes("synctime:pase-google:v1")), sp.GetRequiredService<TimeProvider>()));
+builder.Services.AddScoped<ServicioGoogle>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
 builder.Services.AddProblemDetails(options =>
@@ -206,6 +215,24 @@ static RateLimitPartition<string> VentanaHora(string clave, int limite) =>
 
 static string Ip(HttpContext context) => $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "sin-ip"}";
 
+// Fase 14A: una IPv6 de casa u oficina trae un bloque /64 entero: se agrupa por ese bloque, o quien cambia de direccion en cada peticion
+// se saltaria el limite.
+static string IpAgrupada(HttpContext context)
+{
+    var ip = context.Connection.RemoteIpAddress;
+    if (ip is null)
+        return "ip:sin-ip";
+    if (ip.IsIPv4MappedToIPv6)
+        return $"ip:{ip.MapToIPv4()}";
+    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+    {
+        var bytes = ip.GetAddressBytes();
+        Array.Clear(bytes, 8, 8);
+        return $"ip6:{new System.Net.IPAddress(bytes)}";
+    }
+    return $"ip:{ip}";
+}
+
 // Con sesion se limita por usuario, para que quienes comparten la IP del taller no se bloqueen entre si.
 static string UsuarioOIp(HttpContext context)
 {
@@ -222,6 +249,8 @@ var limiteLoginFacial = builder.Configuration.GetValue("RateLimiting:LoginFacial
 var limiteDesafioFacial = builder.Configuration.GetValue("RateLimiting:DesafioFacial", 10);
 var limiteReautenticacion = builder.Configuration.GetValue("RateLimiting:Reautenticacion", limiteLogin);
 var limitePublico = builder.Configuration.GetValue("RateLimiting:Publico", 10);
+// Fase 14A: cada intento con Google son dos peticiones (el nonce y el ingreso): 20 por minuto, con contadores aparte del ingreso con contraseña.
+var limiteIngresoGoogle = builder.Configuration.GetValue("RateLimiting:IngresoGoogle", limiteLogin * 2);
 var limiteSalud = builder.Configuration.GetValue("RateLimiting:Salud", 60);
 // Por hora, no por minuto.
 var limiteContacto = builder.Configuration.GetValue("RateLimiting:ContactoPorHora", 5);
@@ -245,6 +274,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("DesafioFacial", context => Ventana(Ip(context), limiteDesafioFacial));
     options.AddPolicy("Reautenticacion", context => Ventana(Ip(context), limiteReautenticacion));
     options.AddPolicy("Publico", context => Ventana(Ip(context), limitePublico));
+    options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.GoogleApi.PoliticaDeLimite, context => Ventana(IpAgrupada(context), limiteIngresoGoogle));
     options.AddPolicy("Contacto", context => VentanaHora(Ip(context), limiteContacto));
     options.AddPolicy("Cookies", context => VentanaHora(Ip(context), limiteCookies));
     // Holgado para que un orquestador pueda sondear cada pocos segundos, pero no ilimitado.
@@ -353,6 +383,7 @@ app.MapSalud();
 
 // Registro de rutas por area del negocio, al estilo de GamesApi.
 app.MapAuthApi();
+app.MapGoogleApi();
 app.MapRostroApi();
 app.MapCatalogoApi();
 app.MapClienteApi();

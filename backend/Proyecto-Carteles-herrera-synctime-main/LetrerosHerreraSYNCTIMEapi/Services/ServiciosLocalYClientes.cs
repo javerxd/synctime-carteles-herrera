@@ -210,7 +210,9 @@ public sealed class ServicioFichaClientes(LetrerosHerreradbContext db, ServicioS
 
     public Task<FichaCliente?> ObtenerAsync(int id, CancellationToken ct) =>
         db.Clientes.AsNoTracking().Where(c => c.IdCliente == id)
-            .Select(c => new FichaCliente(c.IdCliente, c.Rut, c.Nombre, c.Apellido, c.Telefono, c.Email, c.Direccion, c.Registrado,
+            .Select(c => new FichaCliente(c.IdCliente, c.Rut, c.Nombre, c.Apellido, c.Telefono, c.Email, c.Direccion,
+                // Fase 14A: quien nacio con Google tampoco tiene contraseña, pero si tiene cuenta web.
+                c.Registrado || c.IdentidadesExternas.Any(),
                 c.FechaVerificacionCorreo != null, c.Activo, c.FechaRegistro, c.RowVersion, c.InhabilitadoEn != null))
             .FirstOrDefaultAsync(ct);
 
@@ -251,7 +253,9 @@ public sealed class ServicioFichaClientes(LetrerosHerreradbContext db, ServicioS
             return new ResultadoGestion<FichaCliente>.Invalido(erroresDatos, "Revisa los datos del cliente.");
 
         var correo = string.IsNullOrWhiteSpace(entrada.Email) ? null : ServicioCodigosCuenta.NormalizarCorreo(entrada.Email);
-        if (correo is null && existente.PasswordHash is not null)
+        // Fase 14A: «cuenta web» es tener contraseña o un Google vinculado (quien nacio con Google no tiene contraseña).
+        var tieneAccesoWeb = existente.PasswordHash is not null || await db.IdentidadesExternas.AnyAsync(i => i.IdCliente == id, ct);
+        if (correo is null && tieneAccesoWeb)
             return new ResultadoGestion<FichaCliente>.Invalido(new Dictionary<string, string[]> { ["correo"] = ["Un cliente con cuenta web necesita un correo."] },
                 "Un cliente con cuenta web necesita un correo.");
         if (correo is not null)
@@ -287,11 +291,11 @@ public sealed class ServicioFichaClientes(LetrerosHerreradbContext db, ServicioS
             {
                 return new ResultadoGestion<FichaCliente>.VersionObsoleta();
             }
-            if (seDesactiva || (cambioCorreo && existente.PasswordHash is not null))
+            if (seDesactiva || (cambioCorreo && tieneAccesoWeb))
                 await sesiones.RevocarTodasAsync(TitularSesion.DeCliente(id), ct);
             await transaccion.CommitAsync(CancellationToken.None);
         }
-        if (cambioCorreo && existente.PasswordHash is not null && existente.Activo)
+        if (cambioCorreo && tieneAccesoWeb && existente.Activo)
         {
             await codigos.AnularPendientesAsync(TitularSesion.DeCliente(id), ct);
             await codigos.EnviarVerificacionAsync(existente, ct);
@@ -323,7 +327,9 @@ public sealed class ServicioFichaClientes(LetrerosHerreradbContext db, ServicioS
 
         var cambioCorreo = !string.Equals(cliente.Email, correo, StringComparison.OrdinalIgnoreCase);
         // Revision de seguridad: si la cuenta ya tenia contraseña, su correo anterior se entera del cambio.
-        var correoAnterior = cliente.PasswordHash is not null && Reglas.EsCorreo(cliente.Email) ? cliente.Email : null;
+        // Fase 14A: tambien si la cuenta es de Google (sin contraseña): su titular se entera de que el acceso se reasigno.
+        var tieneAccesoWeb = cliente.PasswordHash is not null || await db.IdentidadesExternas.AnyAsync(i => i.IdCliente == id, ct);
+        var correoAnterior = tieneAccesoWeb && Reglas.EsCorreo(cliente.Email) ? cliente.Email : null;
         cliente.Email = correo;
         if (cambioCorreo)
             cliente.FechaVerificacionCorreo = null;

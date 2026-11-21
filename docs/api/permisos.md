@@ -18,6 +18,8 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Enviar una solicitud en línea (`POST /mis/solicitudes`). El cliente debe tener el correo confirmado (`403` si no) | No | Sí | No | No | No |
 | Registrarse como cliente, recuperar la contraseña y confirmar el correo (`/auth/registro-cliente`, `/auth/recuperar`, `/auth/restablecer`, `/auth/verificar-correo`) | Sí | — | — | — | — |
 | Ingresar, renovar la sesión y cerrarla (`/auth/login`, `/auth/login-cliente`, `/auth/renovar`, `/auth/salir`) | Sí | Sí | Sí | Sí | Sí |
+| Ingresar o registrarse con Google, solo como cliente (`/auth/google/nonce`, `/auth/google`, `/auth/google/completar`). El personal no entra por Google (RFU05) | Sí | — | — | — | — |
+| Vincular y desvincular su Google (`/mi-cuenta/google`). Piden la contraseña actual | No | Sí | No | No | No |
 | Reenviar el enlace para confirmar el correo (`/auth/reenviar-verificacion`) | No | Sí | No | No | No |
 | Ver y corregir su cuenta, cambiar su correo, su contraseña y su marketing (`/mi-cuenta`) | No | Sí | No | No | No |
 | Ver sus propias solicitudes y pedidos (`/mis/…`) | No | Sí | No | No | No |

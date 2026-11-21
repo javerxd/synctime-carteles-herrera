@@ -77,6 +77,33 @@
         "x-acceso": "publico"
       }
     },
+    "/api/v1/auth/google/nonce": {
+      "get": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Entrega el nonce de un solo uso (vence a los 5 minutos) que el navegador pasa a Google para ligar el token a este intento de ingreso",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/google": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Ingreso del cliente con el token de identidad de Google: abre la sesión si su Google ya está vinculado; responde 409 cuenta_existente si el correo ya tiene cuenta con contraseña (nunca se fusiona sola); o entrega un pase de registro pendiente si el correo es nuevo",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/google/completar": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Completa el registro con el pase de Google: crea la cuenta (correo verificado, sin contraseña), su identidad y los consentimientos en una sola transacción, y abre la sesión",
+        "x-acceso": "publico"
+      }
+    },
     "/api/v1/auth/login-facial": {
       "post": {
         "tags": [
@@ -673,6 +700,22 @@
           "Mi cuenta"
         ],
         "summary": "Cambia la contraseña con la actual, cierra las demás sesiones y abre una nueva",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mi-cuenta/google": {
+      "post": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Vincula su Google a la cuenta: pide la contraseña actual y exige que el correo verificado de Google sea el de la cuenta",
+        "x-acceso": "cliente"
+      },
+      "delete": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Desvincula su Google con la contraseña actual (cuerpo JSON); no se puede si la cuenta no tiene contraseña",
         "x-acceso": "cliente"
       }
     },
