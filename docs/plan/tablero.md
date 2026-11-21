@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 21-11-2026 (fases 13A y 13B aprobadas; plan de la fase 14 aprobado; fase 14A construida, en revisión).
+Última actualización: 21-11-2026 (fases 13A, 13B y 14A aprobadas; fase 14B construida, en revisión: falta la prueba real con Google).
 
 ## Hecho
 
@@ -33,16 +33,16 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
-Nada por ahora.
+- **Fase 14B — Frontend del ingreso con Google** · rama `fase-14b-google-frontend` (nace de la 14A, commit `220f42e`) · informe: `informes/fase-14b.md` · construida el 21-11-2026 · botón «Continuar con Google» de dos clics **arriba** del correo, con el separador «o con tu correo» (cambio pedido por el usuario) · «Completa tu registro» (`/cuenta/google/completar`) y «Ingreso con Google» en Mi cuenta · política de contenido ampliada solo con las rutas `/gsi/` de Google · sin migración ni dependencias nuevas · **falta la prueba real con la cuenta de Google del usuario** (y las acciones suyas en Google Cloud)
 
 
 ## Plan aprobado, construcción sin iniciar
 
-Nada por ahora.
+- **Fase 14C — Ingreso con Google para el personal** · plan `fase-14c-plan.md` · **propuesto el 21-11-2026, esperando la aprobación del usuario** (todavía no está aprobado) · pedido del usuario: los empleados también entran con Google; vínculo desde Mi perfil con la contraseña actual, los cuatro roles, fase aparte · cambia la decisión 7 del plan de la 14 y el requisito RFU05
 
 ## En curso
 
-- **Fase 14B — Frontend del ingreso con Google** · rama `fase-14b-google-frontend` (nace de la 14A) · plan `fase-14-plan.md` · iniciada el 21-11-2026, con la 14A aprobada · el usuario pidió el botón de Google **arriba** del campo de correo, con un separador «— o con tu correo —» debajo · el ID de cliente ya está en los User Secrets de la API y en `.env.local` del frontend
+Nada por ahora.
 
 ## Por hacer
 

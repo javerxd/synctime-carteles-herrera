@@ -3,7 +3,7 @@ import { defineConfig, loadEnv } from 'vite'
 
 // En desarrollo el CSP de index.html admite localhost (servidor de Vite y su recarga en vivo). El build
 // de producción lo reduce a 'self' y, si la API vive en otro origen (VITE_API_URL), a ese origen.
-function cspDeProduccion(urlApi) {
+export function cspDeProduccion(urlApi) {
   let origenApi = ''
   try {
     origenApi = urlApi ? ` ${new URL(urlApi).origin}` : ''
@@ -13,7 +13,8 @@ function cspDeProduccion(urlApi) {
   return {
     name: 'csp-de-produccion',
     apply: 'build',
-    transformIndexHtml: (html) => html.replace(/connect-src [^;"]*/, `connect-src 'self'${origenApi}`),
+    // Fase 14B: la ruta de Google (ingreso con Google) se conserva; solo se quitan los orígenes de desarrollo.
+    transformIndexHtml: (html) => html.replace(/connect-src [^;"]*/, `connect-src 'self'${origenApi} https://accounts.google.com/gsi/`),
   }
 }
 

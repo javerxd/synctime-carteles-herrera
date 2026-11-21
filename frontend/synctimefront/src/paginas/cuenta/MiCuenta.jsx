@@ -9,6 +9,7 @@ import { useSesion } from '../../sesion/sesion';
 import { useConsulta } from '../../utilidades/useConsulta';
 import { errorCorreo, LIMITES, telefonoLegible, validarDatos, validarNuevaPassword } from './reglasCuenta';
 import { CorreosQueRecibo } from './CorreosQueRecibo';
+import { IngresoConGoogle } from './IngresoConGoogle';
 import { MisDatos } from './MisDatos';
 import { useFormulario } from './useFormulario';
 import estilos from './Cuenta.module.css';
@@ -303,8 +304,15 @@ export default function MiCuenta() {
         <>
           {!datosCuenta.correoVerificado && <CorreoSinConfirmar correo={datosCuenta.correo} />}
           <FormularioDatos datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
-          <FormularioCorreo datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
-          <FormularioPassword />
+          {/* Una cuenta creada con Google no tiene contraseña: cambiar el correo o la contraseña piden la actual y no podrían
+              funcionar. «Ingreso con Google» explica cómo crearla (fase 14B). */}
+          {datosCuenta.tieneContrasena !== false && (
+            <>
+              <FormularioCorreo datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
+              <FormularioPassword />
+            </>
+          )}
+          <IngresoConGoogle datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
           <CorreosQueRecibo datosCuenta={datosCuenta} alGuardar={guardarCuenta} />
           <MisDatos />
         </>

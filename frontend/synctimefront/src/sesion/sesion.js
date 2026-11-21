@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import authService, { COOKIE_CSRF } from '../api/authService';
 import { configurarClienteApi, ErrorApi, leerCookie } from '../api/cliente';
+import { google } from '../api/google';
+import { paseGoogle } from '../google/pase';
 
 // Sesión del usuario: personal (empleado) o cliente (fase 6, RNFP06-08).
 // - El token de acceso (JWT de 15 minutos) vive SOLO en la memoria de este módulo: nunca en
@@ -157,6 +159,8 @@ function cerrarLocal(motivo = null) {
   renovacionEnCurso = null;
   clearTimeout(temporizador);
   temporizador = null;
+  // Un pase de registro con Google pendiente no sobrevive a un cierre de sesión (equipos compartidos).
+  paseGoogle.limpiar();
   marcar(false);
   publicar({ usuario: null, comprobando: false, falloComprobacion: false, motivoCierre: motivo });
 }
@@ -286,6 +290,30 @@ async function registrarCliente(datos) {
   aplicarIngreso(await authService.registrarCliente(datos));
 }
 
+/**
+ * Ingreso con Google (fase 14B): POST /auth/google. Devuelve { estado: 'sesion' } si se abrió la sesión (la identidad ya
+ * estaba vinculada) o { estado: 'registro_pendiente' } si el correo es nuevo: el pase queda SOLO en memoria (paseGoogle)
+ * y sigue la pantalla «Completa tu registro». Un 409 cuenta_existente llega como ErrorApi.
+ */
+async function ingresarConGoogle(idToken, nonce) {
+  const respuesta = await google.ingresar(idToken, nonce);
+  if (respuesta?.estado === 'registro_pendiente') {
+    paseGoogle.guardar(respuesta);
+    return { estado: 'registro_pendiente' };
+  }
+  if (!esSesionValida(respuesta)) throw new ErrorApi({ estado: 0, codigo: 'respuesta_invalida', mensaje: 'La respuesta del servidor no es válida. Inténtalo de nuevo.' });
+  aplicarIngreso(respuesta);
+  return { estado: 'sesion' };
+}
+
+/** Crea la cuenta con Google (POST /auth/google/completar, 201) y deja la sesión iniciada. */
+async function completarRegistroGoogle(datos) {
+  const respuesta = await google.completar(datos);
+  if (!esSesionValida(respuesta)) throw new ErrorApi({ estado: 0, codigo: 'respuesta_invalida', mensaje: 'La respuesta del servidor no es válida. Inténtalo de nuevo.' });
+  paseGoogle.limpiar();
+  aplicarIngreso(respuesta);
+}
+
 export const MENSAJE_SALIDA_FALLIDA = 'No pudimos cerrar tu sesión en el servidor. Vuelve a intentarlo.';
 
 /**
@@ -341,6 +369,8 @@ export function useSesion() {
     ingresarPersonalConRostro,
     ingresarCliente,
     registrarCliente,
+    ingresarConGoogle,
+    completarRegistroGoogle,
     salir,
     actualizarUsuario,
     actualizarToken,

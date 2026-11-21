@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Aviso, Boton, Campo, Casilla, Enlace, Tarjeta } from '../../componentes/ui';
+import { Aviso, Boton, Campo, Enlace, Tarjeta } from '../../componentes/ui';
 import { publico } from '../../api/publico';
+import { IngresoGoogle } from '../../google/IngresoGoogle';
 import { useSesion } from '../../sesion/sesion';
 import { useConsulta } from '../../utilidades/useConsulta';
+import { Consentimientos } from './Consentimientos';
 import { LIMITES, ORDEN_REGISTRO, validarRegistro } from './reglasCuenta';
 import { useFormulario } from './useFormulario';
 import estilos from './Cuenta.module.css';
@@ -26,7 +28,7 @@ export default function Registro() {
   const ubicacion = useLocation();
   const documentos = useConsulta('documentos-legales', publico.documentosLegales);
   const formulario = useFormulario({ inicial: VACIO, validar: validarRegistro, orden: ORDEN_REGISTRO });
-  const { datos, visibles, refFormulario, cambiar, tocar, propiedades } = formulario;
+  const { datos, refFormulario, propiedades } = formulario;
   const [estado, setEstado] = useState({ enviando: false, error: null });
   const refResultado = useRef(null);
 
@@ -96,6 +98,9 @@ export default function Registro() {
           Con tu cuenta sigues tus pedidos y cotizaciones desde el celular. Los campos sin la marca «Obligatorio» son opcionales.
         </p>
 
+        {/* Fase 14B: el registro con Google va arriba del formulario, con su separador (solo si hay ID de cliente de Google). */}
+        <IngresoGoogle destino="/cuenta" />
+
         <form ref={refFormulario} className={estilos.formulario} onSubmit={enviar} noValidate>
           <div ref={refResultado} tabIndex={-1} className={estilos.resultado}>
             {estado.error && <Aviso tono="peligro" titulo={estado.error} />}
@@ -114,29 +119,7 @@ export default function Registro() {
           <Campo etiqueta="Contraseña" requerido type="password" maxLength={LIMITES.passwordMaxima} autoComplete="new-password"
             ayuda={`Entre ${LIMITES.passwordMinima} y ${LIMITES.passwordMaxima} caracteres.`} {...texto('password')} />
 
-          <fieldset className={estilos.consentimientos} disabled={deshabilitado}>
-            <legend>Tus autorizaciones</legend>
-            <Casilla
-              name="aceptaTerminosYPrivacidad"
-              etiqueta="Leí y acepto los términos y condiciones y la política de privacidad"
-              descripcion={(
-                <>
-                  Obligatorio para crear la cuenta. Léelos aquí: <Enlace como={Link} to="/terminos" externo>términos y
-                  condiciones</Enlace> y <Enlace como={Link} to="/privacidad" externo>política de privacidad</Enlace>.
-                </>
-              )}
-              checked={datos.aceptaTerminosYPrivacidad}
-              onChange={(e) => { cambiar('aceptaTerminosYPrivacidad', e.target.checked); tocar('aceptaTerminosYPrivacidad'); }}
-              error={visibles.aceptaTerminosYPrivacidad}
-            />
-            <Casilla
-              name="aceptaMarketing"
-              etiqueta="Quiero recibir novedades y promociones"
-              descripcion="Opcional. Puedes cambiarlo cuando quieras desde Mi cuenta."
-              checked={datos.aceptaMarketing}
-              onChange={(e) => cambiar('aceptaMarketing', e.target.checked)}
-            />
-          </fieldset>
+          <Consentimientos formulario={formulario} deshabilitado={deshabilitado} />
 
           <Boton type="submit" anchoCompleto cargando={estado.enviando} textoCargando="Creando tu cuenta…">Crear cuenta</Boton>
         </form>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Aviso, Boton, Campo, Enlace, Tarjeta } from '../../componentes/ui';
 import authService from '../../api/authService';
 import { errorCorreo, LIMITES, validarCodigo, validarNuevaPassword } from './reglasCuenta';
@@ -27,7 +27,9 @@ export default function Recuperar() {
   const navegar = useNavigate();
 
   const [paso, setPaso] = useState('correo');
-  const [correo, setCorreo] = useState('');
+  // Desde Mi cuenta («Crear una contraseña», fase 14B) el correo de la cuenta ya viene escrito.
+  const ubicacion = useLocation();
+  const [correo, setCorreo] = useState(() => (typeof ubicacion.state?.correo === 'string' ? ubicacion.state.correo : ''));
   const [errorDeCorreo, setErrorDeCorreo] = useState(null);
   const [mensajeEnviado, setMensajeEnviado] = useState('');
   // Cuenta los envíos: cada reenvío vuelve a dibujar el aviso, que se anuncia y recibe el foco.

@@ -60,6 +60,18 @@ export function validarRegistro(datos) {
   return errores;
 }
 
+// Fase 14B: «Completa tu registro» del ingreso con Google. El correo y la identidad ya vienen verificados por Google (no se
+// piden) y no hay contraseña: la cuenta nace con Google. Las mismas reglas de los datos personales y el mismo consentimiento.
+export const ORDEN_COMPLETAR_GOOGLE = ['nombre', 'apellido', 'telefono', 'rut', 'direccion', 'aceptaTerminosYPrivacidad'];
+
+export function validarCompletarGoogle(datos) {
+  const errores = { ...validarDatos(datos) };
+  if (!datos.aceptaTerminosYPrivacidad) {
+    errores.aceptaTerminosYPrivacidad = 'Para crear la cuenta debes aceptar los términos y condiciones y la política de privacidad.';
+  }
+  return errores;
+}
+
 /** Nueva contraseña con su repetición (recuperación y cambio de contraseña). */
 export function validarNuevaPassword(password, repetida, campo = 'password') {
   const errores = {};

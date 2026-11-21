@@ -18,6 +18,7 @@ const IngresoPersonal = lazy(() => import('./paginas/publicas/IngresoPersonal'))
 const DocumentoLegal = lazy(() => import('./paginas/publicas/legales/DocumentoLegal'));
 const IngresoCliente = lazy(() => import('./paginas/cuenta/IngresoCliente'));
 const Registro = lazy(() => import('./paginas/cuenta/Registro'));
+const CompletarGoogle = lazy(() => import('./paginas/cuenta/CompletarGoogle'));
 const Recuperar = lazy(() => import('./paginas/cuenta/Recuperar'));
 const Verificar = lazy(() => import('./paginas/cuenta/Verificar'));
 const MiCuenta = lazy(() => import('./paginas/cuenta/MiCuenta'));
@@ -80,6 +81,8 @@ export default function App() {
               <Route path="ingresar" element={enCarga(<SelectorIngreso />)} />
               <Route path="ingresar/cliente" element={enCarga(<IngresoCliente />)} />
               <Route path="cuenta/registro" element={enCarga(<Registro />)} />
+              {/* Fase 14B: «Completa tu registro» tras ingresar con Google con un correo nuevo (el pase vive en memoria). */}
+              <Route path="cuenta/google/completar" element={enCarga(<CompletarGoogle />)} />
               <Route path="cuenta/recuperar" element={enCarga(<Recuperar />)} />
               <Route path="cuenta/verificar" element={enCarga(<Verificar />)} />
               <Route path="personal/ingresar" element={enCarga(<IngresoPersonal />)} />

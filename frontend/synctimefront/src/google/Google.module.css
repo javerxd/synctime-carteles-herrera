@@ -1,0 +1,70 @@
+/* Ingreso con Google (fase 14B): todo lo que rodea al botón OFICIAL de Google usa los tokens del sistema; el botón de
+   Google (un iframe) conserva su aspecto y no se toca. Modo claro. */
+.bloque {
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+/* Zona de avisos: enfocable por programa (el foco llega aquí tras un fallo, y el mensaje se lee). Sin avisos se colapsa
+   SIN display:none, que la sacaría del árbol de accesibilidad y el lector no anunciaría lo que aparece. */
+.avisos {
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+.avisos:focus {
+  outline: none;
+}
+
+.sinAvisos {
+  height: 0;
+  margin-bottom: calc(var(--espacio-3) * -1);
+  overflow: hidden;
+}
+
+.estado {
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+.verificando {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+.region {
+  display: grid;
+  gap: var(--espacio-3);
+  scroll-margin-block: calc(var(--altura-barra) + var(--espacio-4));
+}
+
+.ayuda {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* El botón de Google mide 40 px y, con `width`, hasta 400 px; se centra y nunca desborda la tarjeta. */
+.contenedor {
+  display: flex;
+  justify-content: center;
+  min-height: 2.5rem;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* «— o con tu correo —»: texto sutil entre dos rayas. */
+.separador {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* Con borde (no con fondo): en alto contraste de Windows los fondos se anulan y las rayas desaparecerían. */
+.separador::before,
+.separador::after {
+  content: '';
+  flex: 1 1 0;
+  border-block-start: 1px solid var(--color-borde);
+}

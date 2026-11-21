@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import { Aviso, Boton, Campo, Enlace, Tarjeta } from '../../componentes/ui';
+import { IngresoGoogle } from '../../google/IngresoGoogle';
 import { rutaInterna } from '../../sesion/rutas';
 import { useSesion } from '../../sesion/sesion';
 import { errorCorreo } from './reglasCuenta';
@@ -71,11 +72,15 @@ export default function IngresoCliente() {
         <h1 id="titulo-ingreso" className={estilos.titulo}>Ingresar a tu cuenta</h1>
         <p className={estilos.bajada}>Sigue tus pedidos, cotizaciones y saldos de Letreros Herrera.</p>
 
-        {avisoRecibido && !errores.formulario && <Aviso tono="exito" titulo={avisoRecibido} />}
+        {/* `avisoTono` lo usa quien trae a la persona de vuelta (por ejemplo, un registro con Google que venció). */}
+        {avisoRecibido && !errores.formulario && <Aviso role={ubicacion.state?.avisoTono ? 'alert' : undefined} tono={ubicacion.state?.avisoTono ?? 'exito'} titulo={avisoRecibido} />}
         {sesionVencida && !avisoRecibido && !errores.formulario && (
           <Aviso tono="info" titulo="Tu sesión venció">Vuelve a ingresar para seguir donde estabas.</Aviso>
         )}
         {errores.formulario && <Aviso tono="peligro" titulo={errores.formulario} />}
+
+        {/* Fase 14B: «Continuar con Google» va ARRIBA del correo, con su separador (solo si hay ID de cliente de Google). */}
+        <IngresoGoogle destino={destino} />
 
         <form className={estilos.formulario} onSubmit={alEnviar} noValidate>
           <Campo

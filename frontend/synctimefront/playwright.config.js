@@ -25,5 +25,8 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 120 * 1000,
+    // Fase 14B: un ID de cliente de Google INVENTADO para que el botón aparezca en las pruebas (el script de Google se simula).
+    // El verdadero vive solo en .env.local y en los User Secrets, nunca en el repositorio. Una variable de entorno gana a .env.local.
+    env: { VITE_GOOGLE_CLIENT_ID: 'id-de-prueba-14b.apps.googleusercontent.com' },
   },
 })
