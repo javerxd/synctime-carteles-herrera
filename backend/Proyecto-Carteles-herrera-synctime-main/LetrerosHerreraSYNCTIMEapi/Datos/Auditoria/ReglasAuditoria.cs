@@ -59,7 +59,7 @@ public static class ReglasAuditoria
         [typeof(Empleado)] = new("empleado", "Empleado", C("Activo", "Rol")),
         // Fase 14A: vincular y desvincular Google quedan en la bitacora. El ultimo ingreso cambia en cada ingreso (y ese ya queda
         // como «ingreso_google»): no es un cambio del negocio.
-        [typeof(IdentidadExterna)] = new("identidad_externa", "Cuenta de Google vinculada", C("IdCliente", "Proveedor"), Ignorados: C("FechaUltimoIngreso")),
+        [typeof(IdentidadExterna)] = new("identidad_externa", "Cuenta de Google vinculada", C("IdCliente", "IdEmpleado", "Proveedor"), Ignorados: C("FechaUltimoIngreso")),
         [typeof(DestinatarioAviso)] = new("destinatario_aviso", "Destino de avisos", C("Estado", "RecibeEnLinea", "RecibePresenciales", "FechaConfirmacion", "FechaRetiro")),
         // Los contadores del ingreso con rostro cambian en cada intento: no son un cambio del negocio.
         [typeof(RostroEmpleado)] = new("rostro_empleado", "Rostro", C("IdEmpleado", "FechaRevocacion", "VersionConsentimiento", "FormatoMuestras", "FechaAutorizacionEquipo"),

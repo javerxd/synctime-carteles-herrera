@@ -164,6 +164,7 @@
 .explicacion {
   color: var(--color-texto-secundario);
   font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
 }
 
 .pieSeccion {

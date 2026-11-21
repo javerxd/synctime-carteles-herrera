@@ -32,7 +32,7 @@ export function SeparadorGoogle({ texto = 'o con tu correo' }) {
  * avisos, que contiene el mensaje; si no se pudo renovar el nonce, de vuelta al botón del sistema.
  * Sin ID de cliente configurado no dibuja nada.
  */
-export function BotonGoogle({ alCredencial, alFallo, antesDeActivar, etiqueta = 'Continuar con Google', variante = 'secundario' }) {
+export function BotonGoogle({ alCredencial, alFallo, antesDeActivar, etiqueta = 'Continuar con Google', variante = 'secundario', textoAyuda }) {
   const idAyuda = useId();
   const [fase, setFase] = useState('reposo');
   const [aviso, setAviso] = useState(null);
@@ -193,8 +193,7 @@ export function BotonGoogle({ alCredencial, alFallo, antesDeActivar, etiqueta = 
       {fase === 'listo' && (
         <div ref={refRegion} tabIndex={-1} role="group" aria-labelledby={idAyuda} className={estilos.region}>
           <p id={idAyuda} className={estilos.ayuda}>
-            Pulsa el botón «Continuar con Google» de abajo para elegir tu cuenta. Google sabrá que estás en esta página; nosotros
-            solo recibimos tu nombre y tu correo.
+            {textoAyuda ?? 'Pulsa el botón «Continuar con Google» de abajo para elegir tu cuenta. Google sabrá que estás en esta página; nosotros solo recibimos tu nombre y tu correo.'}
           </p>
           <div ref={refContenedor} className={estilos.contenedor} />
         </div>

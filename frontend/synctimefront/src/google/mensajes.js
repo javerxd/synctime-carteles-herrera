@@ -11,6 +11,16 @@ export function avisoDeErrorGoogle(error) {
   switch (error?.codigo) {
     case 'cuenta_existente':
       return { tono: 'aviso', titulo: 'Ya tienes una cuenta con este correo.', texto: 'Ingresa con tu contraseña y vincula Google desde Mi cuenta.' };
+    case 'cuenta_personal_existente':
+      // Fase 14C: el correo es de un empleado que aún no vinculó su Google.
+      return { tono: 'aviso', titulo: 'Este correo es de una cuenta del personal.', texto: 'Ingresa con tu contraseña y vincula Google desde Mi perfil.' };
+    case 'sin_cuenta_personal':
+      // Fase 14C: en el acceso del personal, un Google que no es de nadie del equipo no crea una cuenta de cliente.
+      return {
+        tono: 'aviso',
+        titulo: 'Este Google no está vinculado a una cuenta del personal.',
+        texto: 'Ingresa con tu contraseña y vincula Google desde Mi perfil. Si eres cliente, ingresa desde la página de clientes.',
+      };
     case 'sin_acceso_web':
       // El mensaje de la API explica que pida en el local que activen su acceso.
       return { tono: 'aviso', titulo: error.message };

@@ -891,16 +891,20 @@ public sealed partial class GoogleFase14aTests(ApiFixture api)
     }
 
     [Fact]
-    public async Task ElPersonal_NoEntraPorGoogle_AunqueSuCorreoSeaElDeGoogle()
+    public async Task ElPersonal_NoEntraPorGoogle_SiNoVinculoSuCuenta_AunqueSuCorreoSeaElDeGoogle()
     {
         var (_, correoDelPersonal, _) = await api.CrearEmpleadoAsync("operario");
         var (idToken, nonce) = await TokenAsync(NuevoSub(), correoDelPersonal);
 
-        // El correo no es de un cliente: se trata como una persona nueva que debe registrarse como cliente, nunca como sesion de personal.
-        var respuesta = await IngresarAsync(api.Cliente(), idToken, nonce).EsperarAsync(HttpStatusCode.OK);
+        // Fase 14C: el personal SI entra por Google, pero solo despues de vincularlo desde Mi perfil. Un correo de empleado sin vincular
+        // no se fusiona ni da sesion, y tampoco se ofrece crear una cuenta de cliente con el (antes se trataba como una persona nueva).
+        using var respuesta = await IngresarAsync(api.Cliente(), idToken, nonce);
+        var cuerpo = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync()).RootElement;
 
-        Assert.Equal("registro_pendiente", respuesta.GetProperty("estado").GetString());
-        Assert.False(respuesta.TryGetProperty("token", out _));
+        Assert.Equal(HttpStatusCode.Conflict, respuesta.StatusCode);
+        Assert.Equal("cuenta_personal_existente", cuerpo.GetProperty("codigo").GetString());
+        Assert.False(cuerpo.TryGetProperty("token", out _));
+        Assert.False(cuerpo.TryGetProperty("pase", out _));
     }
 
     // ── Una cuenta sin contraseña puede crear una (la recuperacion que ya existe) ──

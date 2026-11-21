@@ -48,6 +48,8 @@ const RESPUESTAS = {
     semana: [1, 2, 3, 4, 5, 6, 7].map((d) => ({ diaSemana: d, nombreDia: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d - 1], abierto: d < 7, horaInicio: d < 7 ? '09:00:00' : null, horaFin: d < 6 ? '18:30:00' : d === 6 ? '14:00:00' : null })),
   },
   '/api/v1/documentos-legales': ['privacidad', 'terminos', 'marketing', 'cookies'].map((tipo) => ({ tipo, version: '1.0' })),
+  // Fase 14C: Mi perfil consulta si el empleado tiene Google vinculado (con el ID de cliente de pruebas que pone playwright.config.js).
+  '/api/v1/mi-perfil/google': { vinculado: false, correo: null },
   '/api/v1/contacto': { recibida: true, mensaje: 'Recibimos tu consulta. Te responderemos a tu correo lo antes posible.' },
   '/api/v1/categorias': [{ idCategoria: 1, nombre: 'Impresión y publicidad gráfica' }, { idCategoria: 2, nombre: 'Letreros y estructuras' }],
   // Fase 12B: el dashboard de gestión (cifras simuladas con el formato del contrato).

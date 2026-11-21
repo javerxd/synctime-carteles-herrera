@@ -37,7 +37,8 @@ public enum MotivoRechazoGoogle { Emisor, Audiencia, Vencido, CorreoSinVerificar
 
 public sealed record ValidacionGoogle(IdentidadGoogle? Identidad, MotivoRechazoGoogle? Motivo);
 
-public enum CaminoGoogle { IniciarSesion, CuentaExistente, RegistroPendiente, Rechazar }
+// Fase 14C: CuentaPersonalExistente = el correo es de un empleado que aun no vinculo su Google (se le manda a Mi perfil).
+public enum CaminoGoogle { IniciarSesion, CuentaExistente, CuentaPersonalExistente, RegistroPendiente, Rechazar }
 
 public static class ReglasGoogle
 {
@@ -92,13 +93,17 @@ public static class ReglasGoogle
         return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(delToken), Encoding.UTF8.GetBytes(esperado));
     }
 
-    // Los tres caminos de POST /auth/google. Un correo que ya tiene cuenta NUNCA se fusiona solo: la persona
-    // ingresa con su contraseña y vincula Google desde Mi cuenta.
-    public static CaminoGoogle Decidir(bool identidadVinculada, bool cuentaHabilitada, bool correoTieneCuenta)
+    // Los caminos de POST /auth/google. Un correo que ya tiene cuenta NUNCA se fusiona solo: la persona
+    // ingresa con su contraseña y vincula Google desde Mi cuenta (cliente) o desde Mi perfil (empleado, fase 14C).
+    // Un correo de empleado sin vincular tampoco crea una cuenta de cliente: el personal lo da de alta gestion.
+    // Si el correo es de un cliente con cuenta y tambien de un empleado, manda la cuenta del cliente.
+    public static CaminoGoogle Decidir(bool identidadVinculada, bool cuentaHabilitada, bool correoTieneCuenta, bool correoEsDePersonal)
     {
         if (identidadVinculada)
             return cuentaHabilitada ? CaminoGoogle.IniciarSesion : CaminoGoogle.Rechazar;
-        return correoTieneCuenta ? CaminoGoogle.CuentaExistente : CaminoGoogle.RegistroPendiente;
+        if (correoTieneCuenta)
+            return CaminoGoogle.CuentaExistente;
+        return correoEsDePersonal ? CaminoGoogle.CuentaPersonalExistente : CaminoGoogle.RegistroPendiente;
     }
 
     // Una cuenta sin contraseña se quedaria sin forma de entrar si se le quita Google.

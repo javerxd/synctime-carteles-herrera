@@ -21,6 +21,10 @@ public class Empleado
     [JsonIgnore]
     public byte[] RowVersion { get; set; } = null!;
 
+    // Fase 14C: su Google vinculado (a lo mas uno por proveedor).
+    [JsonIgnore]
+    public virtual ICollection<IdentidadExterna> IdentidadesExternas { get; set; } = new List<IdentidadExterna>();
+
     [JsonIgnore]
     public virtual ICollection<Solicitud> SolicitudesRegistradas { get; set; } = new List<Solicitud>();
 

@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 21-11-2026 (fases 13A, 13B y 14A aprobadas; fase 14B construida, en revisión: falta la prueba real con Google).
+Última actualización: 21-11-2026 (fases 13A, 13B y 14A aprobadas; 14B y 14C construidas, en revisión: falta la prueba real con Google).
 
 ## Hecho
 
@@ -33,12 +33,13 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## En revisión (esperando el visto bueno del usuario)
 
+- **Fase 14C — Ingreso con Google para el personal** · rama `fase-14c-google-personal` (nace de la 14B, commit `fd6e882`) · plan `fase-14c-plan.md` (aprobado el 21-11-2026) · informe: `informes/fase-14c.md` · construida el 21-11-2026 · los cuatro roles vinculan su Google desde Mi perfil con la contraseña y entran con un clic; migración `GoogleParaPersonal` aplicada solo en la demo · cambia la decisión 7 de la 14 y RFU05 · decisiones confirmadas por el usuario el 21-11-2026: desactivar a un empleado desvincula su Google, y desvincular cierra todas sus sesiones · falta la prueba real con una cuenta de empleado
 - **Fase 14B — Frontend del ingreso con Google** · rama `fase-14b-google-frontend` (nace de la 14A, commit `220f42e`) · informe: `informes/fase-14b.md` · construida el 21-11-2026 · botón «Continuar con Google» de dos clics **arriba** del correo, con el separador «o con tu correo» (cambio pedido por el usuario) · «Completa tu registro» (`/cuenta/google/completar`) y «Ingreso con Google» en Mi cuenta · política de contenido ampliada solo con las rutas `/gsi/` de Google · sin migración ni dependencias nuevas · **falta la prueba real con la cuenta de Google del usuario** (y las acciones suyas en Google Cloud)
 
 
 ## Plan aprobado, construcción sin iniciar
 
-- **Fase 14C — Ingreso con Google para el personal** · plan `fase-14c-plan.md` · **propuesto el 21-11-2026, esperando la aprobación del usuario** (todavía no está aprobado) · pedido del usuario: los empleados también entran con Google; vínculo desde Mi perfil con la contraseña actual, los cuatro roles, fase aparte · cambia la decisión 7 del plan de la 14 y el requisito RFU05
+Nada por ahora.
 
 ## En curso
 

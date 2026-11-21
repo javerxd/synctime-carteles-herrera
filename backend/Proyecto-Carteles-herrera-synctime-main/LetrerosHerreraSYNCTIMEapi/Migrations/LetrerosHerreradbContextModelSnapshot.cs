@@ -1604,9 +1604,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasColumnType("datetimeoffset(0)")
                         .HasColumnName("fecha_vinculacion");
 
-                    b.Property<int>("IdCliente")
+                    b.Property<int?>("IdCliente")
                         .HasColumnType("int")
                         .HasColumnName("id_cliente");
+
+                    b.Property<int?>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
 
                     b.Property<string>("Proveedor")
                         .IsRequired()
@@ -1628,7 +1632,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.HasIndex("IdCliente", "Proveedor")
                         .IsUnique()
-                        .HasDatabaseName("uq_identidades_externas_cliente");
+                        .HasDatabaseName("uq_identidades_externas_cliente")
+                        .HasFilter("[id_cliente] IS NOT NULL");
+
+                    b.HasIndex("IdEmpleado", "Proveedor")
+                        .IsUnique()
+                        .HasDatabaseName("uq_identidades_externas_empleado")
+                        .HasFilter("[id_empleado] IS NOT NULL");
 
                     b.HasIndex("Proveedor", "Sub")
                         .IsUnique()
@@ -1636,6 +1646,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
                     b.ToTable("identidades_externas", null, t =>
                         {
+                            t.HasCheckConstraint("ck_identidades_externas_destino", "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
+
                             t.HasCheckConstraint("ck_identidades_externas_proveedor", "proveedor IN ('google')");
                         });
                 });
@@ -4153,10 +4165,17 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .WithMany("IdentidadesExternas")
                         .HasForeignKey("IdCliente")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("fk_identidades_externas_cliente");
 
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany("IdentidadesExternas")
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_identidades_externas_empleado");
+
                     b.Navigation("Cliente");
+
+                    b.Navigation("Empleado");
                 });
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Imagen", b =>
@@ -4447,6 +4466,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("CatalogosCreados");
 
                     b.Navigation("Cotizaciones");
+
+                    b.Navigation("IdentidadesExternas");
 
                     b.Navigation("PagosRegistrados");
 

@@ -291,8 +291,8 @@ async function registrarCliente(datos) {
 }
 
 /**
- * Ingreso con Google (fase 14B): POST /auth/google. Devuelve { estado: 'sesion' } si se abrió la sesión (la identidad ya
- * estaba vinculada) o { estado: 'registro_pendiente' } si el correo es nuevo: el pase queda SOLO en memoria (paseGoogle)
+ * Ingreso con Google (fase 14B): POST /auth/google. Devuelve { estado: 'sesion', tipo } si se abrió la sesión (la identidad ya
+ * estaba vinculada; `tipo` es 'cliente' o, desde la fase 14C, 'empleado') o { estado: 'registro_pendiente' } si el correo es nuevo: el pase queda SOLO en memoria (paseGoogle)
  * y sigue la pantalla «Completa tu registro». Un 409 cuenta_existente llega como ErrorApi.
  */
 async function ingresarConGoogle(idToken, nonce) {
@@ -303,7 +303,7 @@ async function ingresarConGoogle(idToken, nonce) {
   }
   if (!esSesionValida(respuesta)) throw new ErrorApi({ estado: 0, codigo: 'respuesta_invalida', mensaje: 'La respuesta del servidor no es válida. Inténtalo de nuevo.' });
   aplicarIngreso(respuesta);
-  return { estado: 'sesion' };
+  return { estado: 'sesion', tipo: respuesta.tipo };
 }
 
 /** Crea la cuenta con Google (POST /auth/google/completar, 201) y deja la sesión iniciada. */

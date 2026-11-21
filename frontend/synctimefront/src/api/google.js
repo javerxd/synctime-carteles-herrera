@@ -40,4 +40,22 @@ export const google = {
   async desvincular(passwordActual) {
     await api.delete('/mi-cuenta/google', { cuerpo: { passwordActual } });
   },
+
+  /**
+   * Fase 14C: Mi perfil del personal (los cuatro roles). Mismas reglas que Mi cuenta del cliente, en /mi-perfil/google:
+   * el correo verificado de Google debe ser el de su ficha de empleado y siempre se puede desvincular (todo empleado
+   * tiene contraseña). Un token inválido es 400 (no 401: un 401 significaría «tu sesión venció»).
+   */
+  perfil: {
+    /** GET → { vinculado, correo }. */
+    estado: ({ senal } = {}) => api.get('/mi-perfil/google', { senal }),
+    /** POST { idToken, nonce, passwordActual } → { vinculado: true, correo }. 400 errores.passwordActual | google_token_invalido; 409 google_correo_distinto | google_en_uso | google_ya_vinculada; 503; 429. */
+    vincular: ({ idToken, nonce, passwordActual }) => api.post('/mi-perfil/google', { idToken, nonce, passwordActual }),
+    /**
+     * DELETE { passwordActual } → 200 { token }: desvincular cierra TODAS las sesiones del empleado (si su Google estuviera
+     * comprometido, la del atacante también) y abre una nueva en este equipo, como al cambiar la contraseña. 400
+     * errores.passwordActual; 404 si no había Google.
+     */
+    desvincular: (passwordActual) => api.delete('/mi-perfil/google', { cuerpo: { passwordActual } }),
+  },
 };

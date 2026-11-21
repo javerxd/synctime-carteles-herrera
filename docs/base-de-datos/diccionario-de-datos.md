@@ -605,19 +605,22 @@ Límites de envío, en la API y no en la base: como máximo 1 código por minuto
 
 ## identidades_externas
 
-**Tabla nueva (21-11-2026, fase 14A, migración `IngresoConGoogle`).** La cuenta de otro proveedor (por ahora, Google) vinculada a un cliente (RFS03, RFU05, E02). **La identidad es el `sub` del proveedor, que no cambia, y no el correo** (la persona puede cambiarlo). Nunca se guarda el token de Google: solo quién es, el correo que verificó al vincular y cuándo entró. Una cuenta creada con Google no tiene contraseña: `clientes.password_hash` es nulo y, como `clientes.registrado` se calcula a partir de él, vale 0; la API reconoce la cuenta por su identidad (la ficha del personal usa `registrado` o la existencia de la identidad). El personal no tiene identidades externas: no entra por Google (RFU05).
+**Tabla nueva (21-11-2026, fase 14A, migración `IngresoConGoogle`); ampliada el 21-11-2026 por la fase 14C (migración `GoogleParaPersonal`): la identidad es de un cliente O de un empleado.** La cuenta de otro proveedor (por ahora, Google) vinculada a un cliente o, desde la 14C, a un empleado (RFS03, RFU05, E02). **La identidad es el `sub` del proveedor, que no cambia, y no el correo** (la persona puede cambiarlo). Nunca se guarda el token de Google: solo quién es, el correo que verificó al vincular y cuándo entró. Una cuenta creada con Google no tiene contraseña: `clientes.password_hash` es nulo y, como `clientes.registrado` se calcula a partir de él, vale 0; la API reconoce la cuenta por su identidad (la ficha del personal usa `registrado` o la existencia de la identidad). El personal no tiene identidades externas: no entra por Google (RFU05).
 
 | Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
 |---|---|---|---|---|
 | `id_identidad` | int | No | autoincremental | PK |
-| `id_cliente` | int | No | | FK a `clientes` |
+| `id_cliente` | int | Sí | | FK a `clientes`. **CAMBIA (fase 14C):** admite nulo (nulo si la identidad es de un empleado) |
+| `id_empleado` | int | Sí | | **NUEVA (fase 14C).** FK a `empleados` (nulo si la identidad es de un cliente). El empleado vincula su Google desde Mi perfil con su contraseña actual; el correo verificado de Google debe ser el de su ficha |
 | `proveedor` | varchar(20) | No | `google` (lo pone la aplicación) | CHECK `proveedor IN ('google')`; la lista se amplía con una migración si se suma otro proveedor |
 | `sub` | varchar(255) COLLATE Latin1_General_BIN2 | No | | Identificador estable de la persona en el proveedor (ASCII alfanumérico). Columna **binaria**: `a` y `A` son identidades distintas, y ninguna conversión de caracteres puede hacer chocar a dos. Es dato personal: se audita sin mostrar su valor |
 | `correo` | nvarchar(254) | No | | El correo que verificó el proveedor al vincular (al vincular desde Mi cuenta, el de la cuenta) |
 | `fecha_vinculacion` | datetimeoffset(0) | No | | Cuándo se vinculó o se creó la cuenta con Google |
 | `fecha_ultimo_ingreso` | datetimeoffset(0) | Sí | | Último ingreso con esta identidad. No genera registro de «modificar» en la bitácora (cada ingreso queda como `ingreso_google`) |
 
-Restricciones: `pk_identidades_externas`, `fk_identidades_externas_cliente` (`ON DELETE CASCADE`: la identidad se va con su cuenta) y `ck_identidades_externas_proveedor`. Índices únicos: `uq_identidades_externas_sub` (`proveedor`, `sub`: **un mismo Google no puede estar en dos cuentas**, aunque dos peticiones lleguen a la vez) y `uq_identidades_externas_cliente` (`id_cliente`, `proveedor`: **una cuenta no puede tener dos Google**).
+Fase 14C: `ck_identidades_externas_destino` (exactamente uno de `id_cliente` e `id_empleado`), `fk_identidades_externas_empleado` (`ON DELETE CASCADE`: la identidad se va con su empleado) y el índice único filtrado `uq_identidades_externas_empleado` (`id_empleado`, `proveedor`: a lo más un Google por empleado). **Los índices por cuenta pasan a ser filtrados** (`uq_identidades_externas_cliente` solo para `id_cliente IS NOT NULL`), porque con nulos un índice normal solo admitiría una fila. `uq_identidades_externas_sub` no cambia: un mismo Google no puede estar en dos cuentas, sea de cliente o de empleado. Cambiar el correo de un empleado borra su identidad (se ligó a un correo que ya no es el suyo).
+
+Restricciones de la 14A: `pk_identidades_externas`, `fk_identidades_externas_cliente` (`ON DELETE CASCADE`: la identidad se va con su cuenta) y `ck_identidades_externas_proveedor`. Índices únicos: `uq_identidades_externas_sub` (`proveedor`, `sub`: **un mismo Google no puede estar en dos cuentas**, aunque dos peticiones lleguen a la vez) y `uq_identidades_externas_cliente` (`id_cliente`, `proveedor`: **una cuenta no puede tener dos Google**).
 
 **Auditoría:** la tabla se audita con el interceptor (entidad `identidad_externa`, «Cuenta de Google vinculada»; el `sub` y el correo no se muestran). Además, tres acciones de la bitácora sobre la entidad `cuenta`: `ingreso_google`, `vincular_google` y `desvincular_google`, con quién y cuándo, sin token ni `sub`. `auditoria.accion` no tiene restricción de valores, así que no hizo falta cambiarla.
 

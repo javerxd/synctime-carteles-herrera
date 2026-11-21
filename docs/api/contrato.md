@@ -24,7 +24,7 @@ El token de acceso va en la cabecera `Authorization: Bearer <token>` y dura 15 m
 | `POST /auth/login` (personal) | `{ email, password }` | `{ token, tipo: "empleado", usuario: { idEmpleado, nombre, apellido, email, rol } }` |
 | `POST /auth/login-cliente` | `{ correo, password }` | `{ token, tipo: "cliente", usuario: { idCliente, nombre, apellido, telefono, email, correoVerificado } }`. El cliente entra con su correo, no con su telefono |
 | `POST /auth/login-facial` (personal) | `{ email, desafio, tokenEquipo, capturas }`, despues de pedir el desafio | Lo mismo que `/auth/login`, mas `nombre` y `rol`. Ver seccion 7 |
-| `POST /auth/google` (cliente) | `{ idToken, nonce }`, despues de pedir el nonce | Lo mismo que `/auth/login-cliente`, o `{ estado: "registro_pendiente", pase, ... }` si el correo es nuevo. Solo clientes; el personal no entra por Google. Ver «Ingreso con Google (fase 14A)» en la seccion 4 |
+| `POST /auth/google` (cliente) | `{ idToken, nonce }`, despues de pedir el nonce | Lo mismo que `/auth/login-cliente`, o `{ estado: "registro_pendiente", pase, ... }` si el correo es nuevo. Clientes y, desde la fase 14C, tambien el personal (si ya vinculo su Google desde Mi perfil). Ver «Ingreso con Google (fase 14A)» y «Ingreso con Google del personal (fase 14C)» en la seccion 4 |
 
 Los roles son exactamente estos, con `ñ` y en minusculas: `dueño`, `administrador`, `diseñador`, `operario` y `cliente`. En la tabla de rutas:
 
@@ -123,7 +123,7 @@ La sesion tiene dos piezas. El **token de acceso** (15 minutos) va en `Authoriza
 
 ### Ingreso con Google (fase 14A)
 
-Solo para clientes (RFS03, RFU05): el personal no entra por Google. Usa el *token de identidad* de Google Identity Services (un JWT firmado por Google): **no hay redireccion ni «secreto de cliente»**, y la API (`https://localhost:7112`) no se registra en Google; solo importa el origen de la pagina (`http://localhost:3000`). El ID de cliente OAuth se configura en la API con `Google:ClientId` (User Secrets en desarrollo, variable de entorno `Google__ClientId` en produccion). **Sin el, `POST /auth/google` y `/auth/google/completar` responden `503 google_no_configurado` y el frontend no debe mostrar el boton.**
+Para clientes (RFS03, RFU05) y, desde la fase 14C, tambien para el personal (ver mas abajo). Usa el *token de identidad* de Google Identity Services (un JWT firmado por Google): **no hay redireccion ni «secreto de cliente»**, y la API (`https://localhost:7112`) no se registra en Google; solo importa el origen de la pagina (`http://localhost:3000`). El ID de cliente OAuth se configura en la API con `Google:ClientId` (User Secrets en desarrollo, variable de entorno `Google__ClientId` en produccion). **Sin el, `POST /auth/google` y `/auth/google/completar` responden `503 google_no_configurado` y el frontend no debe mostrar el boton.**
 
 **Flujo.** (1) La pagina pide `GET /auth/google/nonce` y se lo pasa a Google; (2) Google devuelve el token, que la pagina manda a `POST /auth/google` con ese nonce; (3) la API decide:
 
@@ -151,6 +151,27 @@ Solo para clientes (RFS03, RFU05): el personal no entra por Google. Usa el *toke
 | `503` | `google_no_configurado` | La API no tiene `Google:ClientId` |
 
 Ni el token, ni el nonce, ni el pase aparecen en los registros ni en las respuestas de error. Las dos rutas de Mi cuenta (`POST` y `DELETE /mi-cuenta/google`, mas arriba) responden `400 google_token_invalido` en vez de `401`, porque un `401` alli significaria «tu sesion vencio». **Una cuenta sin contraseña** crea una con el codigo de recuperacion que ya existe (`/auth/recuperar` con `tipo: "cliente"` y `/auth/restablecer`); las acciones delicadas (cambiar correo o contraseña, bajar sus datos, darse de baja) siguen pidiendo la contraseña actual. La bitacora registra `ingreso_google`, `vincular_google` y `desvincular_google` (entidad `cuenta`) con quien y cuando, sin el token ni el `sub`.
+
+### Ingreso con Google del personal (fase 14C)
+
+Los empleados (los cuatro roles: dueño, administrador, diseñador y operario) tambien entran con Google, **despues de vincularlo desde Mi perfil**. Es el mismo flujo y la misma verificacion que los clientes (nonce, token de identidad, `POST /auth/google`); solo cambia a que cuenta lleva la identidad de Google. **El personal no se crea por Google**: a los empleados los da de alta gestion. El ingreso con contraseña y con rostro no cambian.
+
+| Caso de `POST /auth/google` | Respuesta |
+| --- | --- |
+| La identidad (`sub`) esta vinculada a un **empleado activo** | `200` con la **misma sesion de personal** que `/auth/login`: `{ token, tipo: "empleado", usuario: { idEmpleado, nombre, apellido, email, rol } }` y la cookie de renovacion |
+| El correo es de un empleado y ese Google **no** esta vinculado | `409` con `codigo: "cuenta_personal_existente"`: «Este correo es de una cuenta del personal. Ingresa con tu contraseña y vincula Google desde Mi perfil.» **Nunca se fusiona sola y nunca se ofrece crear una cuenta de cliente con ese correo** (no hay `registro_pendiente`) |
+| El correo es de un empleado **desactivado**, o su Google seguia vinculado a uno desactivado (en la practica, desactivar ya lo desvincula) | `401 google_token_invalido`: la misma respuesta unica de un token malo, para no revelar que la cuenta existia |
+| El correo es de un cliente con cuenta y tambien de un empleado | Manda la cuenta del cliente (`409 cuenta_existente`) |
+
+Un mismo Google no puede estar a la vez en un cliente y en un empleado, ni en dos empleados (indices unicos de la base).
+
+| Ruta | Quien | Cuerpo y notas |
+| --- | --- | --- |
+| `GET /mi-perfil/google` | Personal | `{ vinculado, correo }` (`correo` es el que verifico Google al vincular; nulo si no hay). **No gasta** el cupo por IP de las acciones con contraseña (cada visita a Mi perfil lo consulta) |
+| `POST /mi-perfil/google` | Personal | Vincula su Google: `{ idToken, nonce, passwordActual }`. `200 { vinculado: true, correo }`. `400` con `errores.passwordActual` si la contraseña no es correcta (se revisa antes de gastar el nonce), o `google_token_invalido` si el token no sirve (en Mi perfil es `400`, no `401`: un `401` alli significaria «tu sesion vencio»); `409` con `google_correo_distinto` (el correo verificado de Google no es el de su ficha), `google_en_uso` (ese Google ya esta en otra cuenta, de cliente o de empleado) o `google_ya_vinculada`; `503` con `google_no_disponible` o `google_no_configurado`; `429` tras demasiadas contraseñas equivocadas (por cuenta) |
+| `DELETE /mi-perfil/google` | Personal | Desvincula: cuerpo JSON `{ passwordActual }`. `200 { token }`: **cierra TODAS las sesiones del empleado** (si su Google estaba comprometido, la sesion del atacante tambien) y abre una nueva en este equipo, como al cambiar la contraseña. `400 errores.passwordActual`; `404` si no tenia Google vinculado. **Siempre se puede**: todo empleado tiene contraseña (no existe el `409 sin_contrasena` de los clientes) |
+
+Los clientes y los visitantes no pueden usar estas rutas (`403` y `401`). **Cambiar el correo de un empleado desvincula su Google** (la identidad se ligo a un correo que ya no es el suyo; queda en la bitacora). **Desactivar a un empleado tambien desvincula su Google** (y cierra sus sesiones; al reactivarlo debe volver a vincularlo con su contraseña); cambiarle el rol cierra sus sesiones. **El ingreso por Google de un empleado exige ademas que el correo verificado del token siga siendo el de su ficha** (si no, la misma respuesta unica `401 google_token_invalido`). Vincular toma un candado de la fila del empleado: si gestion le cambia el correo o lo desactiva justo entonces, esa edicion espera y despues borra el vinculo recien creado. La bitacora registra `ingreso_google`, `vincular_google` y `desvincular_google` (entidad `empleado`, con el empleado como actor y su rol), sin el token ni el `sub`. Ni el token, ni el nonce, ni el `sub` aparecen en los registros ni en las respuestas de error.
 
 ### Clientes, personal y materiales
 

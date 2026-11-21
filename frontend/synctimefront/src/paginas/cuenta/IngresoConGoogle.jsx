@@ -4,6 +4,7 @@ import { Aviso, Boton, Campo, Enlace, Tarjeta } from '../../componentes/ui';
 import { ErrorApi } from '../../api/cliente';
 import { google } from '../../api/google';
 import { BotonGoogle } from '../../google/BotonGoogle';
+import { useSesion } from '../../sesion/sesion';
 import { googleDisponible } from '../../google/configuracion';
 import estilos from './Cuenta.module.css';
 
@@ -61,7 +62,7 @@ function useContrasena() {
   return { valor, setValor, error, exigir, marcarError, propiedades };
 }
 
-function Vincular({ datosCuenta, alVincular, alEmpezar }) {
+function Vincular({ datosCuenta, servicio, alVincular, alEmpezar }) {
   const contrasena = useContrasena();
   // Lo que se muestra al vincular lo decide esta sección; el botón de Google solo carga a Google cuando se pulsa.
   const refValor = useRef('');
@@ -74,7 +75,7 @@ function Vincular({ datosCuenta, alVincular, alEmpezar }) {
     if (!refValor.current) {
       throw new ErrorApi({ estado: 400, codigo: 'datos_invalidos', mensaje: ERROR_SIN_PASSWORD, errores: { passwordActual: [ERROR_SIN_PASSWORD] } });
     }
-    await google.vincular({ idToken, nonce, passwordActual: refValor.current });
+    await servicio.vincular({ idToken, nonce, passwordActual: refValor.current });
     contrasena.setValor('');
     alVincular();
   }
@@ -95,13 +96,14 @@ function Vincular({ datosCuenta, alVincular, alEmpezar }) {
         Google no está vinculado a tu cuenta. Vincúlalo para ingresar con un clic: debe ser la cuenta de Google con el correo{' '}
         <strong>{datosCuenta.correo}</strong>.
       </p>
-      <Campo {...contrasena.propiedades} ayuda="Para confirmar que eres tú." />
-      <BotonGoogle etiqueta="Vincular Google" antesDeActivar={() => { alEmpezar(); return contrasena.exigir(); }} alCredencial={alCredencial} alFallo={alFallo} />
+      <Campo {...contrasena.propiedades} ayuda="Para vincular Google, confirma que eres tú." />
+      <BotonGoogle etiqueta="Vincular Google" textoAyuda="Pulsa el botón «Continuar con Google» de abajo y elige la cuenta de Google que vas a vincular. Google sabrá que estás en esta página; nosotros solo recibimos tu nombre y tu correo." antesDeActivar={() => { alEmpezar(); return contrasena.exigir(); }} alCredencial={alCredencial} alFallo={alFallo} />
     </div>
   );
 }
 
-function Desvincular({ alDesvincular, alEmpezar }) {
+function Desvincular({ servicio, alDesvincular, alEmpezar }) {
+  const { actualizarToken } = useSesion();
   const contrasena = useContrasena();
   const [estado, setEstado] = useState({ enviando: false, error: null });
   const refError = useRef(null);
@@ -113,13 +115,17 @@ function Desvincular({ alDesvincular, alEmpezar }) {
   async function desvincular(evento) {
     evento.preventDefault();
     alEmpezar();
+    // Un error anterior no queda junto al nuevo.
+    setEstado((e) => ({ ...e, error: null }));
     if (!contrasena.exigir()) return;
     setEstado({ enviando: true, error: null });
     try {
-      await google.desvincular(contrasena.valor);
+      const respuesta = await servicio.desvincular(contrasena.valor);
+      // Mi perfil (fase 14C): la API cerró todas las sesiones y entrega un token para la de este equipo.
+      if (respuesta?.token) actualizarToken(respuesta.token);
       contrasena.setValor('');
       setEstado({ enviando: false, error: null });
-      alDesvincular();
+      alDesvincular(respuesta);
     } catch (error) {
       const texto = errorDePassword(error);
       setEstado({ enviando: false, error: texto ? null : (error?.message || 'No pudimos desvincular Google. Inténtalo de nuevo.') });
@@ -134,7 +140,7 @@ function Desvincular({ alDesvincular, alEmpezar }) {
         correo y tu contraseña.
       </p>
       {estado.error && <div ref={refError} tabIndex={-1} className={estilos.resultado}><Aviso tono="peligro" titulo={estado.error} /></div>}
-      <Campo {...contrasena.propiedades} disabled={estado.enviando} ayuda="Para confirmar que eres tú." />
+      <Campo {...contrasena.propiedades} disabled={estado.enviando} ayuda="Para desvincular Google, confirma que eres tú." />
       <div className={estilos.pieSeccion}>
         <Boton type="submit" variante="secundario" cargando={estado.enviando} textoCargando="Desvinculando…">Desvincular Google</Boton>
       </div>
@@ -147,8 +153,9 @@ function Desvincular({ alDesvincular, alEmpezar }) {
  * desvincularlo, siempre con la contraseña actual. Una cuenta creada con Google no tiene contraseña: se explica y se ofrece
  * «Crear una contraseña» (la recuperación de siempre); sin contraseña no se puede desvincular (quedaría sin forma de entrar).
  * Sin ID de cliente de Google y sin Google vinculado, la sección no se muestra.
+ * `servicio` (fase 14C): { vincular, desvincular }; por defecto el de Mi cuenta del cliente. Mi perfil del personal pasa google.perfil.
  */
-export function IngresoConGoogle({ datosCuenta, alGuardar }) {
+export function IngresoConGoogle({ datosCuenta, alGuardar, servicio = google }) {
   const [exito, setExito] = useState(null);
   const refExito = useRef(null);
   // El botón enfocado se desmonta al vincular o desvincular: el foco pasa al mensaje, que así se lee.
@@ -167,7 +174,7 @@ export function IngresoConGoogle({ datosCuenta, alGuardar }) {
 
   let contenido;
   if (vinculado && tieneContrasena) {
-    contenido = <Desvincular alEmpezar={() => setExito(null)} alDesvincular={() => cambiar(false, 'Desvinculamos tu cuenta de Google.')} />;
+    contenido = <Desvincular servicio={servicio} alEmpezar={() => setExito(null)} alDesvincular={(respuesta) => cambiar(false, respuesta?.token ? 'Desvinculamos tu cuenta de Google. Por seguridad, cerramos tu sesión en los demás equipos.' : 'Desvinculamos tu cuenta de Google.')} />;
   } else if (vinculado) {
     contenido = (
       <div className={estilos.formulario}>
@@ -179,7 +186,7 @@ export function IngresoConGoogle({ datosCuenta, alGuardar }) {
       </div>
     );
   } else if (tieneContrasena) {
-    contenido = <Vincular datosCuenta={datosCuenta} alEmpezar={() => setExito(null)} alVincular={() => cambiar(true, 'Vinculamos tu cuenta de Google. Desde ahora puedes ingresar con ella.')} />;
+    contenido = <Vincular datosCuenta={datosCuenta} servicio={servicio} alEmpezar={() => setExito(null)} alVincular={() => cambiar(true, 'Vinculamos tu cuenta de Google. Desde ahora puedes ingresar con ella.')} />;
   } else {
     contenido = (
       <div className={estilos.formulario}>

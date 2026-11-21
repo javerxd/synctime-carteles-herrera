@@ -16,6 +16,7 @@ const MI_CUENTA = {
   idCliente: 9, nombre: 'Rosa', apellido: 'Pino', rut: null, telefono: '912345678', correo: 'rosa@correo.test',
   direccion: null, correoVerificado: true, marketing: false, avisosEstado: true, googleVinculado: false, tieneContrasena: true,
 };
+const EMPLEADO = { idEmpleado: 4, nombre: 'Marta', apellido: 'Fuentes', email: 'marta@letreria.test', rol: 'operario' };
 const DOCUMENTOS = ['privacidad', 'terminos', 'marketing', 'cookies'].map((tipo) => ({ tipo, version: '1.0' }));
 
 // Reemplazo mínimo de Google Identity Services: guarda lo que la página le pide y dibuja un botón que entrega un token.
@@ -59,8 +60,9 @@ async function vigilar(page) {
  * Simula Google y la API. `ingreso` responde a POST /auth/google; `completar`, a POST /auth/google/completar.
  * Devuelve lo que la API recibió, para comprobar los cuerpos.
  */
-async function simular(page, { google = 'ok', ingreso, completar, miCuenta = MI_CUENTA, sesion = false, vincular, desvincular } = {}) {
-  const recibido = { nonces: 0, ingresos: [], completados: [], vinculaciones: [], desvinculaciones: [] };
+async function simular(page, { google = 'ok', ingreso, completar, miCuenta = MI_CUENTA, sesion = false, vincular, desvincular, perfil = { vinculado: false, correo: null } } = {}) {
+  // `sesion`: false | true (cliente) | 'empleado' (fase 14C).
+  const recibido = { nonces: 0, ingresos: [], completados: [], vinculaciones: [], desvinculaciones: [], perfilVinculaciones: [], perfilDesvinculaciones: [] };
   if (google === 'ok') await page.route(URL_GOOGLE, (ruta) => ruta.fulfill({ contentType: 'text/javascript', body: SCRIPT_SIMULADO }));
   else await page.route(URL_GOOGLE, (ruta) => ruta.abort('blockedbyclient'));
 
@@ -88,7 +90,17 @@ async function simular(page, { google = 'ok', ingreso, completar, miCuenta = MI_
       recibido.desvinculaciones.push(cuerpo());
       return desvincular(ruta);
     }
+    if (destino === '/api/v1/mi-perfil/google') {
+      if (metodo === 'GET') return ruta.fulfill({ json: perfil });
+      if (metodo === 'POST') {
+        recibido.perfilVinculaciones.push(cuerpo());
+        return vincular(ruta);
+      }
+      recibido.perfilDesvinculaciones.push(cuerpo());
+      return desvincular(ruta);
+    }
     if (destino === '/api/v1/auth/renovar') {
+      if (sesion === 'empleado') return ruta.fulfill({ json: { token: tokenDePrueba(), tipo: 'empleado', usuario: EMPLEADO } });
       return sesion ? ruta.fulfill({ json: { token: tokenDePrueba(), tipo: 'cliente', usuario: CLIENTE } }) : ruta.fulfill({ status: 401, json: { error: 'Sin sesión' } });
     }
     if (destino === '/api/v1/auth/salir') return ruta.fulfill({ status: 204 });
@@ -286,6 +298,102 @@ for (const ancho of [360, 768, 1440]) {
       await expect(seccion.getByRole('link', { name: 'Crear una contraseña' })).toHaveAttribute('href', '/cuenta/recuperar');
       await expect(seccion.getByRole('button', { name: 'Desvincular Google' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Cambiar contraseña' })).toHaveCount(0);
+      await sinFallasGraves(page);
+    });
+
+    // ── Fase 14C: el personal ──
+
+    test('/personal/ingresar: el botón va arriba del correo, el script solo se pide al pulsar y la política lo permite', async ({ page }) => {
+      const vigilado = await vigilar(page);
+      await simular(page, { ingreso: (ruta) => ruta.fulfill({ status: 409, json: { error: 'x', codigo: 'cuenta_personal_existente' } }) });
+      await page.goto('/personal/ingresar');
+
+      const boton = page.getByRole('button', { name: 'Continuar con Google' });
+      await expect(boton).toBeVisible();
+      expect((await boton.boundingBox()).y).toBeLessThan((await page.getByLabel('Correo electrónico').boundingBox()).y);
+      await expect(page.getByText('o con tu correo', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Entrar con rostro' })).toBeVisible();
+      expect(vigilado.solicitudesGoogle).toEqual([]);
+      await sinFallasGraves(page);
+
+      await boton.click();
+      await expect(page.getByRole('button', { name: 'Botón de Google simulado' })).toBeVisible();
+      expect(vigilado.solicitudesGoogle).toEqual([URL_GOOGLE]);
+      await sinFallasGraves(page);
+      await sinViolacionesDePolitica(page, vigilado);
+    });
+
+    test('un empleado con Google vinculado entra al panel con su sesión de personal', async ({ page }) => {
+      const vigilado = await vigilar(page);
+      const recibido = await simular(page, {
+        ingreso: (ruta) => ruta.fulfill({ json: { token: tokenDePrueba(), tipo: 'empleado', usuario: EMPLEADO } }),
+      });
+      await page.goto('/personal/ingresar');
+      await page.getByRole('button', { name: 'Continuar con Google' }).click();
+      await page.getByRole('button', { name: 'Botón de Google simulado' }).click();
+
+      await expect(page).toHaveURL(/\/panel$/);
+      expect(recibido.ingresos).toEqual([{ idToken: TOKEN_GOOGLE, nonce: 'nonce-e2e-1' }]);
+      await sinSecretosGuardados(page);
+      await sinViolacionesDePolitica(page, vigilado);
+    });
+
+    test('un correo de empleado sin vincular: avisa que lo vincule desde Mi perfil y la contraseña sigue disponible', async ({ page }) => {
+      const vigilado = await vigilar(page);
+      const recibido = await simular(page, { ingreso: (ruta) => ruta.fulfill({ status: 409, json: { error: 'Este correo es de una cuenta del personal.', codigo: 'cuenta_personal_existente' } }) });
+      await page.goto('/personal/ingresar');
+      await page.getByRole('button', { name: 'Continuar con Google' }).click();
+      await page.getByRole('button', { name: 'Botón de Google simulado' }).click();
+
+      await expect(page.getByText('Este correo es de una cuenta del personal.')).toBeVisible();
+      await expect(page.getByText('Ingresa con tu contraseña y vincula Google desde Mi perfil.')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Botón de Google simulado' })).toBeVisible();
+      expect(recibido.nonces).toBe(2);
+      await expect(page.getByLabel('Contraseña', { exact: true })).toBeEnabled();
+      await sinFallasGraves(page);
+      await sinSecretosGuardados(page);
+      await sinViolacionesDePolitica(page, vigilado);
+    });
+
+    test('Mi perfil: el empleado vincula y desvincula su Google con la contraseña', async ({ page }) => {
+      const vigilado = await vigilar(page);
+      const recibido = await simular(page, {
+        sesion: 'empleado',
+        vincular: (ruta) => ruta.fulfill({ json: { vinculado: true, correo: EMPLEADO.email } }),
+        desvincular: (ruta) => ruta.fulfill({ status: 204 }),
+      });
+      await page.goto('/panel/perfil');
+      const seccion = page.getByRole('region', { name: 'Ingreso con Google' });
+      await expect(seccion).toBeVisible();
+      await expect(seccion.getByText(/google no está vinculado/i)).toBeVisible();
+
+      await seccion.getByRole('button', { name: 'Vincular Google' }).click();
+      await expect(seccion.getByText('Escribe tu contraseña actual para confirmar que eres tú.')).toBeVisible();
+      await expect(seccion.getByLabel(/Contraseña actual/)).toBeFocused();
+      expect(vigilado.solicitudesGoogle).toEqual([]);
+
+      await seccion.getByLabel(/Contraseña actual/).fill('clave-de-prueba');
+      await seccion.getByRole('button', { name: 'Vincular Google' }).click();
+      await seccion.getByRole('button', { name: 'Botón de Google simulado' }).click();
+      await expect(seccion.getByText(/vinculamos tu cuenta de google/i)).toBeVisible();
+      expect(recibido.perfilVinculaciones).toEqual([{ idToken: TOKEN_GOOGLE, nonce: 'nonce-e2e-1', passwordActual: 'clave-de-prueba' }]);
+      await sinFallasGraves(page);
+
+      await seccion.getByLabel(/Contraseña actual/).fill('clave-de-prueba');
+      await seccion.getByRole('button', { name: 'Desvincular Google' }).click();
+      await expect(seccion.getByText(/desvinculamos tu cuenta de google/i)).toBeVisible();
+      expect(recibido.perfilDesvinculaciones).toEqual([{ passwordActual: 'clave-de-prueba' }]);
+      await sinSecretosGuardados(page);
+      await sinViolacionesDePolitica(page, vigilado);
+    });
+
+    test('Mi perfil con Google ya vinculado: ofrece desvincular (sin explicación de contraseña)', async ({ page }) => {
+      await simular(page, { sesion: 'empleado', perfil: { vinculado: true, correo: EMPLEADO.email } });
+      await page.goto('/panel/perfil');
+      const seccion = page.getByRole('region', { name: 'Ingreso con Google' });
+      await expect(seccion.getByText(/tu cuenta tiene google vinculado/i)).toBeVisible();
+      await expect(seccion.getByRole('button', { name: 'Desvincular Google' })).toBeVisible();
+      await expect(seccion.getByRole('link', { name: 'Crear una contraseña' })).toHaveCount(0);
       await sinFallasGraves(page);
     });
   });

@@ -613,6 +613,8 @@ public sealed class ServicioEmpleados(
         if (cambiaCorreo)
         {
             await codigos.AnularPendientesAsync(TitularSesion.DeEmpleado(id), ct);
+            // Fase 14C: su Google se vinculo con el correo anterior, que ya no es el suyo: se desvincula (la bitacora lo registra).
+            db.IdentidadesExternas.RemoveRange(await db.IdentidadesExternas.Where(i => i.IdEmpleado == id).ToListAsync(ct));
             if (Reglas.EsCorreo(correoAnterior))
                 await cola.EncolarAsync(CorreosDeCuenta.AvisoCambioCorreoPersonal(correoAnterior, empleado.Nombre,
                     CorreosDestinosAvisos.Enmascarar(empleado.Email), opcionesCorreo.Value.ContactoTaller), ct);
@@ -649,6 +651,10 @@ public sealed class ServicioEmpleados(
             return conflicto;
         if (seDesactiva)
         {
+            // Fase 14C: su Google tambien se desvincula (un desactivado no entra, y al reactivarlo debe volver a vincularlo con su contraseña:
+            // un Google que quiza ya no controla el taller no debe volver a abrir el panel solo). Queda en la bitacora.
+            db.IdentidadesExternas.RemoveRange(await db.IdentidadesExternas.Where(i => i.IdEmpleado == id).ToListAsync(ct));
+            await db.SaveChangesAsync(ct);
             var ahora = reloj.GetUtcNow();
             // Fase 10: tambien las tres muestras (DatosRostro.Borrado borra las cuatro columnas cifradas). Fase 11: queda
             // en la bitacora, en la misma transaccion (el interceptor no ve el ExecuteUpdate).

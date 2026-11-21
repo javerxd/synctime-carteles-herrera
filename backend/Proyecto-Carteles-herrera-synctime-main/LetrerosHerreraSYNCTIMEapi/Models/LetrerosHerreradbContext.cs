@@ -943,10 +943,17 @@ public class LetrerosHerreradbContext : DbContext
         // ── identidades_externas (fase 14A) ──
         modelBuilder.Entity<IdentidadExterna>(entity =>
         {
-            entity.ToTable("identidades_externas", t => t.HasCheckConstraint("ck_identidades_externas_proveedor", "proveedor IN ('google')"));
+            entity.ToTable("identidades_externas", t =>
+            {
+                t.HasCheckConstraint("ck_identidades_externas_proveedor", "proveedor IN ('google')");
+                // Fase 14C: la identidad es de un cliente o de un empleado, nunca de ninguno ni de ambos.
+                t.HasCheckConstraint("ck_identidades_externas_destino",
+                    "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
+            });
             entity.HasKey(e => e.IdIdentidad).HasName("pk_identidades_externas");
             entity.Property(e => e.IdIdentidad).HasColumnName("id_identidad");
             entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
             entity.Property(e => e.Proveedor).HasColumnName("proveedor").HasMaxLength(20).IsUnicode(false);
             entity.Property(e => e.Sub).HasColumnName("sub").HasMaxLength(255).IsUnicode(false).UseCollation("Latin1_General_BIN2");
             entity.Property(e => e.Correo).HasColumnName("correo").HasMaxLength(254);
@@ -955,10 +962,14 @@ public class LetrerosHerreradbContext : DbContext
 
             // Un mismo Google no puede estar en dos cuentas, ni una cuenta tener dos Google (por proveedor).
             entity.HasIndex(e => new { e.Proveedor, e.Sub }).IsUnique().HasDatabaseName("uq_identidades_externas_sub");
-            entity.HasIndex(e => new { e.IdCliente, e.Proveedor }).IsUnique().HasDatabaseName("uq_identidades_externas_cliente");
+            // Fase 14C: los indices por cuenta son FILTRADOS (los clientes tienen id_empleado nulo y los empleados, id_cliente nulo).
+            entity.HasIndex(e => new { e.IdCliente, e.Proveedor }).IsUnique().HasDatabaseName("uq_identidades_externas_cliente").HasFilter("[id_cliente] IS NOT NULL");
+            entity.HasIndex(e => new { e.IdEmpleado, e.Proveedor }).IsUnique().HasDatabaseName("uq_identidades_externas_empleado").HasFilter("[id_empleado] IS NOT NULL");
 
             entity.HasOne(e => e.Cliente).WithMany(c => c.IdentidadesExternas).HasForeignKey(e => e.IdCliente)
                 .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_identidades_externas_cliente");
+            entity.HasOne(e => e.Empleado).WithMany(c => c.IdentidadesExternas).HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_identidades_externas_empleado");
         });
 
         // ── adjuntos_solicitud (fase 7) ──

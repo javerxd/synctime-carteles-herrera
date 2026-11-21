@@ -1,6 +1,6 @@
 # Plan de la fase 14C — Ingreso con Google para el personal
 
-Fecha: 21-11-2026 · Rama: `fase-14c-google-personal` (nace de `fase-14b-google-frontend`, una vez commiteada) · Estado: **propuesto, esperando tu aprobación**; construcción sin iniciar
+Fecha: 21-11-2026 · Rama: `fase-14c-google-personal` (nace de `fase-14b-google-frontend`, una vez commiteada) · Estado: **aprobado por el usuario el 21-11-2026** (tal como se propuso, con sus cinco decisiones y supuestos); construcción sin iniciar
 
 Origen: tu pedido del 21-11-2026 («quiero que los empleados también tengan implementado el login con google») y tus tres decisiones: **(1)** el empleado vincula su Google **desde Mi perfil, con su contraseña actual**; **(2)** pueden usarlo **los cuatro roles** (dueño, administrador, diseñador y operario); **(3)** se hace en una **fase 14C aparte**, y la 14B se cierra como está.
 

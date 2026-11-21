@@ -719,6 +719,29 @@
         "x-acceso": "cliente"
       }
     },
+    "/api/v1/mi-perfil/google": {
+      "get": {
+        "tags": [
+          "Mi perfil"
+        ],
+        "summary": "Fase 14C: si el empleado tiene Google vinculado y con qué correo ({ vinculado, correo })",
+        "x-acceso": "personal"
+      },
+      "post": {
+        "tags": [
+          "Mi perfil"
+        ],
+        "summary": "Fase 14C: vincula el Google del empleado: pide la contraseña actual y exige que el correo verificado de Google sea el de su ficha",
+        "x-acceso": "personal"
+      },
+      "delete": {
+        "tags": [
+          "Mi perfil"
+        ],
+        "summary": "Fase 14C: desvincula el Google del empleado con la contraseña actual (cuerpo JSON); siempre se puede, todo empleado tiene contraseña",
+        "x-acceso": "personal"
+      }
+    },
     "/api/v1/mi-cuenta/marketing": {
       "put": {
         "tags": [
