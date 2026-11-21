@@ -39,7 +39,7 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## Plan aprobado, construcción sin iniciar
 
-Nada por ahora.
+- **Fase 15 — Calidad: rendimiento, accesibilidad y compatibilidad** · plan `fase-15-plan.md` · **propuesto el 21-11-2026, esperando la aprobación del usuario** (todavía no está aprobado) · dos partes: 15A (backend: carga con 20 usuarios, búsqueda de clientes en el servidor) y 15B (frontend: llamadas duplicadas, código dividido, red lenta y móvil, Chrome/Edge/Brave, axe en todas las rutas, Lighthouse y guion NVDA) · la rama nace de la 14C commiteada
 
 ## En curso
 
