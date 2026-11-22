@@ -6,7 +6,7 @@ Plan: `fase-16-plan.md` (secciones 4 y 8) con tus decisiones definitivas para co
 
 ## Resultado en una línea
 
-**El pipeline se ejecutó de verdad en GitHub (22-11-2026, tres ejecuciones) y la tercera, sobre el commit `8c0af79`, dejó los siete jobs en verde:** 749 unitarias y 768 de integración contra SQL Server 2022 en UTC, 981 de Vitest, presupuesto de peso, análisis de secretos sobre todo el historial, tres imágenes sin vulnerabilidades altas ni críticas con corrección publicada y **`docker compose up` real con las 21 comprobaciones en verde** (evidencia en `docs/evidencias/compose-2026-11-22.md`). `publicar` queda «skipped» en la rama, a propósito. Se agregó un octavo job, `fallo-tzdata` (la API sin `tzdata` no debe arrancar), que corre por primera vez en la próxima subida. **Lo que sigue sin ejecutarse: `migrar.yml` y `respaldo.yml` (son de la 16C) y los dos fallos a propósito que necesitan ramas de prueba en GitHub** (pasos abajo). El Codespace ya **no es necesario** para verificar compose: la CI lo hace en cada subida.
+**El pipeline se ejecutó de verdad en GitHub (22-11-2026, tres ejecuciones) y la tercera, sobre el commit `8c0af79`, dejó los siete jobs en verde:** 749 unitarias y 768 de integración contra SQL Server 2022 en UTC, 981 de Vitest, presupuesto de peso, análisis de secretos sobre todo el historial, tres imágenes sin vulnerabilidades altas ni críticas con corrección publicada y **`docker compose up` real con las 21 comprobaciones en verde** (evidencia en `docs/evidencias/compose-2026-11-22.md`). `publicar` queda «skipped» en la rama, a propósito. Se agregó un octavo job, `fallo-tzdata`, y la ejecución #5 (commit `c65833b`) lo dejó en verde con sus 5 comprobaciones: **sin `tzdata` la API se niega a arrancar por la zona horaria** (su registro nombra `HoraChile.ZonaHoraria`), con `tzdata` no falla por eso y la orden del `HEALTHCHECK` falla sin API; evidencia en `docs/evidencias/fallos-a-proposito-2026-11-22.md`. **Lo que sigue sin ejecutarse: `migrar.yml` y `respaldo.yml` (son de la 16C) y los dos fallos a propósito que necesitan ramas de prueba en GitHub** (pasos abajo). El Codespace ya **no es necesario**: la CI verifica compose y `tzdata` en cada subida.
 
 **Lo que la ejecución real encontró y se corrigió** (detalle en `desviaciones.md`): el migrador no se construía porque `efbundle` arma la API y esta exige configuración de producción (ahora `construir-bundle.sh` le da variables de diseño); 7 falsos positivos de gitleaks sobre el historial (acotados en `.gitleaks.toml`); 14 vulnerabilidades altas o críticas en los paquetes de Alpine de la imagen del frontend (`apk upgrade`); y una comprobación de mi guion que medía el usuario equivocado (`docker compose exec` entra como root).
 
@@ -149,7 +149,7 @@ git switch fase-16-contenedores-nube
 git branch -D prueba/rota
 ```
 
-**c) Sin `tzdata`:** ya está en el paso 3 (`fallos-a-proposito.sh`).
+**c) Sin `tzdata`:** ya hecho por la CI (job `fallo-tzdata`, ejecución #5, evidencia guardada).
 
 ### 5. Opcional
 
