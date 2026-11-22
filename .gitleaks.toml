@@ -1,0 +1,11 @@
+# Fase 16B (RNFO15): configuracion del analisis de secretos del pipeline (gitleaks, ver .github/workflows/ci.yml).
+# Parte de las reglas por omision de gitleaks (cientos de tipos de clave, token y certificado) y solo agrega excepciones documentadas.
+# Una excepcion se escribe aqui con el motivo; nunca se baja el nivel del analisis para que «pase».
+title = "SyncTime"
+
+[extend]
+useDefault = true
+
+# Valores inventados que NO son secretos y que los analisis marcan por su forma. Cada uno lleva su motivo.
+# (Vacio: hasta ahora el analisis no ha necesitado ninguna excepcion. Si aparece un falso positivo, agregue aqui una
+# regla [[allowlists]] con «description», «regexes» y el motivo, y avise en el informe de la fase.)

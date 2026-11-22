@@ -1,6 +1,6 @@
 # Despliegue de SyncTime
 
-Estado: **fase 16A** (archivos de contenedores y ajustes del código). La guía completa de la nube (Azure SQL, Render, Vercel, respaldos, rotación de claves, licencias) se escribe en la **16C**, cuando existan los servicios; lo que sigue es lo que ya está construido y lo que cada pieza necesita.
+Estado: **fase 16B** (contenedores y ajustes del código de la 16A, más el pipeline de CI/CD de la 16B). La guía completa de la nube (Azure SQL, Render, Vercel, respaldos, rotación de claves, licencias) se escribe en la **16C**, cuando existan los servicios; lo que sigue es lo que ya está construido y lo que cada pieza necesita.
 
 ## 1. Todo el proyecto en cualquier equipo con Docker (compose)
 
@@ -67,6 +67,54 @@ Cambia el valor por defecto de 8 columnas de fecha (clientes, catálogo, cartel,
 - `/salud/lista`: además consulta la base. **No** se usa como chequeo periódico de Render: gastaría la cuota gratuita de Azure SQL y la mantendría despierta.
 - `/salud/correo`: estado de los avisos por correo (degradado, nunca «fallo»).
 
-## 6. Pendiente de la 16B y la 16C
+## 6. Pipeline de CI/CD (fase 16B, RNFO15)
 
-16B: pipeline de CI/CD y verificación de `docker compose up` en un Codespace. 16C: Azure SQL, Render, Vercel, respaldo diario de 30 días con restauración probada, carga y Lighthouse contra la nube, guía completa e inventario de licencias.
+Tres workflows en `.github/workflows/`. Las reglas que cumplen (acciones fijadas por SHA, permisos mínimos, sin secretos, publicar solo si todo pasa) las comprueba `python scripts/validar-workflows.py` (55 pruebas de «fallo a propósito» en `scripts/test_validar_workflows.py`).
+
+| Workflow | Cuándo corre | Qué hace |
+|---|---|---|
+| `ci.yml` | Cada subida de cualquier rama, etiquetas `v*` y a mano | `estatica` (validadores en Python), `backend` (compila, 749 unitarias y 768 de integración contra un SQL Server 2022 en contenedor con el reloj en UTC, vulnerabilidades de NuGet), `frontend` (lint, Vitest 981, build, presupuesto de peso, `npm audit`), `secretos` (gitleaks sobre todo el historial, con una autoprueba que planta un secreto), `imagenes` (construye API, migrador y frontend una sola vez, prueba lo básico y las analiza con Trivy), `compose` (`docker compose up` real con `verificar-compose.sh`) y `publicar` |
+| `migrar.yml` | **Solo a mano** y con aprobación de una persona | Respaldo exportado a Blob Storage y verificado, migrador contra Azure SQL, comprobación de que la última migración del código es la de la base; el cortafuegos se cierra siempre |
+| `respaldo.yml` | Todos los días 07:17 UTC y a mano | Exporta la base (`.bacpac`), la verifica, la sube al contenedor privado `respaldos` y borra lo de más de 30 días (nunca baja de 7 copias) |
+
+**`publicar` solo corre si los otros seis pasaron** y solo en `main`, en etiquetas `v*` o en una ejecución manual con `publicar` marcado. Sube las **mismas** imágenes que se analizaron, a `ghcr.io/<usuario>/synctime-{api,migrador,web}`, con la etiqueta `sha-<12 primeros del commit>` (y la versión si es una etiqueta `vX.Y.Z`). **Nunca `latest`.** Es el único job con permiso de escribir paquetes.
+
+### Pruebas de integración contra SQL Server con usuario y clave
+`TEST_SQL_SERVER` indica el servidor. Sin más variables, todo sigue como siempre (Windows, `localhost\SQLEXPRESS`). Con `TEST_SQL_PASSWORD` (y `TEST_SQL_USER`, por omisión `sa`) se usa la autenticación de SQL Server, como en el pipeline. Un usuario sin clave es un error, no cae en Windows en silencio. La clave del pipeline se genera al azar en cada ejecución y se enmascara en el registro.
+
+### Análisis y excepciones
+- Vulnerabilidades: falla cualquier **alta o crítica con corrección publicada** (imágenes y dependencias; NuGet y npm con sus propias herramientas). Una excepción va en `.trivyignore` con motivo y **fecha de vencimiento** (`exp:AAAA-MM-DD`), y se anota en `docs/plan/desviaciones.md`.
+- Secretos: `.gitleaks.toml` extiende las reglas por omisión; las excepciones se documentan ahí.
+- Binarios descargados (gitleaks, Trivy): versión fija y suma SHA-256 verificada. Se eligió bajar los binarios y no usar `aquasecurity/trivy-action` por el incidente de marzo de 2026 con sus etiquetas.
+- `.github/dependabot.yml` propone cada mes los SHA nuevos de las acciones y las imágenes base de los Dockerfile (no toca NuGet ni npm).
+
+### Qué hay que configurar en GitHub (lo haces tú, en la 16C)
+En **Settings → Environments** crear dos entornos:
+- `azure-sql-produccion`: **Required reviewers** (tú) y **Deployment branches** solo `main`. Aquí viven los secretos de la migración.
+- `azure-respaldo`: sin aprobación (el respaldo es automático), con su propia identidad de Azure y **Deployment branches solo `main`** (si no, cualquiera con escritura podría crear una rama que pida ese entorno y leer la base).
+
+Secretos y variables (solo **nombres**; los valores los cargas tú y nunca pasan por el repositorio):
+
+| Entorno | Secretos | Variables |
+|---|---|---|
+| `azure-sql-produccion` | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_SQL_MIGRACION_USUARIO`, `AZURE_SQL_MIGRACION_PASSWORD` | `AZURE_RESOURCE_GROUP`, `AZURE_SQL_SERVIDOR`, `AZURE_SQL_BASE`, `AZURE_STORAGE_ACCOUNT`, `SITIO_ORIGEN`, `SITIO_URL_PUBLICA` |
+| `azure-respaldo` | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_SQL_RESPALDO_USUARIO`, `AZURE_SQL_RESPALDO_PASSWORD` | `AZURE_RESOURCE_GROUP`, `AZURE_SQL_SERVIDOR`, `AZURE_SQL_BASE`, `AZURE_STORAGE_ACCOUNT` |
+
+Azure se inicia con **OIDC** (credencial federada, sin contraseña guardada) y Blob Storage con ese mismo inicio de sesión (`--auth-mode login`, sin llaves de cuenta). Los workflows de migración y respaldo **están escritos y validados de forma estática, pero no se han ejecutado**: su primera ejecución es de la 16C.
+
+### Cómo se usa la migración (16C)
+1. **El commit debe estar en `main`** (los workflows de migración y respaldo no corren desde otra rama: ni siquiera piden la aprobación) y la CI en verde sobre él, de modo que la imagen del migrador de ese commit ya esté en GHCR. El migrador comprueba que la imagen descargada esté construida con ese mismo commit (etiqueta `org.opencontainers.image.revision`).
+2. **Actions → Migrar la base de datos → Run workflow**, desde `main`; escribir el sha completo y `MIGRAR`.
+3. Aprobar el entorno cuando GitHub lo pida. Revisar en el resumen el respaldo guardado y la migración comprobada.
+4. Si algo sale mal: el respaldo previo está en `respaldos/premigracion/` y se restaura con `sqlpackage /Action:Import`.
+
+### Verificación real de compose en un Codespace
+```bash
+bash scripts/verificar-compose.sh --limpiar      # levanta todo, recorre el sitio, deja docs/evidencias/compose-<fecha>.md y apaga
+bash scripts/fallos-a-proposito.sh               # imagen de la API sin tzdata: debe negarse a arrancar
+```
+Los guiones se llaman con `bash` porque git guarda los `.sh` sin bit de ejecución.
+
+## 7. Pendiente de la 16C
+
+Azure SQL, Render, Vercel, primera ejecución de `migrar.yml` y `respaldo.yml`, restauración probada en `localhost\SQLEXPRESS`, carga y Lighthouse contra la nube, IP real del visitante con Vercel → Render, guía completa de despliegue e inventario de licencias.

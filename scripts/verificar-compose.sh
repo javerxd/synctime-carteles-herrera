@@ -37,14 +37,15 @@ comprobar() { # nombre, comando..., (detalle se toma de la salida)
 }
 
 command -v docker >/dev/null 2>&1 || { echo "Falta docker. Abra este repositorio en un Codespace (.devcontainer) o instale Docker." >&2; exit 2; }
-[ -f .env ] || ./scripts/crear-env.sh >/dev/null
+[ -f .env ] || bash ./scripts/crear-env.sh >/dev/null   # «bash»: git guarda los .sh sin bit de ejecucion (modo 100644)
 # El .env se LEE (no se ejecuta como shell): un valor con espacios, «$» o «;» no puede romper ni ejecutar nada.
 while IFS='=' read -r clave valor; do
     case "$clave" in ''|'#'*) continue ;; esac
     [[ "$clave" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && export "$clave=$valor"
 done < .env
 # Si algo falla a medias (incluida la guarda de secretos), --limpiar igual apaga y borra el entorno.
-trap 'if [ "$limpiar" -eq 1 ]; then docker compose down -v; fi' EXIT
+# Si algo fallo, los registros de los servicios se imprimen ANTES de apagar (despues ya no existirian).
+trap 'if [ "$fallos" -gt 0 ]; then echo "== Registros de los servicios (ultimas 80 lineas)"; docker compose logs --no-color --tail 80; fi; if [ "$limpiar" -eq 1 ]; then docker compose down -v; fi' EXIT
 puerto_web="${WEB_PORT:-8080}"; puerto_correo="${MAIL_UI_PORT:-8025}"; base="http://localhost:${puerto_web}"
 
 echo "== Validacion estatica"

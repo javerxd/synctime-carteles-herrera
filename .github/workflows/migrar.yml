@@ -1,0 +1,190 @@
+# Fase 16B (RNFO15): aplica las migraciones de EF Core a la base REAL de Azure SQL. SOLO SE EJECUTA A MANO y solo con aprobacion.
+#
+# Esta fase (16B) solo ESCRIBE este archivo. No se ejecuta hasta la 16C, cuando existan Azure SQL, Blob Storage y los secretos.
+#
+# Protecciones, todas necesarias:
+#   1. Disparo unico: workflow_dispatch. Nada la dispara sola (lo comprueba scripts/validar-workflows.py).
+#   2. Entorno protegido «azure-sql-produccion»: en GitHub (Settings > Environments) se configura con «Required reviewers» (la persona
+#      que aprueba) y con «Deployment branches» limitado a main. Hasta que esa persona apruebe, el job no empieza y no ve ningun secreto.
+#   3. Hay que escribir MIGRAR y el commit exacto, que ademas debe ser el que ejecuta este workflow.
+#   4. Orden fijo: respaldo exportado y verificado en Blob Storage, migracion, comprobacion; si un paso falla, los siguientes no corren.
+#   5. El cortafuegos de Azure SQL se abre solo para la IP de esta ejecucion y se cierra siempre, aunque algo falle.
+#   6. Sin llaves: Azure se inicia con OIDC (sin contrasena guardada) y Blob Storage se usa con ese mismo inicio de sesion.
+#
+# Secretos del entorno (los carga el usuario en la 16C; sus valores nunca pasan por el repositorio):
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AZURE_SQL_MIGRACION_USUARIO, AZURE_SQL_MIGRACION_PASSWORD
+# Variables del entorno (no secretas):
+#   AZURE_RESOURCE_GROUP, AZURE_SQL_SERVIDOR (solo el nombre, sin .database.windows.net), AZURE_SQL_BASE, AZURE_STORAGE_ACCOUNT,
+#   SITIO_ORIGEN (https://...vercel.app, para el arranque de la herramienta), SITIO_URL_PUBLICA
+name: Migrar la base de datos (manual, con aprobación)
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit EXACTO (40 caracteres) cuya imagen del migrador ya se publico en GHCR; debe ser el commit de esta ejecucion"
+        required: true
+        type: string
+      confirmar:
+        description: "Escriba MIGRAR para continuar"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrar-azure-sql
+  cancel-in-progress: false
+
+jobs:
+  migrar:
+    name: Respaldo, migración y comprobación contra Azure SQL
+    # Solo desde main: desde una rama sin revisar ni siquiera se pide la aprobación (y el entorno limita ademas las ramas).
+    if: github.ref == 'refs/heads/main'
+    environment: azure-sql-produccion
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      id-token: write
+      contents: read
+      packages: read
+    env:
+      API_DIR: backend/Proyecto-Carteles-herrera-synctime-main
+      SHA_PEDIDO: ${{ inputs.sha }}
+      CONFIRMACION: ${{ inputs.confirmar }}
+      GRUPO: ${{ vars.AZURE_RESOURCE_GROUP }}
+      SERVIDOR: ${{ vars.AZURE_SQL_SERVIDOR }}
+      BASE: ${{ vars.AZURE_SQL_BASE }}
+      CUENTA_BLOB: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+      ORIGEN_DEL_SITIO: ${{ vars.SITIO_ORIGEN }}
+      URL_PUBLICA: ${{ vars.SITIO_URL_PUBLICA }}
+      USUARIO_GITHUB: ${{ github.actor }}
+      COMMIT_DE_LA_EJECUCION: ${{ github.sha }}
+    # Los secretos (usuario y clave de SQL, token del registro) NO van en el env de todo el job: solo en los pasos que los usan.
+    steps:
+      - name: Comprobar lo que se pidió (confirmación y commit)
+        env:
+          SQL_USUARIO: ${{ secrets.AZURE_SQL_MIGRACION_USUARIO }}
+          SQL_PASSWORD: ${{ secrets.AZURE_SQL_MIGRACION_PASSWORD }}
+        run: |
+          if [ "$CONFIRMACION" != "MIGRAR" ]; then
+            echo "::error::No se escribió MIGRAR. No se hizo nada."
+            exit 1
+          fi
+          if ! [[ "$SHA_PEDIDO" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::El commit debe ser el sha completo de 40 caracteres."
+            exit 1
+          fi
+          if [ "$SHA_PEDIDO" != "$COMMIT_DE_LA_EJECUCION" ]; then
+            echo "::error::El commit pedido no es el que ejecuta este workflow. Ejecútelo desde la rama de ese commit."
+            exit 1
+          fi
+          for variable in GRUPO SERVIDOR BASE CUENTA_BLOB ORIGEN_DEL_SITIO URL_PUBLICA SQL_USUARIO SQL_PASSWORD; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Falta configurar ${variable} en el entorno azure-sql-produccion."
+              exit 1
+            fi
+          done
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Instalar el SDK de .NET (el de global.json)
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Instalar sqlpackage (versión fija; antes de iniciar sesión, para que no vea credenciales)
+        run: |
+          dotnet tool install --global microsoft.sqlpackage --version 170.5.96
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+      - name: Iniciar sesión en Azure (OIDC, sin contraseña guardada)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Abrir el cortafuegos de Azure SQL solo para esta máquina
+        run: |
+          ip="$(curl --fail --silent --show-error --max-time 10 --retry 3 https://api.ipify.org)"
+          if ! [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+            echo "::error::No se pudo conocer la IP de esta máquina."
+            exit 1
+          fi
+          az sql server firewall-rule create --resource-group "$GRUPO" --server "$SERVIDOR" \
+            --name "migracion-${GITHUB_RUN_ID}" --start-ip-address "$ip" --end-ip-address "$ip" --output none
+          echo "Cortafuegos abierto para ${ip} (regla migracion-${GITHUB_RUN_ID})."
+      - name: Respaldo previo (exportar la base, verificarlo y guardarlo en Blob Storage)
+        env:
+          SQL_USUARIO: ${{ secrets.AZURE_SQL_MIGRACION_USUARIO }}
+          SQL_PASSWORD: ${{ secrets.AZURE_SQL_MIGRACION_PASSWORD }}
+        run: |
+          archivo="$RUNNER_TEMP/premigracion.bacpac"
+          nombre="premigracion/$(date -u +%Y-%m-%dT%H%MZ)-${COMMIT_DE_LA_EJECUCION:0:12}.bacpac"
+          echo "::add-mask::${SQL_PASSWORD}"
+          sqlpackage /Action:Export /SourceServerName:"tcp:${SERVIDOR}.database.windows.net,1433" /SourceDatabaseName:"$BASE" \
+            /SourceUser:"$SQL_USUARIO" /SourcePassword:"$SQL_PASSWORD" /SourceEncryptConnection:True /SourceTrustServerCertificate:False \
+            /SourceTimeout:120 /TargetFile:"$archivo" /Quiet:True
+          python3 -c "import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); assert z.testzip() is None; assert any(n.lower()=='model.xml' for n in z.namelist()), 'sin Model.xml'" "$archivo"
+          az storage blob upload --auth-mode login --account-name "$CUENTA_BLOB" --container-name respaldos \
+            --name "$nombre" --file "$archivo" --overwrite false --output none
+          local_bytes="$(stat -c %s "$archivo")"
+          remoto_bytes="$(az storage blob show --auth-mode login --account-name "$CUENTA_BLOB" --container-name respaldos --name "$nombre" --query properties.contentLength --output tsv)"
+          if [ "$local_bytes" != "$remoto_bytes" ]; then
+            echo "::error::El respaldo subido (${remoto_bytes} bytes) no coincide con el exportado (${local_bytes} bytes). No se migra."
+            exit 1
+          fi
+          echo "Respaldo guardado: respaldos/${nombre} (${remoto_bytes} bytes)"
+          echo "- Respaldo de seguridad antes de migrar: \`respaldos/${nombre}\` (${remoto_bytes} bytes)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Aplicar las migraciones (imagen del migrador publicada por la CI para este commit)
+        env:
+          SQL_USUARIO: ${{ secrets.AZURE_SQL_MIGRACION_USUARIO }}
+          SQL_PASSWORD: ${{ secrets.AZURE_SQL_MIGRACION_PASSWORD }}
+          TOKEN_DE_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          propietario="${GITHUB_REPOSITORY_OWNER,,}"
+          imagen="ghcr.io/${propietario}/synctime-migrador:sha-${COMMIT_DE_LA_EJECUCION:0:12}"
+          printf '%s' "$TOKEN_DE_GITHUB" | docker login ghcr.io --username "$USUARIO_GITHUB" --password-stdin
+          # La etiqueta sha-... puede reescribirse: antes de usar la imagen se comprueba que de verdad se construyo con ESTE commit.
+          docker pull "$imagen" > /dev/null
+          revision="$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$imagen")"
+          if [ "$revision" != "$COMMIT_DE_LA_EJECUCION" ]; then
+            echo "::error::La imagen ${imagen} no se construyó con el commit pedido (revisión: ${revision:-ninguna}). No se migra."
+            exit 1
+          fi
+          # La herramienta de EF arma la aplicacion para conocer el contexto, asi que pide las mismas variables que la API. La clave
+          # de las sesiones NO se usa para migrar: se genera una al azar y se descarta (la real nunca llega a GitHub).
+          clave_descartable="$(openssl rand -base64 48)"
+          echo "::add-mask::${clave_descartable}"
+          export ConnectionStrings__DefaultConnection="Server=tcp:${SERVIDOR}.database.windows.net,1433;Initial Catalog=${BASE};User ID=${SQL_USUARIO};Password=\"${SQL_PASSWORD}\";Encrypt=True;TrustServerCertificate=False;Connect Timeout=60"
+          export Jwt__Key="$clave_descartable" Jwt__Issuer=synctime Jwt__Audience=synctime
+          export Cors__AllowedOrigins__0="$ORIGEN_DEL_SITIO" Sitio__UrlPublica="$URL_PUBLICA"
+          docker run --rm --pull never \
+            --env ConnectionStrings__DefaultConnection --env Jwt__Key --env Jwt__Issuer --env Jwt__Audience \
+            --env Cors__AllowedOrigins__0 --env Sitio__UrlPublica "$imagen"
+      - name: Comprobación posterior (la última migración del código es la última de la base)
+        env:
+          SQL_USUARIO: ${{ secrets.AZURE_SQL_MIGRACION_USUARIO }}
+          SQL_PASSWORD: ${{ secrets.AZURE_SQL_MIGRACION_PASSWORD }}
+        run: |
+          esperada="$(ls "$API_DIR/LetrerosHerreraSYNCTIMEapi/Migrations" | grep -E '^[0-9]{14}_.*\.cs$' | grep -v '\.Designer\.cs$' | sort | tail -1 | sed 's/\.cs$//')"
+          export SQLCMDPASSWORD="$SQL_PASSWORD"
+          aplicada="$(docker run --rm --env SQLCMDPASSWORD --entrypoint /opt/mssql-tools18/bin/sqlcmd \
+            mcr.microsoft.com/mssql/server:2022-CU28-ubuntu-22.04 \
+            -S "tcp:${SERVIDOR}.database.windows.net,1433" -d "$BASE" -U "$SQL_USUARIO" -h -1 -W \
+            -Q "SET NOCOUNT ON; SELECT TOP 1 MigrationId FROM __EFMigrationsHistory ORDER BY MigrationId DESC")"
+          echo "Última migración del código: ${esperada}"
+          echo "Última migración de la base: ${aplicada}"
+          if [ -z "$esperada" ] || [ "$esperada" != "$aplicada" ]; then
+            echo "::error::La base no quedó en la última migración. Revise el registro y, si hace falta, restaure el respaldo de este mismo trabajo."
+            exit 1
+          fi
+          echo "- Migración aplicada y comprobada: \`${aplicada}\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cerrar el cortafuegos de Azure SQL (siempre)
+        if: always()
+        run: |
+          az sql server firewall-rule delete --resource-group "$GRUPO" --server "$SERVIDOR" --name "migracion-${GITHUB_RUN_ID}" --yes \
+            || { echo "::error::No se pudo borrar la regla migracion-${GITHUB_RUN_ID}: la IP de esta máquina sigue autorizada. Bórrela a mano en Azure YA."; exit 1; }
+      - name: Cerrar la sesión del registro
+        if: always()
+        run: docker logout ghcr.io || true

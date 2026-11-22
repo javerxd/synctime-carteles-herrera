@@ -685,12 +685,13 @@ public sealed class SolicitudesFase7Tests(ApiFixture api)
         Assert.Equal(enLinea, Assert.Single(soloEnLinea.GetProperty("elementos").EnumerateArray()).GetProperty("idSolicitud").GetInt32());
         var porNumero = await admin.GetAsync($"/api/v1/solicitudes?q=%23{presencial}").EsperarAsync(HttpStatusCode.OK);
         Assert.Contains(porNumero.GetProperty("elementos").EnumerateArray(), e => e.GetProperty("idSolicitud").GetInt32() == presencial);
-        var hoy = DateTime.Now.ToString("yyyy-MM-dd");
+        // Fase 16B: «hoy» es el de Chile (la fecha de las solicitudes nace en hora de Chile), no el del equipo ni el del servidor SQL.
+        var hoy = ApiFixture.HoyChile().ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         var pagina = await admin.GetAsync($"/api/v1/solicitudes?estado=solicitado&desde={hoy}&hasta={hoy}&pagina=1&tamano=1").EsperarAsync(HttpStatusCode.OK);
         Assert.Equal(1, pagina.GetProperty("elementos").GetArrayLength());
         Assert.True(pagina.GetProperty("total").GetInt32() >= 2);
         Assert.True(pagina.GetProperty("totalPaginas").GetInt32() >= 2);
-        var manana = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd");
+        var manana = ApiFixture.HoyChile().AddDays(1).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         var vacia = await admin.GetAsync($"/api/v1/solicitudes?desde={manana}").EsperarAsync(HttpStatusCode.OK);
         Assert.Equal(0, vacia.GetProperty("total").GetInt32());
     }

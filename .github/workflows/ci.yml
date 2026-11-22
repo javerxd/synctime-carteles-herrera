@@ -1,0 +1,361 @@
+# Fase 16B (RNFO15): integracion continua. Corre en cada subida de cualquier rama y en las etiquetas v*.
+#
+#   estatica ─┐
+#   backend  ─┤
+#   frontend ─┼─► publicar (imagenes en GHCR, SOLO si TODO lo anterior paso y solo en main, etiquetas v* o ejecucion manual)
+#   secretos ─┤
+#   imagenes ─┤   (construye las tres imagenes UNA vez, las analiza y las guarda; publicar sube esas mismas imagenes)
+#   compose  ─┘   (docker compose up de verdad, con el guion de verificacion)
+#
+# Reglas del pipeline (las comprueba scripts/validar-workflows.py en el job «estatica»):
+#   - acciones de terceros fijadas por SHA completo, con su version en un comentario; permisos minimos (solo lectura; «publicar» es el
+#     unico que escribe paquetes); sin secretos en archivos ni en los registros; ningun valor externo dentro de «run» (va por env).
+#   - SQL Server de las pruebas: el mismo contenedor que compose, con una clave generada al azar en cada ejecucion y enmascarada.
+#   - los binarios descargados (gitleaks, Trivy) llevan version fija y suma de verificacion SHA-256.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: "Publicar las imagenes en GHCR si todo pasa (desde una rama ya revisada)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_CLI_UI_LANGUAGE: en
+  API_DIR: backend/Proyecto-Carteles-herrera-synctime-main
+  WEB_DIR: frontend/synctimefront
+  # Pisos de pruebas: una suite que se saltea pruebas en silencio no puede dar verde (scripts/ci-resumen.py). Se suben cuando se agregan pruebas.
+  MINIMO_UNITARIAS: "749"
+  MINIMO_INTEGRACION: "768"
+  MINIMO_VITEST: "981"
+
+jobs:
+  estatica:
+    name: Validación estática (contenedores, nube y pipeline)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Instalar Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Instalar PyYAML (versión fija)
+        run: python -m pip install --disable-pip-version-check pyyaml==6.0.3
+      - name: Validar contenedores, compose, Render y Vercel
+        run: python scripts/validar-contenedores.py
+      - name: Pruebas del validador de contenedores
+        run: python scripts/test_validar_contenedores.py
+      - name: Validar el pipeline (este mismo workflow, migrar y respaldo)
+        run: python scripts/validar-workflows.py
+      - name: Pruebas del validador del pipeline
+        run: python scripts/test_validar_workflows.py
+      - name: Pruebas del resumen de resultados
+        run: python scripts/test_ci_resumen.py
+
+  backend:
+    name: Backend (.NET 10, SQL Server 2022 en UTC)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Instalar el SDK de .NET (el de global.json)
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Restaurar y compilar
+        run: |
+          dotnet restore "$API_DIR/LetrerosHerreraSYNCTIMEapi.slnx"
+          dotnet build "$API_DIR/LetrerosHerreraSYNCTIMEapi.slnx" --configuration Release --no-restore
+      - name: Pruebas unitarias
+        run: >-
+          dotnet test "$API_DIR/LetrerosHerreraSYNCTIMEapi.UnitTests" --configuration Release --no-build
+          --logger "trx;LogFileName=unitarias.trx" --results-directory "$RUNNER_TEMP/resultados"
+      - name: Resumen de las unitarias
+        if: ${{ !cancelled() }}
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci-resumen.py" trx "$RUNNER_TEMP/resultados/unitarias.trx" --nombre Unitarias --minimo "$MINIMO_UNITARIAS"
+      - name: SQL Server 2022 en contenedor (reloj en UTC, como Azure SQL)
+        run: |
+          clave="Ci-$(openssl rand -hex 16)-Aa1"
+          echo "::add-mask::${clave}"
+          echo "TEST_SQL_PASSWORD=${clave}" >> "$GITHUB_ENV"
+          export MSSQL_SA_PASSWORD="${clave}" SQLCMDPASSWORD="${clave}"
+          docker run --detach --name sql-pruebas \
+            --env ACCEPT_EULA=Y --env MSSQL_PID=Developer --env MSSQL_SA_PASSWORD --env MSSQL_MEMORY_LIMIT_MB=2048 --env TZ=UTC \
+            --publish 127.0.0.1:1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-CU28-ubuntu-22.04
+          listo=0
+          for intento in $(seq 1 60); do
+            if docker exec --env SQLCMDPASSWORD sql-pruebas /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -Q "SELECT 1" -b -o /dev/null 2>/dev/null; then
+              listo=1
+              break
+            fi
+            sleep 3
+          done
+          if [ "$listo" != "1" ]; then
+            echo "::error::SQL Server no quedó listo a tiempo"
+            docker logs --tail 80 sql-pruebas
+            exit 1
+          fi
+          desfase="$(docker exec --env SQLCMDPASSWORD sql-pruebas /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -h -1 -W -Q "SET NOCOUNT ON; SELECT DATENAME(TZOFFSET, SYSDATETIMEOFFSET())")"
+          echo "Reloj de SQL Server: desfase ${desfase} respecto de UTC"
+          if [ "$desfase" != "+00:00" ]; then
+            echo "::error::El SQL Server de las pruebas debe estar en UTC (como Azure SQL) y está en ${desfase}"
+            exit 1
+          fi
+      - name: Pruebas de integración (contra SQL Server en UTC)
+        env:
+          TEST_SQL_SERVER: localhost,1433
+        run: >-
+          dotnet test "$API_DIR/LetrerosHerreraSYNCTIMEapi.Tests" --configuration Release --no-build
+          --logger "trx;LogFileName=integracion.trx" --results-directory "$RUNNER_TEMP/resultados"
+      - name: Resumen de las de integración
+        if: ${{ !cancelled() }}
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci-resumen.py" trx "$RUNNER_TEMP/resultados/integracion.trx" --nombre Integración --minimo "$MINIMO_INTEGRACION"
+      - name: Vulnerabilidades de los paquetes NuGet (alta o crítica falla)
+        run: |
+          dotnet list "$API_DIR/LetrerosHerreraSYNCTIMEapi.slnx" package --vulnerable --include-transitive --format json > "$RUNNER_TEMP/nuget.json"
+          python3 "$GITHUB_WORKSPACE/scripts/ci-resumen.py" nuget "$RUNNER_TEMP/nuget.json"
+      - name: Registro de SQL Server si algo falló
+        if: failure()
+        run: docker logs --tail 120 sql-pruebas || true
+      - name: Apagar SQL Server
+        if: ${{ !cancelled() }}
+        run: docker rm --force sql-pruebas || true
+      - name: Guardar los resultados de las pruebas
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: resultados-backend
+          path: ${{ runner.temp }}/resultados/*.trx
+          retention-days: 7
+          if-no-files-found: warn
+
+  frontend:
+    name: Frontend (lint, Vitest, build y presupuesto de peso)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend/synctimefront
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Instalar Node (el de la imagen del frontend)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.22.3"
+          cache: npm
+          cache-dependency-path: frontend/synctimefront/package-lock.json
+      - name: Instalar dependencias (exactas del package-lock, sin scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Pruebas (Vitest)
+        run: npm test -- --reporter=default --reporter=json --outputFile.json="$RUNNER_TEMP/vitest.json"
+      - name: Resumen de Vitest
+        if: ${{ !cancelled() }}
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci-resumen.py" vitest "$RUNNER_TEMP/vitest.json" --nombre Vitest --minimo "$MINIMO_VITEST"
+      - name: Construir
+        run: npm run build
+      - name: Presupuesto de peso del JavaScript (150 KB iniciales comprimidos)
+        run: |
+          npx vite build --outDir "$RUNNER_TEMP/dist-presupuesto" --emptyOutDir --manifest
+          node scripts/presupuesto.mjs "$RUNNER_TEMP/dist-presupuesto"
+      - name: Vulnerabilidades de npm (alta o crítica falla)
+        run: npm audit --audit-level=high
+
+  secretos:
+    name: Análisis de secretos (todo el historial)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Descargar el código con todo su historial
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Instalar gitleaks (versión fija y suma verificada)
+        env:
+          VERSION: "8.30.1"
+          SUMA: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/gitleaks.tar.gz" "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          echo "${SUMA}  ${RUNNER_TEMP}/gitleaks.tar.gz" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          tar --extract --gzip --file "$RUNNER_TEMP/gitleaks.tar.gz" --directory "$RUNNER_TEMP/gitleaks" gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+      - name: Autoprueba del escáner de secretos (debe detectar uno plantado)
+        run: |
+          carpeta="$(mktemp -d)"
+          printf 'token = "ghp_%s"\n' "$(openssl rand -hex 18)" > "${carpeta}/plantado.txt"
+          # Código de salida 42 SOLO si encuentra algo: un error de gitleaks (opción inválida, configuración rota) sale con otro código
+          # y no puede confundirse con una detección.
+          codigo=0
+          gitleaks dir "$carpeta" --no-banner --redact --exit-code 42 > /dev/null 2>&1 || codigo=$?
+          if [ "$codigo" -ne 42 ]; then
+            echo "::error::El escáner de secretos no detectó el secreto plantado (código ${codigo}, se esperaba 42): no se puede confiar en su veredicto"
+            exit 1
+          fi
+          echo "El escáner detectó el secreto plantado, como debe."
+      - name: Analizar el repositorio y todo su historial
+        run: gitleaks git . --config .gitleaks.toml --no-banner --redact --exit-code 1 --verbose
+
+  imagenes:
+    name: Imágenes (construir, probar lo básico y analizar vulnerabilidades)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Construir las tres imágenes (API, migrador y frontend)
+        run: |
+          origen="https://github.com/${GITHUB_REPOSITORY}"
+          mkdir -p "$RUNNER_TEMP/imagenes"
+          docker build --pull --target api --tag synctime-api:ci \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" --label "org.opencontainers.image.source=${origen}" "$API_DIR"
+          docker build --pull --target migrador --tag synctime-migrador:ci \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" --label "org.opencontainers.image.source=${origen}" "$API_DIR"
+          docker build --pull --tag synctime-web:ci \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" --label "org.opencontainers.image.source=${origen}" "$WEB_DIR"
+          docker save synctime-api:ci --output "$RUNNER_TEMP/imagenes/api.tar"
+          docker save synctime-migrador:ci --output "$RUNNER_TEMP/imagenes/migrador.tar"
+          docker save synctime-web:ci --output "$RUNNER_TEMP/imagenes/web.tar"
+      - name: Comprobar lo básico de la imagen de la API (zona horaria, setpriv y curl)
+        run: >-
+          docker run --rm --entrypoint sh synctime-api:ci -c
+          'test -f /usr/share/zoneinfo/America/Santiago && command -v setpriv && command -v curl'
+      - name: Instalar Trivy (versión fija y suma verificada)
+        env:
+          VERSION: "0.76.2"
+          SUMA: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/trivy.tar.gz" "https://github.com/aquasecurity/trivy/releases/download/v${VERSION}/trivy_${VERSION}_Linux-64bit.tar.gz"
+          echo "${SUMA}  ${RUNNER_TEMP}/trivy.tar.gz" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/trivy"
+          tar --extract --gzip --file "$RUNNER_TEMP/trivy.tar.gz" --directory "$RUNNER_TEMP/trivy" trivy
+          echo "$RUNNER_TEMP/trivy" >> "$GITHUB_PATH"
+      - name: Vulnerabilidades y secretos en las imágenes (alta o crítica con corrección publicada falla)
+        run: |
+          for imagen in api migrador web; do
+            echo "== ${imagen}"
+            trivy image --input "$RUNNER_TEMP/imagenes/${imagen}.tar" --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress --ignorefile "$GITHUB_WORKSPACE/.trivyignore"
+          done
+      - name: Vulnerabilidades en las dependencias del repositorio
+        run: trivy fs . --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress --skip-dirs node_modules --ignorefile .trivyignore
+      - name: Guardar las imágenes para publicarlas (las mismas que se analizaron)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: imagenes
+          path: ${{ runner.temp }}/imagenes/*.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  compose:
+    name: docker compose up (verificación real del entorno completo)
+    needs: [estatica]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Preparar el .env con claves al azar (enmascaradas en el registro)
+        run: |
+          bash scripts/crear-env.sh > /dev/null
+          while IFS='=' read -r clave valor; do
+            case "$clave" in
+              MSSQL_SA_PASSWORD|JWT_KEY|DEMO_PASSWORD|ROSTRO_CLAVE|ADMIN_PASSWORD)
+                if [ -n "$valor" ]; then printf '::add-mask::%s\n' "$valor"; fi ;;
+            esac
+          done < .env
+      - name: Levantar y verificar todo el entorno
+        run: bash scripts/verificar-compose.sh
+      - name: Guardar la evidencia
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: evidencia-compose
+          path: docs/evidencias/compose-*.md
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Registros de los servicios si algo falló
+        if: failure()
+        run: docker compose logs --no-color --tail 150
+      - name: Apagar y borrar el entorno
+        if: ${{ !cancelled() }}
+        run: docker compose down --volumes || true
+
+  publicar:
+    name: Publicar imágenes en GHCR (solo si todo pasó)
+    needs: [estatica, backend, frontend, secretos, imagenes, compose]
+    if: >-
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
+      || (github.event_name == 'workflow_dispatch' && inputs.publicar)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Una publicación a medias dejaría un conjunto incompleto en GHCR: nunca se cancela por una subida nueva.
+    concurrency:
+      group: publicar-ghcr
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Traer las imágenes que se analizaron
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: imagenes
+          path: imagenes
+      - name: Subir las imágenes con versión fija (sha del commit y, si es una etiqueta, su versión)
+        env:
+          TOKEN_DE_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+          USUARIO: ${{ github.actor }}
+          COMMIT: ${{ github.sha }}
+          TIPO_DE_REF: ${{ github.ref_type }}
+          NOMBRE_DE_REF: ${{ github.ref_name }}
+        run: |
+          propietario="${GITHUB_REPOSITORY_OWNER,,}"
+          corto="${COMMIT:0:12}"
+          printf '%s' "$TOKEN_DE_GITHUB" | docker login ghcr.io --username "$USUARIO" --password-stdin
+          for nombre in api migrador web; do
+            docker load --input "imagenes/${nombre}.tar"
+            destino="ghcr.io/${propietario}/synctime-${nombre}"
+            etiquetas=("sha-${corto}")
+            if [ "$TIPO_DE_REF" = "tag" ] && [[ "$NOMBRE_DE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              etiquetas+=("$NOMBRE_DE_REF")
+            fi
+            for etiqueta in "${etiquetas[@]}"; do
+              docker tag "synctime-${nombre}:ci" "${destino}:${etiqueta}"
+              docker push "${destino}:${etiqueta}"
+            done
+            echo "- \`${destino}:sha-${corto}\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Cerrar la sesión del registro
+        if: ${{ !cancelled() }}
+        run: docker logout ghcr.io || true

@@ -120,7 +120,7 @@ public sealed class PedidoPagoTests(ApiFixture api)
             {
                 IdSolicitud = idSolicitud,
                 IdEmpleadoResponsable = idAdmin,
-                FechaEntregaEstimada = DateTime.Now.AddDays(5),
+                FechaEntregaEstimada = Negocio.Local.HoraChile.Convertir(DateTimeOffset.UtcNow).AddDays(5),
                 MontoBaseTrabajo = MontoBase,
                 MontoAbonado = 50_000
             };

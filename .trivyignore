@@ -1,0 +1,8 @@
+# Fase 16B (RNFO15): excepciones del analisis de vulnerabilidades (Trivy) del pipeline.
+# El analisis falla con cualquier vulnerabilidad ALTA o CRITICA que ya tenga correccion publicada. Una excepcion solo se acepta si:
+#   - lleva su identificador y una fecha de vencimiento («exp:AAAA-MM-DD»), para que no se quede eterna, y
+#   - la razon esta en el comentario de la linea anterior y en docs/plan/desviaciones.md.
+# Formato:
+#   # Motivo: no alcanzable porque ... (quien lo decidio y cuando)
+#   CVE-AAAA-NNNNN exp:AAAA-MM-DD
+# Hoy no hay ninguna excepcion.

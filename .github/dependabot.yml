@@ -1,0 +1,23 @@
+# Fase 16B (RNFO15): mantiene al dia las acciones de GitHub fijadas por SHA y las imagenes base de los Dockerfile.
+# Dependabot propone un cambio por mes (un PR por grupo): el SHA nuevo viaja con su comentario de version y la CI lo prueba antes de aceptarlo.
+# Los paquetes de NuGet y de npm NO se agregan aqui: se actualizan a mano por fase, con sus pruebas (decision D7 de la fase 16).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      acciones:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /backend/Proyecto-Carteles-herrera-synctime-main
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+  - package-ecosystem: docker
+    directory: /frontend/synctimefront
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2

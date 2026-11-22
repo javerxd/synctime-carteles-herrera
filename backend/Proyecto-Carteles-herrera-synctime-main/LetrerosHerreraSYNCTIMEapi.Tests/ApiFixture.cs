@@ -23,13 +23,13 @@ public sealed class ApiCollection : ICollectionFixture<ApiFixture>
 }
 
 // Levanta la API contra una base propia creada por las migraciones, nunca contra la de desarrollo.
-// Usa la instancia local de SQL Server Express; la variable TEST_SQL_SERVER permite apuntar a otro servidor.
+// Usa la instancia local de SQL Server Express; la variable TEST_SQL_SERVER permite apuntar a otro servidor, y TEST_SQL_PASSWORD (con
+// TEST_SQL_USER, por omision «sa») cambia a la autenticacion de SQL Server para un contenedor (ver ConexionDePruebas).
 public sealed class ApiFixture : IAsyncLifetime
 {
     public const string AdminEmail = "admin.pruebas@test.local";
     public static readonly string AdminPassword = $"Pr-{Guid.NewGuid():N}"[..24];
     public const int TiempoMinimoFalloMs = 60;
-    public const string ServidorPredeterminado = @"localhost\SQLEXPRESS";
     public const string AvisosTaller = "avisos.taller@test.local";
 
     // El prefijo identifica las bases temporales: es lo unico que este codigo tiene permitido eliminar.
@@ -57,12 +57,11 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var servidor = Environment.GetEnvironmentVariable("TEST_SQL_SERVER") ?? ServidorPredeterminado;
         var configuracion = new Dictionary<string, string>
         {
-            // Esperas amplias: en un equipo con poca memoria libre, SQL Server Express tarda en aceptar conexiones
-            // y en crear la base, y un fallo por tiempo de espera no dice nada sobre el codigo que se prueba.
-            ["ConnectionStrings__DefaultConnection"] = $"Server={servidor};Database={nombreBase};Trusted_Connection=True;TrustServerCertificate=True;Connect Timeout=60;Command Timeout=180;",
+            // Fase 16B: Windows en el equipo de desarrollo; usuario y clave de SQL Server si el entorno define TEST_SQL_PASSWORD (pipeline).
+            // Esperas amplias: un fallo por tiempo de espera no dice nada sobre el codigo que se prueba (ver ConexionDePruebas).
+            ["ConnectionStrings__DefaultConnection"] = ConexionDePruebas.DesdeEntorno(Environment.GetEnvironmentVariable, nombreBase),
             ["Jwt__Key"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48)),
             ["Jwt__Issuer"] = "pruebas",
             ["Jwt__Audience"] = "pruebas",
