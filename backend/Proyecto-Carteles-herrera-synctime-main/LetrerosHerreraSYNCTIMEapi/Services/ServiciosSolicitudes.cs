@@ -922,10 +922,17 @@ public sealed class ServicioClientes(LetrerosHerreradbContext db)
         if (parametros.Buscar is { } buscar)
         {
             var digitos = new string(buscar.Where(char.IsDigit).ToArray());
+            // Un telefono escrito «+56 9 1234 5678» se guarda como «912345678»; un RUT, como «12345678-5» (con o sin puntos y guion al buscar).
+            var telefono = ValidacionCuenta.NormalizarTelefono(buscar);
+            var rutExacto = Rut.TryNormalizar(buscar, out var normalizado) ? normalizado : null;
             var rut = buscar.Replace(".", "").Trim().ToUpperInvariant();
+            // Con menos de 3 caracteres un trozo de RUT o de telefono coincide con medio padron (y «.» queda vacio y coincide con todos).
+            var buscaPorRut = rut.Length >= 3;
             consulta = consulta.Where(c => (c.Nombre + " " + c.Apellido).Contains(buscar)
                 || (digitos.Length >= 3 && c.Telefono.Contains(digitos))
-                || (c.Rut != null && c.Rut.Contains(rut)));
+                || (telefono != null && c.Telefono.Contains(telefono))
+                || (rutExacto != null && c.Rut == rutExacto)
+                || (buscaPorRut && c.Rut != null && c.Rut.Contains(rut)));
         }
         return consulta
             .OrderBy(c => c.Apellido).ThenBy(c => c.Nombre).ThenBy(c => c.IdCliente)

@@ -348,19 +348,19 @@ public class IngresoGoogleTests
 
     [Fact]
     public void ConLaIdentidadYaVinculada_ALaCuentaHabilitada_SeAbreLaSesion() =>
-        Assert.Equal(CaminoGoogle.IniciarSesion, ReglasGoogle.Decidir(identidadVinculada: true, cuentaHabilitada: true, correoTieneCuenta: true));
+        Assert.Equal(CaminoGoogle.IniciarSesion, ReglasGoogle.Decidir(identidadVinculada: true, cuentaHabilitada: true, correoTieneCuenta: true, correoEsDePersonal: false));
 
     [Fact]
     public void ConLaIdentidadVinculada_PeroLaCuentaDeBaja_NoEntra() =>
-        Assert.Equal(CaminoGoogle.Rechazar, ReglasGoogle.Decidir(identidadVinculada: true, cuentaHabilitada: false, correoTieneCuenta: true));
+        Assert.Equal(CaminoGoogle.Rechazar, ReglasGoogle.Decidir(identidadVinculada: true, cuentaHabilitada: false, correoTieneCuenta: true, correoEsDePersonal: false));
 
     [Fact]
     public void ConUnCorreoQueYaTieneCuenta_NuncaSeFusionaSola() =>
-        Assert.Equal(CaminoGoogle.CuentaExistente, ReglasGoogle.Decidir(identidadVinculada: false, cuentaHabilitada: false, correoTieneCuenta: true));
+        Assert.Equal(CaminoGoogle.CuentaExistente, ReglasGoogle.Decidir(identidadVinculada: false, cuentaHabilitada: false, correoTieneCuenta: true, correoEsDePersonal: false));
 
     [Fact]
     public void ConUnCorreoNuevo_SePideCompletarElRegistro() =>
-        Assert.Equal(CaminoGoogle.RegistroPendiente, ReglasGoogle.Decidir(identidadVinculada: false, cuentaHabilitada: false, correoTieneCuenta: false));
+        Assert.Equal(CaminoGoogle.RegistroPendiente, ReglasGoogle.Decidir(identidadVinculada: false, cuentaHabilitada: false, correoTieneCuenta: false, correoEsDePersonal: false));
 
     [Theory]
     [InlineData(true, true)]

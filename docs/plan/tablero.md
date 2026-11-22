@@ -2,7 +2,7 @@
 
 Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase en curso a la vez**. Una fase pasa a "Hecho" cuando el usuario da su visto bueno al informe de cierre, que queda en `informes/`.
 
-Última actualización: 21-11-2026 (fases 13A, 13B y 14A aprobadas; 14B y 14C construidas, en revisión: falta la prueba real con Google).
+Última actualización: 21-11-2026 (fases 13A, 13B y 14A aprobadas; 14B y 14C construidas, en revisión: falta la prueba real con Google; plan de la 15 aprobado y 15A construida, en revisión).
 
 ## Hecho
 
@@ -39,11 +39,10 @@ Una tarjeta por fase del plan (`plan-de-construccion.md`). Solo hay **una fase e
 
 ## Plan aprobado, construcción sin iniciar
 
-- **Fase 15 — Calidad: rendimiento, accesibilidad y compatibilidad** · plan `fase-15-plan.md` · **propuesto el 21-11-2026, esperando la aprobación del usuario** (todavía no está aprobado) · dos partes: 15A (backend: carga con 20 usuarios, búsqueda de clientes en el servidor) y 15B (frontend: llamadas duplicadas, código dividido, red lenta y móvil, Chrome/Edge/Brave, axe en todas las rutas, Lighthouse y guion NVDA) · la rama nace de la 14C commiteada
 
 ## En curso
 
-Nada por ahora.
+- **Fase 15 — Calidad: rendimiento, accesibilidad y compatibilidad** · rama `fase-15-calidad` (nace de la 14C, commit del plan `8ac6b42`) · plan `fase-15-plan.md` (aprobado el 21-11-2026; umbrales de Lighthouse móvil: rendimiento ≥ 85 y accesibilidad ≥ 95) · **15A (backend) construida el 21-11-2026, en revisión** · informe: `informes/fase-15a.md` · evidencia en `docs/evidencias/carga-15a*.md` · el 99,8 % de las respuestas en 2 s o menos con 20 usuarios (meta cumplida; cifras de este equipo) · búsqueda de clientes verificada y corregida (la pantalla va en la 15B) · sin migración · **15B (frontend) sin iniciar: empieza con el visto bueno a la 15A** · de tu lado: repetir la carga con el equipo desocupado (opcional), la prueba con NVDA y el cronómetro de 5 minutos en un teléfono
 
 ## Por hacer
 

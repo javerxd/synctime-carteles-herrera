@@ -266,6 +266,7 @@ public sealed class TrabajadorExportaciones(
         var ahora = ServicioExportaciones.EnSegundos(reloj.GetUtcNow());
         var vencidos = await db.TrabajosExportacion.AsNoTracking()
             .Where(t => t.Estado == EstadosExportacion.Listo && t.ArchivoBorradoEn == null && t.FechaVencimiento < ahora)
+            .OrderBy(t => t.IdTrabajo)   // sin orden, Take(500) no tiene un resultado definido (advertencia 10102 de EF Core al arrancar)
             .Select(t => new { t.IdTrabajo, t.Formato }).Take(500).ToListAsync(ct);
         foreach (var vencido in vencidos)
         {
