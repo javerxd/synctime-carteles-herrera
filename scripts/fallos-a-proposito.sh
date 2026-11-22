@@ -74,18 +74,19 @@ else
     registrar ok "La imagen rota no tiene zonas horarias" "/usr/share/zoneinfo/America/Santiago no existe"
 fi
 
-echo "== Control: la imagen sana debe arrancar y estar saludable"
-docker run --detach --name fallo-control --publish "127.0.0.1:${puerto}:8080" "${entorno[@]}" "$sana" >/dev/null
-estado_sana="sin-respuesta"
-for _ in $(seq 1 30); do
-    codigo="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 "http://127.0.0.1:${puerto}/salud" || true)"
-    if [ "$codigo" = "200" ]; then estado_sana="200"; break; fi
+# En produccion la API se conecta a la base al arrancar (revisa las migraciones pendientes, Program.cs). Esta prueba NO tiene base: no busca que
+# la API quede sana (eso lo comprueba el job «compose», con SQL Server), sino aislar UNA causa: la zona horaria se exige ANTES de tocar la base.
+echo "== Control: con tzdata la API NO debe fallar por la zona horaria"
+docker run --detach --name fallo-control "${entorno[@]}" "$sana" >/dev/null
+for _ in $(seq 1 20); do
+    [ "$(docker inspect -f '{{.State.Running}}' fallo-control 2>/dev/null || echo false)" = "false" ] && break
     sleep 2
 done
-if [ "$estado_sana" = "200" ]; then
-    registrar ok "Control: la imagen sana arranca y /salud responde 200" "responde 200"
+registro_sana="$(docker logs fallo-control 2>&1 || true)"
+if grep -qE "HoraChile|zona horaria de Chile" <<<"$registro_sana"; then
+    registrar fallo "Control: con tzdata la API no falla por la zona horaria" "la imagen SANA menciona la zona horaria en su registro: $(tr '\n' ' ' <<<"$registro_sana" | cut -c1-300)"
 else
-    registrar fallo "Control: la imagen sana arranca y /salud responde 200" "no respondio 200 en 60 s; ultimo registro: $(docker logs --tail 3 fallo-control 2>&1 | tr '\n' ' ' | cut -c1-300)"
+    registrar ok "Control: con tzdata la API no falla por la zona horaria" "supera la comprobacion de zona horaria (si luego termina es por no tener base de datos, que este control no tiene)"
 fi
 docker rm --force fallo-control >/dev/null 2>&1 || true
 
@@ -98,18 +99,19 @@ for _ in $(seq 1 30); do
     sleep 2
 done
 codigo_salida="$(docker inspect -f '{{.State.ExitCode}}' fallo-sin-tzdata 2>/dev/null || echo "?")"
-if [ "$corriendo" = "false" ] && [ "$codigo_salida" != "0" ]; then
-    registrar ok "Sin tzdata la API se niega a arrancar" "el contenedor termino con codigo ${codigo_salida}"
+registro_rota="$(docker logs fallo-sin-tzdata 2>&1 || true)"
+motivo="$(grep -E "HoraChile|zona horaria de Chile" <<<"$registro_rota" | head -3 | tr '\n' ' ' | cut -c1-300)"
+if [ "$corriendo" = "false" ] && [ "$codigo_salida" != "0" ] && [ -n "$motivo" ]; then
+    registrar ok "Sin tzdata la API se niega a arrancar, y por la zona horaria" "el contenedor termino con codigo ${codigo_salida} y su registro nombra HoraChile.ZonaHoraria"
 else
-    registrar fallo "Sin tzdata la API se niega a arrancar" "sigue corriendo o termino con codigo 0 (${corriendo}, ${codigo_salida}): la API NO exige la zona horaria"
+    registrar fallo "Sin tzdata la API se niega a arrancar, y por la zona horaria" "corriendo=${corriendo}, codigo=${codigo_salida}, causa en el registro: ${motivo:-ninguna}"
 fi
-motivo="$(docker logs --tail 4 fallo-sin-tzdata 2>&1 | tr '\n' ' ' | cut -c1-300)"
-# La comprobacion de salud de la imagen (la misma orden del HEALTHCHECK) debe fallar: no hay nada escuchando.
-codigo_salud="$(docker run --rm --network container:fallo-sin-tzdata --entrypoint sh "$rota" -c 'curl --fail --silent "http://127.0.0.1:8080/salud" >/dev/null 2>&1; echo $?' 2>/dev/null || echo "sin-red")"
-if [ "$codigo_salud" != "0" ]; then
-    registrar ok "Sin tzdata la comprobacion de salud falla" "la orden del HEALTHCHECK devolvio ${codigo_salud}"
+# La comprobacion de salud de la imagen (la MISMA orden del HEALTHCHECK, leida de la imagen) debe fallar: la API no esta escuchando.
+orden_salud="$(docker inspect -f '{{join .Config.Healthcheck.Test " "}}' "$rota" | sed 's/^CMD-SHELL //')"
+if docker run --rm --entrypoint sh "$rota" -c "$orden_salud" >/dev/null 2>&1; then
+    registrar fallo "Sin tzdata la comprobacion de salud falla" "la orden del HEALTHCHECK respondio bien aunque la API no corre"
 else
-    registrar fallo "Sin tzdata la comprobacion de salud falla" "la orden del HEALTHCHECK respondio bien"
+    registrar ok "Sin tzdata la comprobacion de salud falla" "la orden del HEALTHCHECK de la imagen falla (no hay API escuchando)"
 fi
 
 {
