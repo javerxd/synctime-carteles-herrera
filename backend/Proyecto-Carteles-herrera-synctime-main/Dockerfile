@@ -29,7 +29,9 @@ RUN dotnet publish LetrerosHerreraSYNCTIMEapi/LetrerosHerreraSYNCTIMEapi.csproj 
 FROM publicar AS bundle
 RUN dotnet tool install --global dotnet-ef --version 10.0.14
 ENV PATH="${PATH}:/root/.dotnet/tools"
-RUN dotnet ef migrations bundle \
+# construir-bundle.sh da a la herramienta la configuracion DE DISENO que la API exige para armarse (ver el script); no llega a la imagen final.
+COPY construir-bundle.sh /usr/local/bin/construir-bundle.sh
+RUN sh /usr/local/bin/construir-bundle.sh \
         --project LetrerosHerreraSYNCTIMEapi/LetrerosHerreraSYNCTIMEapi.csproj \
         --configuration Release --output /app/efbundle --force
 

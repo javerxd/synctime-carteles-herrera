@@ -16,6 +16,7 @@ ARCHIVOS = [
     "backend/Proyecto-Carteles-herrera-synctime-main/Dockerfile",
     "backend/Proyecto-Carteles-herrera-synctime-main/.dockerignore",
     "backend/Proyecto-Carteles-herrera-synctime-main/entrada.sh",
+    "backend/Proyecto-Carteles-herrera-synctime-main/construir-bundle.sh",
     "frontend/synctimefront/Dockerfile",
     "frontend/synctimefront/.dockerignore",
     "frontend/synctimefront/vercel.json",
@@ -89,6 +90,24 @@ class ValidadorDeContenedores(unittest.TestCase):
     def test_sin_tzdata_en_la_imagen(self):
         self.estropear(f"{API}/Dockerfile", "curl tzdata", "curl")
         self.assertDetecta("tzdata")
+
+    # Fase 16B: la primera ejecucion de la CI mostro que el migrador no se construia («No se configuro Jwt:Key»): la herramienta de EF arma la
+    # API y esta exige su configuracion. Estas pruebas impiden que el script de construccion pierda esa configuracion.
+    def test_el_bundle_se_construye_sin_el_script_de_diseno(self):
+        self.estropear(f"{API}/Dockerfile", "RUN sh /usr/local/bin/construir-bundle.sh", "RUN dotnet ef migrations bundle")
+        self.assertDetecta("bundle-config")
+
+    def test_el_script_del_bundle_sin_la_clave_jwt(self):
+        self.estropear(f"{API}/construir-bundle.sh", "export Jwt__Audience=synctime\n", "")
+        self.assertDetecta("bundle-config")
+
+    def test_el_script_del_bundle_sin_cors(self):
+        self.estropear(f"{API}/construir-bundle.sh", "export Cors__AllowedOrigins__0=http://localhost\n", "")
+        self.assertDetecta("bundle-config")
+
+    def test_el_script_del_bundle_con_la_clave_jwt_escrita(self):
+        self.estropear(f"{API}/construir-bundle.sh", 'Jwt__Key="$(head -c 48 /dev/urandom | base64 | tr -d \'\\n\')"', "Jwt__Key=una-clave-escrita-a-mano-0123456789")
+        self.assertDetecta("bundle-config")
 
     def test_secreto_escrito_en_el_dockerfile(self):
         self.estropear(f"{WEB}/Dockerfile", "ENV API_UPSTREAM", "ENV JWT_KEY=abcdef123456 \\\n    API_UPSTREAM")

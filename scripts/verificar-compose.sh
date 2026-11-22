@@ -53,10 +53,13 @@ comprobar "docker compose config" bash -c 'docker compose config -q && echo "com
 
 echo "== Construccion y arranque (puede tardar varios minutos la primera vez)"
 inicio=$SECONDS
+limite_salud=600
 if docker compose up -d --build; then
     registrar ok "docker compose up --build" "arranco en $((SECONDS - inicio)) s"
 else
     registrar fallo "docker compose up --build" "no arranco: revise docker compose logs"
+    # Si ni siquiera arranco (por ejemplo, una imagen que no se construye), esperar 10 minutos por servicio solo alarga el fallo.
+    limite_salud=5
 fi
 
 estado_salud() { docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}sin-comprobacion{{end}}' "$(docker compose ps -a -q "$1")" 2>/dev/null; }
@@ -69,7 +72,7 @@ esperar_salud() { # servicio, segundos
     return 1
 }
 for servicio in sql correo api web; do
-    if esperar_salud "$servicio" 600; then registrar ok "salud de ${servicio}" "healthy"; else registrar fallo "salud de ${servicio}" "estado: $(estado_salud "$servicio")"; fi
+    if esperar_salud "$servicio" "$limite_salud"; then registrar ok "salud de ${servicio}" "healthy"; else registrar fallo "salud de ${servicio}" "estado: $(estado_salud "$servicio")"; fi
 done
 for servicio in migrador semilla; do
     codigo="$(docker inspect -f '{{.State.ExitCode}}' "$(docker compose ps -a -q "$servicio")" 2>/dev/null || echo "?")"

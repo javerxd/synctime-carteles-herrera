@@ -96,6 +96,17 @@ def revisar_dockerfile(raiz, relativo, resultados, es_api):
                 resultados.append(f"FALLO [{paquete}] la imagen de la API no instala {paquete}")
         if "efbundle" not in texto or not re.search(r"AS migrador", texto, re.IGNORECASE):
             resultados.append("FALLO [migrador] la imagen de la API no tiene la etapa del migrador con efbundle")
+        # Fase 16B: la herramienta de EF arma la API para conocer el contexto y esta exige su configuracion; sin el script de diseno el migrador no se construye.
+        if "construir-bundle.sh" not in texto or re.search(r"^RUN\s+dotnet ef migrations bundle", texto, re.MULTILINE):
+            resultados.append("FALLO [bundle-config] el migrador debe construirse con construir-bundle.sh (la herramienta de EF arma la API, que exige configuracion)")
+        script = leer(raiz, f"{API}/construir-bundle.sh") or ""
+        for variable in ("Jwt__Key", "Jwt__Issuer", "Jwt__Audience", "ConnectionStrings__DefaultConnection", "Cors__AllowedOrigins__0", "Sitio__UrlPublica"):
+            if not re.search(rf"^(export\s+)?{variable}=", script, re.MULTILINE):
+                resultados.append(f"FALLO [bundle-config] construir-bundle.sh no da {variable} a la herramienta de EF")
+        if not re.search(r"^Jwt__Key=\"\$\(head -c \d+ /dev/urandom", script, re.MULTILINE):
+            resultados.append("FALLO [bundle-config] la clave JWT de diseno debe generarse al azar (/dev/urandom), no escribirse")
+        if "exec dotnet ef migrations bundle" not in script:
+            resultados.append("FALLO [bundle-config] construir-bundle.sh debe terminar ejecutando «dotnet ef migrations bundle»")
         if etapas[-1][1] != "api":
             resultados.append("FALLO [dockerfile] la ultima etapa debe ser «api» (destino por omision)")
         entrada = leer(raiz, f"{API}/entrada.sh") or ""
@@ -286,7 +297,7 @@ def revisar_secretos(raiz, resultados):
         (re.compile(r"(?i)\b(GOCSPX-[A-Za-z0-9_-]{10,})"), "un secreto de cliente de Google"),
         (re.compile(r"\b[0-9]{6,}-[a-z0-9]{20,}\.apps\.googleusercontent\.com\b"), "un ID de cliente de Google"),
     ]
-    archivos = ["compose.yaml", "render.yaml", ".env.example", f"{API}/Dockerfile", f"{API}/entrada.sh", f"{WEB}/Dockerfile",
+    archivos = ["compose.yaml", "render.yaml", ".env.example", f"{API}/Dockerfile", f"{API}/entrada.sh", f"{API}/construir-bundle.sh", f"{WEB}/Dockerfile",
                 f"{WEB}/vercel.json", f"{WEB}/nginx/default.conf.template", f"{WEB}/nginx/cabeceras-seguridad.conf"]
     for relativo in archivos:
         texto = leer(raiz, relativo)
