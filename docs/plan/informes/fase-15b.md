@@ -1,6 +1,6 @@
 # Informe de cierre — Fase 15B: rendimiento, accesibilidad y compatibilidad del frontend
 
-Fecha: 22-11-2026 · Rama: `fase-15-calidad` (sobre el commit de la 15A, `67049ba`) · Estado: **construida, en revisión; parada para tu visto bueno. Falta tu parte: la prueba con NVDA y el teléfono** · Commit y push los haces tú (comandos al final)
+Fecha: 22-11-2026 · Rama: `fase-15-calidad` (sobre el commit de la 15A, `67049ba`) · Estado: **construida, en revisión; parada para tu visto bueno. Prueba con NVDA hecha por ti (22-11-2026), sin hallazgos; falta solo el cronómetro en un teléfono real (opcional)** · Commit y push los haces tú (comandos al final)
 
 Plan: `fase-15-plan.md` (secciones 3, 4 y 5). **Sin migración y sin dependencias nuevas** en el proyecto (el paquete `lighthouse` se bajó con `npx`, con tu aprobación, y no queda en `package.json`).
 
@@ -44,7 +44,8 @@ Plan: `fase-15-plan.md` (secciones 3, 4 y 5). **Sin migración y sin dependencia
 
 ## Qué te toca
 
-1. **Prueba con teclado y NVDA** con `docs/evidencias/guion-nvda.md` (≈ 1 hora; la hacemos juntos, te aviso antes de empezar). Los hallazgos se corrigen dentro de la fase 15.
+0. **Hecho el 22-11-2026:** la prueba con teclado y NVDA salió sin hallazgos (`docs/evidencias/resultado-nvda.md`).
+1. ~~Prueba con teclado y NVDA~~ con `docs/evidencias/guion-nvda.md` (≈ 1 hora; la hacemos juntos, te aviso antes de empezar). Los hallazgos se corrigen dentro de la fase 15.
 2. **Cronómetro de 5 minutos en un teléfono real** (RNFP02), con el guion al final del mismo archivo (opcional, pendiente externo).
 3. Visto bueno a la 15B para pasar a la 16 (**no la he empezado**).
 
