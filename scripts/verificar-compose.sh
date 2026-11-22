@@ -94,7 +94,11 @@ c_gzip() { http --fail --head -H 'Accept-Encoding: gzip' "${base}${js}" | grep -
 c_401() { [ "$(http -o /dev/null -w '%{http_code}' "${base}/api/v1/solicitudes")" = 401 ] && echo "401 sin token"; }
 c_200() { [ "$(http -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${TOKEN}" "${base}/api/v1/solicitudes")" = 200 ] && echo "200 con token"; }
 c_correo() { http --fail "http://localhost:${puerto_correo}/api/v1/messages" >/dev/null && echo "Mailpit responde"; }
-c_disco() { docker compose exec -T api sh -c 'echo "uid $(id -u)"; test -w /app/almacen && echo escribible' | tr '\n' ' '; }
+# «docker compose exec» entra como root (el usuario con que arranca el contenedor); lo que importa es el usuario del PROCESO de la API (PID 1,
+# ya sin privilegios gracias a setpriv) y que ESE usuario escriba en /app/almacen.
+c_disco() {
+    docker compose exec -T api sh -c 'u=$(awk "/^Uid:/ {print \$2}" /proc/1/status); [ "$u" != "0" ] || { echo "la API corre como root"; exit 1; }; setpriv --reuid="$u" --regid="$u" --clear-groups test -w /app/almacen && echo "la API corre como uid $u y escribe en /app/almacen"'
+}
 
 js="$(http --fail "${base}/" | grep -o '/assets/[^"]*\.js' | head -1)"
 comprobar "La API publica responde detras de nginx (/api/v1/local/estado)" c_api_publica

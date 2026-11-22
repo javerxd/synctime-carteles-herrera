@@ -26,6 +26,11 @@ RUN npm run build
 # ---------------------------------------------------------------------------------------------------------------------
 # Destino final: nginx sin privilegios (usuario «nginx», puerto 8080).
 FROM ${NGINX_IMAGE} AS web
+# La etiqueta fija de nginx trae paquetes de Alpine con vulnerabilidades ya corregidas (la CI de la 16B encontro 14 altas o criticas en libexpat,
+# libxml2, libxslt, musl y zlib, y no hay una etiqueta de nginx mas nueva). Se actualizan los paquetes al construir y se vuelve al usuario sin
+# privilegios. El analisis de Trivy de la CI es el que confirma que quedo limpio.
+USER root
+RUN apk upgrade --no-cache
 ENV API_UPSTREAM=http://api:8080 \
     DNS_RESOLVER=127.0.0.11 \
     NGINX_ENVSUBST_FILTER=^(API_UPSTREAM|DNS_RESOLVER)$

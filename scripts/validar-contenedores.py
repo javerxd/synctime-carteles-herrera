@@ -118,6 +118,9 @@ def revisar_dockerfile(raiz, relativo, resultados, es_api):
         if "${PORT" not in entrada:
             resultados.append("FALLO [puerto] entrada.sh no lee PORT: Render entrega el puerto por variable")
     else:
+        # Fase 16B: los paquetes de Alpine de la etiqueta fija de nginx traen vulnerabilidades ya corregidas; se actualizan al construir.
+        if not re.search(r"^RUN\s+apk upgrade\b", etapa_final(texto), re.MULTILINE):
+            resultados.append(f"FALLO [parches-base] {relativo}: la imagen final debe actualizar los paquetes de Alpine (RUN apk upgrade --no-cache)")
         usuarios = re.findall(r"^USER\s+(\S+)", etapa_final(texto), re.MULTILINE)
         if not usuarios or usuarios[-1] in ("root", "0"):
             resultados.append(f"FALLO [sin-privilegios] {relativo}: el frontend corre como root")

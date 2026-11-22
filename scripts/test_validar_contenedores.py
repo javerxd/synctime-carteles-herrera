@@ -109,6 +109,15 @@ class ValidadorDeContenedores(unittest.TestCase):
         self.estropear(f"{API}/construir-bundle.sh", 'Jwt__Key="$(head -c 48 /dev/urandom | base64 | tr -d \'\\n\')"', "Jwt__Key=una-clave-escrita-a-mano-0123456789")
         self.assertDetecta("bundle-config")
 
+    # Fase 16B: la CI encontro 14 vulnerabilidades altas o criticas en los paquetes de Alpine de la imagen de nginx y no hay una etiqueta mas nueva.
+    def test_el_frontend_sin_actualizar_los_paquetes_de_alpine(self):
+        self.estropear(f"{WEB}/Dockerfile", "RUN apk upgrade --no-cache\n", "")
+        self.assertDetecta("parches-base")
+
+    def test_el_frontend_que_se_queda_como_root_tras_actualizar(self):
+        self.estropear(f"{WEB}/Dockerfile", "USER nginx", "USER root")
+        self.assertDetecta("sin-privilegios")
+
     def test_secreto_escrito_en_el_dockerfile(self):
         self.estropear(f"{WEB}/Dockerfile", "ENV API_UPSTREAM", "ENV JWT_KEY=abcdef123456 \\\n    API_UPSTREAM")
         self.assertDetecta("secretos")
