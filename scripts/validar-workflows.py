@@ -201,6 +201,7 @@ def revisar_ci(nombre, texto, workflow, raiz, resultados):
         ("trivy image", "analisis de vulnerabilidades de las imagenes"),
         ("trivy fs", "analisis de vulnerabilidades del repositorio"),
         ("verificar-compose.sh", "verificacion de docker compose"),
+        ("scripts/fallos-a-proposito.sh", "comprobacion de que la API sin tzdata se niega a arrancar"),
         ("scripts/presupuesto.mjs", "presupuesto de peso"),
         ("npm run lint", "lint del frontend"),
         ("npm test", "pruebas del frontend"),

@@ -275,6 +275,27 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+  fallo-tzdata:
+    name: Fallo a propósito (la API sin tzdata no debe arrancar)
+    needs: [estatica]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Construir la imagen sana y una sin tzdata, y comprobar que la segunda se niega a arrancar
+        run: bash scripts/fallos-a-proposito.sh
+      - name: Guardar la evidencia
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: evidencia-fallo-tzdata
+          path: docs/evidencias/fallos-a-proposito-*.md
+          retention-days: 14
+          if-no-files-found: warn
+
   compose:
     name: docker compose up (verificación real del entorno completo)
     needs: [estatica]
@@ -313,7 +334,7 @@ jobs:
 
   publicar:
     name: Publicar imágenes en GHCR (solo si todo pasó)
-    needs: [estatica, backend, frontend, secretos, imagenes, compose]
+    needs: [estatica, backend, frontend, secretos, imagenes, fallo-tzdata, compose]
     if: >-
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
       || (github.event_name == 'workflow_dispatch' && inputs.publicar)

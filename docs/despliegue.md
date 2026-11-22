@@ -69,7 +69,7 @@ Cambia el valor por defecto de 8 columnas de fecha (clientes, catálogo, cartel,
 
 ## 6. Pipeline de CI/CD (fase 16B, RNFO15)
 
-Tres workflows en `.github/workflows/`. Las reglas que cumplen (acciones fijadas por SHA, permisos mínimos, sin secretos, publicar solo si todo pasa) las comprueba `python scripts/validar-workflows.py` (55 pruebas de «fallo a propósito» en `scripts/test_validar_workflows.py`).
+Tres workflows en `.github/workflows/`. Las reglas que cumplen (acciones fijadas por SHA, permisos mínimos, sin secretos, publicar solo si todo pasa) las comprueba `python scripts/validar-workflows.py` (57 pruebas de «fallo a propósito» en `scripts/test_validar_workflows.py`).
 
 | Workflow | Cuándo corre | Qué hace |
 |---|---|---|
@@ -77,7 +77,7 @@ Tres workflows en `.github/workflows/`. Las reglas que cumplen (acciones fijadas
 | `migrar.yml` | **Solo a mano** y con aprobación de una persona | Respaldo exportado a Blob Storage y verificado, migrador contra Azure SQL, comprobación de que la última migración del código es la de la base; el cortafuegos se cierra siempre |
 | `respaldo.yml` | Todos los días 07:17 UTC y a mano | Exporta la base (`.bacpac`), la verifica, la sube al contenedor privado `respaldos` y borra lo de más de 30 días (nunca baja de 7 copias) |
 
-**`publicar` solo corre si los otros seis pasaron** y solo en `main`, en etiquetas `v*` o en una ejecución manual con `publicar` marcado. Sube las **mismas** imágenes que se analizaron, a `ghcr.io/<usuario>/synctime-{api,migrador,web}`, con la etiqueta `sha-<12 primeros del commit>` (y la versión si es una etiqueta `vX.Y.Z`). **Nunca `latest`.** Es el único job con permiso de escribir paquetes.
+**`publicar` solo corre si los otros siete pasaron** y solo en `main`, en etiquetas `v*` o en una ejecución manual con `publicar` marcado. Sube las **mismas** imágenes que se analizaron, a `ghcr.io/<usuario>/synctime-{api,migrador,web}`, con la etiqueta `sha-<12 primeros del commit>` (y la versión si es una etiqueta `vX.Y.Z`). **Nunca `latest`.** Es el único job con permiso de escribir paquetes.
 
 ### Pruebas de integración contra SQL Server con usuario y clave
 `TEST_SQL_SERVER` indica el servidor. Sin más variables, todo sigue como siempre (Windows, `localhost\SQLEXPRESS`). Con `TEST_SQL_PASSWORD` (y `TEST_SQL_USER`, por omisión `sa`) se usa la autenticación de SQL Server, como en el pipeline. Un usuario sin clave es un error, no cae en Windows en silencio. La clave del pipeline se genera al azar en cada ejecución y se enmascara en el registro.

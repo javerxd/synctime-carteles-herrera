@@ -6,7 +6,9 @@ Plan: `fase-16-plan.md` (secciones 4 y 8) con tus decisiones definitivas para co
 
 ## Resultado en una línea
 
-**El pipeline está escrito y validado de forma estática, y todo lo que se puede probar en este equipo está en verde; lo que exige GitHub o Docker NO se ha ejecutado nunca y es lo primero que hay que hacer** (pasos exactos más abajo). Es probable que la primera ejecución en GitHub pida algún ajuste.
+**El pipeline se ejecutó de verdad en GitHub (22-11-2026, tres ejecuciones) y la tercera, sobre el commit `8c0af79`, dejó los siete jobs en verde:** 749 unitarias y 768 de integración contra SQL Server 2022 en UTC, 981 de Vitest, presupuesto de peso, análisis de secretos sobre todo el historial, tres imágenes sin vulnerabilidades altas ni críticas con corrección publicada y **`docker compose up` real con las 21 comprobaciones en verde** (evidencia en `docs/evidencias/compose-2026-11-22.md`). `publicar` queda «skipped» en la rama, a propósito. Se agregó un octavo job, `fallo-tzdata` (la API sin `tzdata` no debe arrancar), que corre por primera vez en la próxima subida. **Lo que sigue sin ejecutarse: `migrar.yml` y `respaldo.yml` (son de la 16C) y los dos fallos a propósito que necesitan ramas de prueba en GitHub** (pasos abajo). El Codespace ya **no es necesario** para verificar compose: la CI lo hace en cada subida.
+
+**Lo que la ejecución real encontró y se corrigió** (detalle en `desviaciones.md`): el migrador no se construía porque `efbundle` arma la API y esta exige configuración de producción (ahora `construir-bundle.sh` le da variables de diseño); 7 falsos positivos de gitleaks sobre el historial (acotados en `.gitleaks.toml`); 14 vulnerabilidades altas o críticas en los paquetes de Alpine de la imagen del frontend (`apk upgrade`); y una comprobación de mi guion que medía el usuario equivocado (`docker compose exec` entra como root).
 
 ## Qué se construyó
 
@@ -15,7 +17,7 @@ Plan: `fase-16-plan.md` (secciones 4 y 8) con tus decisiones definitivas para co
 | `.github/workflows/ci.yml` | En cada subida: `estatica`, `backend` (compila, **749 unitarias** y **768 de integración** contra un SQL Server 2022 en contenedor con el reloj en UTC, vulnerabilidades de NuGet), `frontend` (lint, **981 de Vitest**, build, presupuesto de peso, `npm audit`), `secretos` (gitleaks sobre todo el historial, con una **autoprueba** que planta un secreto), `imagenes` (API, migrador y frontend: se construyen una vez, se prueba lo básico y se analizan con Trivy), `compose` (`docker compose up` real con `verificar-compose.sh`) y `publicar` |
 | `.github/workflows/migrar.yml` | **Solo a mano**, solo desde `main`, con entorno protegido que pide tu aprobación, y hay que escribir `MIGRAR` y el commit exacto: respaldo a Blob Storage verificado → migrador (la imagen que la CI probó, comprobada contra el commit) → comprobación de la última migración. **Solo escrito; no se ejecutó** |
 | `.github/workflows/respaldo.yml` | Diario (07:17 UTC): exporta `.bacpac`, lo verifica, lo sube al contenedor privado `respaldos`, borra lo de más de 30 días (nunca baja de 7). **Solo escrito; no se ejecutó** |
-| `scripts/validar-workflows.py` + `test_validar_workflows.py` | Validador estático del pipeline: 55 «fallos a propósito» |
+| `scripts/validar-workflows.py` + `test_validar_workflows.py` | Validador estático del pipeline: 57 «fallos a propósito» |
 | `scripts/ci-resumen.py` + `test_ci_resumen.py` | Decide si un resultado deja pasar: pruebas falladas, omitidas o **menos que el piso** (749 / 768 / 981), y vulnerabilidades de NuGet. 21 pruebas |
 | `scripts/fallos-a-proposito.sh` | Imagen de la API sin `tzdata`: debe negarse a arrancar y su comprobación de salud fallar (con control sano). Para el Codespace |
 | `.gitleaks.toml`, `.trivyignore`, `.github/dependabot.yml` | Reglas del análisis de secretos y de vulnerabilidades (las excepciones exigen fecha de vencimiento) y actualización mensual de las acciones fijadas |
@@ -30,8 +32,8 @@ Seguridad del pipeline: **todas las acciones de terceros fijadas por SHA complet
 | Backend, unitarias | **749 de 749** |
 | Backend, integración (autenticación de Windows, `localhost\SQLEXPRESS`) | **768 de 768** (754 + 14 nuevas) |
 | Frontend (Vitest, con el reporter JSON que usa la CI) | **981 de 981** |
-| Validador de contenedores (16A) | OK, **27 de 27** |
-| Validador del pipeline | OK, **55 de 55** «fallos a propósito» |
+| Validador de contenedores (16A y 16B) | OK, **33 de 33** |
+| Validador del pipeline | OK, **57 de 57** «fallos a propósito» |
 | Resumen de resultados | **21 de 21** |
 
 **Pruebas primero y fallos a propósito.** Antes del código las pruebas de conexión no compilaban y las de los validadores fallaban por no existir. Cada regla del pipeline tiene su prueba que estropea el archivo real y comprueba que el validador lo detecta y nombra la regla: acción sin SHA o con SHA corto, permisos de más, migración que se dispara sola, sin entorno, sin respaldo previo o sin cerrar el cortafuegos, publicación que no espera a un job o que corre aunque otro falle, `latest`, secreto escrito, clave sin enmascarar, inyección por `${{ }}`, descarga sin suma, retención distinta de 30 días, contenedor público, `DateTime.Now` en las pruebas, etc.
@@ -79,10 +81,10 @@ Al hacer push, GitHub corre `CI` solo. Si GitHub rechaza el push por «secret sc
 ### 2. Mirar la CI (GitHub Actions)
 
 1. En el repositorio: pestaña **Actions → CI → la ejecución de la rama `fase-16-contenedores-nube`**.
-2. Hay siete jobs: `estatica`, `backend`, `frontend`, `secretos`, `imagenes`, `compose` y `publicar`. **`publicar` aparecerá «skipped» en esta rama a propósito** (solo corre en `main`, en etiquetas `v*` o a mano).
+2. Hay ocho jobs: `estatica`, `backend`, `frontend`, `secretos`, `imagenes`, `fallo-tzdata`, `compose` y `publicar`. **`publicar` aparecerá «skipped» en esta rama a propósito** (solo corre en `main`, en etiquetas `v*` o a mano).
 3. Si alguno falla: abre el job, copia el **paso que falló y sus últimas ~40 líneas** y pásamelos (los registros ya vienen con las claves enmascaradas). En `backend` y `frontend` el paso «Resumen…» muestra cuántas pruebas pasaron.
 
-### 3. Verificación real de compose en un Codespace
+### 3. (Opcional) Verificación de compose en un Codespace — la CI ya la hace en cada subida; esto solo sirve si quieres verlo con tus ojos
 
 1. En el repositorio: botón verde **Code → pestaña Codespaces → «⋯» → New with options…**, rama `fase-16-contenedores-nube`, máquina de **4 núcleos** (la definición pide 4 núcleos y 8 GB) → **Create codespace**.
 2. Espera a que cargue el editor. Se crea `.env` con claves al azar (no se sube a git).

@@ -198,6 +198,14 @@ class ValidadorDeWorkflows(unittest.TestCase):
         self.cambiar(CI, r"verificar-compose\.sh", "otra-cosa.sh")
         self.assertDetecta("ci-contenido")
 
+    def test_la_ci_no_comprueba_que_la_api_sin_tzdata_se_niega_a_arrancar(self):
+        self.cambiar(CI, r"scripts/fallos-a-proposito\.sh", "scripts/otra-cosa.sh")
+        self.assertDetecta("ci-contenido")
+
+    def test_publicar_no_espera_al_fallo_a_proposito_de_tzdata(self):
+        self.cambiar(CI, r"(  publicar:\n.*?    needs: \[[^\]]*?)fallo-tzdata, ", r"\1")
+        self.assertDetecta("publicar")
+
     def test_la_ci_no_corre_el_presupuesto_de_peso(self):
         self.cambiar(CI, r"scripts/presupuesto\.mjs", "scripts/otra.mjs")
         self.assertDetecta("ci-contenido")
