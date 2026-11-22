@@ -281,6 +281,9 @@
 @media (max-width: 63.99rem) {
   .panel {
     grid-template-columns: minmax(0, 1fr);
+    /* Fase 15B (RNFP27): sin esto, con una pantalla más corta que la ventana las filas automáticas se estiran y la barra superior
+       crece de 64 a más de 200 px (y vuelve a su alto al llegar el contenido: un desplazamiento de diseño). */
+    align-content: start;
   }
 
   .lateral {

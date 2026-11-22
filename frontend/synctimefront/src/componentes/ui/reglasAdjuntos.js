@@ -64,7 +64,7 @@ export const liberarUrl = (url) => {
 
 /**
  * Un archivo privado (adjunto) descargado con la sesión y mostrado con URL.createObjectURL. La URL se
- * libera al desmontar o al cambiar de archivo. `cargar` devuelve una promesa de Blob.
+ * libera al desmontar o al cambiar de archivo. `cargar(senal)` devuelve una promesa de Blob; la señal se cancela en esos casos.
  */
 export function useArchivoPrivado(cargar, clave) {
   const [estado, setEstado] = useState({ clave: null, url: null, error: null });
@@ -77,8 +77,11 @@ export function useArchivoPrivado(cargar, clave) {
     if (clave === null || clave === undefined) return undefined;
     let vigente = true;
     let url = null;
+    // La descarga recibe una señal que se cancela al cambiar de archivo o al desmontar (RNFP23): con StrictMode en desarrollo
+    // el montaje doble ya no deja dos descargas completas de la misma miniatura.
+    const control = new AbortController();
     Promise.resolve()
-      .then(() => refCargar.current())
+      .then(() => refCargar.current(control.signal))
       .then((blob) => {
         if (!vigente) return;
         url = crearUrl(blob);
@@ -86,6 +89,7 @@ export function useArchivoPrivado(cargar, clave) {
       }, (error) => vigente && setEstado({ clave, url: null, error }));
     return () => {
       vigente = false;
+      control.abort();
       liberarUrl(url);
     };
   }, [clave]);

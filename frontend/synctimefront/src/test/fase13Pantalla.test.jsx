@@ -12,7 +12,7 @@ import { almacenSesion } from '../sesion/sesion';
 // documentos de ejemplo. Las cifras reales y los archivos se prueban en el backend (ReportesFase13aTests).
 
 vi.mock('../api/reportes', () => ({
-  reportes: { leer: vi.fn(), pedirExportacion: vi.fn(), estado: vi.fn(), descargar: vi.fn(), clientes: vi.fn() },
+  reportes: { leer: vi.fn(), pedirExportacion: vi.fn(), estado: vi.fn(), descargar: vi.fn() },
 }));
 
 const col = (clave, titulo, tipo = 'texto', extra = {}) => ({ clave, titulo, tipo, suma: false, textoNulo: '', ...extra });
@@ -98,7 +98,6 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-11-20T12:00:00-03:00'));
   vi.clearAllMocks();
   reportes.leer.mockImplementation(async (reporte) => ({ operativo: OPERATIVO, gerencial: GERENCIAL, parametrizable: PARAMETRIZABLE }[reporte]));
-  reportes.clientes.mockResolvedValue([{ idCliente: 7, nombre: 'Ana Pérez' }, { idCliente: 8, nombre: 'Luis Soto' }]);
 });
 afterEach(() => {
   vi.useRealTimers();

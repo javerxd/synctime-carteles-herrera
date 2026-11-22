@@ -17,8 +17,6 @@ import { TablaReporte } from './TablaReporte';
 import { useExportacion } from './useExportacion';
 import estilos from './Reportes.module.css';
 
-const SIN_CLIENTES = [];
-
 /** El documento de un reporte: sus gráficos (el gerencial), sus tablas con totales y sus notas. */
 function DocumentoVista({ documento }) {
   const vacio = documento.tablas.every((t) => t.filas.length === 0);
@@ -120,7 +118,6 @@ export default function Reportes() {
   const cambiar = (cambios) => setParametros(paraDireccion({ ...filtros, reporte, ...cambios }, DEFINICION_REPORTES), { replace: true });
   const limpiar = () => setParametros(reporte === 'operativo' ? {} : { reporte }, { replace: true });
 
-  const clientes = useConsulta('reportes:clientes', (senal) => reportes.clientes({ senal }));
   const consulta = useConsulta(`reporte:${JSON.stringify([reporte, parametrosReporte(reporte, filtros)])}`, (senal) => reportes.leer(reporte, filtros, { senal }));
   const exportacion = useExportacion({ reporte, filtros });
 
@@ -136,7 +133,7 @@ export default function Reportes() {
       </div>
 
       <div data-no-imprimir>
-        <FiltrosReporte reporte={reporte} filtros={filtros} cambiar={cambiar} limpiar={limpiar} clientes={clientes.datos ?? SIN_CLIENTES}
+        <FiltrosReporte reporte={reporte} filtros={filtros} cambiar={cambiar} limpiar={limpiar}
           anios={[anioActual, anioActual - 1, anioActual - 2]} resumen={resumen} />
       </div>
 

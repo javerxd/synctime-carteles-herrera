@@ -136,7 +136,7 @@ async function sinSecretosGuardados(page) {
 }
 
 for (const ancho of [360, 768, 1440]) {
-  test.describe(`a ${ancho} px`, () => {
+  test.describe(`a ${ancho} px @esencial`, () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width: ancho, height: 900 });
     });

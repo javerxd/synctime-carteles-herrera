@@ -57,9 +57,11 @@ const CorreosNoEnviados = lazy(() => import('./paginas/correos/CorreosNoEnviados
 const Auditoria = lazy(() => import('./paginas/auditoria/Auditoria'));
 const ConsentimientosAuditoria = lazy(() => import('./paginas/auditoria/Auditoria').then((m) => ({ default: m.ConsentimientosAuditoria })));
 
+// Fase 15B (RNFP27): el esqueleto ocupa al menos el alto de la ventana. Con menos, el pie de página quedaba a la vista debajo de él y,
+// al llegar la pantalla, saltaba hacia abajo de golpe (un desplazamiento de diseño de 0,3 a 0,8 en red lenta).
 function Cargando() {
   return (
-    <div style={{ padding: 'var(--espacio-8) var(--margen-pagina)' }}>
+    <div style={{ padding: 'var(--espacio-8) var(--margen-pagina)', minHeight: '100svh' }}>
       <p role="status" className="solo-lectores">Cargando…</p>
       <Esqueleto lineas={4} />
     </div>

@@ -2,6 +2,8 @@
 .grande {
   display: grid;
   animation: deslizarCartel 600ms var(--curva-resorte) both;
+  /* Fase 15B (RNFE08, reflujo a 320 px): el cartel que se balancea (y su entrada deslizando) no ensancha la página. */
+  overflow-x: clip;
 }
 
 @keyframes deslizarCartel {

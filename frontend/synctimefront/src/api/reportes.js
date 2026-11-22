@@ -5,8 +5,6 @@ import { parametrosReporte } from '../paginas/reportes/reglasReportes';
 // docs/api/openapi.json. El operativo lo ve todo el personal; el gerencial y el parametrizable, solo dueño y administrador (la
 // API lo exige también al pedir y al descargar el archivo).
 
-const filas = (lista) => (Array.isArray(lista) ? lista : lista?.elementos ?? []);
-
 export const reportes = {
   /** Un reporte como documento (título, filtros aplicados, tablas con sus totales, gráficos y notas): el mismo que se exporta. */
   leer: (reporte, filtros, { senal } = {}) => api.get(`/reportes/${reporte}`, { parametros: parametrosReporte(reporte, filtros), senal }),
@@ -19,10 +17,4 @@ export const reportes = {
 
   /** El archivo de un trabajo listo, como Blob. 409 si todavía se prepara o falló; 410 si venció (24 horas). */
   descargar: (id, { senal } = {}) => api.archivo(`/reportes/exportaciones/${encodeURIComponent(id)}/archivo`, { senal }),
-
-  /** Los clientes para el filtro («Cliente»): [{ idCliente, nombre }]. */
-  async clientes({ senal } = {}) {
-    const lista = await api.get('/clientes', { parametros: { tamano: 100 }, senal });
-    return filas(lista).map((c) => ({ idCliente: c.idCliente, nombre: [c.nombre, c.apellido].filter(Boolean).join(' ') }));
-  },
 };

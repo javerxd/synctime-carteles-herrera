@@ -14,7 +14,7 @@ const listaDe = (texto) => (texto ? texto.split(',') : []);
  * (lo que ese reporte no tiene, no se ofrece). Los mismos nombres y reglas del dashboard; todo vive en la dirección. Lo que se
  * elige aquí es lo que lleva el archivo exportado.
  */
-export function FiltrosReporte({ reporte, filtros, cambiar, limpiar, clientes, anios, resumen }) {
+export function FiltrosReporte({ reporte, filtros, cambiar, limpiar, anios, resumen }) {
   const estadosPedido = listaDe(filtros.estadoPedido);
   const porCobrar = filtros.estadoPago === 'por_cobrar';
   const estadosPago = porCobrar ? [] : listaDe(filtros.estadoPago);
@@ -79,7 +79,7 @@ export function FiltrosReporte({ reporte, filtros, cambiar, limpiar, clientes, a
             </div>
           </fieldset>
           <div className={estilos.filaFiltros}>
-            <FiltroCliente clientes={clientes} valor={filtros.cliente} alCambiar={(cliente) => cambiar({ cliente })} />
+            <FiltroCliente valor={filtros.cliente} alCambiar={(cliente) => cambiar({ cliente })} />
           </div>
         </div>
       </details>
