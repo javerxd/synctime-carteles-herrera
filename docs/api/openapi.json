@@ -52,6 +52,10 @@
     {
       "name": "Avisos del taller",
       "description": "Destinos de los avisos de solicitudes nuevas (fase 9)"
+    },
+    {
+      "name": "Reportes",
+      "description": "Fase 13A: los tres reportes (operativo, gerencial y parametrizable) y su exportación a Excel, PDF y CSV en segundo plano."
     }
   ],
   "paths": {
@@ -70,6 +74,33 @@
           "Autenticación"
         ],
         "summary": "Ingreso del cliente con su correo y contraseña; deja la cookie de renovación",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/google/nonce": {
+      "get": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Entrega el nonce de un solo uso (vence a los 5 minutos) que el navegador pasa a Google para ligar el token a este intento de ingreso",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/google": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Ingreso del cliente con el token de identidad de Google: abre la sesión si su Google ya está vinculado; responde 409 cuenta_existente si el correo ya tiene cuenta con contraseña (nunca se fusiona sola); o entrega un pase de registro pendiente si el correo es nuevo",
+        "x-acceso": "publico"
+      }
+    },
+    "/api/v1/auth/google/completar": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Completa el registro con el pase de Google: crea la cuenta (correo verificado, sin contraseña), su identidad y los consentimientos en una sola transacción, y abre la sesión",
         "x-acceso": "publico"
       }
     },
@@ -202,6 +233,15 @@
           "Catálogo"
         ],
         "summary": "Modifica un tipo de letrero. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta.",
+        "x-acceso": "gestion"
+      }
+    },
+    "/api/v1/productos/{id}/medidas-y-opciones": {
+      "put": {
+        "tags": [
+          "Catálogo"
+        ],
+        "summary": "Fase 12D. Reemplaza los límites de medida, las medidas fijas y las opciones de un tipo de letrero: { anchoMinMm, anchoMaxMm, altoMinMm, altoMaxMm (los cuatro o ninguno, 1 a 50 000 mm), medidasFijas: [{ anchoMm, altoMm }] (hasta 20, sin repetir; no se mezclan con los límites), opciones: [{ grupo (≤60), valores: [texto ≤80] }] (hasta 10 grupos de hasta 30 valores, sin repetidos, al menos uno por grupo) }. Exige la versión vista (If-Match con el ETag, o rowVersion): 400 sin_version, 409 version_obsoleta. Errores 400 por campo. Responde la ficha del producto; cada cambio queda en la auditoría.",
         "x-acceso": "gestion"
       }
     },
@@ -661,6 +701,45 @@
         ],
         "summary": "Cambia la contraseña con la actual, cierra las demás sesiones y abre una nueva",
         "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mi-cuenta/google": {
+      "post": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Vincula su Google a la cuenta: pide la contraseña actual y exige que el correo verificado de Google sea el de la cuenta",
+        "x-acceso": "cliente"
+      },
+      "delete": {
+        "tags": [
+          "Mi cuenta"
+        ],
+        "summary": "Desvincula su Google con la contraseña actual (cuerpo JSON); no se puede si la cuenta no tiene contraseña",
+        "x-acceso": "cliente"
+      }
+    },
+    "/api/v1/mi-perfil/google": {
+      "get": {
+        "tags": [
+          "Mi perfil"
+        ],
+        "summary": "Fase 14C: si el empleado tiene Google vinculado y con qué correo ({ vinculado, correo })",
+        "x-acceso": "personal"
+      },
+      "post": {
+        "tags": [
+          "Mi perfil"
+        ],
+        "summary": "Fase 14C: vincula el Google del empleado: pide la contraseña actual y exige que el correo verificado de Google sea el de su ficha",
+        "x-acceso": "personal"
+      },
+      "delete": {
+        "tags": [
+          "Mi perfil"
+        ],
+        "summary": "Fase 14C: desvincula el Google del empleado con la contraseña actual (cuerpo JSON); siempre se puede, todo empleado tiene contraseña",
+        "x-acceso": "personal"
       }
     },
     "/api/v1/mi-cuenta/marketing": {
@@ -1634,6 +1713,419 @@
           }
         }
       }
+    },
+    "/api/v1/reportes/operativo": {
+      "get": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Reporte operativo: pedidos (con los anulados marcados y fuera de los totales), entregas del período y solicitudes. Todo el personal",
+        "x-acceso": "personal",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/periodo"
+          },
+          {
+            "$ref": "#/components/parameters/desde"
+          },
+          {
+            "$ref": "#/components/parameters/hasta"
+          },
+          {
+            "$ref": "#/components/parameters/anio"
+          },
+          {
+            "$ref": "#/components/parameters/mes"
+          },
+          {
+            "$ref": "#/components/parameters/estadoPedido"
+          },
+          {
+            "$ref": "#/components/parameters/estadoPago"
+          },
+          {
+            "$ref": "#/components/parameters/cliente"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Correcto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentoReporte"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro inválido (errores por campo) o reporte de más de 50.000 filas (código `reporte_muy_grande`: acota el rango)"
+          },
+          "401": {
+            "description": "Sin sesión"
+          },
+          "403": {
+            "description": "Sin permiso (solo el personal)"
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/gerencial": {
+      "get": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Reporte gerencial: ingresos (los mismos del dashboard), costos de la cotización aceptada y margen sobre los pedidos con costo; ingresos y costos por tramo e ingresos por tipo de letrero, con sus gráficos. Solo dueño y administrador",
+        "x-acceso": "gestion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/periodo"
+          },
+          {
+            "$ref": "#/components/parameters/desde"
+          },
+          {
+            "$ref": "#/components/parameters/hasta"
+          },
+          {
+            "$ref": "#/components/parameters/anio"
+          },
+          {
+            "$ref": "#/components/parameters/mes"
+          },
+          {
+            "$ref": "#/components/parameters/estadoPedido"
+          },
+          {
+            "$ref": "#/components/parameters/estadoPago"
+          },
+          {
+            "$ref": "#/components/parameters/cliente"
+          },
+          {
+            "$ref": "#/components/parameters/comparar"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Correcto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentoReporte"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro inválido (errores por campo) o reporte de más de 50.000 filas (código `reporte_muy_grande`: acota el rango)"
+          },
+          "401": {
+            "description": "Sin sesión"
+          },
+          "403": {
+            "description": "Sin permiso (solo dueño y administrador)"
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/parametrizable": {
+      "get": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Reporte parametrizable: pedidos filtrados por fechas, estado, pago y cliente, con totales; con estadoPago=por_cobrar es el listado de cobranza. Solo dueño y administrador",
+        "x-acceso": "gestion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/periodo"
+          },
+          {
+            "$ref": "#/components/parameters/desde"
+          },
+          {
+            "$ref": "#/components/parameters/hasta"
+          },
+          {
+            "$ref": "#/components/parameters/anio"
+          },
+          {
+            "$ref": "#/components/parameters/mes"
+          },
+          {
+            "$ref": "#/components/parameters/estadoPedido"
+          },
+          {
+            "$ref": "#/components/parameters/estadoPago"
+          },
+          {
+            "$ref": "#/components/parameters/cliente"
+          },
+          {
+            "$ref": "#/components/parameters/alcanceSaldo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Correcto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentoReporte"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtro inválido (errores por campo) o reporte de más de 50.000 filas (código `reporte_muy_grande`: acota el rango)"
+          },
+          "401": {
+            "description": "Sin sesión"
+          },
+          "403": {
+            "description": "Sin permiso (solo dueño y administrador)"
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/operativo/exportaciones": {
+      "post": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Pide la exportación del reporte operativo a Excel, PDF o CSV: responde 202 con el trabajo, sin esperar el archivo. Un trabajo pendiente por persona a la vez; 10 pedidos por minuto",
+        "x-acceso": "personal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudExportacion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Aceptado: el trabajo queda pendiente (Location apunta a su estado)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrabajoExportacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Formato o filtro inválido (errores por campo) o reporte de más de 50.000 filas"
+          },
+          "401": {
+            "description": "Sin sesión"
+          },
+          "403": {
+            "description": "Sin permiso (solo el personal)"
+          },
+          "409": {
+            "description": "Ya hay un archivo en preparación para esta persona"
+          },
+          "429": {
+            "description": "Demasiados pedidos (10 por minuto por persona)"
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/gerencial/exportaciones": {
+      "post": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Pide la exportación del reporte gerencial a Excel, PDF o CSV: responde 202 con el trabajo, sin esperar el archivo. Un trabajo pendiente por persona a la vez; 10 pedidos por minuto",
+        "x-acceso": "gestion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudExportacion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Aceptado: el trabajo queda pendiente (Location apunta a su estado)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrabajoExportacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Formato o filtro inválido (errores por campo) o reporte de más de 50.000 filas"
+          },
+          "401": {
+            "description": "Sin sesión"
+          },
+          "403": {
+            "description": "Sin permiso (solo dueño y administrador)"
+          },
+          "409": {
+            "description": "Ya hay un archivo en preparación para esta persona"
+          },
+          "429": {
+            "description": "Demasiados pedidos (10 por minuto por persona)"
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/parametrizable/exportaciones": {
+      "post": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Pide la exportación del reporte parametrizable a Excel, PDF o CSV: responde 202 con el trabajo, sin esperar el archivo. Un trabajo pendiente por persona a la vez; 10 pedidos por minuto",
+        "x-acceso": "gestion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudExportacion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Aceptado: el trabajo queda pendiente (Location apunta a su estado)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrabajoExportacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Formato o filtro inválido (errores por campo) o reporte de más de 50.000 filas"
+          },
+          "401": {
+            "description": "Sin sesión"
+          },
+          "403": {
+            "description": "Sin permiso (solo dueño y administrador)"
+          },
+          "409": {
+            "description": "Ya hay un archivo en preparación para esta persona"
+          },
+          "429": {
+            "description": "Demasiados pedidos (10 por minuto por persona)"
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/exportaciones/{id}": {
+      "get": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Estado de una exportación (pendiente, procesando, listo o fallido), solo para quien la pidió",
+        "x-acceso": "personal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Correcto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrabajoExportacion"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión"
+          },
+          "403": {
+            "description": "Sin permiso (solo el personal)"
+          },
+          "404": {
+            "description": "No existe, o es de otra persona (no se distingue)"
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/exportaciones/{id}/archivo": {
+      "get": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Descarga el archivo de una exportación lista (Excel, CSV o PDF), solo para quien la pidió y mientras no haya vencido (24 horas)",
+        "x-acceso": "personal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El archivo, como adjunto (Content-Disposition) y sin caché",
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión"
+          },
+          "403": {
+            "description": "Sin permiso (solo el personal)"
+          },
+          "404": {
+            "description": "No existe, o es de otra persona (no se distingue)"
+          },
+          "409": {
+            "description": "Todavía se está preparando, o falló (el mensaje dice el motivo)"
+          },
+          "410": {
+            "description": "El archivo venció y se borró (código `exportacion_vencida`)"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2242,6 +2734,322 @@
           },
           "totalSaldo": {
             "type": "integer"
+          }
+        }
+      },
+      "Columna": {
+        "type": "object",
+        "required": [
+          "clave",
+          "titulo",
+          "tipo",
+          "suma",
+          "textoNulo"
+        ],
+        "properties": {
+          "clave": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "texto",
+              "entero",
+              "pesos",
+              "fecha",
+              "porcentaje"
+            ]
+          },
+          "suma": {
+            "type": "boolean",
+            "description": "La fila de totales suma esta columna"
+          },
+          "textoNulo": {
+            "type": "string",
+            "description": "Lo que se muestra en una celda sin valor (por ejemplo «Sin costo»)"
+          }
+        }
+      },
+      "TablaReporte": {
+        "type": "object",
+        "required": [
+          "clave",
+          "titulo",
+          "columnas",
+          "filas",
+          "principal",
+          "totales"
+        ],
+        "properties": {
+          "clave": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "columnas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Columna"
+            }
+          },
+          "filas": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {},
+              "description": "Una celda por columna: texto, número, fecha aaaa-mm-dd o null"
+            }
+          },
+          "principal": {
+            "type": "boolean",
+            "description": "La que lleva el CSV (un CSV es una sola tabla)"
+          },
+          "exclusion": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Las filas cuya columna vale este valor (los anulados) se muestran pero no suman",
+            "properties": {
+              "columna": {
+                "type": "integer"
+              },
+              "valor": {
+                "type": "string"
+              }
+            }
+          },
+          "nota": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "totales": {
+            "type": "array",
+            "items": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "description": "Una suma por columna (null en las que no suman)"
+          }
+        }
+      },
+      "GraficoReporte": {
+        "type": "object",
+        "properties": {
+          "clave": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "forma": {
+            "type": "string",
+            "enum": [
+              "barras",
+              "barras-horizontales"
+            ]
+          },
+          "etiquetas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nombre": {
+                  "type": "string"
+                },
+                "valores": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "DocumentoReporte": {
+        "type": "object",
+        "required": [
+          "reporte",
+          "titulo",
+          "emitidoEn",
+          "filtros",
+          "tablas",
+          "graficos",
+          "notas"
+        ],
+        "description": "El mismo documento que se exporta a Excel, CSV y PDF: lo que se ve es lo que sale.",
+        "properties": {
+          "reporte": {
+            "type": "string",
+            "enum": [
+              "operativo",
+              "gerencial",
+              "parametrizable"
+            ]
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "emitidoEn": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "filtros": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "clave": {
+                  "type": "string"
+                },
+                "etiqueta": {
+                  "type": "string"
+                },
+                "valor": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "tablas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TablaReporte"
+            }
+          },
+          "graficos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraficoReporte"
+            }
+          },
+          "notas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SolicitudExportacion": {
+        "type": "object",
+        "required": [
+          "formato"
+        ],
+        "properties": {
+          "formato": {
+            "type": "string",
+            "enum": [
+              "xlsx",
+              "csv",
+              "pdf"
+            ]
+          },
+          "filtros": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Los mismos filtros del reporte (periodo, desde, hasta, anio, mes, estadoPedido, estadoPago, cliente y, según el reporte, comparar o alcanceSaldo). Texto, número o lista de textos."
+          }
+        }
+      },
+      "TrabajoExportacion": {
+        "type": "object",
+        "required": [
+          "id",
+          "reporte",
+          "formato",
+          "estado",
+          "fechaPedido",
+          "vencido"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reporte": {
+            "type": "string"
+          },
+          "formato": {
+            "type": "string",
+            "enum": [
+              "xlsx",
+              "csv",
+              "pdf"
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "procesando",
+              "listo",
+              "fallido"
+            ]
+          },
+          "fechaPedido": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaTermino": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "fechaVencimiento": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "filas": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "tamanoBytes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "nombreArchivo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "reporte-operativo-2026-11-20.xlsx"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "El motivo, si falló"
+          },
+          "vencido": {
+            "type": "boolean",
+            "description": "Pasó el plazo de descarga: el archivo ya no existe"
           }
         }
       }

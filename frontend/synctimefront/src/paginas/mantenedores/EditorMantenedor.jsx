@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Aviso, Boton, Esqueleto, EstadoVacio, Tarjeta } from '../../componentes/ui';
 import { useAvisos } from '../../avisos/Avisos';
@@ -10,7 +10,8 @@ import { useConflictoDeVersion } from '../compartidos/useConflictoDeVersion';
 import { Pagina404 } from '../errores/PaginasDeError';
 import { esPasswordIncorrecta, mensajeFallaGestion, textoPasswordIncorrecta } from '../compartidos/reautenticacion';
 import { campoDeConflicto, erroresDeApi, requierePasswordEmpleado, textoConflicto } from './reglasMantenedores';
-import { TIPOS } from './tipos';
+import { MedidasYOpciones } from './MedidasYOpciones';
+import { baseDe, TIPOS } from './tipos';
 import { ZonaActivo, ZonaVitrina } from './Zonas';
 import estilosPanel from '../panel/Panel.module.css';
 import estilos from './Mantenedores.module.css';
@@ -21,8 +22,10 @@ import estilos from './Mantenedores.module.css';
  * actual o descartar (el patrón de la fase 8). Más abajo, su estado: activar o desactivar (o, en la vitrina, la
  * autorización del logo y si se muestra).
  */
-export default function EditorMantenedor() {
-  const { tipo: claveTipo, id } = useParams();
+export default function EditorMantenedor({ tipo: tipoFijo }) {
+  const { tipo: claveDeLaDireccion, id } = useParams();
+  // El personal (fase 12D) tiene su propia ruta, /panel/empleados: llega con el tipo fijo, sin :tipo en la dirección.
+  const claveTipo = tipoFijo ?? claveDeLaDireccion;
   const tipo = TIPOS[claveTipo];
   const nuevo = !id;
   const consulta = useConsulta(`${claveTipo}:${id ?? 'nuevo'}`, () => (nuevo || !tipo ? Promise.resolve(null) : tipo.api.obtener(id)));
@@ -30,8 +33,10 @@ export default function EditorMantenedor() {
   // Con cambios sin guardar, las acciones de estado (activar, ocultar, autorizar) esperan: recargar la ficha
   // tras ellas no debe borrar lo escrito.
   const [sucio, setSucio] = useState(false);
-  const volver = `/panel/mantenedores/${claveTipo}`;
+  const volver = baseDe(claveTipo);
 
+  // /panel/mantenedores/personal… era la dirección anterior del personal.
+  if (!tipoFijo && claveTipo === 'personal') return <Navigate to={`/panel/empleados${id ? `/${id}` : ''}`} replace />;
   if (!tipo || (id && !/^[1-9]\d{0,9}$/.test(id))) return <Pagina404 />;
   const titulo = nuevo ? tipo.nuevo : registro ? tipo.nombreDe(registro) : `Editar ${tipo.singular}`;
 
@@ -59,6 +64,8 @@ export default function EditorMantenedor() {
         <Formulario key={id ?? 'nuevo'} tipo={tipo} registro={registro} nuevo={nuevo} id={id}
           alGuardar={consulta.recargar} alCambiarSucio={setSucio} />
       )}
+      {/* Fase 12D: límites de medida, medidas fijas y opciones del tipo de letrero. */}
+      {!nuevo && registro && tipo.clave === 'tipos-de-letrero' && <MedidasYOpciones registro={registro} alGuardar={consulta.recargar} />}
       {!nuevo && registro && (
         tipo.clave === 'vitrina'
           ? <ZonaVitrina registro={registro} id={id} alCambiar={consulta.recargar} hayCambios={sucio} />
@@ -149,7 +156,7 @@ function Formulario({ tipo, registro, nuevo, id, alGuardar, alCambiarSucio }) {
         const creado = await tipo.api.crear(datos);
         anunciar({ tono: 'exito', titulo: `${tipo.nombreDe(creado) || 'Registro'} quedó guardado` });
         const idNuevo = creado?.[tipo.idCampo];
-        navegar(idNuevo ? `/panel/mantenedores/${tipo.clave}/${idNuevo}` : `/panel/mantenedores/${tipo.clave}`, { replace: true });
+        navegar(idNuevo ? `${baseDe(tipo.clave)}/${idNuevo}` : baseDe(tipo.clave), { replace: true });
         return;
       }
       await tipo.api.editar(id, datos, sobreActual ? version.version : registro?.rowVersion);

@@ -59,7 +59,7 @@ public sealed class PedidoPagoTests(ApiFixture api)
 
         var (fecha, hoyEnElServidor) = await api.ConsultarAsync(async db => (
             await db.Pagos.AsNoTracking().Where(p => p.IdPago == idPago).Select(p => p.FechaPago).SingleAsync(),
-            DateOnly.FromDateTime(await db.Database.SqlQueryRaw<DateTime>("SELECT SYSDATETIME() AS Value").SingleAsync())));
+            DateOnly.FromDateTime(await db.Database.SqlQueryRaw<DateTime>("SELECT CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time') AS Value").SingleAsync())));
 
         Assert.Equal(hoyEnElServidor, fecha);
     }
@@ -120,7 +120,7 @@ public sealed class PedidoPagoTests(ApiFixture api)
             {
                 IdSolicitud = idSolicitud,
                 IdEmpleadoResponsable = idAdmin,
-                FechaEntregaEstimada = DateTime.Now.AddDays(5),
+                FechaEntregaEstimada = Negocio.Local.HoraChile.Convertir(DateTimeOffset.UtcNow).AddDays(5),
                 MontoBaseTrabajo = MontoBase,
                 MontoAbonado = 50_000
             };

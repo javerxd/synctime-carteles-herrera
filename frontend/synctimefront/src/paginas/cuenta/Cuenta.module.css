@@ -164,6 +164,7 @@
 .explicacion {
   color: var(--color-texto-secundario);
   font-size: var(--tamano-sm);
+  overflow-wrap: anywhere;
 }
 
 .pieSeccion {
@@ -227,4 +228,31 @@
 
 .datosComprobante dd {
   margin: 0;
+}
+
+/* ── Fase 14B: «Completa tu registro» con Google ── */
+.datosGoogle {
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radio-md);
+  background: var(--color-fondo-alterno);
+  font-size: var(--tamano-sm);
+}
+
+.datosGoogle div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-1) var(--espacio-2);
+}
+
+.datosGoogle dt {
+  color: var(--color-texto-secundario);
+}
+
+.datosGoogle dd {
+  margin: 0;
+  font-weight: var(--peso-seminegrita);
+  overflow-wrap: anywhere;
 }

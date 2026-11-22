@@ -11,7 +11,7 @@ Estado del esquema: migración `MantenedoresYAvisos` (14-11-2026), 27 tablas. Ap
 - Fechas y horas en `datetime2(0)` (hora de Chile del servidor), salvo las del rostro, las de las tablas de la fase 4 (`correos_salientes`, `consentimientos`, `imagenes`) y las de la fase 5 (`consultas_contacto` y la autorización del logo en `catalogo`) y la fase 6 (`tokens_renovacion`, `codigos_cuenta` y `clientes.fecha_verificacion_correo`), que usan `datetimeoffset(0)`: deciden bloqueos, reintentos y constancias que no deben depender de la hora local. Desde la fase 9 también lo usan `destinatarios_avisos`, `destinatarios_avisos_historial` y `horarios_atencion.fecha_modificacion`; `disponibilidad_empleados` usa `time(0)`.
 - `row_version` es un `rowversion`: cambia en cada modificación y permite rechazar el cambio de un registro que otra persona modificó después de abrirlo (RNFP10).
 
-Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026). Las de la fase 8 (14-11-2026) se marcan **NUEVA (fase 8)** o **CAMBIA (fase 8)**, y la tabla `pedidos_historial` también es de esa fecha. Las de la fase 9 (14-11-2026) se marcan **NUEVA (fase 9)** o **CAMBIA (fase 9)**: `row_version` en los seis mantenedores, las columnas nuevas de `horarios_atencion` y las tablas `disponibilidad_empleados`, `destinatarios_avisos` y `destinatarios_avisos_historial`.
+Columnas marcadas **NUEVA** o **CAMBIA**: introducidas el 12-11-2026 por la revisión de la profesora guía. La tabla `pagos` (historial de abonos) también es de esa fecha. Las tablas `correos_salientes`, `consentimientos` e `imagenes` son de la fase 4 (13-11-2026). La tabla `consultas_contacto` y las columnas nuevas de `catalogo` e `imagenes` son de la fase 5 (13-11-2026). Las tablas `tokens_renovacion` y `codigos_cuenta` y la columna `clientes.fecha_verificacion_correo` son de la fase 6 (13-11-2026). Las de la fase 8 (14-11-2026) se marcan **NUEVA (fase 8)** o **CAMBIA (fase 8)**, y la tabla `pedidos_historial` también es de esa fecha. Las de la fase 9 (14-11-2026) se marcan **NUEVA (fase 9)** o **CAMBIA (fase 9)**: `row_version` en los seis mantenedores, las columnas nuevas de `horarios_atencion` y las tablas `disponibilidad_empleados`, `destinatarios_avisos` y `destinatarios_avisos_historial`. La tabla `trabajos_exportacion` es de la fase 13A (20-11-2026). La tabla `identidades_externas` es de la fase 14A (21-11-2026).
 
 ---
 
@@ -28,8 +28,8 @@ Personas que piden trabajos. Un cliente puede existir sin cuenta: lo registra el
 | `telefono` | varchar(20) | No | | Teléfono. UQ: sirve para buscar al cliente antes de crearlo |
 | `email` | nvarchar(100) | Sí | | Correo. UQ si existe. CHECK de formato. **CAMBIA (fase 6):** es obligatorio si hay contraseña, y es el usuario para ingresar y para recuperarla |
 | `direccion` | nvarchar(255) | Sí | | Dirección |
-| `password_hash` | varchar(100) | Sí | | Hash BCrypt de la contraseña. Nulo si no tiene cuenta. Solo puede haberlo con correo (`ck_clientes_cuenta_con_correo`, fase 6) |
-| `registrado` | bit | — | Calculada: 1 si tiene `password_hash` | Indica si tiene cuenta |
+| `password_hash` | varchar(100) | Sí | | Hash BCrypt de la contraseña. Nulo si no tiene cuenta, **y también si la cuenta se creó con Google y todavía no creó una contraseña (fase 14A, ver `identidades_externas`)**. Solo puede haberlo con correo (`ck_clientes_cuenta_con_correo`, fase 6) |
+| `registrado` | bit | — | Calculada: 1 si tiene `password_hash` | Indica si tiene contraseña. Una cuenta de Google sin contraseña vale 0: para saber si hay cuenta web, la API mira también `identidades_externas` |
 | `fecha_registro` | datetime2(0) | No | `SYSDATETIME()` | Fecha de alta |
 | `activo` | bit | No | 1 | **0 = cuenta inhabilitada** (borrado lógico). Cuando un cliente da de baja su cuenta no se borran sus pedidos: se conserva la integridad histórica y contable |
 | `fecha_verificacion_correo` | datetimeoffset(0) | Sí | | **NUEVA (fase 6).** Cuándo confirmó el correo, con el enlace o con el código de recuperación. Nulo = sin confirmar. Cambiar el correo la vuelve a dejar nula |
@@ -427,6 +427,35 @@ Restricciones: `pk_rostros_empleado`, `fk_rostros_empleado_empleado`. Índice ú
 
 ---
 
+## trabajos_exportacion
+
+**Tabla nueva (20-11-2026, fase 13A, migración `ExportacionesDeReportes`).** Los archivos de reportes (Excel, PDF y CSV) que se preparan en segundo plano (RNFP18). Pedir un reporte solo inserta una fila; un proceso en segundo plano toma los pendientes (hasta 2 a la vez), genera el archivo y lo guarda en `almacen/exportaciones/` con el nombre `{id_trabajo en 32 hex}.{formato}`. El archivo vence a las 24 horas; el registro queda sin el contenido. No se audita con el interceptor: el pedido y el término quedan en la bitácora con la acción `exportar_reporte`.
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_trabajo` | uniqueidentifier | No | lo genera la aplicación (aleatorio) | PK. No adivinable: quien no lo conoce no puede pedir el archivo de otra persona |
+| `reporte` | varchar(20) | No | | `operativo`, `gerencial` o `parametrizable` |
+| `formato` | varchar(5) | No | | `xlsx`, `csv` o `pdf` |
+| `filtros` | varchar(1000) | No | | Los filtros ya validados, en JSON: solo lo que se pidió, sin datos personales (el cliente va por su número) |
+| `estado` | varchar(12) | No | `pendiente` | `pendiente`, `procesando`, `listo` o `fallido` |
+| `id_empleado` | int | No | | FK a `empleados`: quién lo pidió |
+| `rol_solicitante` | nvarchar(20) | No | | El rol con el que lo pidió (la bitácora lo registra también al terminar) |
+| `fecha_pedido` | datetimeoffset(0) | No | | Cuándo se pidió. También fija el «hoy» del reporte (un período relativo no cambia si se genera después de medianoche) |
+| `fecha_inicio` | datetimeoffset(0) | Sí | | Cuándo lo tomó el proceso |
+| `fecha_termino` | datetimeoffset(0) | Sí | | Cuándo terminó, o falló |
+| `fecha_vencimiento` | datetimeoffset(0) | Sí | | `fecha_termino` + 24 horas |
+| `bloqueado_hasta` | datetimeoffset(0) | Sí | | Mientras está `procesando`, hasta cuándo es de quien lo tomó; pasado ese momento se considera abandonado |
+| `intentos` | tinyint | No | 0 | Veces que se tomó. Un trabajo interrumpido 3 veces queda `fallido` |
+| `nombre_archivo` | varchar(80) | Sí | | Lo que ve quien descarga: `reporte-operativo-2026-11-20.xlsx` |
+| `tamano_bytes` | int | Sí | | Tamaño del archivo |
+| `filas` | int | Sí | | Filas del reporte (todas sus tablas) |
+| `error` | nvarchar(300) | Sí | | El motivo, en español y sin datos internos, si falló |
+| `archivo_borrado_en` | datetimeoffset(0) | Sí | | Cuándo se borró el contenido al vencer |
+
+Restricciones: `pk_trabajos_exportacion`, `fk_trabajos_exportacion_empleado`, `ck_trabajos_exportacion_reporte`, `ck_trabajos_exportacion_formato`, `ck_trabajos_exportacion_estado`, `ck_trabajos_exportacion_intentos`, `ck_trabajos_exportacion_listo` (un trabajo `listo` tiene fecha de término y de vencimiento, nombre y filas) y `ck_trabajos_exportacion_fallido` (uno `fallido` tiene su motivo). Índices: `ux_trabajos_exportacion_activo` (único filtrado: `id_empleado` con estado `pendiente` o `procesando`; **una persona no puede tener más de un trabajo activo**), `ix_trabajos_exportacion_estado` (la cola), `ix_trabajos_exportacion_vencimiento` (filtrado: la purga) e `ix_trabajos_exportacion_empleado`.
+
+---
+
 ## correos_salientes
 
 **Tabla nueva (13-11-2026, fase 4).** Cola de salida del correo (RFS08). Quien origina un correo (por ejemplo, una solicitud nueva que avisa al taller) solo inserta aquí una fila; un proceso en segundo plano la envía después, con reintentos. Así un servidor de correo lento o caído nunca hace esperar ni falla la petición.
@@ -571,6 +600,31 @@ Restricciones: `pk_codigos_cuenta`, `fk_codigos_cuenta_cliente` y `fk_codigos_cu
 Límites de envío, en la API y no en la base: como máximo 1 código por minuto y 5 por hora por cuenta. Si se supera, no se envía nada y la respuesta es la misma.
 
 **Retención:** las filas vencidas hace más de un día se borran con `PurgaDatosPersonales`, una vez al día.
+
+---
+
+## identidades_externas
+
+**Tabla nueva (21-11-2026, fase 14A, migración `IngresoConGoogle`); ampliada el 21-11-2026 por la fase 14C (migración `GoogleParaPersonal`): la identidad es de un cliente O de un empleado.** La cuenta de otro proveedor (por ahora, Google) vinculada a un cliente o, desde la 14C, a un empleado (RFS03, RFU05, E02). **La identidad es el `sub` del proveedor, que no cambia, y no el correo** (la persona puede cambiarlo). Nunca se guarda el token de Google: solo quién es, el correo que verificó al vincular y cuándo entró. Una cuenta creada con Google no tiene contraseña: `clientes.password_hash` es nulo y, como `clientes.registrado` se calcula a partir de él, vale 0; la API reconoce la cuenta por su identidad (la ficha del personal usa `registrado` o la existencia de la identidad). El personal no tiene identidades externas: no entra por Google (RFU05).
+
+| Columna | Tipo | Nulo | Por defecto o cálculo | Descripción |
+|---|---|---|---|---|
+| `id_identidad` | int | No | autoincremental | PK |
+| `id_cliente` | int | Sí | | FK a `clientes`. **CAMBIA (fase 14C):** admite nulo (nulo si la identidad es de un empleado) |
+| `id_empleado` | int | Sí | | **NUEVA (fase 14C).** FK a `empleados` (nulo si la identidad es de un cliente). El empleado vincula su Google desde Mi perfil con su contraseña actual; el correo verificado de Google debe ser el de su ficha |
+| `proveedor` | varchar(20) | No | `google` (lo pone la aplicación) | CHECK `proveedor IN ('google')`; la lista se amplía con una migración si se suma otro proveedor |
+| `sub` | varchar(255) COLLATE Latin1_General_BIN2 | No | | Identificador estable de la persona en el proveedor (ASCII alfanumérico). Columna **binaria**: `a` y `A` son identidades distintas, y ninguna conversión de caracteres puede hacer chocar a dos. Es dato personal: se audita sin mostrar su valor |
+| `correo` | nvarchar(254) | No | | El correo que verificó el proveedor al vincular (al vincular desde Mi cuenta, el de la cuenta) |
+| `fecha_vinculacion` | datetimeoffset(0) | No | | Cuándo se vinculó o se creó la cuenta con Google |
+| `fecha_ultimo_ingreso` | datetimeoffset(0) | Sí | | Último ingreso con esta identidad. No genera registro de «modificar» en la bitácora (cada ingreso queda como `ingreso_google`) |
+
+Fase 14C: `ck_identidades_externas_destino` (exactamente uno de `id_cliente` e `id_empleado`), `fk_identidades_externas_empleado` (`ON DELETE CASCADE`: la identidad se va con su empleado) y el índice único filtrado `uq_identidades_externas_empleado` (`id_empleado`, `proveedor`: a lo más un Google por empleado). **Los índices por cuenta pasan a ser filtrados** (`uq_identidades_externas_cliente` solo para `id_cliente IS NOT NULL`), porque con nulos un índice normal solo admitiría una fila. `uq_identidades_externas_sub` no cambia: un mismo Google no puede estar en dos cuentas, sea de cliente o de empleado. Cambiar el correo de un empleado borra su identidad (se ligó a un correo que ya no es el suyo).
+
+Restricciones de la 14A: `pk_identidades_externas`, `fk_identidades_externas_cliente` (`ON DELETE CASCADE`: la identidad se va con su cuenta) y `ck_identidades_externas_proveedor`. Índices únicos: `uq_identidades_externas_sub` (`proveedor`, `sub`: **un mismo Google no puede estar en dos cuentas**, aunque dos peticiones lleguen a la vez) y `uq_identidades_externas_cliente` (`id_cliente`, `proveedor`: **una cuenta no puede tener dos Google**).
+
+**Auditoría:** la tabla se audita con el interceptor (entidad `identidad_externa`, «Cuenta de Google vinculada»; el `sub` y el correo no se muestran). Además, tres acciones de la bitácora sobre la entidad `cuenta`: `ingreso_google`, `vincular_google` y `desvincular_google`, con quién y cuándo, sin token ni `sub`. `auditoria.accion` no tiene restricción de valores, así que no hizo falta cambiarla.
+
+**Baja de la cuenta:** `POST /mi-cuenta/baja` borra también su identidad (el Google queda libre y la cuenta ya no entra por ahí).
 
 
 ## disponibilidad_empleados

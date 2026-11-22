@@ -125,6 +125,9 @@ public sealed class ServicioPrivacidad(
                 cliente.IdCliente, cliente.Rut, cliente.Nombre, cliente.Apellido, cliente.Telefono, Correo = cliente.Email, cliente.Direccion,
                 cliente.FechaRegistro, CorreoConfirmado = cliente.FechaVerificacionCorreo is not null, AvisosEstado = cliente.RecibeAvisosEstado, Marketing = marketing
             },
+            // Fase 14A: el vinculo con Google es un dato suyo (sin el identificador interno de Google, que no le sirve y es sensible).
+            IngresoConGoogle = await db.IdentidadesExternas.AsNoTracking().Where(i => i.IdCliente == idCliente)
+                .Select(i => new { i.Proveedor, i.Correo, i.FechaVinculacion, i.FechaUltimoIngreso }).FirstOrDefaultAsync(ct),
             Consentimientos = consentimientosDelCliente,
             Solicitudes = solicitudes,
             Cotizaciones = cotizaciones,
@@ -159,6 +162,8 @@ public sealed class ServicioPrivacidad(
         await PreferenciaAvisosEstado.CambiarAsync(db, consentimientos, cliente, recibe: false, reloj, ct);
         cliente.InhabilitadoEn = ahora;
         cliente.PasswordHash = null;
+        // Fase 14A: la baja tambien libera su Google (ya no puede entrar por ahi, y ese Google queda libre).
+        db.IdentidadesExternas.RemoveRange(await db.IdentidadesExternas.Where(i => i.IdCliente == idCliente).ToListAsync(ct));
         try
         {
             await db.SaveChangesAsync(ct);

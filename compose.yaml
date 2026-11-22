@@ -1,0 +1,196 @@
+# Fase 16A (RNFO14, RNFO15): el proyecto completo con un comando, en cualquier equipo con Docker.
+#
+#   1) Crear el archivo de variables con claves al azar:   ./scripts/crear-env.sh      (Windows: .\scripts\crear-env.ps1)
+#   2) Levantar todo:                                      docker compose up --build
+#   3) Abrir http://localhost:8080  (los correos de prueba se ven en http://localhost:8025)
+#
+# Servicios:  sql (SQL Server 2022) -> migrador (aplica las migraciones y termina) -> semilla (datos de demostracion y termina)
+#             -> api (ASP.NET Core) -> web (nginx: el sitio y /api hacia la API) ;  correo (Mailpit: buzon de desarrollo).
+# Solo el sitio (WEB_PORT) y el buzon de correo (MAIL_UI_PORT) se publican, y ambos solo en este equipo (127.0.0.1).
+# La base de datos y la API no son accesibles desde fuera. Los datos viven en volumenes: «docker compose down -v» los borra.
+#
+# Este entorno es de DEMOSTRACION y evaluacion: la base se llama «..._Demo» y recibe datos inventados. La produccion
+# (Render + Azure SQL + Vercel) se describe en render.yaml, vercel.json y docs/despliegue.
+
+name: synctime
+
+x-registro: &registro
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Variables que comparten la API, el migrador y la semilla. El migrador las necesita todas porque la herramienta de EF
+# arma la aplicacion para conocer el contexto (Program.cs lee la configuracion antes de construirla).
+x-api-entorno: &api-entorno
+  ASPNETCORE_ENVIRONMENT: Production
+  TZ: America/Santiago
+  ConnectionStrings__DefaultConnection: "Server=sql,1433;Database=${SQL_DATABASE:-SyncTime_Demo};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Falta MSSQL_SA_PASSWORD - ejecute scripts/crear-env.sh};TrustServerCertificate=True;Encrypt=True;Connect Timeout=60"
+  Jwt__Key: ${JWT_KEY:?Falta JWT_KEY - ejecute scripts/crear-env.sh}
+  Jwt__Issuer: synctime
+  Jwt__Audience: synctime
+  Cors__AllowedOrigins__0: http://localhost:${WEB_PORT:-8080}
+  Sitio__UrlPublica: http://localhost:${WEB_PORT:-8080}
+  # Detras de nginx: la API lee la IP y el protocolo reales solo de la red interna de este compose.
+  ForwardedHeaders__Habilitado: "true"
+  ForwardedHeaders__RedesDeConfianza__0: ${RED_INTERNA:-172.30.0.0/24}
+  # Correo: el buzon de desarrollo (Mailpit); nada sale a internet.
+  Correo__Modo: Smtp
+  Correo__Smtp__Servidor: correo
+  Correo__Smtp__Puerto: "1025"
+  Correo__Smtp__Seguridad: Ninguna
+  Correo__Remitente__Direccion: avisos@synctime.local
+  Correo__AvisosTaller: ${CORREO_AVISOS_TALLER:-taller@synctime.local}
+  RostroFacial__ClaveCifrado: ${ROSTRO_CLAVE:-}
+  Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+  Demo__Password: ${DEMO_PASSWORD:?Falta DEMO_PASSWORD - ejecute scripts/crear-env.sh}
+  Bootstrap__Admin__Email: ${ADMIN_EMAIL:-}
+  Bootstrap__Admin__Password: ${ADMIN_PASSWORD:-}
+
+x-api-construccion: &api-construccion
+  context: ./backend/Proyecto-Carteles-herrera-synctime-main
+  dockerfile: Dockerfile
+  target: api
+
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-CU28-ubuntu-22.04
+    # La imagen solo existe para amd64: en equipos Apple Silicon corre emulada.
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Falta MSSQL_SA_PASSWORD - ejecute scripts/crear-env.sh}
+      TZ: UTC
+    volumes:
+      - sql-datos:/var/opt/mssql
+    networks: [interna]
+    healthcheck:
+      # La clave viaja por la variable SQLCMDPASSWORD y no por argumentos (que se verian con «ps» dentro del contenedor).
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    logging: *registro
+
+  correo:
+    image: axllent/mailpit:v1.34.0
+    ports:
+      - "127.0.0.1:${MAIL_UI_PORT:-8025}:8025"
+    networks: [interna]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    logging: *registro
+
+  migrador:
+    build:
+      context: ./backend/Proyecto-Carteles-herrera-synctime-main
+      dockerfile: Dockerfile
+      target: migrador
+    image: synctime-migrador:local
+    environment: *api-entorno
+    depends_on:
+      sql:
+        condition: service_healthy
+    networks: [interna]
+    # Un solo uso: aplica las migraciones y termina. No se reinicia.
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    logging: *registro
+
+  semilla:
+    build: *api-construccion
+    image: synctime-api:local
+    # Datos de demostracion inventados (usuarios @letreria.test con la clave DEMO_PASSWORD). Solo acepta bases «..._Demo».
+    command: ["dotnet", "LetrerosHerreraSYNCTIMEapi.dll", "sembrar-demo"]
+    environment: *api-entorno
+    depends_on:
+      migrador:
+        condition: service_completed_successfully
+    volumes:
+      - almacen-api:/app/almacen
+    networks: [interna]
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]
+    logging: *registro
+
+  api:
+    build: *api-construccion
+    image: synctime-api:local
+    environment: *api-entorno
+    depends_on:
+      sql:
+        condition: service_healthy
+      correo:
+        condition: service_healthy
+      migrador:
+        condition: service_completed_successfully
+      semilla:
+        condition: service_completed_successfully
+    volumes:
+      # Adjuntos privados, imagenes de la vitrina y reportes exportados: sobreviven a recrear el contenedor.
+      - almacen-api:/app/almacen
+    networks: [interna]
+    healthcheck:
+      # /salud/lista tambien comprueba la base (/salud solo el proceso).
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:$${PORT:-8080}/salud/lista"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    # El punto de entrada prepara la carpeta de archivos y baja a un usuario sin privilegios: necesita solo estas tres capacidades.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]
+    logging: *registro
+
+  web:
+    build:
+      context: ./frontend/synctimefront
+      dockerfile: Dockerfile
+      args:
+        # El ID de cliente de Google no es un secreto, pero no se escribe en el repositorio: viene del .env (puede quedar vacio).
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+        VITE_URL_PORTAL: ${URL_PORTAL:-}
+    image: synctime-web:local
+    environment:
+      API_UPSTREAM: http://api:8080
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    networks: [interna]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    logging: *registro
+
+networks:
+  interna:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${RED_INTERNA:-172.30.0.0/24}
+
+volumes:
+  sql-datos:
+  almacen-api:

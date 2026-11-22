@@ -685,12 +685,13 @@ public sealed class SolicitudesFase7Tests(ApiFixture api)
         Assert.Equal(enLinea, Assert.Single(soloEnLinea.GetProperty("elementos").EnumerateArray()).GetProperty("idSolicitud").GetInt32());
         var porNumero = await admin.GetAsync($"/api/v1/solicitudes?q=%23{presencial}").EsperarAsync(HttpStatusCode.OK);
         Assert.Contains(porNumero.GetProperty("elementos").EnumerateArray(), e => e.GetProperty("idSolicitud").GetInt32() == presencial);
-        var hoy = DateTime.Now.ToString("yyyy-MM-dd");
+        // Fase 16B: «hoy» es el de Chile (la fecha de las solicitudes nace en hora de Chile), no el del equipo ni el del servidor SQL.
+        var hoy = ApiFixture.HoyChile().ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         var pagina = await admin.GetAsync($"/api/v1/solicitudes?estado=solicitado&desde={hoy}&hasta={hoy}&pagina=1&tamano=1").EsperarAsync(HttpStatusCode.OK);
         Assert.Equal(1, pagina.GetProperty("elementos").GetArrayLength());
         Assert.True(pagina.GetProperty("total").GetInt32() >= 2);
         Assert.True(pagina.GetProperty("totalPaginas").GetInt32() >= 2);
-        var manana = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd");
+        var manana = ApiFixture.HoyChile().AddDays(1).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         var vacia = await admin.GetAsync($"/api/v1/solicitudes?desde={manana}").EsperarAsync(HttpStatusCode.OK);
         Assert.Equal(0, vacia.GetProperty("total").GetInt32());
     }
@@ -701,7 +702,8 @@ public sealed class SolicitudesFase7Tests(ApiFixture api)
         var admin = api.Cliente(await api.TokenAdminAsync());
         var rut = "12.345.678-5";
         var telefono = api.Telefono();
-        var apellido = $"Buscable{api.Siguiente()}";
+        // Solo letras (regla de nombres de la fase 12D): el contador se escribe con letras, a-j en lugar de 0-9.
+        var apellido = "Buscable" + string.Concat(api.Siguiente().ToString().Select(d => (char)('a' + (d - '0'))));
         var existente = await api.ConsultarAsync(db => db.Clientes.Where(c => c.Rut == "12345678-5").Select(c => (int?)c.IdCliente).FirstOrDefaultAsync());
         var creado = existente ?? (await admin.PostAsJsonAsync("/api/v1/clientes/", new { rut = "12345678-5", nombre = "Rosa", apellido, telefono })
             .EsperarAsync(HttpStatusCode.Created)).GetProperty("idCliente").GetInt32();

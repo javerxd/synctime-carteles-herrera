@@ -28,7 +28,7 @@
   transition: color var(--duracion-estado) var(--curva-estandar);
 }
 
-/* El indicador del estado activo, en ámbar; se cambia de pestaña muy seguido, así que no se desliza */
+/* El indicador del estado activo, en naranja; se cambia de pestaña muy seguido, así que no se desliza */
 .pestana::after {
   content: '';
   position: absolute;

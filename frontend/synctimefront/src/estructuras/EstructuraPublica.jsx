@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Mail, Menu, MessageCircle, Phone, UserRound, X } from 'lucide-react';
-import { Boton, Enlace } from '../componentes/ui';
+import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
+import { LayoutDashboard, Mail, Menu, Phone, UserRound, X } from 'lucide-react';
+import { Boton, Enlace, IconoWhatsapp } from '../componentes/ui';
+import { CartelMini } from '../paginas/publicas/cartel/CartelLocal';
+import { ProveedorEstadoLocal } from '../paginas/publicas/useEstadoLocal';
 import { unirClases } from '../componentes/ui/clases';
 import { enlaceTelefono, enlaceWhatsapp, TALLER } from '../configuracion/taller';
 import { abrirPreferenciasCookies } from '../utilidades/cookies';
@@ -17,16 +19,18 @@ const ANIO_ACTUAL = new Date().getFullYear();
 /** «Ingresar», o el acceso a la cuenta (cliente) o al panel (personal) cuando ya hay sesión. */
 function AccesoCuenta() {
   const { esCliente, esPersonal } = useSesion();
-  if (esCliente) return <Boton como={Link} to="/cuenta" variante="fantasma" tamano="compacto" iconoInicio={UserRound}>Mi cuenta</Boton>;
-  if (esPersonal) return <Boton como={Link} to="/panel" variante="fantasma" tamano="compacto" iconoInicio={LayoutDashboard}>Ir al panel</Boton>;
-  return <Boton como={Link} to="/ingresar" variante="fantasma" tamano="compacto">Ingresar</Boton>;
+  const etiqueta = (texto) => <span className={estilos.etiquetaAcceso}>{texto}</span>;
+  if (esCliente) return <Boton como={Link} to="/cuenta" variante="secundario" tamano="compacto" iconoInicio={UserRound}>{etiqueta('Mi cuenta')}</Boton>;
+  if (esPersonal) return <Boton como={Link} to="/panel" variante="secundario" tamano="compacto" iconoInicio={LayoutDashboard}>{etiqueta('Ir al panel')}</Boton>;
+  // El estilo que tenía «Solicitar cotización» (borde y fondo claro) más el icono de usuario; en el teléfono
+  // queda el icono y el nombre accesible, siempre visible junto al menú.
+  return <Boton como={Link} to="/ingresar" variante="secundario" tamano="compacto" iconoInicio={UserRound}>{etiqueta('Ingresar')}</Boton>;
 }
 
 const SECCIONES = [
   ['/#vitrina', 'Trabajos'],
   ['/#horario', 'Horario'],
-  ['/#ubicacion', 'Cómo llegar'],
-  ['/#contacto', 'Contacto'],
+  ['/consultas', 'Consultas'],
 ];
 
 /** Estructura del portal público: barra flotante de cristal, contenido y pie con enlaces legales. */
@@ -34,6 +38,18 @@ export function EstructuraPublica() {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const refBotonMenu = useRef(null);
   const ubicacion = useLocation();
+
+  // Tocar «Letreros Herrera», «Consultas» o «Ingresar» lleva siempre arriba: en otra página, o en la misma
+  // (cada clic trae otra key, también si el destino es la dirección actual). No toca los anclas (/#vitrina,
+  // que baja la portada), ni «atrás/adelante» (el navegador devuelve la posición), ni la primera carga.
+  const tipoNavegacion = useNavigationType();
+  const keyVista = useRef(ubicacion.key);
+  useEffect(() => {
+    if (keyVista.current === ubicacion.key) return; // primera carga (o el doble montaje de desarrollo)
+    keyVista.current = ubicacion.key;
+    if (tipoNavegacion === 'POP' || ubicacion.hash) return;
+    window.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+  }, [ubicacion.key, ubicacion.hash, tipoNavegacion]);
 
   // Al cambiar de página o de sección, el menú del teléfono se cierra.
   const [rutaAnterior, setRutaAnterior] = useState(ubicacion.key);
@@ -56,13 +72,15 @@ export function EstructuraPublica() {
   }, [menuAbierto]);
 
   return (
-    <>
+    <ProveedorEstadoLocal>
+      {/* data-animar: zona con botones animados y fondo de imagen. El panel del taller no la tiene (fase 12C). */}
+      <div data-animar className={estilos.zona}>
       <a href="#contenido" className="enlace-salto">Saltar al contenido</a>
       {/* Al principio del documento: quien navega con teclado o lector lo encuentra antes que el resto. */}
       <BannerCookies />
       <header className={estilos.barra}>
         <div className={estilos.interior}>
-          <Marca />
+          <Marca className={estilos.marcaBarra} />
           <button
             ref={refBotonMenu}
             type="button"
@@ -72,7 +90,7 @@ export function EstructuraPublica() {
             onClick={() => setMenuAbierto((abierto) => !abierto)}
           >
             {menuAbierto ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
-            <span>Menú</span>
+            <span className={estilos.textoMenu}>Menú</span>
           </button>
           <nav id="menu-publico" aria-label="Principal" className={unirClases(estilos.navegacion, menuAbierto && estilos.abierta)}>
             <ul className={estilos.enlaces}>
@@ -83,10 +101,15 @@ export function EstructuraPublica() {
               ))}
             </ul>
             <div className={estilos.acciones}>
-              <AccesoCuenta />
-              <BotonSolicitar tamano="compacto" variante="secundario" />
+              <BotonSolicitar tamano="compacto" />
             </div>
           </nav>
+          <div className={estilos.derecha}>
+            <div className={estilos.cuenta}>
+              <AccesoCuenta />
+            </div>
+            <CartelMini className={estilos.cartelBarra} />
+          </div>
         </div>
       </header>
 
@@ -121,7 +144,7 @@ export function EstructuraPublica() {
               {enlaceWhatsapp() && (
                 <li>
                   <Enlace href={enlaceWhatsapp()} externo className={estilos.pieContacto}>
-                    <MessageCircle size={16} aria-hidden="true" />Escribir por WhatsApp
+                    <IconoWhatsapp size={16} />Escribir por WhatsApp
                   </Enlace>
                 </li>
               )}
@@ -142,10 +165,11 @@ export function EstructuraPublica() {
 
       {enlaceWhatsapp() && (
         <a href={enlaceWhatsapp()} target="_blank" rel="noopener noreferrer" className={estilos.whatsapp}>
-          <MessageCircle size={24} strokeWidth={2} aria-hidden="true" />
+          <IconoWhatsapp size={56} />
           <span className="solo-lectores">Escribir por WhatsApp (se abre en otra pestaña)</span>
         </a>
       )}
-    </>
+      </div>
+    </ProveedorEstadoLocal>
   );
 }

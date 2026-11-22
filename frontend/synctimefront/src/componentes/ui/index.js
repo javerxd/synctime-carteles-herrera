@@ -10,6 +10,7 @@ export { Chip } from './Chip';
 export { Dialogo } from './Dialogo';
 export { Enlace } from './Enlace';
 export { Esqueleto } from './Esqueleto';
+export { IconoWhatsapp } from './IconoWhatsapp';
 export { Opciones } from './Opciones';
 export { EstadoVacio } from './EstadoVacio';
 export {

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { TALLER } from '../../../configuracion/taller';
+import { crearCapaTeselas } from './teselas';
 import estilos from './MapaUbicacion.module.css';
 
 /**
@@ -17,10 +18,7 @@ export default function MapaInteractivo({ descripcion }) {
     // En pantallas táctiles no se arrastra con un dedo: ese gesto sigue desplazando la página.
     const mapa = L.map(refContenedor.current, { scrollWheelZoom: false, dragging: !L.Browser.mobile })
       .setView([latitud, longitud], 17);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© colaboradores de OpenStreetMap',
-    }).addTo(mapa);
+    crearCapaTeselas().addTo(mapa);
     L.circleMarker([latitud, longitud], {
       radius: 11, color: '#FFFFFF', weight: 3, fillColor: '#0F172A', fillOpacity: 1,
     }).addTo(mapa).bindTooltip(TALLER.nombre, { direction: 'top', offset: [0, -10] });

@@ -4,6 +4,7 @@ import { errorPassword, esTelefono } from '../cuenta/reglasCuenta';
 import { pesosDesdeTexto } from '../cotizaciones/reglasCotizacion';
 import { cmAMm, numero } from '../solicitudes/reglasSolicitud';
 import { parametrosBase } from '../../utilidades/filtrosUrl';
+import { MAXIMO_CARACTERES, errorNombre } from '../../utilidades/reglaNombre';
 import { validarRut } from '../../utilidades/rut';
 
 // ── Listados ──
@@ -67,7 +68,7 @@ const limpiar = (errores) => Object.fromEntries(Object.entries(errores).filter((
 
 export const LIMITES = {
   nombreCategoria: 80, descripcionCategoria: 300, nombreProducto: 100, descripcionProducto: 500,
-  nombreMaterial: 100, unidad: 20, titulo: 100, descripcionPublicacion: 1000, nombrePersona: 80, correo: 254, medidaCm: 5000,
+  nombreMaterial: 100, unidad: 20, titulo: 100, descripcionPublicacion: 1000, nombrePersona: MAXIMO_CARACTERES, correo: 254, medidaCm: 5000,
 };
 
 export const CATEGORIA_VACIA = { nombre: '', descripcion: '' };
@@ -224,8 +225,8 @@ export function validarEmpleado(f, { nuevo = false, requierePassword = false } =
   const correo = texto(f.email);
   const errores = {
     rut: !texto(f.rut) ? 'Escribe el RUT.' : validarRut(f.rut) ? null : 'El RUT no es válido. Revisa el número y el dígito verificador, por ejemplo 12.345.678-5.',
-    nombre: largo(f.nombre, { min: 1, max: LIMITES.nombrePersona, vacio: 'Escribe el nombre.', etiqueta: 'El nombre' }),
-    apellido: largo(f.apellido, { min: 1, max: LIMITES.nombrePersona, vacio: 'Escribe el apellido.', etiqueta: 'El apellido' }),
+    nombre: errorNombre(f.nombre, 'Escribe el nombre.'),
+    apellido: errorNombre(f.apellido, 'Escribe el apellido.'),
     telefono: esTelefono(f.telefono) ? null : 'Escribe un teléfono de 9 dígitos, por ejemplo 9 1234 5678.',
     email: !correo ? 'Escribe el correo con que ingresará.' : CORREO.test(correo) && correo.length <= LIMITES.correo ? null : 'Escribe un correo válido, por ejemplo nombre@correo.cl.',
     rol: f.rol in ROLES ? null : 'Elige el rol.',

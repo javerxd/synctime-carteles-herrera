@@ -11,6 +11,7 @@ import { GraficoCobranza, TablaCobranza } from './GraficoCobranza';
 import { GraficoEvolucion, TablaEvolucion } from './GraficoEvolucion';
 import { GraficoDemanda, GraficoEmbudo, TablaDemanda, TablaEmbudo } from './GraficosHorizontales';
 import { DEFINICION_FILTROS, periodoComparacion, resolverPeriodo } from './reglasIndicadores';
+import { enlaceCobranza } from '../reportes/reglasReportes';
 import { TablaPorCobrar } from './TablaPorCobrar';
 import { TarjetasResumen } from './TarjetasResumen';
 import { useIndicadores } from './useIndicadores';
@@ -117,7 +118,7 @@ export default function Indicadores() {
       <BloqueIndicador titulo="Pedidos por cobrar" estado={bloques.porCobrar} alReintentar={() => reintentar('porCobrar')} altoEsqueleto="12rem">
         {(_, datos) => (
           <TablaPorCobrar datos={datos} actualizando={bloques.porCobrar.actualizando} cobro={filtros.cobro}
-            alQuitarCobro={() => cambiar({ cobro: '' })} alCambiarAlcance={cambiarAlcance} alCambiarPagina={(pagina) => cambiar({ pagina })} />
+            alQuitarCobro={() => cambiar({ cobro: '' })} enlaceExportar={enlaceCobranza(filtros)} alCambiarAlcance={cambiarAlcance} alCambiarPagina={(pagina) => cambiar({ pagina })} />
         )}
       </BloqueIndicador>
     </div>

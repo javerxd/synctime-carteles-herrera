@@ -106,10 +106,12 @@ Tras cerrar la fase 1, la profesora guía revisó el proyecto y pidió cambios o
 | 10 | Rostro según requisitos | 6, 9 | Posible |
 | 11 | Notificaciones, auditoría y privacidad | 4, 8, 9 | Sí |
 | 12 | Indicadores y dashboard | 8 | Sí (vistas) |
-| 13 | Reportes y exportaciones | 11, 12 | Sí |
-| 14 | Google y asistente de IA | 6, 7, 9 | Posible |
-| 15 | Calidad: rendimiento, accesibilidad y compatibilidad | 13, 14 | No |
-| 16 | Contenedores, CI/CD y operación | 15 | No |
+| 12C | Portal público: mapa, carteles, barra superior, vitrina e ingreso (agregada el 20-11-2026) | 12B | No |
+| 12D | Paneles, cuentas, validaciones y catálogo editable (agregada el 20-11-2026) | 12C | No |
+| 13 | Reportes y exportaciones | 11, 12, 12D | Sí |
+| 14 | Ingreso con Google (sin asistente de IA, desde el 20-11-2026) | 6, 7, 9 | Posible |
+| 15 | Calidad: rendimiento, accesibilidad y compatibilidad (Chrome, Edge y Brave, desde el 20-11-2026) | 13, 14 | No |
+| 16 | Contenedores, CI/CD, nube y operación (Azure SQL, Render y Vercel, además de Docker local) | 15 | No |
 | 17 | Cierre y verificación de trazabilidad | 16 | No |
 
 Las fases se ejecutan en este orden, una a la vez. **Ajuste del 12-11-2026:** las fases 2 y 3 se priorizan para la revisión de avance del lunes; dentro de ellas va primero lo que esas pantallas necesitan.
@@ -282,6 +284,26 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 
 **Cierre:** cada indicador coincide con un cálculo hecho a mano sobre datos conocidos.
 
+### Fase 12C — Portal público (agregada el 20-11-2026)
+Plan: `fase-12c-plan.md`. Origen: la lista de cambios del usuario del 20-11-2026. Casi solo frontend, sin migración.
+- Corregir el 403 del mapa de OpenStreetMap (política de referencia de las teselas), primero y con diagnóstico.
+- Naranja accesible `#C2410C` como acento, fondo `fondo-web.jpg` de baja opacidad (fuera del panel del taller), imágenes optimizadas, icono de WhatsApp.
+- Barra superior: sin «Cómo llegar», con «Consultas», hover naranja, botones de cotización iguales e «Ingresar» con icono; cartel pequeño en la esquina derecha.
+- Cartel grande con las imágenes roja y verde y entrada deslizante; animación de botones con `apple-design` (no en el panel del taller).
+- Formulario «Escríbenos» en la pantalla independiente `/consultas`; vitrina con búsqueda por «contiene» (el prefijo primero), categorías desplegables y zoom al pasar el cursor; pantalla «¿Quién está iniciando sesión?».
+
+**Cierre:** axe sin errores a 360, 768 y 1440 px, el mapa carga en la app sin errores en la consola y las pruebas pasan.
+
+### Fase 12D — Paneles, cuentas, validaciones y catálogo editable (agregada el 20-11-2026)
+Plan: `fase-12d-plan.md`. Depende de la 12C.
+- Menú lateral azul del taller con pie anclado («Volver a la página principal» y «Cerrar sesión» en rojo); nuevo panel lateral del cliente (Mis solicitudes, Solicitar cotización y Mi cuenta, sin duplicados).
+- Inicio del panel en dos columnas (solicitudes por atender e indicadores del mes); etiquetas de origen verde y amarilla.
+- Nombres y apellidos: solo letras, hasta 20 caracteres y hasta 5 espacios entre palabras, en backend y frontend.
+- Administrar empleados: entrada propia en el menú y el inicio para dueño y administrador, con desactivación confirmada.
+- Editar desde el mantenedor las medidas y opciones de un producto (pendiente de la 12B).
+
+**Cierre:** cada validación y permiso tiene prueba, con fallos a propósito detectados; `permisos.md` y el contrato coinciden; axe sin errores a las tres anchuras.
+
 ### Fase 13 — Reportes y exportaciones
 **Requisitos:** RFS10, RNFP18, RFU24–26, RFU36 (reporte de cobranza), E16, E20, S18, S24.
 - **Backend:** tres reportes (operativo, con estado del pedido, estado de pago y saldo; gerencial con totales y gráficos; parametrizable por rango de fechas, estado del pedido, estado de pago, año, mes y cliente, incluido el listado de pedidos por cobrar) con los roles de cada uno; exportación en segundo plano con una tabla de trabajos, validando el rol y registrando en auditoría quién exportó:
@@ -292,27 +314,33 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 
 **Cierre:** los tres formatos se abren correctamente y respetan los filtros; un rol sin permiso recibe 403.
 
-### Fase 14 — Google y asistente de IA
-**Requisitos:** RFS03 (Google), RFS11, RFS12 (consentimiento al completar el registro con Google), RNFE02, RNFE07, RNFP17, RNFO13 (IA simulada), RFU05, RFU23, E19, S17.
+### Fase 14 — Ingreso con Google
+**Ajuste del 20-11-2026:** se **elimina el asistente de IA**; queda solo el botón de Google como alternativa de ingreso. RFU23, E19, S17 y RNFE07 pasan a `desviaciones.md` (decisión del usuario) y RNFO13 sigue sin IA.
+**Requisitos:** RFS03 (Google; en la numeración antigua, RFS05; el RFS11 que se citaba aquí es el asistente de IA, ya desviado), RFS12 (consentimiento al completar el registro con Google), RNFE02, RNFP17, RFU05 (la parte de Google).
 - **Google:** validación del token de identidad exigiendo correo verificado; si el correo ya tiene cuenta con contraseña, no se fusiona sola: se pide iniciar sesión para vincularla; una cuenta nueva pasa por una pantalla que completa el registro con las casillas de consentimiento.
-- **Asistente:** ruta con validación de entrada, tiempo máximo de espera, límite por IP y tope de uso, defensa contra instrucciones inyectadas, validación del JSON que devuelve el proveedor y error estándar; implementación simulada para las pruebas.
-- **Frontend:** botón de Google, cuyo script se carga solo cuando el usuario lo pide; asistente en la solicitud (sugiere categoría, medidas y borrador) y en el catálogo (redacta descripciones para el dueño).
-- **Necesito de ti:** el ID de cliente OAuth de Google Cloud y la clave del proveedor de IA que elijas. Sin ellas queda construido y probado con el simulador.
+- **Frontend:** botón de Google en la pantalla de ingreso del cliente (tras la elección «¿Quién está iniciando sesión?» de la 12C), cuyo script se carga solo cuando el usuario lo pide.
+- **Necesito de ti:** el ID de cliente OAuth de Google Cloud. Sin él queda construido y probado con un verificador simulado.
 
-**Cierre:** si el proveedor falla o tarda, la API responde el error estándar sin bloquearse; ninguna clave está en el código.
+**Cierre:** si Google falla o tarda, la API responde el error estándar sin bloquearse; ninguna clave está en el código.
 
 ### Fase 15 — Calidad: rendimiento, accesibilidad y compatibilidad
 **Requisitos:** RNFP01, RNFP02, RNFP03, RNFP05, RNFP15, RNFP23, RNFP24, RNFP27, RNFO13, RNFE08, RFU29.
 - Prueba de carga con 20 usuarios simultáneos, con un guion propio en Node.js que corre de forma nativa; simulación de red lenta; revisión de llamadas duplicadas y de la división del código.
-- Playwright en Chromium, Edge, Firefox y WebKit, y con perfil móvil. Instalar Firefox y WebKit exige descargar sus navegadores: te pediré permiso en ese momento. WebKit se aproxima a Safari pero no lo reemplaza: Safari real queda para una prueba en un dispositivo.
+- **Ajuste del 20-11-2026:** Playwright en **Chrome, Edge y Brave** (los tres con motor Chromium), y con perfil móvil. Firefox, WebKit y Safari quedan fuera por decisión del usuario: RNFP05 pasa a `desviaciones.md`. Brave se prueba con su ejecutable instalado, sin descargas.
+- **Búsqueda de clientes en el servidor** cuando pasen de 100 registros (pendiente de la 12B), con su prueba de carga.
 - axe en todas las rutas y Lighthouse.
 - Guion de prueba manual con teclado y lector de pantalla (NVDA). **Esa prueba la ejecuta una persona:** te dejo el guion y la hacemos juntos.
 
 **Cierre:** el 95 % de las respuestas en 2 segundos o menos, o las causas y correcciones anotadas si no se alcanza; axe sin errores críticos ni serios; sin desplazamiento horizontal entre 360 y 1440 px.
 
-### Fase 16 — Contenedores, CI/CD y operación
+### Fase 16 — Contenedores, CI/CD, nube y operación
 **Requisitos:** RNFO14–17, RNFP04, RNFP09, RNFP20, RNFP25, RNFP29, RNFE03, RNFE09, S22.
-**Enfoque:** en este equipo no hay Docker. Los archivos de contenedores se escriben aquí con todo el rigor de la rúbrica y se **verifican en la nube**: en un GitHub Codespace (Docker nativo en Linux) y en el pipeline de GitHub Actions.
+**Ajuste del 20-11-2026 (decisión del usuario):** se **mantiene** el soporte completo de `docker compose up` local (`compose.yaml`, Dockerfile del backend, Dockerfile del frontend y contenedor de SQL Server), para que cualquiera pueda clonar y levantar todo con Docker; y **además** se despliega en la nube:
+- **Frontend en Vercel**, con una regla de reescritura de `/api` hacia el backend, para que la sesión por cookie y el CORS funcionen en un solo origen.
+- **Backend en Render** como servicio web con Docker (Render no tiene .NET nativo, así que el Dockerfile del backend sirve para ambos).
+- **Base de datos en Azure SQL Database, capa gratuita.** Se pausa sola con la inactividad y la primera consulta tarda unos segundos: se documenta y se prueba. El servidor debe tener la zona horaria de Chile o las vistas de indicadores desfasan los días (`desviaciones.md`); en Azure SQL esto se resuelve con la conversión de zona en las vistas o con una migración, y se decide al construir. Migraciones aplicadas con respaldo y permiso del usuario.
+- Los conectores de Vercel, Render y Azure ya están instalados; las claves y cadenas de conexión las carga el usuario en cada plataforma, nunca en el repositorio.
+**Verificación local de contenedores:** en este equipo no hay Docker. Los archivos de contenedores se escriben aquí con todo el rigor de la rúbrica y se **verifican en la nube**: en un GitHub Codespace (Docker nativo en Linux) y en el pipeline de GitHub Actions.
 - `Dockerfile` en varias etapas, con imágenes base ligeras de versión fija, para API y frontend; `.dockerignore`.
 - `compose.yaml` con frontend, API, SQL Server y correo de desarrollo, con volúmenes, redes internas, comprobaciones de salud, caché de archivos estáticos y variables en `.env` (excluido del repositorio, con `.env.example`).
 - `.devcontainer/` para que el Codespace arranque con Docker listo, y un guion `scripts/verificar-compose.sh` que ejecuta `docker compose up`, espera a que todos los servicios estén sanos, recorre las rutas de salud y un flujo básico, y guarda la evidencia (salida de `docker compose ps`, registros y resultado) en `docs/evidencias/`.
@@ -331,6 +359,7 @@ Rutas base: `B` = `backend/Proyecto-Carteles-herrera-synctime-main/LetrerosHerre
 Los puntos 2 y 3 ocurren fuera de este equipo: hasta que existan esas evidencias, la fase queda como "construida, pendiente de verificación en la nube".
 
 ### Fase 17 — Cierre y verificación de trazabilidad
+- **Regenerar el script SQL completo y consolidado** (`docs/base-de-datos/LetreriaLosHerreraDB.sql`) con el esquema definitivo, las vistas, los triggers y los datos de demostración (decisión del 20-11-2026).
 - Recorrer la matriz completa, identificador por identificador.
 - Revisión final de seguridad contra OWASP Top 10 y OWASP API Security Top 10 (RNFE04, RNFP16), con `OWASP.md` actualizado.
 - Revisión completa con ECC (`orch-review`). Informe técnico, README y manual breve de uso al día.

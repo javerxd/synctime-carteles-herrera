@@ -640,7 +640,7 @@
   color: var(--tono-exito-texto);
 }
 
-/* El paso actual: el estado activo lleva el ámbar (velo y borde), además de su ícono y su texto. */
+/* El paso actual: el estado activo lleva el naranja (velo y borde), además de su ícono y su texto. */
 .paso_ahora {
   border-color: var(--color-acento);
   background: var(--color-acento-suave);

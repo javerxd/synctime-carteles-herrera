@@ -4,8 +4,8 @@ using LetrerosHerreraSYNCTIMEapi.Services;
 
 namespace LetrerosHerreraSYNCTIMEapi.Endpoints;
 
-// Fase 11 (RFS12, RFU28, S20): el visor de la bitacora y de los consentimientos. Solo dueño y administrador; sin
-// exportar todavia (las exportaciones son de la fase 13).
+// Fase 11 (RFS12, RFU28, S20): el visor de la bitacora y de los consentimientos. Solo dueño y administrador; el visor
+// no se exporta (las exportaciones de la fase 13 son las de los reportes, que aqui quedan como «Exportó un reporte»).
 public static class AuditoriaApi
 {
     public static void MapAuditoriaApi(this WebApplication app)

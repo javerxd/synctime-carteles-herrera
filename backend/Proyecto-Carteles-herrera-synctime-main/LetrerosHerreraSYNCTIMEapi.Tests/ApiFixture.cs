@@ -23,13 +23,13 @@ public sealed class ApiCollection : ICollectionFixture<ApiFixture>
 }
 
 // Levanta la API contra una base propia creada por las migraciones, nunca contra la de desarrollo.
-// Usa la instancia local de SQL Server Express; la variable TEST_SQL_SERVER permite apuntar a otro servidor.
+// Usa la instancia local de SQL Server Express; la variable TEST_SQL_SERVER permite apuntar a otro servidor, y TEST_SQL_PASSWORD (con
+// TEST_SQL_USER, por omision «sa») cambia a la autenticacion de SQL Server para un contenedor (ver ConexionDePruebas).
 public sealed class ApiFixture : IAsyncLifetime
 {
     public const string AdminEmail = "admin.pruebas@test.local";
     public static readonly string AdminPassword = $"Pr-{Guid.NewGuid():N}"[..24];
     public const int TiempoMinimoFalloMs = 60;
-    public const string ServidorPredeterminado = @"localhost\SQLEXPRESS";
     public const string AvisosTaller = "avisos.taller@test.local";
 
     // El prefijo identifica las bases temporales: es lo unico que este codigo tiene permitido eliminar.
@@ -40,6 +40,7 @@ public sealed class ApiFixture : IAsyncLifetime
     public string CarpetaBandeja => Path.Combine(carpetaTemporal, "bandeja");
     public string CarpetaImagenes => Path.Combine(carpetaTemporal, "imagenes");
     public string CarpetaAdjuntos => Path.Combine(carpetaTemporal, "adjuntos");
+    public string CarpetaExportaciones => Path.Combine(carpetaTemporal, "exportaciones");
 
     // Fase 7: la regla contra solicitudes falsas mira la IP. El servidor de pruebas no tiene una, asi que
     // una prueba puede elegirla con esta cabecera (solo existe en las pruebas, nunca en la API real).
@@ -50,14 +51,17 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public IServiceProvider Services => factory.Services;
 
+    // Fase 14A: el ID de cliente de Google de las pruebas es inventado, y los tokens los fabrica el verificador simulado.
+    public const string GoogleClientId = "pruebas-synctime.apps.googleusercontent.com";
+    public VerificadorGoogleSimulado Google { get; } = new();
+
     public async Task InitializeAsync()
     {
-        var servidor = Environment.GetEnvironmentVariable("TEST_SQL_SERVER") ?? ServidorPredeterminado;
         var configuracion = new Dictionary<string, string>
         {
-            // Esperas amplias: en un equipo con poca memoria libre, SQL Server Express tarda en aceptar conexiones
-            // y en crear la base, y un fallo por tiempo de espera no dice nada sobre el codigo que se prueba.
-            ["ConnectionStrings__DefaultConnection"] = $"Server={servidor};Database={nombreBase};Trusted_Connection=True;TrustServerCertificate=True;Connect Timeout=60;Command Timeout=180;",
+            // Fase 16B: Windows en el equipo de desarrollo; usuario y clave de SQL Server si el entorno define TEST_SQL_PASSWORD (pipeline).
+            // Esperas amplias: un fallo por tiempo de espera no dice nada sobre el codigo que se prueba (ver ConexionDePruebas).
+            ["ConnectionStrings__DefaultConnection"] = ConexionDePruebas.DesdeEntorno(Environment.GetEnvironmentVariable, nombreBase),
             ["Jwt__Key"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48)),
             ["Jwt__Issuer"] = "pruebas",
             ["Jwt__Audience"] = "pruebas",
@@ -101,7 +105,18 @@ public sealed class ApiFixture : IAsyncLifetime
             ["Correo__Remitente__Direccion"] = "synctime@test.local",
             ["Sitio__UrlPublica"] = "https://synctime.test",
             ["Imagenes__Carpeta"] = CarpetaImagenes,
-            ["Adjuntos__Carpeta"] = CarpetaAdjuntos
+            ["Adjuntos__Carpeta"] = CarpetaAdjuntos,
+            // Fase 13A: las exportaciones van a una carpeta temporal y el proceso en segundo plano no corre solo: cada prueba lo ejecuta
+            // cuando lo necesita (TrabajadorExportaciones), asi nada depende de cuando despierte.
+            ["Reportes__Carpeta"] = CarpetaExportaciones,
+            ["Reportes__ColaActiva"] = "false",
+            ["RateLimiting__Exportaciones"] = "100000",
+            ["RateLimiting__Reportes"] = "100000",
+            // Fase 14A: un ID de cliente INVENTADO (no es el real): el verificador simulado nunca llama a Google. El limite de espera
+            // baja a 1 segundo para que las pruebas de «Google lento» no tarden; el tope real es de 5 (OpcionesGoogle).
+            ["Google__ClientId"] = GoogleClientId,
+            ["RateLimiting__IngresoGoogle"] = "100000",
+            ["Google__SegundosLimite"] = "1"
         };
 
         // Program lee la configuracion antes de que WebApplicationFactory pueda cambiarla,
@@ -110,7 +125,12 @@ public sealed class ApiFixture : IAsyncLifetime
             Environment.SetEnvironmentVariable(clave, valor);
 
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
-            host.ConfigureServices(services => services.AddTransient<IStartupFilter, IpDePrueba>()));
+            host.ConfigureServices(services =>
+            {
+                services.AddTransient<IStartupFilter, IpDePrueba>();
+                // Fase 14A: la API de las pruebas verifica los tokens de Google con este simulado, nunca con Google.
+                services.AddSingleton<Negocio.IngresoGoogle.IVerificadorGoogle>(Google);
+            }));
         _ = factory.Server;
 
         var conexion = await ConsultarAsync(db => Task.FromResult(db.Database.GetConnectionString()));
@@ -261,6 +281,41 @@ public sealed class ApiFixture : IAsyncLifetime
         return new ApiTemporal(otra);
     }
 
+    // Fase 16A: otra API sobre la misma base, en el entorno indicado (por ejemplo «Production») y con la IP elegida por la cabecera
+    // X-Prueba-Ip, como la API principal de las pruebas. Es lo que permite probar lo que cambia segun el entorno: el CORS, la URL
+    // publica y la lectura de las cabeceras de un proxy.
+    public ApiTemporal ConEntorno(string entorno, IReadOnlyDictionary<string, string> variables)
+    {
+        var anteriores = variables.Keys.ToDictionary(v => v, Environment.GetEnvironmentVariable);
+        foreach (var (variable, valor) in variables)
+            Environment.SetEnvironmentVariable(variable, valor);
+
+        var otra = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
+        {
+            host.UseEnvironment(entorno);
+            host.ConfigureServices(services =>
+            {
+                services.AddTransient<IStartupFilter, IpDePrueba>();
+                services.AddSingleton<Negocio.IngresoGoogle.IVerificadorGoogle>(Google);
+            });
+        });
+        try
+        {
+            _ = otra.Server;
+        }
+        catch
+        {
+            otra.Dispose();
+            throw;
+        }
+        finally
+        {
+            foreach (var (variable, valor) in anteriores)
+                Environment.SetEnvironmentVariable(variable, valor);
+        }
+        return new ApiTemporal(otra);
+    }
+
     public sealed class ApiTemporal(WebApplicationFactory<Program> factory) : IAsyncDisposable
     {
         public IServiceProvider Services => factory.Services;
@@ -271,6 +326,12 @@ public sealed class ApiFixture : IAsyncLifetime
             if (token is not null)
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             return client;
+        }
+
+        public async Task<T> ConsultarAsync<T>(Func<LetrerosHerreradbContext, Task<T>> consulta)
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            return await consulta(scope.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>());
         }
 
         public ValueTask DisposeAsync() => factory.DisposeAsync();

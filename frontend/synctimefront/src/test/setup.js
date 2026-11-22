@@ -14,6 +14,10 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
   };
 }
 
+// jsdom no desplaza la ventana: la estructura pública sube al inicio al navegar y escribiría «Not implemented».
+// Las pruebas que miran ese desplazamiento lo espían con vi.spyOn(window, 'scrollTo').
+window.scrollTo = () => {};
+
 // jsdom no dibuja en <canvas>: sin este reemplazo, cada getContext escribe «Not implemented» en la consola.
 // Devuelve null, como un navegador sin el contexto pedido; el brillo y las vistas previas lo toleran.
 if (typeof HTMLCanvasElement !== 'undefined') {

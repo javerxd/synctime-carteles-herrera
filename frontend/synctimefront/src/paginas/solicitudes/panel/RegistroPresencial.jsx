@@ -6,6 +6,7 @@ import { publico } from '../../../api/publico';
 import { clientes, solicitudes } from '../../../api/solicitudes';
 import { useAvisos } from '../../../avisos/Avisos';
 import { useSesion } from '../../../sesion/sesion';
+import { MAXIMO_CARACTERES } from '../../../utilidades/reglaNombre';
 import { formatearRut } from '../../../utilidades/rut';
 import { useConsulta } from '../../../utilidades/useConsulta';
 import { useFormulario } from '../../cuenta/useFormulario';
@@ -97,8 +98,8 @@ export function CrearCliente({ inicial, alCrear, alCancelar, paraQue = 'la solic
       <Aviso tono="info" titulo="No hay un cliente con esos datos">Regístralo para seguir con {paraQue}.</Aviso>
       {estado.error && <Aviso tono="peligro" titulo={estado.error} />}
       <div className={estilosPanel.dosColumnas}>
-        <Campo etiqueta="Nombre" requerido autoComplete="off" maxLength={80} {...campo('nombre')} />
-        <Campo etiqueta="Apellido" requerido autoComplete="off" maxLength={80} ayuda="O el nombre del negocio." {...campo('apellido')} />
+        <Campo etiqueta="Nombre" requerido autoComplete="off" maxLength={MAXIMO_CARACTERES} {...campo('nombre')} />
+        <Campo etiqueta="Apellido" requerido autoComplete="off" maxLength={MAXIMO_CARACTERES} {...campo('apellido')} />
         <Campo etiqueta="Teléfono" requerido type="tel" inputMode="tel" autoComplete="off" {...campo('telefono')} />
         <Campo etiqueta="RUT (opcional)" autoComplete="off" {...campo('rut')} />
       </div>

@@ -64,7 +64,8 @@ function dibujar(entrada, elemento, ruta) {
         <Routes>
           <Route path={ruta} element={elemento} />
           <Route path="/cuenta" element={<Destino nombre="Mi cuenta" />} />
-          <Route path="/ingresar" element={<Destino nombre="Ingreso de clientes" />} />
+          <Route path="/ingresar" element={<Destino nombre="Selector de ingreso" />} />
+          <Route path="/ingresar/cliente" element={<Destino nombre="Ingreso de clientes" />} />
           <Route path="/personal/ingresar" element={<Destino nombre="Acceso del personal" />} />
         </Routes>
       </MemoryRouter>
@@ -314,7 +315,7 @@ describe('Verificar el correo', () => {
     dibujar('/cuenta/verificar?token=vencido', <Verificar />, '/cuenta/verificar');
     expect(await screen.findByRole('heading', { name: 'No pudimos confirmar tu correo' })).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('El enlace no es válido o ya venció.');
-    expect(screen.getByRole('link', { name: 'Ingresar' })).toHaveAttribute('href', '/ingresar');
+    expect(screen.getByRole('link', { name: 'Ingresar' })).toHaveAttribute('href', '/ingresar/cliente');
   });
 
   it('sin token no llama a la API', () => {

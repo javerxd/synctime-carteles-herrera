@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CalendarRange, History, PackageCheck } from 'lucide-react';
+import { CalendarRange, FileDown, History, PackageCheck } from 'lucide-react';
 import { Boton, Chip, EstadoPago, EstadoPedido, EstadoVacio, Insignia, Paginacion, TablaAdaptable, TEXTOS_ESTADO_PAGO } from '../../componentes/ui';
 import { formatearFecha, formatearPesos } from '../../utilidades/formato';
 import { formatearNumero } from './formatoIndicadores';
@@ -30,7 +30,7 @@ const COLUMNAS = [
  * destacados), el monto final, lo abonado y el saldo, con el total al pie. Dice si es el saldo del período o toda
  * la deuda vigente, y lo cambia con un clic. Un segmento elegido en el anillo de cobranza se ve como un chip.
  */
-export function TablaPorCobrar({ datos, actualizando, cobro, alQuitarCobro, alCambiarAlcance, alCambiarPagina }) {
+export function TablaPorCobrar({ datos, actualizando, cobro, alQuitarCobro, alCambiarAlcance, alCambiarPagina, enlaceExportar }) {
   const vigente = datos.alcance === 'vigente';
   return (
     <>
@@ -48,6 +48,10 @@ export function TablaPorCobrar({ datos, actualizando, cobro, alQuitarCobro, alCa
           <Boton variante="fantasma" tamano="compacto" iconoInicio={vigente ? CalendarRange : History} onClick={() => alCambiarAlcance(vigente ? 'periodo' : 'vigente')}>
             {vigente ? 'Ver solo el período' : 'Ver toda la deuda vigente'}
           </Boton>
+          {/* Fase 13B (RFU36): abre el reporte parametrizable ya filtrado por cobrar, con el período, el alcance y el cliente de aquí. */}
+          {enlaceExportar && (
+            <Boton como={Link} to={enlaceExportar} variante="secundario" tamano="compacto" iconoInicio={FileDown}>Exportar cobranza</Boton>
+          )}
         </div>
       </div>
       <p role="status" className="solo-lectores">

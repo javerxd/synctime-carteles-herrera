@@ -20,16 +20,10 @@ export const indicadores = {
   demanda: consulta('demanda'),
   porCobrar: consulta('por-cobrar', { listado: true }),
 
-  /** Las opciones de los filtros: categorías y clientes ({ idCliente, nombre }). */
+  /** Las opciones de los filtros: las categorías. Los clientes se buscan en el servidor al escribir (clientesFiltro, RFU27). */
   async catalogos({ senal } = {}) {
-    const [categorias, clientes] = await Promise.all([
-      api.get('/categorias', { parametros: { tamano: 100 }, senal }),
-      api.get('/clientes', { parametros: { tamano: 100 }, senal }),
-    ]);
-    const filas = (lista) => (Array.isArray(lista) ? lista : lista?.elementos ?? []);
-    return {
-      categorias: filas(categorias).map(({ idCategoria, nombre }) => ({ idCategoria, nombre })),
-      clientes: filas(clientes).map((c) => ({ idCliente: c.idCliente, nombre: [c.nombre, c.apellido].filter(Boolean).join(' ') })),
-    };
+    const categorias = await api.get('/categorias', { parametros: { tamano: 100 }, senal });
+    const filas = Array.isArray(categorias) ? categorias : categorias?.elementos ?? [];
+    return { categorias: filas.map(({ idCategoria, nombre }) => ({ idCategoria, nombre })) };
   },
 };

@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
-import { Clock, MapPin, MessageCircle, Phone } from 'lucide-react';
-import { Aviso, Boton, Esqueleto, EstadoCartel } from '../../componentes/ui';
+import { Clock, MapPin, Phone } from 'lucide-react';
+import { Aviso, Boton, Esqueleto, EstadoCartel, IconoWhatsapp } from '../../componentes/ui';
 import { publico } from '../../api/publico';
 import { enlaceTelefono, enlaceWhatsapp, TALLER } from '../../configuracion/taller';
 import { useConsulta } from '../../utilidades/useConsulta';
@@ -37,7 +37,7 @@ export const ContactoDirecto = forwardRef(function ContactoDirecto(_props, ref) 
           </ul>
           <div className={estilos.accionesContacto}>
             {whatsapp && (
-              <Boton como="a" href={whatsapp} target="_blank" rel="noopener noreferrer" variante="secundario" tamano="compacto" iconoInicio={MessageCircle}>
+              <Boton como="a" href={whatsapp} target="_blank" rel="noopener noreferrer" variante="secundario" tamano="compacto" iconoInicio={IconoWhatsapp}>
                 Escribir por WhatsApp<span className="solo-lectores"> (se abre en otra pestaña)</span>
               </Boton>
             )}

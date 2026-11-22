@@ -1,0 +1,27 @@
+# Fase 16B (RNFO15): configuracion del analisis de secretos del pipeline (gitleaks, ver .github/workflows/ci.yml).
+# Parte de las reglas por omision de gitleaks (cientos de tipos de clave, token y certificado) y solo agrega excepciones documentadas.
+# Una excepcion se escribe aqui con el motivo; nunca se baja el nivel del analisis para que «pase».
+title = "SyncTime"
+
+[extend]
+useDefault = true
+
+# Valores inventados que NO son secretos y que los analisis marcan por su forma. Cada uno lleva su motivo y se limita a UNA regla
+# («generic-api-key») y a los archivos exactos donde aparece: un secreto de otro tipo, o en otro archivo, sigue deteniendo la CI.
+# Primera ejecucion de la CI (22-11-2026): 7 hallazgos, todos falsos positivos revisados uno por uno.
+
+[[allowlists]]
+description = "Valor de EJEMPLO «CAMBIE…» de Jwt__Key en los .env.example antiguos (commits del 24-10 y 10-11-2026): un texto que pide cambiarlo, no una clave."
+targetRules = ["generic-api-key"]
+paths = ['''\.env\.example$''']
+regexes = ['''CAMBIE[A-Za-z0-9_-]*''']
+condition = "AND"
+
+[[allowlists]]
+description = "Archivos de PRUEBAS que contienen a proposito claves inventadas: la cadena de conexion de las pruebas (ConexionDePruebasTests) y los «fallos a proposito» de los validadores, que escriben un secreto falso en una copia de los archivos para comprobar que se detecta."
+targetRules = ["generic-api-key"]
+paths = [
+  '''ConexionDePruebasTests\.cs$''',
+  '''scripts/test_validar_contenedores\.py$''',
+  '''scripts/test_validar_workflows\.py$''',
+]

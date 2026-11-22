@@ -1,4 +1,5 @@
 import { esTelefono, LIMITES } from '../../cuenta/reglasCuenta';
+import { errorNombre } from '../../../utilidades/reglaNombre';
 import { formatearRut, validarRut } from '../../../utilidades/rut';
 
 // Reglas para que el personal busque, cree o corrija un cliente (mismas reglas que la cuenta del cliente).
@@ -32,10 +33,10 @@ export const ORDEN_CLIENTE = ['nombre', 'apellido', 'telefono', 'rut', 'email', 
 /** Datos de un cliente que registra o corrige el personal. */
 export function validarCliente({ nombre = '', apellido = '', telefono = '', rut = '', email = '', direccion = '' }) {
   const errores = {};
-  if (!nombre.trim()) errores.nombre = 'Escribe el nombre del cliente.';
-  else if (nombre.trim().length > LIMITES.nombre) errores.nombre = `Usa hasta ${LIMITES.nombre} caracteres.`;
-  if (!apellido.trim()) errores.apellido = 'Escribe el apellido del cliente (o el nombre de su negocio).';
-  else if (apellido.trim().length > LIMITES.nombre) errores.apellido = `Usa hasta ${LIMITES.nombre} caracteres.`;
+  const errorDelNombre = errorNombre(nombre, 'Escribe el nombre del cliente.');
+  if (errorDelNombre) errores.nombre = errorDelNombre;
+  const errorDelApellido = errorNombre(apellido, 'Escribe el apellido del cliente.');
+  if (errorDelApellido) errores.apellido = errorDelApellido;
   if (!esTelefono(telefono)) errores.telefono = 'Escribe un teléfono de 9 dígitos, por ejemplo 9 1234 5678.';
   if (rut.trim() && !validarRut(rut)) errores.rut = 'El RUT no es válido. Revisa el número y el dígito verificador, por ejemplo 12.345.678-5.';
   if (email.trim() && (!CORREO.test(email.trim()) || email.trim().length > LIMITES.correo)) errores.email = 'Escribe un correo válido, por ejemplo nombre@correo.cl, o déjalo en blanco.';

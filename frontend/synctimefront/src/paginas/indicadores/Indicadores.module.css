@@ -1,4 +1,4 @@
-/* Fase 12A: dashboard de indicadores. Blancos y grises, tinta para los datos, ámbar solo en lo activo y en las
+/* Fase 12A: dashboard de indicadores. Blancos y grises, tinta para los datos, naranja solo en lo activo y en las
    acciones; los tonos de estado (amarillo, azul, verde) solo en la cobranza, igual que sus insignias. */
 .pagina {
   display: grid;

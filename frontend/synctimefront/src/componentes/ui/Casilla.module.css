@@ -11,7 +11,7 @@
   padding-block: var(--espacio-2);
 }
 
-/* Casilla nativa con el ámbar del sistema: accesible y conocida en todos los navegadores */
+/* Casilla nativa con el naranja del sistema: accesible y conocida en todos los navegadores */
 .control {
   flex: none;
   width: 1.25rem;

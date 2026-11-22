@@ -1,0 +1,28 @@
+# Fase 16A: lo que NO entra al contexto de construccion del frontend. El contexto es esta carpeta.
+node_modules/
+dist/
+dist-ssr/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.vitest/
+e2e/
+
+# Secretos y configuracion local (el ID de cliente de Google se pasa como argumento de construccion, no desde un archivo)
+.env
+.env.*
+!.env.example
+*.local
+
+# Editor, control de versiones y documentacion de trabajo
+.git
+.gitignore
+.vscode/
+.idea/
+.impeccable/
+*.log
+*.md
+Dockerfile
+.dockerignore

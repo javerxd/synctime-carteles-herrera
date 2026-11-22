@@ -1,0 +1,244 @@
+/* ── Cartel grande: letrero colgado con los textos adentro ── */
+.grande {
+  display: grid;
+  animation: deslizarCartel 600ms var(--curva-resorte) both;
+  /* Fase 15B (RNFE08, reflujo a 320 px): el cartel que se balancea (y su entrada deslizando) no ensancha la página. */
+  overflow-x: clip;
+}
+
+@keyframes deslizarCartel {
+  from {
+    opacity: 0;
+    transform: translateX(-4rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.colgante {
+  --cartel-fondo: var(--primitivo-pizarra-600);
+  --cartel-borde: var(--primitivo-pizarra-800);
+  --cartel-crema: #fff6dc;
+
+  position: relative;
+  container-type: inline-size;
+  inline-size: min(100%, 26rem);
+  aspect-ratio: 400 / 350;
+  margin-inline: auto;
+  transform-origin: 50% 4%;
+}
+
+/* Se balancea sin parar, desde el clavo, como un cartel colgado. Lo enciende el script: sigue la preferencia
+   de movimiento del sistema y el botón «Pausar el balanceo» / «Balancear el cartel» la cambia. */
+.grande[data-movimiento='si'] .colgante {
+  animation: balanceo 6s ease-in-out infinite;
+}
+
+.colgante[data-estado='abierto'] {
+  --cartel-fondo: #166534;
+  --cartel-borde: #14532d;
+}
+
+.colgante[data-estado='cerrado'] {
+  --cartel-fondo: #b91c1c;
+  --cartel-borde: #7f1d1d;
+}
+
+@keyframes balanceo {
+  0%,
+  100% {
+    transform: rotate(-2.2deg);
+  }
+
+  50% {
+    transform: rotate(2.2deg);
+  }
+}
+
+.dibujo {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 10px 14px rgb(15 23 42 / 0.22));
+}
+
+.cuerda {
+  fill: none;
+  stroke: #9a6b3a;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.cuerdaHebra {
+  fill: none;
+  stroke: #d9b27c;
+  stroke-width: 6;
+  stroke-dasharray: 3 7;
+}
+
+.clavo {
+  fill: #cbd5e1;
+  stroke: #64748b;
+  stroke-width: 2;
+}
+
+.tablero {
+  fill: var(--cartel-fondo);
+  stroke: var(--cartel-borde);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  transition: fill 400ms var(--curva-estandar), stroke 400ms var(--curva-estandar);
+}
+
+.filete {
+  fill: none;
+  stroke: var(--cartel-crema);
+  stroke-width: 3;
+}
+
+.fileteFino {
+  fill: none;
+  stroke: var(--cartel-crema);
+  stroke-width: 1.2;
+  opacity: 0.7;
+}
+
+.ojal {
+  fill: #cbd5e1;
+  stroke: #475569;
+  stroke-width: 2.5;
+}
+
+/* Textos sobre el tablero: letras crema sobre verde o rojo sólido (≥ 6:1) */
+.contenido {
+  position: absolute;
+  inset: 32% 11% 9%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2cqi;
+  color: var(--cartel-crema);
+  text-align: center;
+}
+
+.titulo {
+  font-size: 4.4cqi;
+  font-style: italic;
+  font-weight: var(--peso-seminegrita);
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.textos {
+  display: grid;
+  justify-items: center;
+  gap: 1.4cqi;
+  inline-size: 100%;
+}
+
+.estado {
+  margin: 0;
+  font-size: 14cqi;
+  font-weight: var(--peso-negrita);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 0.6cqi 0 rgb(0 0 0 / 0.25);
+}
+
+/* La frase del estado va sobre una cinta crema, como en el cartel del taller */
+.cinta {
+  margin: 0;
+  max-inline-size: 100%;
+  padding: 1.4cqi 5cqi;
+  background: var(--cartel-crema);
+  clip-path: polygon(0 0, 100% 0, 97% 50%, 100% 100%, 0 100%, 3% 50%);
+  color: var(--cartel-fondo);
+  font-size: 4.4cqi;
+  font-weight: var(--peso-seminegrita);
+  line-height: 1.25;
+}
+
+.regreso {
+  margin: 0;
+  font-size: 3.8cqi;
+}
+
+.actualizado {
+  margin: 0;
+  font-size: 3.4cqi;
+}
+
+.tituloAviso {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  letter-spacing: 0;
+}
+
+/* Pausa o inicia el balanceo; es el control que permite detener un movimiento que no termina */
+.movimiento {
+  display: inline-flex;
+  align-items: center;
+  justify-self: center;
+  gap: var(--espacio-1-5);
+  min-block-size: 2.75rem;
+  margin-block-start: var(--espacio-2);
+  padding: 0 var(--espacio-3);
+  border: 0;
+  border-radius: var(--radio-pildora);
+  background: transparent;
+  color: var(--color-texto-secundario);
+  font: inherit;
+  font-size: var(--tamano-sm);
+  cursor: pointer;
+}
+
+.movimiento:hover {
+  background: var(--color-fondo-hundido);
+  color: var(--color-texto);
+}
+
+/* La entrada y el fundido de color respetan la reducción de movimiento; el balanceo lo decide el botón */
+@media (prefers-reduced-motion: reduce) {
+  .grande {
+    animation: none;
+  }
+
+  .tablero {
+    transition: none;
+  }
+}
+
+/* ── Cartel pequeño de la barra ── */
+.mini {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1-5);
+  min-block-size: 2rem;
+  margin: 0;
+  padding: 0 var(--espacio-3);
+  border-radius: var(--radio-pildora);
+  color: var(--color-sobre-acento);
+  font-size: var(--tamano-sm);
+  font-weight: var(--peso-seminegrita);
+  white-space: nowrap;
+}
+
+.miniAbierto {
+  background: var(--tono-exito-solido);
+}
+
+.miniCerrado {
+  background: var(--tono-peligro-solido);
+}
+
+.mini svg {
+  flex: none;
+}

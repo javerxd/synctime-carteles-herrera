@@ -22,6 +22,7 @@ const DESCRIPCIONES = {
   '/panel/indicadores': 'Dashboard: ingresos, pedidos, cobranza y conversión.',
   '/panel/reportes': 'Reportes operativo, gerencial y parametrizable.',
   '/panel/mantenedores': 'Catálogo, materiales y categorías.',
+  '/panel/empleados': 'Dar de alta, cambiar el rol o desactivar al personal.',
   '/panel/rostros': 'Quién entra con su rostro y la calibración.',
   '/panel/correos-no-enviados': 'Correos que no salieron, para reenviarlos.',
   '/panel/auditoria': 'Quién cambió qué y cuándo, y los consentimientos.',
@@ -67,9 +68,12 @@ export default function InicioPanel() {
 
       {esGestion && <AvisoCorreosNoEnviados />}
 
-      <SolicitudesPorAtender />
-
-      {esGestion && <MetricasInicio />}
+      {/* Fase 12D: una sola sección. Las solicitudes por atender a la izquierda y, para la gestión, los indicadores del mes a
+          la derecha; en el teléfono se apilan con las solicitudes primero. Diseñador y operario ven solo las solicitudes. */}
+      <div className={esGestion ? estilos.inicioDosColumnas : undefined}>
+        <SolicitudesPorAtender />
+        {esGestion && <MetricasInicio />}
+      </div>
 
       {esGestion && <AlertasGestion />}
 

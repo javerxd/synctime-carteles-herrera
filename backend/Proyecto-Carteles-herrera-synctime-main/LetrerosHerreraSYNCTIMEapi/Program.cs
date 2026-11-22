@@ -35,9 +35,29 @@ var nombreBase = BasesDeDatos.Nombre(connectionString);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.IActorActual, ActorHttp>();
 builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.InterceptorAuditoria>();
+// Fase 16A (H7): Azure SQL gratuita se pausa sola; los fallos transitorios se reintentan (ver EstrategiaDeReintentos).
+// BaseDeDatos:ReintentosMaximos = 0 los apaga. Un valor fuera de rango impide arrancar.
+var reintentosBase = builder.Configuration.GetValue("BaseDeDatos:ReintentosMaximos", 5);
+var retardoMaximoBase = builder.Configuration.GetValue("BaseDeDatos:RetardoMaximoSegundos", 30);
+if (reintentosBase is < 0 or > 10)
+    throw new InvalidOperationException($"BaseDeDatos:ReintentosMaximos debe estar entre 0 y 10 y es {reintentosBase}.");
+if (retardoMaximoBase is < 1 or > 120)
+    throw new InvalidOperationException($"BaseDeDatos:RetardoMaximoSegundos debe estar entre 1 y 120 y es {retardoMaximoBase}.");
 builder.Services.AddDbContext<LetrerosHerreradbContext>((servicios, options) =>
-    options.UseSqlServer(connectionString)
+    options.UseSqlServer(connectionString, sql =>
+        {
+            if (reintentosBase > 0)
+                sql.ExecutionStrategy(dependencias => new LetrerosHerreraSYNCTIMEapi.Datos.EstrategiaDeReintentos(
+                    dependencias, reintentosBase, TimeSpan.FromSeconds(retardoMaximoBase)));
+        })
         .AddInterceptors(servicios.GetRequiredService<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.InterceptorAuditoria>()));
+
+// Fase 16A: detras de un proxy (Render, nginx de compose) la IP y el protocolo del visitante vienen en X-Forwarded-*.
+// Solo se leen si se declaran los proxies de confianza (ForwardedHeaders:*): de otro modo cualquiera podria falsearlas.
+var opcionesDeReenvio = LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.OpcionesDeReenvio(builder.Configuration);
+// Fuera de desarrollo, el sitio publico y los origenes CORS son obligatorios y se revisan al arrancar.
+LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.ValidarUrlPublica(builder.Configuration, builder.Environment);
+var origenesCors = LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.OrigenesCors(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.IAuditoria, LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.Auditoria>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -142,6 +162,24 @@ builder.Services.AddScoped<ServicioIndicadores>();
 builder.Services.AddScoped<ServicioPrivacidad>();
 builder.Services.AddSingleton<ServicioIdempotencia>();
 builder.Services.AddHostedService<ProcesoPurgaDatosPersonales>();
+// Fase 13A: reportes y exportaciones a Excel, PDF y CSV en segundo plano (mismo patron que la cola de correo).
+builder.Services.AddOptions<LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.OpcionesReportes>().Bind(builder.Configuration.GetSection(LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.OpcionesReportes.Seccion));
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.AlmacenExportaciones>();
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.SenalExportaciones>();
+builder.Services.AddScoped<LetrerosHerreraSYNCTIMEapi.Datos.Reportes.ConsultasReportes>();
+builder.Services.AddScoped<ServicioReportes>();
+builder.Services.AddScoped<ServicioExportaciones>();
+builder.Services.AddSingleton<TrabajadorExportaciones>();
+builder.Services.AddHostedService<ProcesadorExportaciones>();
+// Fase 14A: ingreso con Google (token de identidad; sin clave secreta de cliente). Google:ClientId llega por User Secrets o por la
+// variable de entorno Google__ClientId, nunca desde un archivo del repositorio. Sin el, el ingreso responde 503 y el frontend no muestra el boton.
+builder.Services.AddOptions<LetrerosHerreraSYNCTIMEapi.Infraestructura.Google.OpcionesGoogle>().Bind(builder.Configuration.GetSection(LetrerosHerreraSYNCTIMEapi.Infraestructura.Google.OpcionesGoogle.Seccion));
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Negocio.IngresoGoogle.IVerificadorGoogle, LetrerosHerreraSYNCTIMEapi.Infraestructura.Google.VerificadorGoogleReal>();
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Negocio.IngresoGoogle.NoncesGoogle>(sp => new(sp.GetRequiredService<TimeProvider>()));
+// El pase del registro pendiente se firma con una clave derivada de Jwt:Key (otro proposito, otra clave: no sirve para falsificar tokens de sesion).
+builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Negocio.IngresoGoogle.PaseGoogle>(sp => new(
+    System.Security.Cryptography.HMACSHA256.HashData(Encoding.UTF8.GetBytes(jwtKey), Encoding.UTF8.GetBytes("synctime:pase-google:v1")), sp.GetRequiredService<TimeProvider>()));
+builder.Services.AddScoped<ServicioGoogle>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // Todo error sale con el mismo formato, tambien los que escribe el framework (401, 403, 404, 429, 500).
 builder.Services.AddProblemDetails(options =>
@@ -170,8 +208,8 @@ builder.Services.AddHealthChecks()
 // Controles transversales: solo el frontend permitido y limites contra abuso.
 builder.Services.AddCors(options =>
 {
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-        ?? new[] { "https://localhost:3000" };
+    // Fase 16A: fuera de desarrollo la lista es obligatoria y se valida (ConfiguracionDespliegue.OrigenesCors).
+    var allowedOrigins = origenesCors;
     // Con credenciales (la cookie de renovacion): solo orígenes explicitos, nunca "*" (RNFP29).
     options.AddPolicy("FrontendPermitido", policy =>
         policy.WithOrigins(allowedOrigins)
@@ -197,6 +235,24 @@ static RateLimitPartition<string> VentanaHora(string clave, int limite) =>
 
 static string Ip(HttpContext context) => $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "sin-ip"}";
 
+// Fase 14A: una IPv6 de casa u oficina trae un bloque /64 entero: se agrupa por ese bloque, o quien cambia de direccion en cada peticion
+// se saltaria el limite.
+static string IpAgrupada(HttpContext context)
+{
+    var ip = context.Connection.RemoteIpAddress;
+    if (ip is null)
+        return "ip:sin-ip";
+    if (ip.IsIPv4MappedToIPv6)
+        return $"ip:{ip.MapToIPv4()}";
+    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+    {
+        var bytes = ip.GetAddressBytes();
+        Array.Clear(bytes, 8, 8);
+        return $"ip6:{new System.Net.IPAddress(bytes)}";
+    }
+    return $"ip:{ip}";
+}
+
 // Con sesion se limita por usuario, para que quienes comparten la IP del taller no se bloqueen entre si.
 static string UsuarioOIp(HttpContext context)
 {
@@ -213,6 +269,8 @@ var limiteLoginFacial = builder.Configuration.GetValue("RateLimiting:LoginFacial
 var limiteDesafioFacial = builder.Configuration.GetValue("RateLimiting:DesafioFacial", 10);
 var limiteReautenticacion = builder.Configuration.GetValue("RateLimiting:Reautenticacion", limiteLogin);
 var limitePublico = builder.Configuration.GetValue("RateLimiting:Publico", 10);
+// Fase 14A: cada intento con Google son dos peticiones (el nonce y el ingreso): 20 por minuto, con contadores aparte del ingreso con contraseña.
+var limiteIngresoGoogle = builder.Configuration.GetValue("RateLimiting:IngresoGoogle", limiteLogin * 2);
 var limiteSalud = builder.Configuration.GetValue("RateLimiting:Salud", 60);
 // Por hora, no por minuto.
 var limiteContacto = builder.Configuration.GetValue("RateLimiting:ContactoPorHora", 5);
@@ -221,6 +279,10 @@ var limiteCookies = builder.Configuration.GetValue("RateLimiting:CookiesPorHora"
 var limiteImagenes = builder.Configuration.GetValue("RateLimiting:Imagenes", 600);
 // Fase 7: subidas de adjuntos (procesar una foto cuesta), por usuario y por minuto.
 var limiteAdjuntos = builder.Configuration.GetValue("RateLimiting:Adjuntos", 10);
+// Fase 13A: pedir una exportacion cuesta (genera un archivo): 10 por minuto por persona.
+var limiteExportaciones = builder.Configuration.GetValue("RateLimiting:Exportaciones", 10);
+// Leer un reporte tambien cuesta (varias consultas y hasta 50.000 filas): 30 por minuto por persona.
+var limiteReportes = builder.Configuration.GetValue("RateLimiting:Reportes", 30);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -232,12 +294,15 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("DesafioFacial", context => Ventana(Ip(context), limiteDesafioFacial));
     options.AddPolicy("Reautenticacion", context => Ventana(Ip(context), limiteReautenticacion));
     options.AddPolicy("Publico", context => Ventana(Ip(context), limitePublico));
+    options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.GoogleApi.PoliticaDeLimite, context => Ventana(IpAgrupada(context), limiteIngresoGoogle));
     options.AddPolicy("Contacto", context => VentanaHora(Ip(context), limiteContacto));
     options.AddPolicy("Cookies", context => VentanaHora(Ip(context), limiteCookies));
     // Holgado para que un orquestador pueda sondear cada pocos segundos, pero no ilimitado.
     options.AddPolicy(Salud.PoliticaDeLimite, context => Ventana(Ip(context), limiteSalud));
     options.AddPolicy("Imagenes", context => Ventana(Ip(context), limiteImagenes));
     options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.ArchivoSubido.PoliticaDeLimite, context => Ventana(UsuarioOIp(context), limiteAdjuntos));
+    options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.ReportesApi.PoliticaDeLectura, context => Ventana(UsuarioOIp(context), limiteReportes));
+    options.AddPolicy(LetrerosHerreraSYNCTIMEapi.Endpoints.ReportesApi.PoliticaDeLimite, context => Ventana(UsuarioOIp(context), limiteExportaciones));
 });
 // El limite por IP no basta contra quien reparte sus intentos entre muchas IP: este cuenta por cuenta.
 builder.Services.AddSingleton(new LimitadorPorCuenta(builder.Configuration.GetValue("RateLimiting:PorCuenta", limiteLogin)));
@@ -305,6 +370,10 @@ if (!app.Services.GetRequiredService<RostroFacialService>().Configurado)
     app.Logger.LogWarning("RostroFacial:ClaveCifrado falta o no es valida: el login facial queda deshabilitado.");
 
 // El orden importa: cada paso envuelve a los que vienen despues.
+// Primero se aprende la IP y el protocolo reales del visitante: los limites de tasa, la redireccion a HTTPS, la bitacora y
+// la regla contra solicitudes falsas leen la conexion, y detras de un proxy esta trae la del proxy.
+if (opcionesDeReenvio is not null)
+    app.UseForwardedHeaders(opcionesDeReenvio);
 app.UseResponseCompression();
 app.UseCabecerasDeSeguridad(politicaDeContenidoEstricta: !app.Environment.IsDevelopment());
 // Los errores tambien deben llevar las cabeceras de CORS, o el navegador no dejaria que el frontend
@@ -338,6 +407,7 @@ app.MapSalud();
 
 // Registro de rutas por area del negocio, al estilo de GamesApi.
 app.MapAuthApi();
+app.MapGoogleApi();
 app.MapRostroApi();
 app.MapCatalogoApi();
 app.MapClienteApi();
@@ -356,6 +426,7 @@ app.MapCuentaApi();
 app.MapCorreosApi();
 app.MapAuditoriaApi();
 app.MapIndicadoresApi();
+app.MapReportesApi();
 
 app.Run();
 

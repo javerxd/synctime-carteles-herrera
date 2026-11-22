@@ -4,6 +4,8 @@ import { ScanFace } from 'lucide-react';
 import { Aviso, Boton, Campo, Enlace, Tarjeta } from '../../componentes/ui';
 import authService from '../../api/authService';
 import { useAvisos } from '../../avisos/Avisos';
+import { googleDisponible } from '../../google/configuracion';
+import { IngresoGoogle } from '../../google/IngresoGoogle';
 import FlujoFacial from '../../rostro/FlujoFacial';
 import { pasosDelDesafio } from '../../rostro/desafio';
 import { mensajeDeError } from '../../rostro/motorFacial';
@@ -170,6 +172,9 @@ export default function IngresoPersonal() {
         )}
         {errores.formulario && <Aviso tono="peligro" titulo={errores.formulario} />}
 
+        {/* Fase 14C: «Continuar con Google» arriba del correo, con su separador (solo si hay ID de cliente de Google). */}
+        {!capturando && <IngresoGoogle destinoPersonal={destino} soloPersonal alEmpezar={() => setErrores({})} />}
+
         <form className={estilos.formulario} onSubmit={alEnviar} noValidate>
           <Campo
             ref={refEmail}
@@ -179,7 +184,7 @@ export default function IngresoPersonal() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
-            autoFocus
+            autoFocus={!googleDisponible()}
             disabled={bloqueado}
             error={errores.email}
           />

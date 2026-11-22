@@ -120,7 +120,10 @@ export function ZonaActivo({ tipo, registro, id, alCambiar, hayCambios = false }
         <Confirmacion abierto={confirmando} alCerrar={() => setConfirmando(false)} titulo={`Desactivar a ${nombre}`}
           descripcion="Se borrará su acceso con rostro y se cerrarán sus sesiones." accion="Desactivar" variante="peligro" icono={PowerOff}
           entidad="esta persona" alConfirmar={async () => { await cambiar(false); setConfirmando(false); }}>
-          <p className={estilos.textoDialogo}>No podrá ingresar al panel. Podrás activarla de nuevo, pero tendrá que volver a registrar su rostro.</p>
+          <p className={estilos.textoDialogo}>
+            No podrá ingresar al panel, pero su historial se conserva. Para reactivarla, abre su ficha y pulsa «Activar a esta persona»;
+            tendrá que volver a registrar su rostro.
+          </p>
         </Confirmacion>
       )}
     </Tarjeta>

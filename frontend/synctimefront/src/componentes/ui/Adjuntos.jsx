@@ -14,7 +14,7 @@ const DURACION_SALIDA_MS = 160;
 /** Miniatura cuadrada de 96 px: la imagen (local mientras sube, o privada del servidor) o la tarjeta del PDF. */
 function Miniatura({ adjunto, cargarMiniatura }) {
   const remota = adjunto.tipo === 'imagen' && !adjunto.vista && adjunto.idAdjunto;
-  const { url, error } = useArchivoPrivado(() => cargarMiniatura(adjunto), remota ? adjunto.idAdjunto : null);
+  const { url, error } = useArchivoPrivado((senal) => cargarMiniatura(adjunto, { senal }), remota ? adjunto.idAdjunto : null);
   if (adjunto.tipo === 'pdf') {
     return (
       <span className={estilos.pdf}>
@@ -42,7 +42,7 @@ function VisorImagen({ adjunto, cargarArchivo, alCerrar }) {
   const [retenido, setRetenido] = useState(adjunto);
   if (adjunto && adjunto !== retenido) setRetenido(adjunto);
   const mostrado = adjunto ?? retenido;
-  const { url, error } = useArchivoPrivado(() => cargarArchivo(mostrado), mostrado?.idAdjunto ?? null);
+  const { url, error } = useArchivoPrivado((senal) => cargarArchivo(mostrado, { senal }), mostrado?.idAdjunto ?? null);
   return (
     <Dialogo abierto={Boolean(adjunto)} alCerrar={alCerrar} titulo={mostrado?.nombre ?? 'Archivo adjunto'} ancho="min(60rem, 100%)">
       <div className={estilos.visor}>

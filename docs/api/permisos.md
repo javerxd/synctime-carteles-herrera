@@ -18,6 +18,9 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Enviar una solicitud en línea (`POST /mis/solicitudes`). El cliente debe tener el correo confirmado (`403` si no) | No | Sí | No | No | No |
 | Registrarse como cliente, recuperar la contraseña y confirmar el correo (`/auth/registro-cliente`, `/auth/recuperar`, `/auth/restablecer`, `/auth/verificar-correo`) | Sí | — | — | — | — |
 | Ingresar, renovar la sesión y cerrarla (`/auth/login`, `/auth/login-cliente`, `/auth/renovar`, `/auth/salir`) | Sí | Sí | Sí | Sí | Sí |
+| Ingresar o registrarse con Google (`/auth/google/nonce`, `/auth/google`, `/auth/google/completar`). Lo usa el visitante: el cliente, y desde la fase 14C también el personal con su Google ya vinculado desde Mi perfil (los empleados no se crean por Google) | Sí | — | — | — | — |
+| Vincular y desvincular su Google (`/mi-cuenta/google`). Piden la contraseña actual | No | Sí | No | No | No |
+| Fase 14C: ver, vincular y desvincular el Google del empleado (`/mi-perfil/google`). Piden la contraseña actual | No | No | Sí | Sí | Sí |
 | Reenviar el enlace para confirmar el correo (`/auth/reenviar-verificacion`) | No | Sí | No | No | No |
 | Ver y corregir su cuenta, cambiar su correo, su contraseña y su marketing (`/mi-cuenta`) | No | Sí | No | No | No |
 | Ver sus propias solicitudes y pedidos (`/mis/…`) | No | Sí | No | No | No |
@@ -37,6 +40,8 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Ver las alertas de entregas y cobranza (`GET /pedidos/alertas`) | No | No | No | No | Sí |
 | Eliminar cotizaciones y pedidos (borrado lógico, con la versión vista). Desde la fase 9 no hay borrado de clientes, categorías, productos ni publicaciones: se desactivan | No | No | No | No | Sí |
 | Mantener categorías, productos, publicaciones y materiales (crear, editar y activar o desactivar, con la versión vista) | No | No | No | No | Sí |
+| Editar los límites de medida, las medidas fijas y las opciones de un tipo de letrero (fase 12D) | No | No | No | No | Sí |
+| Administrar empleados en `/panel/empleados` (alta, datos, rol, desactivar; la API es la misma de la fase 9, sin cambios de permisos) | No | No | No | No | Sí |
 | Mantener el personal (`/empleados`): listar, dar de alta, editar, cambiar el rol y desactivar. Dar de alta y cambiar el correo o el rol piden además la contraseña de quien lo hace | No | No | No | No | Sí |
 | Ver y cambiar los destinos de los avisos del taller y enviar la prueba (`/avisos-taller`). Agregar, reemplazar y quitar piden además la contraseña de quien lo hace | No | No | No | No | Sí |
 | Confirmar un destino de avisos desde el enlace del correo (`POST /avisos-taller/confirmar`) | Sí | Sí | Sí | Sí | Sí |
@@ -49,6 +54,9 @@ Roles (RNFO08): `dueño`, `administrador`, `diseñador` y `operario` para el per
 | Cambiar el estado del local (dar vuelta el cartel, `PUT /cartel-digital`) | No | No | Sí | Sí | Sí |
 | Ver la métrica de conversión | No | No | No | No | Sí |
 | Ver el dashboard: ingresos, pedidos, cobranza, embudo, demanda y pedidos por cobrar (`GET /indicadores/*`, fase 12B). Cliente, operario y diseñador reciben `403`; sin sesión, `401` | No | No | No | No | Sí |
+| Ver y exportar el reporte operativo (`GET /reportes/operativo` y `POST /reportes/operativo/exportaciones`, fase 13A). Incluye montos y saldos. El cliente recibe `403`; sin sesión, `401` | No | No | Sí | Sí | Sí |
+| Ver y exportar los reportes gerencial y parametrizable, con la cobranza (`GET /reportes/gerencial`, `GET /reportes/parametrizable` y sus `POST …/exportaciones`, fase 13A). Operario, diseñador y cliente reciben `403`; sin sesión, `401`. El permiso se valida en el servidor para cada reporte, también al pedir el archivo | No | No | No | No | Sí |
+| Consultar el estado y descargar una exportación (`GET /reportes/exportaciones/{id}` y `/archivo`, fase 13A): solo quien la pidió. Si es de otra persona (aunque tenga más permisos) o no existe, responde `404`, igual en los dos casos | No | No | Sí | Sí | Sí |
 | Activar su propio acceso con rostro (`PUT /auth/rostro`, `POST /auth/rostro/equipo`; los demás reciben `403 solo_gestion`) | No | No | No | No | Sí |
 | Desactivar su propio acceso con rostro (`DELETE /auth/rostro`) | No | No | Sí | Sí | Sí |
 | Ver los rostros registrados y registrar o desactivar el de otro empleado de gestión (`/rostros`) | No | No | No | No | Sí |

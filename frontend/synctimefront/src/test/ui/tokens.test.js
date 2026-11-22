@@ -40,7 +40,7 @@ describe('tokens del sistema de diseño', () => {
     expect(resolver('--color-fondo-alterno').toLowerCase()).toBe('#f8fafc');
     expect(resolver('--color-fondo-hundido').toLowerCase()).toBe('#f1f5f9');
     expect(resolver('--color-texto').toLowerCase()).toBe('#0f172a');
-    expect(resolver('--color-acento').toLowerCase()).toBe('#b45309');
+    expect(resolver('--color-acento').toLowerCase()).toBe('#c2410c');
     expect(resolver('--curva-resorte')).toBe('cubic-bezier(0.16, 1, 0.3, 1)');
     expect(resolver('--escala-presion')).toBe('0.98');
     expect(resolver('--tipografia-familia')).toMatch(/^'Plus Jakarta Sans'/);
@@ -78,6 +78,41 @@ describe('tokens del sistema de diseño', () => {
       expect(contraste(`--tono-${tono}-texto`, `--tono-${tono}-fondo`)).toBeGreaterThanOrEqual(4.5);
       expect(contraste('--color-sobre-acento', `--tono-${tono}-solido`)).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  // Fase 12D: el menú lateral azul, el botón rojo de cerrar sesión y las etiquetas de origen de una solicitud.
+  it('el menú lateral azul: texto blanco ≥ 4,5:1 en reposo, al pasar y activo; foco blanco ≥ 3:1', () => {
+    expect(resolver('--color-lateral-fondo').toLowerCase()).toBe('#1d4ed8');
+    for (const fondo of ['--color-lateral-fondo', '--color-lateral-hover', '--color-lateral-activo']) {
+      expect(contraste('--color-lateral-texto', fondo), fondo).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contraste('--color-lateral-texto-suave', '--color-lateral-fondo')).toBeGreaterThanOrEqual(4.5);
+    expect(contraste('--color-lateral-foco', '--color-lateral-fondo')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('«Cerrar sesión»: letras blancas sobre rojo ≥ 4,5:1, también al pasar el cursor', () => {
+    expect(resolver('--color-lateral-salir').toLowerCase()).toBe('#b91c1c');
+    expect(contraste('--color-lateral-texto', '--color-lateral-salir')).toBeGreaterThanOrEqual(4.5);
+    expect(contraste('--color-lateral-texto', '--color-lateral-salir-hover')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // Fase 13B: los tres botones de exportación. Parten de los colores de las imágenes de referencia (docs/image) y se
+  // oscurecen lo justo para que el texto blanco se lea (las de referencia, más claras, no llegan a 4,5:1).
+  it('botones de exportación: Excel verde, CSV azul y PDF rojo con letras blancas ≥ 4,5:1, también al pasar el cursor', () => {
+    for (const formato of ['excel', 'csv', 'pdf']) {
+      expect(contraste('--color-sobre-exportar', `--color-exportar-${formato}`), formato).toBeGreaterThanOrEqual(4.5);
+      expect(contraste('--color-sobre-exportar', `--color-exportar-${formato}-hover`), `${formato} hover`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(resolver('--color-exportar-excel').toLowerCase()).toBe('#15803d');
+    expect(resolver('--color-exportar-csv').toLowerCase()).toBe('#1d4ed8');
+    expect(resolver('--color-exportar-pdf').toLowerCase()).toBe('#b91c1c');
+  });
+
+  it('origen de la solicitud: verde («En línea») y amarillo («Presencial») con texto oscuro ≥ 4,5:1', () => {
+    expect(contraste('--tono-origen-linea-texto', '--tono-origen-linea-fondo')).toBeGreaterThanOrEqual(4.5);
+    expect(contraste('--tono-origen-presencial-texto', '--tono-origen-presencial-fondo')).toBeGreaterThanOrEqual(4.5);
+    expect(resolver('--tono-origen-linea-fondo').toLowerCase()).toBe('#dcfce7');
+    expect(resolver('--tono-origen-presencial-fondo').toLowerCase()).toBe('#fef9c3');
   });
 
   it('los semánticos apuntan a primitivos y los componentes nunca usan un color directo', () => {

@@ -5,7 +5,7 @@ import estilos from './Boton.module.css';
 const ICONO = { size: 18, strokeWidth: 1.75, 'aria-hidden': true };
 
 /**
- * Botón del sistema. Variantes: primario (ámbar, la acción principal de la pantalla), secundario,
+ * Botón del sistema. Variantes: primario (naranja, la acción principal de la pantalla), secundario,
  * fantasma y peligro.
  *
  * - `aria-disabled`: inactivo pero enfocable (por ejemplo, «Elegir archivos» al llegar al tope), para que el

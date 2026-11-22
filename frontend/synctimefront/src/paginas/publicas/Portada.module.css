@@ -328,3 +328,59 @@
   gap: var(--espacio-2);
   margin-block-start: var(--espacio-3);
 }
+
+/* ── Fase 12C: búsqueda de la vitrina, zoom de las tarjetas y contacto directo ── */
+.busqueda {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 14rem);
+  gap: var(--espacio-4);
+  align-items: start;
+}
+
+@media (max-width: 39.99rem) {
+  .busqueda {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--espacio-2);
+  }
+}
+
+.contadorFiltros {
+  min-block-size: 1.5rem;
+  margin-block: var(--espacio-1) var(--espacio-5);
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+}
+
+/* Zoom ligero al pasar el cursor (solo con puntero real): la tarjeta sube sobre sus vecinas sin tapar su texto
+   ni generar desplazamiento horizontal. Con «reducir movimiento» el zoom se mantiene (3 %: es un cambio de
+   estado, no un recorrido), pero sin animación: los tokens de duración de base.css lo hacen instantáneo. */
+@media (hover: hover) and (pointer: fine) {
+  :global([data-animar]) .trabajo:hover {
+    z-index: 1;
+    transform: scale(1.03);
+  }
+}
+
+.canales {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-3);
+  margin-block-start: var(--espacio-5);
+}
+
+.canalesLista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2) var(--espacio-6);
+  margin: var(--espacio-5) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--tamano-sm);
+}
+
+.canalesLista li {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}

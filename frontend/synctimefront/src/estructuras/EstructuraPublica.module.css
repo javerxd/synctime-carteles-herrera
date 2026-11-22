@@ -1,3 +1,29 @@
+/* Zona del portal público y de la cuenta del cliente (fase 12C): lleva el fondo de imagen y activa la
+   animación de los botones (data-animar). El panel del taller no usa esta estructura. */
+.zona {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Alto contraste: sin imagen de fondo */
+@media (forced-colors: active) {
+  .zona::before {
+    display: none;
+  }
+}
+
+/* Fondo del taller: capa fija detrás del contenido, con opacidad baja. Las tarjetas y los textos van sobre
+   superficies sólidas, así que el contraste no depende de la foto. No pide nada a terceros. */
+.zona::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url('/imagenes/fondo-web.webp') center / cover no-repeat;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* Barra flotante de cristal (documento del cliente). Mide lo mismo en todas las pantallas, así el
    espacio reservado para el foco (scroll-padding) es exacto; con poca altura (zoom) deja de ser fija. */
 .barra {
@@ -62,11 +88,17 @@
     color var(--duracion-estado) var(--curva-estandar);
 }
 
+/* Hover y foco por teclado se ven igual: fondo naranja con letras blancas (≥ 4,5:1) */
 @media (hover: hover) and (pointer: fine) {
   .enlaces a:hover {
-    background: var(--color-hover-neutro);
-    color: var(--color-texto);
+    background: var(--color-acento);
+    color: var(--color-sobre-acento);
   }
+}
+
+.enlaces a:focus-visible {
+  background: var(--color-acento);
+  color: var(--color-sobre-acento);
 }
 
 .acciones {
@@ -75,14 +107,29 @@
   gap: var(--espacio-2);
 }
 
+/* Esquina derecha: «Ingresar» y el cartel pequeño del local */
+.derecha {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+}
+
+.cuenta {
+  display: flex;
+}
+
+.cartelBarra {
+  order: 1;
+}
+
 /* Teléfono y tableta angosta: el menú se despliega bajo la barra */
 @media (max-width: 55.99rem) {
   .botonMenu {
     display: inline-flex;
     align-items: center;
+    order: 3;
     gap: var(--espacio-2);
     min-height: var(--tamano-control);
-    margin-left: auto;
     padding: 0 var(--espacio-3);
     border: 1px solid var(--color-borde-fuerte);
     border-radius: var(--radio-md);
@@ -123,8 +170,61 @@
   }
 
   .acciones {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch;
+  }
+
+  /* Cartel, «Ingresar» y menú siempre visibles en la barra, a la derecha de la marca */
+  .derecha {
+    order: 2;
+    gap: var(--espacio-2);
+    margin-left: auto;
+  }
+
+  .cartelBarra {
+    order: -1;
+  }
+}
+
+/* Teléfono: «Ingresar» y el menú quedan en icono (su nombre accesible sigue en el texto) */
+@media (max-width: 40rem) {
+  .etiquetaAcceso,
+  .textoMenu {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .botonMenu {
+    padding: 0;
+    min-width: var(--tamano-control);
+    justify-content: center;
+  }
+
+  /* Solo el icono, centrado en un cuadrado de 44 px */
+  .cuenta > a {
+    gap: 0;
+    padding-inline: 0;
+    inline-size: var(--tamano-control);
+  }
+}
+
+/* Pantallas muy angostas (360 px): la marca queda en su logotipo para que todo quepa sin desplazarse */
+@media (max-width: 30rem) {
+  .marcaBarra > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }
 
@@ -229,8 +329,7 @@
   color: var(--color-texto);
 }
 
-/* Acceso directo a WhatsApp: en tinta, no en el verde de la marca, para no competir con el ámbar de la
-   acción principal. 56 px de diámetro, sobre el borde inferior derecho y respetando la zona segura. */
+/* Acceso directo a WhatsApp con el icono entregado por el taller (fase 12C). 56 px de diámetro, sobre el borde inferior derecho y respetando la zona segura. */
 .whatsapp {
   position: fixed;
   inset-inline-end: max(var(--espacio-4), env(safe-area-inset-right));
@@ -242,9 +341,9 @@
   inline-size: 3.5rem;
   block-size: 3.5rem;
   border-radius: var(--radio-pildora);
-  background: var(--color-texto);
-  color: var(--color-superficie);
-  box-shadow: var(--sombra-flotante);
+  /* El icono de WhatsApp entregado por el taller es la imagen del botón: sin fondo propio */
+  background: transparent;
+  filter: drop-shadow(0 6px 10px rgb(15 23 42 / 0.28));
   transition: transform var(--duracion-estado) var(--curva-estandar);
 }
 

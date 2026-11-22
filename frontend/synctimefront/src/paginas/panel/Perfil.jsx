@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, Trash2 } from 'lucide-react';
 import { Aviso, Boton, Campo, Dialogo, Esqueleto, Insignia, Tarjeta } from '../../componentes/ui';
 import authService from '../../api/authService';
+import { google } from '../../api/google';
 import { useAvisos } from '../../avisos/Avisos';
+import { googleDisponible } from '../../google/configuracion';
+import { IngresoConGoogle } from '../cuenta/IngresoConGoogle';
+import { useConsulta } from '../../utilidades/useConsulta';
 import RegistroRostro from '../../rostro/RegistroRostro';
 import { borrarTokenEquipo, guardarTokenEquipo, leerTokenEquipo } from '../../rostro/tokenEquipo';
 import { GESTION } from '../../estructuras/navegacion';
 import { useSesion } from '../../sesion/sesion';
 import { SeccionAvisosTaller } from '../avisosTaller/SeccionAvisosTaller';
+import estilosCuenta from '../cuenta/Cuenta.module.css';
 import estilos from './Panel.module.css';
 
 const fechaLegible = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
@@ -35,10 +40,63 @@ export default function Perfil() {
         <h1 className={estilos.titulo}>Mi perfil</h1>
         <p className={estilos.bajada}>{usuario?.nombre} {usuario?.apellido} · {usuario?.email} · {usuario?.rol}</p>
       </div>
+      {/* Fase 14C: el personal también entra con Google; vincularlo es de los cuatro roles. */}
+      <SeccionGoogle email={usuario?.email} />
       {esGestion && <SeccionRostro email={usuario?.email} />}
       {esGestion && <SeccionAvisosTaller />}
     </div>
   );
+}
+
+/**
+ * Mi perfil → «Ingreso con Google» (fase 14C, RFS03, RFU05): el empleado vincula o desvincula su Google con su contraseña actual
+ * (la misma sección de Mi cuenta del cliente, contra /mi-perfil/google). Sin ID de cliente de Google no se muestra ni consulta nada.
+ */
+function SeccionGoogle({ email }) {
+  if (!googleDisponible()) return null;
+  return <SeccionGoogleConEstado email={email} />;
+}
+
+function SeccionGoogleConEstado({ email }) {
+  const consulta = useConsulta('mi-perfil-google', (senal) => google.perfil.estado({ senal }));
+  const [actualizada, setActualizada] = useState(null);
+  const estado = actualizada ?? consulta.datos;
+  // Cuenta los reintentos: mientras reintenta, el aviso y su botón siguen montados (la consulta borra el error al empezar de nuevo).
+  const [reintentos, setReintentos] = useState(0);
+
+  if (!estado) {
+    // El encabezado y la región existen siempre; el botón «Reintentar» sigue montado mientras reintenta (así no pierde el foco).
+    const reintentando = !consulta.error && consulta.cargando && reintentos > 0;
+    const error = consulta.error ?? (reintentando ? { message: 'Reintentando…' } : null);
+    return (
+      <Tarjeta como="section" aria-labelledby="titulo-google-estado" className={estilosCuenta.seccion}>
+        <h2 id="titulo-google-estado" className={estilosCuenta.subtitulo}>Ingreso con Google</h2>
+        {error ? (
+          <Aviso tono="peligro" titulo="No pudimos consultar tu ingreso con Google"
+            accion={(
+              <Boton variante="secundario" tamano="compacto" cargando={reintentando} textoCargando="Reintentando…" onClick={() => { setReintentos((n) => n + 1); consulta.recargar(); }}>
+                Reintentar
+              </Boton>
+            )}>
+            {error?.message || 'Revisa tu conexión e inténtalo de nuevo.'}
+          </Aviso>
+        ) : (
+          <>
+            <p role="status" className="solo-lectores">Consultando tu ingreso con Google…</p>
+            <Esqueleto lineas={2} />
+          </>
+        )}
+      </Tarjeta>
+    );
+  }
+
+  // Todo empleado tiene contraseña: nunca se da el caso «sin contraseña» de los clientes.
+  const datosCuenta = { googleVinculado: estado.vinculado === true, tieneContrasena: true, correo: estado.correo ?? email };
+  const guardar = (cambio) => setActualizada((previa) => {
+    const siguiente = typeof cambio === 'function' ? cambio({ googleVinculado: (previa ?? estado).vinculado === true }) : cambio;
+    return { ...(previa ?? estado), vinculado: siguiente.googleVinculado };
+  });
+  return <IngresoConGoogle datosCuenta={datosCuenta} alGuardar={guardar} servicio={google.perfil} />;
 }
 
 function SeccionRostro({ email }) {

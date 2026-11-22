@@ -8,10 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.78.0" />
     <PackageReference Include="MailKit" Version="4.18.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="PDFsharp-MigraDoc" Version="6.2.4" />
     <PackageReference Include="SkiaSharp" Version="4.154.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.154.1" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
@@ -31,6 +34,10 @@
   <ItemGroup>
     <!-- Logotipo de los correos: viaja dentro del mensaje (cid:) y no depende de que el sitio este publicado. -->
     <EmbeddedResource Include="Recursos\logo-lh-correo.png" LogicalName="SyncTime.logo-lh-correo.png" />
+    <!-- Fase 13A: la fuente del PDF viaja dentro del programa (Plus Jakarta Sans, SIL OFL 1.1: ver Recursos\Fuentes\OFL-PlusJakartaSans.txt),
+         asi el PDF sale igual en cualquier equipo y no depende de las fuentes que tenga instaladas. -->
+    <EmbeddedResource Include="Recursos\Fuentes\PlusJakartaSans-Regular.ttf" LogicalName="SyncTime.fuente.PlusJakartaSans-Regular.ttf" />
+    <EmbeddedResource Include="Recursos\Fuentes\PlusJakartaSans-Bold.ttf" LogicalName="SyncTime.fuente.PlusJakartaSans-Bold.ttf" />
   </ItemGroup>
 
 </Project>

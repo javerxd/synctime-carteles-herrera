@@ -32,7 +32,9 @@ public static class ReglasAuditoria
     public static readonly IReadOnlySet<string> Sensibles = C(
         "PasswordHash", "TokenHash", "TokenEquipoHash", "Hash", "DescriptorCifrado", "DescriptorFrente", "DescriptorIzquierda", "DescriptorDerecha",
         "Email", "Correo", "Destinatarios", "ResponderA", "Asunto", "CuerpoHtml", "CuerpoTexto", "EnlaceBaja", "HuellaIp", "Telefono", "Rut",
-        "Direccion", "DireccionInstalacion");
+        "Direccion", "DireccionInstalacion",
+        // Fase 14A: el identificador de la cuenta de Google es un dato de la persona; no se muestra.
+        "Sub");
 
     public static readonly IReadOnlyDictionary<Type, EntidadAuditada> Entidades = new Dictionary<Type, EntidadAuditada>
     {
@@ -47,11 +49,17 @@ public static class ReglasAuditoria
         [typeof(Pago)] = new("pago", "Abono", C("IdPedido", "Monto", "FechaPago", "MedioPago", "Anulado", "FechaAnulacion", "IdEmpleadoAnula"),
             Siempre: C("Monto", "IdPedido")),
         [typeof(Catalogo)] = new("catalogo", "Publicación de la vitrina", C("IdProducto", "Visible", "IncluyeLogoCliente", "PrecioReferencial", "FechaAutorizacionLogo")),
-        [typeof(Producto)] = new("producto", "Tipo de letrero", C("IdCategoria", "Activo", "PrecioBaseRef")),
+        [typeof(Producto)] = new("producto", "Tipo de letrero", C("IdCategoria", "Activo", "PrecioBaseRef", "AnchoMinMm", "AnchoMaxMm", "AltoMinMm", "AltoMaxMm")),
+        // Fase 12D: el taller edita las medidas fijas y las opciones de cada producto desde el mantenedor.
+        [typeof(ProductoMedidaFija)] = new("producto_medida", "Medida fija de un tipo de letrero", C("IdProducto", "AnchoMm", "AltoMm")),
+        [typeof(ProductoOpcion)] = new("producto_opcion", "Opción de un tipo de letrero", C("IdProducto", "Grupo", "Valor", "Orden")),
         [typeof(Categoria)] = new("categoria", "Categoría", C("Activo")),
         [typeof(Material)] = new("material", "Material", C("Activo", "CostoUnitarioAprox", "UnidadMedida")),
         [typeof(Cliente)] = new("cliente", "Cliente", C("Activo", "RecibeAvisosEstado", "InhabilitadoEn", "FechaVerificacionCorreo")),
         [typeof(Empleado)] = new("empleado", "Empleado", C("Activo", "Rol")),
+        // Fase 14A: vincular y desvincular Google quedan en la bitacora. El ultimo ingreso cambia en cada ingreso (y ese ya queda
+        // como «ingreso_google»): no es un cambio del negocio.
+        [typeof(IdentidadExterna)] = new("identidad_externa", "Cuenta de Google vinculada", C("IdCliente", "IdEmpleado", "Proveedor"), Ignorados: C("FechaUltimoIngreso")),
         [typeof(DestinatarioAviso)] = new("destinatario_aviso", "Destino de avisos", C("Estado", "RecibeEnLinea", "RecibePresenciales", "FechaConfirmacion", "FechaRetiro")),
         // Los contadores del ingreso con rostro cambian en cada intento: no son un cambio del negocio.
         [typeof(RostroEmpleado)] = new("rostro_empleado", "Rostro", C("IdEmpleado", "FechaRevocacion", "VersionConsentimiento", "FormatoMuestras", "FechaAutorizacionEquipo"),
@@ -63,8 +71,6 @@ public static class ReglasAuditoria
     // Las demas entidades del modelo, con el motivo por el que el interceptor no las registra.
     public static readonly IReadOnlyDictionary<Type, string> NoAuditadas = new Dictionary<Type, string>
     {
-        [typeof(ProductoMedidaFija)] = "Medidas disponibles de un producto: forman parte del catálogo del taller, que cambia solo con una migración (fase 12B).",
-        [typeof(ProductoOpcion)] = "Opciones elegibles de un producto: forman parte del catálogo del taller, que cambia solo con una migración (fase 12B).",
         [typeof(CotizacionMaterial)] = "Líneas de la cotización: su total queda en la cotización, que sí se audita.",
         [typeof(AdjuntoSolicitud)] = "Archivo de una solicitud: quitarlo queda en solicitudes_historial y renueva la versión de la solicitud.",
         [typeof(SolicitudHistorial)] = "Es en sí un historial de estados (fase 7).",
@@ -80,12 +86,13 @@ public static class ReglasAuditoria
         [typeof(MedicionCalibracionRostro)] = "Mediciones técnicas de la calibración del rostro.",
         [typeof(Imagen)] = "Archivo de imagen: su uso queda en la publicación de la vitrina, que sí se audita.",
         [typeof(ConsultaContacto)] = "Mensaje de un visitante: su aviso al taller queda en la bitácora.",
-        [typeof(DisponibilidadEmpleado)] = "Franjas que cada persona marca para sí misma, sin efecto en datos del negocio."
+        [typeof(DisponibilidadEmpleado)] = "Franjas que cada persona marca para sí misma, sin efecto en datos del negocio.",
+        [typeof(TrabajoExportacion)] = "Cola de exportaciones de reportes: quién lo pidió, con qué filtros y cuántas filas salieron quedan en la bitácora (exportar_reporte), sin el contenido."
     };
 
     public static readonly IReadOnlyDictionary<string, string> TextosEntidad =
         Entidades.Values.ToDictionary(e => e.Nombre, e => e.Texto)
-            .Concat(new Dictionary<string, string> { ["correo"] = "Correo", ["cuenta"] = "Cuenta del cliente" })
+            .Concat(new Dictionary<string, string> { ["correo"] = "Correo", ["cuenta"] = "Cuenta del cliente", ["reporte"] = "Reporte" })
             .ToDictionary(p => p.Key, p => p.Value);
 
     public static readonly IReadOnlyDictionary<string, string> TextosAccion = new Dictionary<string, string>
@@ -99,7 +106,11 @@ public static class ReglasAuditoria
         [AccionesAuditoria.CorreoRevisado] = "Marcó un correo como revisado",
         [AccionesAuditoria.BajaCorreo] = "Se dio de baja de correos",
         [AccionesAuditoria.BajaCuenta] = "Dio de baja su cuenta",
-        [AccionesAuditoria.DescargaDatos] = "Descargó sus datos"
+        [AccionesAuditoria.DescargaDatos] = "Descargó sus datos",
+        [AccionesAuditoria.ExportarReporte] = "Exportó un reporte",
+        [AccionesAuditoria.IngresoGoogle] = "Ingresó con Google",
+        [AccionesAuditoria.VincularGoogle] = "Vinculó su cuenta de Google",
+        [AccionesAuditoria.DesvincularGoogle] = "Desvinculó su cuenta de Google"
     };
 
     public static string Camello(string propiedad) => propiedad.Length == 0 ? propiedad : char.ToLowerInvariant(propiedad[0]) + propiedad[1..];
@@ -179,6 +190,8 @@ public static class DetalleAuditoria
         DateOnly d1 => JsonValue.Create(d1.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)),
         TimeOnly t => JsonValue.Create(t.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture)),
         IEnumerable<string> lista => new JsonArray(lista.Select(x => Nodo(x)).ToArray()),
+        // Fase 13A: los filtros de un reporte (nombre y valor, ya validados y sin datos personales).
+        IReadOnlyDictionary<string, string> mapa => new JsonObject(mapa.Select(p => KeyValuePair.Create(p.Key, Nodo(p.Value)))),
         _ => JsonValue.Create(valor.ToString())
     };
 }

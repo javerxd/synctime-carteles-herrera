@@ -45,7 +45,7 @@
   transform: scale(var(--escala-presion));
 }
 
-/* La página actual es un estado activo: lleva el ámbar */
+/* La página actual es un estado activo: lleva el naranja */
 .boton[aria-current='page'] {
   border-color: var(--color-acento);
   background: var(--color-acento-suave);

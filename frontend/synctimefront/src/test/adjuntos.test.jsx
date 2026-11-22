@@ -165,7 +165,8 @@ describe('zona de adjuntos', () => {
   it('los adjuntos ya guardados se muestran con su miniatura privada (descargada con la sesión)', async () => {
     const cargarMiniatura = vi.fn(() => Promise.resolve(new Blob(['x'], { type: 'image/webp' })));
     dibujar({ cargarMiniatura, iniciales: [{ idAdjunto: 5, tipo: 'imagen', nombre: 'fachada.jpg', bytes: 1000, urlMiniatura: '/api/v1/adjuntos/5/miniatura' }] });
-    await waitFor(() => expect(cargarMiniatura).toHaveBeenCalledWith(expect.objectContaining({ idAdjunto: 5 })));
+    // Desde la 15B la descarga lleva una señal para poder cancelarla (RNFP23).
+    await waitFor(() => expect(cargarMiniatura).toHaveBeenCalledWith(expect.objectContaining({ idAdjunto: 5 }), { senal: expect.any(AbortSignal) }));
     expect(screen.getByText('1 de 5')).toBeInTheDocument();
     await waitFor(() => expect(lista().querySelector('img')).toHaveAttribute('src', 'blob:vista-local'));
   });

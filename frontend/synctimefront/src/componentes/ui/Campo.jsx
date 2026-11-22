@@ -48,7 +48,7 @@ export function Campo({
           {...resto}
           id={idCampo}
           required={requerido || resto.required || undefined}
-          aria-invalid={error ? 'true' : undefined}
+          aria-invalid={error ? 'true' : resto['aria-invalid']}
           aria-describedby={describe}
           className={unirClases(estilos.control, Control === 'textarea' && estilos.area)}
         >

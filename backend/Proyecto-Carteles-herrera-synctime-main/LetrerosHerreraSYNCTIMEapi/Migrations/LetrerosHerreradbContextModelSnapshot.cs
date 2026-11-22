@@ -132,7 +132,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_ultima_modificacion")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<int?>("IdEmpleadoModifica")
                         .HasColumnType("int")
@@ -209,7 +209,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_publicacion")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<int?>("IdEmpleadoAutorizaLogo")
                         .HasColumnType("int")
@@ -474,7 +474,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_registro")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<DateTimeOffset?>("FechaVerificacionCorreo")
                         .HasColumnType("datetimeoffset(0)")
@@ -964,7 +964,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_cotizacion")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<DateTimeOffset?>("FechaEliminacionLogica")
                         .HasColumnType("datetimeoffset(0)")
@@ -1581,6 +1581,77 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.IdentidadExterna", b =>
+                {
+                    b.Property<int>("IdIdentidad")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id_identidad");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdIdentidad"));
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)")
+                        .HasColumnName("correo");
+
+                    b.Property<DateTimeOffset?>("FechaUltimoIngreso")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_ultimo_ingreso");
+
+                    b.Property<DateTimeOffset>("FechaVinculacion")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_vinculacion");
+
+                    b.Property<int?>("IdCliente")
+                        .HasColumnType("int")
+                        .HasColumnName("id_cliente");
+
+                    b.Property<int?>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.Property<string>("Proveedor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("proveedor");
+
+                    b.Property<string>("Sub")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("sub")
+                        .UseCollation("Latin1_General_BIN2");
+
+                    b.HasKey("IdIdentidad")
+                        .HasName("pk_identidades_externas");
+
+                    b.HasIndex("IdCliente", "Proveedor")
+                        .IsUnique()
+                        .HasDatabaseName("uq_identidades_externas_cliente")
+                        .HasFilter("[id_cliente] IS NOT NULL");
+
+                    b.HasIndex("IdEmpleado", "Proveedor")
+                        .IsUnique()
+                        .HasDatabaseName("uq_identidades_externas_empleado")
+                        .HasFilter("[id_empleado] IS NOT NULL");
+
+                    b.HasIndex("Proveedor", "Sub")
+                        .IsUnique()
+                        .HasDatabaseName("uq_identidades_externas_sub");
+
+                    b.ToTable("identidades_externas", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_identidades_externas_destino", "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
+
+                            t.HasCheckConstraint("ck_identidades_externas_proveedor", "proveedor IN ('google')");
+                        });
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Imagen", b =>
                 {
                     b.Property<int>("IdImagen")
@@ -1864,13 +1935,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("date")
                         .HasColumnName("fecha_pago")
-                        .HasDefaultValueSql("CONVERT(DATE, SYSDATETIME())");
+                        .HasDefaultValueSql("CONVERT(date, SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<DateTime>("FechaRegistro")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_registro")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<int?>("IdEmpleadoAnula")
                         .HasColumnType("int")
@@ -1991,7 +2062,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_pedido")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<int?>("IdCotizacion")
                         .HasColumnType("int")
@@ -3347,7 +3418,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_solicitud")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<string>("HuellaIp")
                         .HasMaxLength(64)
@@ -3600,6 +3671,135 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.ToTable("tokens_renovacion", null, t =>
                         {
                             t.HasCheckConstraint("ck_tokens_renovacion_titular", "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.TrabajoExportacion", b =>
+                {
+                    b.Property<Guid>("IdTrabajo")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id_trabajo");
+
+                    b.Property<DateTimeOffset?>("ArchivoBorradoEn")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("archivo_borrado_en");
+
+                    b.Property<DateTimeOffset?>("BloqueadoHasta")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("bloqueado_hasta");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("error");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(12)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(12)")
+                        .HasDefaultValue("pendiente")
+                        .HasColumnName("estado");
+
+                    b.Property<DateTimeOffset?>("FechaInicio")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_inicio");
+
+                    b.Property<DateTimeOffset>("FechaPedido")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_pedido");
+
+                    b.Property<DateTimeOffset?>("FechaTermino")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_termino");
+
+                    b.Property<DateTimeOffset?>("FechaVencimiento")
+                        .HasColumnType("datetimeoffset(0)")
+                        .HasColumnName("fecha_vencimiento");
+
+                    b.Property<int?>("Filas")
+                        .HasColumnType("int")
+                        .HasColumnName("filas");
+
+                    b.Property<string>("Filtros")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("filtros");
+
+                    b.Property<string>("Formato")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(5)")
+                        .HasColumnName("formato");
+
+                    b.Property<int>("IdEmpleado")
+                        .HasColumnType("int")
+                        .HasColumnName("id_empleado");
+
+                    b.Property<byte>("Intentos")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0)
+                        .HasColumnName("intentos");
+
+                    b.Property<string>("NombreArchivo")
+                        .HasMaxLength(80)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(80)")
+                        .HasColumnName("nombre_archivo");
+
+                    b.Property<string>("Reporte")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("reporte");
+
+                    b.Property<string>("RolSolicitante")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("rol_solicitante");
+
+                    b.Property<int?>("TamanoBytes")
+                        .HasColumnType("int")
+                        .HasColumnName("tamano_bytes");
+
+                    b.HasKey("IdTrabajo")
+                        .HasName("pk_trabajos_exportacion");
+
+                    b.HasIndex("FechaVencimiento")
+                        .HasDatabaseName("ix_trabajos_exportacion_vencimiento")
+                        .HasFilter("[estado] = 'listo' AND [archivo_borrado_en] IS NULL");
+
+                    b.HasIndex("IdEmpleado")
+                        .IsUnique()
+                        .HasDatabaseName("ux_trabajos_exportacion_activo")
+                        .HasFilter("[estado] IN ('pendiente', 'procesando')");
+
+                    b.HasIndex("Estado", "FechaPedido")
+                        .HasDatabaseName("ix_trabajos_exportacion_estado");
+
+                    b.HasIndex("IdEmpleado", "FechaPedido")
+                        .HasDatabaseName("ix_trabajos_exportacion_empleado");
+
+                    b.ToTable("trabajos_exportacion", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_trabajos_exportacion_estado", "estado IN ('pendiente', 'procesando', 'listo', 'fallido')");
+
+                            t.HasCheckConstraint("ck_trabajos_exportacion_fallido", "estado <> 'fallido' OR error IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_trabajos_exportacion_formato", "formato IN ('xlsx', 'csv', 'pdf')");
+
+                            t.HasCheckConstraint("ck_trabajos_exportacion_intentos", "intentos >= 0");
+
+                            t.HasCheckConstraint("ck_trabajos_exportacion_listo", "estado <> 'listo' OR (fecha_termino IS NOT NULL AND fecha_vencimiento IS NOT NULL AND nombre_archivo IS NOT NULL AND filas IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_trabajos_exportacion_reporte", "reporte IN ('operativo', 'gerencial', 'parametrizable')");
                         });
                 });
 
@@ -3959,6 +4159,25 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .HasConstraintName("fk_horarios_empleado_modifica");
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.IdentidadExterna", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Cliente", "Cliente")
+                        .WithMany("IdentidadesExternas")
+                        .HasForeignKey("IdCliente")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_identidades_externas_cliente");
+
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany("IdentidadesExternas")
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_identidades_externas_empleado");
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Empleado");
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Imagen", b =>
                 {
                     b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "EmpleadoSube")
@@ -4213,6 +4432,18 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("Empleado");
                 });
 
+            modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.TrabajoExportacion", b =>
+                {
+                    b.HasOne("LetrerosHerreraSYNCTIMEapi.Models.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("IdEmpleado")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_trabajos_exportacion_empleado");
+
+                    b.Navigation("Empleado");
+                });
+
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Categoria", b =>
                 {
                     b.Navigation("Productos");
@@ -4220,6 +4451,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
 
             modelBuilder.Entity("LetrerosHerreraSYNCTIMEapi.Models.Cliente", b =>
                 {
+                    b.Navigation("IdentidadesExternas");
+
                     b.Navigation("Solicitudes");
                 });
 
@@ -4233,6 +4466,8 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                     b.Navigation("CatalogosCreados");
 
                     b.Navigation("Cotizaciones");
+
+                    b.Navigation("IdentidadesExternas");
 
                     b.Navigation("PagosRegistrados");
 

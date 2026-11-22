@@ -35,6 +35,12 @@ public static class AccionesAuditoria
     public const string BajaCorreo = "baja_correo";
     public const string BajaCuenta = "baja_cuenta";
     public const string DescargaDatos = "descarga_datos";
+    // Fase 13A (RFS12, RFU28): cada exportacion de un reporte (la pide un empleado; al terminar, o fallar, queda otra fila).
+    public const string ExportarReporte = "exportar_reporte";
+    // Fase 14A (RFS03, RFS12): el ingreso de un cliente con Google (tambien el que crea la cuenta) y la vinculacion o desvinculacion.
+    public const string IngresoGoogle = "ingreso_google";
+    public const string VincularGoogle = "vincular_google";
+    public const string DesvincularGoogle = "desvincular_google";
 
     public const string RolSistema = "sistema";
 }

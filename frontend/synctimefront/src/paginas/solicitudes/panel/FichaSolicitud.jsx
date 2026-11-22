@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Ban, Pencil, RotateCcw, Save, Trash2 } from 'lucide-react';
 import {
-  Adjuntos, Aviso, Boton, Campo, Dialogo, Enlace, Esqueleto, EstadoSolicitud, Insignia, ListaAdjuntos, Tarjeta, TEXTOS_ESTADO_SOLICITUD,
+  Adjuntos, Aviso, Boton, Campo, Dialogo, Enlace, Esqueleto, EstadoSolicitud, ListaAdjuntos, Tarjeta, TEXTOS_ESTADO_SOLICITUD,
 } from '../../../componentes/ui';
 import { publico } from '../../../api/publico';
 import { adjuntos as apiAdjuntos, solicitudes } from '../../../api/solicitudes';
@@ -13,8 +13,9 @@ import { useConsulta } from '../../../utilidades/useConsulta';
 import { SeccionCotizacion } from '../../cotizaciones/SeccionCotizacion';
 import { Comprobante } from '../Comprobante';
 import { EditorItems } from '../EditorItems';
+import { OrigenSolicitud } from '../OrigenSolicitud';
 import {
-  esEditable, itemsDesdeDetalles, LIMITES_SOLICITUD, nombreCompleto, numeroSolicitud, ORIGENES_SOLICITUD,
+  esEditable, itemsDesdeDetalles, LIMITES_SOLICITUD, nombreCompleto, numeroSolicitud,
 } from '../reglasSolicitud';
 import { useSolicitudEditable } from '../useSolicitudEditable';
 import { registradaPor } from './reglasBandeja';
@@ -338,7 +339,7 @@ export default function FichaSolicitud() {
           </h1>
           <div className={estilos.insignias}>
             <EstadoSolicitud estado={solicitud.estado} />
-            <Insignia tono="neutro">{ORIGENES_SOLICITUD[solicitud.origen] ?? solicitud.origen}</Insignia>
+            <OrigenSolicitud origen={solicitud.origen} />
           </div>
         </div>
       </div>

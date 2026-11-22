@@ -4,21 +4,16 @@ namespace LetrerosHerreraSYNCTIMEapi.Negocio;
 // usa el formulario, para mostrarlos junto a cada casilla.
 public static class ValidacionCuenta
 {
-    public const int LargoNombre = 80;
     public const int LargoCorreo = 100;
     public const int LargoDireccion = 255;
 
     public static Dictionary<string, string[]> Validar(string? rut, string? nombre, string? apellido, string? telefono, string? direccion)
     {
         var errores = new Dictionary<string, string[]>();
-        if (string.IsNullOrWhiteSpace(nombre))
-            errores["nombre"] = ["Escribe tu nombre."];
-        else if (nombre.Trim().Length > LargoNombre)
-            errores["nombre"] = [$"El nombre puede tener hasta {LargoNombre} caracteres."];
-        if (string.IsNullOrWhiteSpace(apellido))
-            errores["apellido"] = ["Escribe tu apellido."];
-        else if (apellido.Trim().Length > LargoNombre)
-            errores["apellido"] = [$"El apellido puede tener hasta {LargoNombre} caracteres."];
+        if (ReglaNombre.Error(nombre, "Escribe tu nombre.") is { } errorNombre)
+            errores["nombre"] = [errorNombre];
+        if (ReglaNombre.Error(apellido, "Escribe tu apellido.") is { } errorApellido)
+            errores["apellido"] = [errorApellido];
         if (NormalizarTelefono(telefono) is null)
             errores["telefono"] = ["Escribe un teléfono de 9 dígitos, por ejemplo 9 1234 5678."];
         if (!string.IsNullOrWhiteSpace(rut) && NormalizarRut(rut) is null)

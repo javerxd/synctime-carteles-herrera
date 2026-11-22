@@ -45,7 +45,7 @@ Es el sistema de un taller real de oficio físico, no una tienda genérica: la v
 - Nombre del negocio: **Letreros Herrera**. Nombre del sistema: **SyncTime**. Dirección: Villagrán 810, Los Ángeles, Región del Biobío.
 - **El taller tiene logotipo y el usuario lo entregará más adelante.** Mientras tanto se usa el nombre en texto, sin inventar un símbolo.
 - **Voz: tú, cercano** («Envía tu solicitud», «Revisa tus pedidos»), confirmada el 12-11-2026. Los errores dicen qué pasó y cómo seguir.
-- Las reglas de diseño del cliente son vinculantes: `docs/requisitos/reglas-de-diseno.md` (modo claro de alta gama, acento ámbar `#B45309`, Plus Jakarta Sans).
+- Las reglas de diseño del cliente son vinculantes: `docs/requisitos/reglas-de-diseno.md` (modo claro de alta gama, acento naranja `#C2410C` desde la fase 12C (antes ámbar `#B45309`), Plus Jakarta Sans).
 
 ## Evidence on Hand
 

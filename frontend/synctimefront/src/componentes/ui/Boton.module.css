@@ -31,19 +31,50 @@
   transition:
     background-color var(--duracion-estado) var(--curva-estandar),
     border-color var(--duracion-estado) var(--curva-estandar),
-    color var(--duracion-estado) var(--curva-estandar),
-    transform var(--duracion-presion) var(--curva-resorte);
-}
-
-/* La sensación de pulsar: una compresión mínima e inmediata */
-.boton:active:not(:disabled, [aria-disabled='true']) {
-  background: var(--_fondo-presionado);
-  transform: scale(var(--escala-presion));
+    color var(--duracion-estado) var(--curva-estandar);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .boton:hover:not(:disabled, [aria-disabled='true']) {
     background: var(--_fondo-hover);
+  }
+}
+
+.boton:active:not(:disabled, [aria-disabled='true']) {
+  background: var(--_fondo-presionado);
+}
+
+/* Fase 12C: animación de los botones, solo en las zonas con data-animar (portal público y cuenta del
+   cliente; el panel del taller no lo trae y solo cambia de color). Una sola definición para todos. Solo
+   se animan transform, sombra y color: nada que cause reflujo. */
+:global([data-animar]) .boton {
+  transition:
+    background-color var(--duracion-estado) var(--curva-estandar),
+    border-color var(--duracion-estado) var(--curva-estandar),
+    color var(--duracion-estado) var(--curva-estandar),
+    box-shadow var(--duracion-estado) var(--curva-estandar),
+    transform var(--duracion-presion) var(--curva-resorte);
+}
+
+/* Elevación leve al pasar el cursor, solo con puntero real */
+@media (hover: hover) and (pointer: fine) {
+  :global([data-animar]) .boton:hover:not(:disabled, [aria-disabled='true']) {
+    box-shadow: var(--sombra-elevada);
+    transform: translateY(var(--elevacion-boton));
+  }
+}
+
+/* La pulsación: una compresión inmediata que se puede interrumpir (vuelve al soltar o al salir) */
+:global([data-animar]) .boton:active:not(:disabled, [aria-disabled='true']) {
+  transform: scale(var(--escala-presion-boton));
+}
+
+/* Reducción de movimiento: sin escala ni desplazamiento, solo el cambio de color */
+@media (prefers-reduced-motion: reduce) {
+  :global([data-animar]) .boton,
+  :global([data-animar]) .boton:hover:not(:disabled, [aria-disabled='true']),
+  :global([data-animar]) .boton:active:not(:disabled, [aria-disabled='true']) {
+    transform: none;
   }
 }
 

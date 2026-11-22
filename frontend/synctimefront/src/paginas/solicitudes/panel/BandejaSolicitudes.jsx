@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Paperclip, Plus } from 'lucide-react';
 import {
-  Aviso, BarraFiltros, Boton, Campo, EstadoSolicitud, EstadoVacio, Insignia, Paginacion, TablaAdaptable, TEXTOS_ESTADO_SOLICITUD,
+  Aviso, BarraFiltros, Boton, Campo, EstadoSolicitud, EstadoVacio, Paginacion, TablaAdaptable, TEXTOS_ESTADO_SOLICITUD,
 } from '../../../componentes/ui';
 import { solicitudes } from '../../../api/solicitudes';
 import { formatearFechaHora } from '../../../utilidades/formato';
 import { useConsulta } from '../../../utilidades/useConsulta';
 import { useDebounce } from '../../../utilidades/useDebounce';
+import { OrigenSolicitud } from '../OrigenSolicitud';
 import { nombreCompleto, numeroSolicitud, ORIGENES_SOLICITUD } from '../reglasSolicitud';
 import { telefonoVisible } from '../reglasSolicitud';
 import {
@@ -102,7 +103,7 @@ export default function BandejaSolicitudes() {
         </span>
       ),
     },
-    { clave: 'origen', encabezado: 'Origen', render: (s) => <Insignia tono="neutro">{ORIGENES_SOLICITUD[s.origen] ?? s.origen ?? '—'}</Insignia> },
+    { clave: 'origen', encabezado: 'Origen', render: (s) => <OrigenSolicitud origen={s.origen} /> },
     { clave: 'estado', encabezado: 'Estado', render: (s) => <EstadoSolicitud estado={s.estado} /> },
     { clave: 'items', encabezado: 'Letreros', alinear: 'fin', render: (s) => <span className="cifras">{s.cantidadItems ?? '—'}</span> },
     {

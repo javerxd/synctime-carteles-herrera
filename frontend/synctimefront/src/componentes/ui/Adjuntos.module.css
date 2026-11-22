@@ -38,7 +38,7 @@
   line-height: var(--interlineado-compacto);
 }
 
-/* La zona se nota por su borde discontinuo del color de los campos (3:1); al arrastrar, se tiñe de ámbar. */
+/* La zona se nota por su borde discontinuo del color de los campos (3:1); al arrastrar, se tiñe de naranja. */
 .zona {
   display: grid;
   justify-items: center;

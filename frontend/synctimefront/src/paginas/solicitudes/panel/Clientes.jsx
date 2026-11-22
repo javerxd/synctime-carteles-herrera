@@ -7,6 +7,7 @@ import {
 import { clientes } from '../../../api/solicitudes';
 import { useAvisos } from '../../../avisos/Avisos';
 import { useSesion } from '../../../sesion/sesion';
+import { MAXIMO_CARACTERES } from '../../../utilidades/reglaNombre';
 import { formatearRut } from '../../../utilidades/rut';
 import { useConsulta } from '../../../utilidades/useConsulta';
 import { useDebounce } from '../../../utilidades/useDebounce';
@@ -175,8 +176,8 @@ function FormularioCliente({ cliente, alGuardar, alDescartar }) {
         resumen={vigente ? [nombreCompleto(vigente), telefonoVisible(vigente.telefono), correoDe(vigente), vigente.direccion].filter(Boolean).join(' · ') : null}
         alGuardarSobre={() => guardar(null, true)} alReintentar={version.detectar} alDescartar={descartar} />
       <div className={estilosPanel.dosColumnas}>
-        <Campo etiqueta="Nombre" requerido maxLength={80} autoComplete="off" {...campo('nombre')} />
-        <Campo etiqueta="Apellido" requerido maxLength={80} autoComplete="off" {...campo('apellido')} />
+        <Campo etiqueta="Nombre" requerido maxLength={MAXIMO_CARACTERES} autoComplete="off" {...campo('nombre')} />
+        <Campo etiqueta="Apellido" requerido maxLength={MAXIMO_CARACTERES} autoComplete="off" {...campo('apellido')} />
         <Campo etiqueta="Teléfono" requerido type="tel" inputMode="tel" autoComplete="off" {...campo('telefono')} />
         <Campo etiqueta="RUT (opcional)" autoComplete="off" {...campo('rut')} />
       </div>

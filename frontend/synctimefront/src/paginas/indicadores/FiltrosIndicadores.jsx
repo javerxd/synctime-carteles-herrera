@@ -1,8 +1,10 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { CalendarSearch } from 'lucide-react';
 import { BarraFiltros, Boton, Campo, Chip, Opciones, TEXTOS_ESTADO_PAGO, TEXTOS_ESTADO_PEDIDO } from '../../componentes/ui';
+import { clientesFiltro } from '../../api/clientesFiltro';
 import { esFecha } from '../../utilidades/fechas';
 import { nombreMes } from '../../utilidades/formato';
+import { useDebounce } from '../../utilidades/useDebounce';
 import {
   COMPARACIONES, ESTADOS_PAGO_FILTRO, ESTADOS_PEDIDO_FILTRO, FILTROS_DE_DATOS, ORIGENES, PERIODOS,
 } from './reglasIndicadores';
@@ -12,37 +14,101 @@ const SIN_FECHAS = { desde: '', hasta: '', anio: '', mes: '' };
 const alternar = (lista, valor) => (lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor]);
 const listaDe = (texto) => (texto ? texto.split(',') : []);
 
+/** Letras mínimas para pedir sugerencias al servidor (con una sola, casi todos los clientes coinciden). */
+const MIN_LETRAS = 2;
+const ESPERA_BUSQUEDA_MS = 300;
+const MENSAJE_ERROR_BUSQUEDA = 'No pudimos buscar clientes. Inténtalo de nuevo.';
+
+/** Las sugerencias con el texto que muestra la lista: dos clientes con el mismo nombre se distinguen por su número. */
+function conTexto(resultados) {
+  const repetidos = new Set(resultados.map((c) => c.nombre).filter((n, i, todos) => todos.indexOf(n) !== i));
+  return resultados.map((c) => ({ ...c, texto: repetidos.has(c.nombre) ? `${c.nombre} · N.º ${c.idCliente}` : c.nombre }));
+}
+
 /**
- * Cliente buscable: un solo campo con la lista de clientes (datalist). El filtro se aplica al ELEGIR de la lista (o
- * al pulsar Enter con un nombre exacto), no en cada tecla, y el foco se queda en el campo. Con un cliente aplicado,
- * el campo muestra su nombre y el botón «Quitar» lo borra. Si el cliente de la dirección no está en el catálogo,
+ * Cliente buscable (RFU27): un solo campo que busca en el servidor mientras se escribe (300 ms después de la última tecla y
+ * desde la segunda letra), no una lista de 100 traída de antemano. El filtro se aplica al ELEGIR de la lista (o al pulsar
+ * Enter con un nombre exacto), no en cada tecla, y el foco se queda en el campo. Con un cliente aplicado, el campo muestra su
+ * nombre y el botón «Quitar» lo borra. El nombre del cliente que viene de la dirección se pide una vez; si no se puede saber,
  * se muestra igual («Cliente N.º 9») para que siempre se pueda quitar.
  */
-function FiltroCliente({ clientes, valor, alCambiar }) {
+export function FiltroCliente({ valor, alCambiar }) {
   const id = useId();
   const refCampo = useRef(null);
-  const elegido = valor ? clientes.find((c) => String(c.idCliente) === valor) ?? { idCliente: valor, nombre: `Cliente N.º ${valor}` } : null;
-  const [texto, setTexto] = useState(elegido?.nombre ?? '');
-  const [visto, setVisto] = useState(elegido?.nombre ?? '');
-  if ((elegido?.nombre ?? '') !== visto) {
-    setVisto(elegido?.nombre ?? '');
-    setTexto(elegido?.nombre ?? '');
+  const [escrito, setEscrito] = useState('');
+  const consulta = useDebounce(escrito.trim(), ESPERA_BUSQUEDA_MS);
+  const [resultado, setResultado] = useState({ consulta: '', sugerencias: [], fallo: false });
+  const [conocidos, setConocidos] = useState({});
+  // Lo que se anuncia al aplicar o quitar el filtro (se borra al volver a escribir).
+  const [aviso, setAviso] = useState('');
+
+  // Las sugerencias del texto escrito. Cada búsqueda nueva cancela la anterior; una respuesta tardía no pisa a la vigente.
+  useEffect(() => {
+    if (consulta.length < MIN_LETRAS) return undefined;
+    const control = new AbortController();
+    clientesFiltro.buscar(consulta, { senal: control.signal }).then(
+      (clientes) => setResultado({ consulta, sugerencias: conTexto(clientes), fallo: false }),
+      (error) => { if (error?.name !== 'AbortError') setResultado({ consulta, sugerencias: [], fallo: true }); },
+    );
+    return () => {
+      control.abort();
+      // Al cambiar de búsqueda se olvida el resultado de esta: si el texto vuelve a ser el mismo no se muestra uno viejo mientras llega el nuevo.
+      setResultado((antes) => (antes.consulta === consulta ? { consulta: '', sugerencias: [], fallo: false } : antes));
+    };
+  }, [consulta]);
+
+  // El nombre del cliente aplicado (el que se eligió, o el que viene de la dirección).
+  const sinNombre = Boolean(valor) && conocidos[valor] === undefined;
+  useEffect(() => {
+    if (!sinNombre) return undefined;
+    const control = new AbortController();
+    clientesFiltro.nombre(valor, { senal: control.signal }).then(
+      (nombre) => setConocidos((antes) => ({ ...antes, [valor]: nombre })),
+      () => {},
+    );
+    return () => control.abort();
+  }, [sinNombre, valor]);
+
+  const vigente = resultado.consulta === consulta && consulta.length >= MIN_LETRAS;
+  const sugerencias = vigente ? resultado.sugerencias : [];
+  const fallo = vigente && resultado.fallo;
+  const cantidad = sugerencias.length;
+  // Se anuncia con un texto de estado: el datalist por sí solo no dice cuántas coincidencias hay.
+  const anuncio = aviso || (vigente && !fallo ? (cantidad === 0 ? 'Sin coincidencias.' : `${cantidad} ${cantidad === 1 ? 'cliente encontrado' : 'clientes encontrados'}.`) : '');
+
+  const nombreElegido = valor ? conocidos[valor] || `Cliente N.º ${valor}` : '';
+  const [texto, setTexto] = useState(nombreElegido);
+  const [visto, setVisto] = useState(nombreElegido);
+  if (nombreElegido !== visto) {
+    setVisto(nombreElegido);
+    setTexto(nombreElegido);
   }
-  const buscar = (nombre) => clientes.find((c) => c.nombre.toLowerCase() === nombre.trim().toLowerCase());
+
   const aplicar = (nombre) => {
-    const encontrado = buscar(nombre);
-    if (encontrado && String(encontrado.idCliente) !== valor) alCambiar(String(encontrado.idCliente));
+    const encontrado = sugerencias.find((c) => c.texto.toLowerCase() === nombre.trim().toLowerCase());
+    if (!encontrado || String(encontrado.idCliente) === valor) return;
+    setConocidos((antes) => ({ ...antes, [encontrado.idCliente]: encontrado.nombre }));
+    setEscrito('');
+    setTexto(encontrado.nombre);
+    setAviso(`Filtro por cliente: ${encontrado.nombre}`);
+    alCambiar(String(encontrado.idCliente));
   };
   return (
     <div className={estilos.filtroCliente}>
       <Campo ref={refCampo} etiqueta="Cliente" type="search" list={`${id}-clientes`} value={texto} autoComplete="off"
-        ayuda="Escribe parte del nombre y elígelo de la lista."
+        ayuda="Escribe parte del nombre, el teléfono o el RUT y elígelo de la lista."
+        error={fallo ? MENSAJE_ERROR_BUSQUEDA : undefined}
         onChange={(e) => {
           setTexto(e.target.value);
+          setEscrito(e.target.value);
+          setAviso('');
           // Elegir una opción del datalist llega como «insertReplacementText» (o sin tipo, según el navegador).
           const tipo = e.nativeEvent?.inputType;
           if (tipo === 'insertReplacementText' || tipo === undefined) aplicar(e.target.value);
-          if (!e.target.value && valor) alCambiar('');
+          if (!e.target.value && valor) {
+            setAviso('Se quitó el filtro por cliente');
+            alCambiar('');
+          }
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -51,10 +117,11 @@ function FiltroCliente({ clientes, valor, alCambiar }) {
           }
         }} />
       <datalist id={`${id}-clientes`}>
-        {clientes.map((c) => <option key={c.idCliente} value={c.nombre} />)}
+        {sugerencias.map((c) => <option key={c.idCliente} value={c.texto} label={c.detalle || undefined} />)}
       </datalist>
-      {elegido && (
-        <Boton variante="fantasma" tamano="compacto" onClick={() => { alCambiar(''); refCampo.current?.focus(); }} aria-label={`Quitar el filtro por cliente: ${elegido.nombre}`}>
+      <p role="status" className="solo-lectores">{anuncio}</p>
+      {valor && (
+        <Boton variante="fantasma" tamano="compacto" onClick={() => { setEscrito(''); setAviso('Se quitó el filtro por cliente'); alCambiar(''); refCampo.current?.focus(); }} aria-label={`Quitar el filtro por cliente: ${nombreElegido}`}>
           Quitar
         </Boton>
       )}
@@ -63,7 +130,7 @@ function FiltroCliente({ clientes, valor, alCambiar }) {
 }
 
 /** Rango propio: se aplica con el botón, cuando las dos fechas son válidas y están en orden. */
-function RangoPropio({ filtros, alAplicar }) {
+export function RangoPropio({ filtros, alAplicar }) {
   const [desde, setDesde] = useState(filtros.desde);
   const [hasta, setHasta] = useState(filtros.hasta);
   const [visto, setVisto] = useState(`${filtros.desde}|${filtros.hasta}`);
@@ -163,7 +230,7 @@ export function FiltrosIndicadores({ filtros, cambiar, limpiar, catalogos, perio
               <option value="">En línea y presencial</option>
               {Object.entries(ORIGENES).map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}
             </Campo>
-            <FiltroCliente clientes={catalogos.clientes} valor={filtros.cliente} alCambiar={(cliente) => cambiar({ cliente })} />
+            <FiltroCliente valor={filtros.cliente} alCambiar={(cliente) => cambiar({ cliente })} />
           </div>
         </div>
       </details>

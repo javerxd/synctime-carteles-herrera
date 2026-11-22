@@ -13,7 +13,6 @@ public sealed record ConsultaContactoEntrada(
 // que muestra el formulario, asi el visitante ve el mismo mensaje en su pantalla y en la respuesta.
 public static class ValidacionContacto
 {
-    public const int LargoNombre = 100;
     public const int LargoAsunto = 150;
     public const int MinimoMensaje = 10;
     public const int LargoMensaje = 2000;
@@ -23,11 +22,8 @@ public static class ValidacionContacto
         var errores = new Dictionary<string, string[]>();
         void Error(string campo, string mensaje) => errores[campo] = [mensaje];
 
-        var nombre = consulta.Nombre?.Trim() ?? "";
-        if (nombre.Length == 0)
-            Error("nombre", "Escribe tu nombre.");
-        else if (nombre.Length > LargoNombre)
-            Error("nombre", $"El nombre puede tener hasta {LargoNombre} caracteres.");
+        if (ReglaNombre.Error(consulta.Nombre, "Escribe tu nombre.") is { } errorNombre)
+            Error("nombre", errorNombre);
 
         if (!Reglas.EsCorreo(consulta.Correo?.Trim()))
             Error("correo", "Escribe un correo válido, por ejemplo nombre@correo.cl, para poder responderte.");

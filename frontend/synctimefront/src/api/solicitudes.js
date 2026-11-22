@@ -47,8 +47,8 @@ export const misSolicitudes = {
 
 /** Archivos privados de un adjunto (cliente dueño o personal). Devuelven un Blob. */
 export const adjuntos = {
-  miniatura: (adjunto) => api.archivo(adjunto.urlMiniatura ? rutaRelativa(adjunto.urlMiniatura) : `/adjuntos/${adjunto.idAdjunto}/miniatura`),
-  archivo: (adjunto) => api.archivo(adjunto.urlArchivo ? rutaRelativa(adjunto.urlArchivo) : `/adjuntos/${adjunto.idAdjunto}/archivo`),
+  miniatura: (adjunto, { senal } = {}) => api.archivo(adjunto.urlMiniatura ? rutaRelativa(adjunto.urlMiniatura) : `/adjuntos/${adjunto.idAdjunto}/miniatura`, { senal }),
+  archivo: (adjunto, { senal } = {}) => api.archivo(adjunto.urlArchivo ? rutaRelativa(adjunto.urlArchivo) : `/adjuntos/${adjunto.idAdjunto}/archivo`, { senal }),
 };
 
 /** Del personal del taller. */

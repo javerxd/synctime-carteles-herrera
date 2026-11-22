@@ -458,7 +458,8 @@ public sealed class FlujoNegocioTests(ApiFixture api)
     private async Task<(int Total, int Concretadas)> MetricaDelMesAsync(string token)
     {
         var filas = await api.Cliente(token).GetAsync("/api/v1/metricas/conversion-online").EsperarAsync(HttpStatusCode.OK);
-        var hoy = DateTime.Now;
+        // Fase 16B: el mes que cuenta la API es el de Chile; DateTime.Now seria el del equipo (UTC en un contenedor o en CI).
+        var hoy = Negocio.Local.HoraChile.Convertir(DateTimeOffset.UtcNow);
         foreach (var fila in filas.EnumerateArray())
         {
             if (fila.GetProperty("anio").GetInt32() == hoy.Year && fila.GetProperty("mes").GetInt32() == hoy.Month)

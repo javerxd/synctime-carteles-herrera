@@ -5,6 +5,7 @@ using LetrerosHerreraSYNCTIMEapi.Models;
 using LetrerosHerreraSYNCTIMEapi.Negocio;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Consentimientos;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
+using LetrerosHerreraSYNCTIMEapi.Negocio.IngresoGoogle;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -123,7 +124,9 @@ public sealed class ServicioSesiones(LetrerosHerreradbContext db, IConfiguration
     }
 
     private Task<bool> CuentaActivaAsync(TitularSesion titular, CancellationToken ct) => titular.EsCliente
-        ? db.Clientes.AnyAsync(c => c.IdCliente == titular.IdCliente && c.Activo && c.PasswordHash != null, ct)
+        // Fase 14A: una cuenta creada con Google no tiene contraseña, pero su sesion tambien se renueva.
+        ? db.Clientes.AnyAsync(c => c.IdCliente == titular.IdCliente && c.Activo && c.InhabilitadoEn == null
+            && (c.PasswordHash != null || c.IdentidadesExternas.Any()), ct)
         : db.Empleados.AnyAsync(e => e.IdEmpleado == titular.IdEmpleado && e.Activo, ct);
 
     private async Task<SesionEmitida> EmitirAsync(TitularSesion titular, Guid familia, DateTimeOffset expira, CancellationToken ct)
@@ -349,7 +352,8 @@ public sealed class ServicioCodigosCuenta(
     {
         if (tipo == TipoCliente)
             return await db.Clientes.AsNoTracking()
-                .Where(c => c.Email == correoNormalizado && c.Activo && c.PasswordHash != null)
+                // Fase 14A: quien nacio con Google crea su contraseña con este mismo codigo (RFU05).
+                .Where(c => c.Email == correoNormalizado && c.Activo && (c.PasswordHash != null || c.IdentidadesExternas.Any()))
                 .Select(c => new CuentaEncontrada(TitularSesion.DeCliente(c.IdCliente), c.Email!, c.Nombre))
                 .FirstOrDefaultAsync(ct);
         if (tipo == TipoPersonal)
@@ -417,7 +421,7 @@ public sealed record DatosPerfil(string? Rut, string? Nombre, string? Apellido, 
 // Fase 11: AvisosEstado, la preferencia de los avisos de estado (los de cuenta y seguridad llegan siempre).
 public sealed record MiCuenta(
     int IdCliente, string Nombre, string Apellido, string? Rut, string Telefono, string Correo, string? Direccion,
-    bool CorreoVerificado, bool Marketing, bool AvisosEstado);
+    bool CorreoVerificado, bool Marketing, bool AvisosEstado, bool GoogleVinculado, bool TieneContrasena);
 
 public abstract record ResultadoCuenta
 {
@@ -438,12 +442,16 @@ public sealed class ServicioMiCuenta(
     public const string MensajeTelefonoDelTaller =
         "Ese teléfono o ese RUT ya están registrados en el taller. Pide en el local que activen tu acceso web: así nadie puede quedarse con tus pedidos sabiendo solo tu número.";
 
-    public async Task<ResultadoCuenta> RegistrarAsync(DatosRegistro datos, CancellationToken ct)
+    public const string MensajeGoogleYaRegistrado = "Ya existe una cuenta con ese correo o con ese Google. Vuelve a ingresar con Google o con tu contraseña.";
+
+    // Fase 14A: con «google» la cuenta nace con su correo ya verificado por Google, sin contraseña y con su identidad, todo en la
+    // misma transaccion que los consentimientos. El resto (validaciones, versiones legales, telefono y RUT conocidos) es el mismo.
+    public async Task<ResultadoCuenta> RegistrarAsync(DatosRegistro datos, CancellationToken ct, IdentidadGoogle? google = null)
     {
         var errores = ValidacionCuenta.Validar(datos.Rut, datos.Nombre, datos.Apellido, datos.Telefono, datos.Direccion);
         var correo = ServicioCodigosCuenta.NormalizarCorreo(datos.Correo);
         ValidacionCuenta.ValidarCorreo(correo, errores);
-        if (!AuthService.EsPasswordValida(datos.Password))
+        if (google is null && !AuthService.EsPasswordValida(datos.Password))
             errores["password"] = [AuthService.MensajePasswordInvalida];
         if (!datos.AceptaTerminosYPrivacidad)
             errores["aceptaTerminosYPrivacidad"] = ["Para crear la cuenta debes aceptar los términos y condiciones y la política de privacidad."];
@@ -471,14 +479,33 @@ public sealed class ServicioMiCuenta(
             Telefono = telefono,
             Email = correo,
             Direccion = string.IsNullOrWhiteSpace(datos.Direccion) ? null : datos.Direccion.Trim(),
-            PasswordHash = auth.HashPassword(datos.Password!)
+            PasswordHash = google is null ? auth.HashPassword(datos.Password!) : null
         };
+        if (google is not null)
+        {
+            var ahora = reloj.GetUtcNow();
+            cliente.FechaVerificacionCorreo = ahora;
+            cliente.IdentidadesExternas.Add(new IdentidadExterna
+            {
+                Proveedor = ReglasGoogle.Proveedor, Sub = google.Sub, Correo = google.Correo, FechaVinculacion = ahora, FechaUltimoIngreso = ahora
+            });
+        }
 
         // La cuenta y sus consentimientos se guardan juntos: si uno falla, no queda ninguno.
         await using (var transaccion = await db.Database.BeginTransactionAsync(ct))
         {
             db.Clientes.Add(cliente);
-            await db.SaveChangesAsync(ct);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException error) when (google is not null && ViolacionUnica.Es(error))
+            {
+                // Dos personas completando a la vez: lo decide la base (correo, telefono, RUT o sub unicos), no una consulta previa.
+                // Telefono y RUT dan el mismo mensaje de siempre; cualquier otro fallo de la base no llega aqui y se registra como error.
+                return new ResultadoCuenta.Conflicto(ViolacionUnica.Contiene(error, "uq_clientes_telefono") || ViolacionUnica.Contiene(error, "uq_clientes_rut")
+                    ? MensajeTelefonoDelTaller : MensajeGoogleYaRegistrado);
+            }
             var titular = TitularConsentimiento.Cliente(cliente.IdCliente);
             foreach (var (tipo, version) in new[] { (DocumentosLegales.Terminos, datos.VersionTerminos!), (DocumentosLegales.Privacidad, datos.VersionPrivacidad!) })
                 if ((await consentimientos.RegistrarAsync(titular, tipo, version, ct)).Error is { } error)
@@ -488,7 +515,9 @@ public sealed class ServicioMiCuenta(
             await transaccion.CommitAsync(ct);
         }
 
-        await codigos.EnviarVerificacionAsync(cliente, CancellationToken.None);
+        // Con Google el correo ya esta verificado: no hay enlace de confirmacion que enviar.
+        if (google is null)
+            await codigos.EnviarVerificacionAsync(cliente, CancellationToken.None);
         return new ResultadoCuenta.Lista(cliente);
     }
 
@@ -500,7 +529,8 @@ public sealed class ServicioMiCuenta(
             return null;
         var marketing = await consentimientos.VigenteAsync(TitularConsentimiento.Cliente(idCliente), DocumentosLegales.Marketing, ct) is not null;
         return new MiCuenta(cliente.IdCliente, cliente.Nombre, cliente.Apellido, cliente.Rut, cliente.Telefono, cliente.Email ?? "",
-            cliente.Direccion, cliente.FechaVerificacionCorreo is not null, marketing, cliente.RecibeAvisosEstado);
+            cliente.Direccion, cliente.FechaVerificacionCorreo is not null, marketing, cliente.RecibeAvisosEstado,
+            await db.IdentidadesExternas.AnyAsync(i => i.IdCliente == idCliente, ct), cliente.PasswordHash is not null);
     }
 
     // Fase 11: PUT /mi-cuenta/preferencias. Cada cambio queda como consentimiento con fecha, hora y version. El

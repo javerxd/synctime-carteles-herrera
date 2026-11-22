@@ -51,7 +51,7 @@
 }
 
 /* Tras 3 rechazos del rostro, la contraseña se ofrece como el camino: marco y texto de ayuda, no solo color.
-   Es información, no una llamada a la acción: usa el tono info y no el ámbar. */
+   Es información, no una llamada a la acción: usa el tono info y no el naranja. */
 .resaltado {
   padding: var(--espacio-3);
   border: 1px solid var(--tono-info-borde);

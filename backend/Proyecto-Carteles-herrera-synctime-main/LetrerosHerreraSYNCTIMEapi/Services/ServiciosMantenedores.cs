@@ -191,7 +191,7 @@ public sealed class ServicioProductos(LetrerosHerreradbContext db)
         p.IdProducto, p.IdCategoria, new CategoriaDelProducto(p.Categoria!.IdCategoria, p.Categoria.Nombre, p.Categoria.Activo),
         p.Nombre, p.Descripcion, p.PrecioBaseRef, p.Activo, p.RowVersion, p.AnchoMinMm, p.AnchoMaxMm, p.AltoMinMm, p.AltoMaxMm,
         p.MedidasFijas.OrderBy(m => m.AnchoMm).ThenBy(m => m.AltoMm).Select(m => new MedidaFijaProducto(m.AnchoMm, m.AltoMm)).ToList(),
-        p.Opciones.OrderBy(o => o.Orden).Select(o => new OpcionProducto(o.Grupo, o.Valor)).ToList());
+        p.Opciones.OrderBy(o => o.Orden).ThenBy(o => o.IdOpcion).Select(o => new OpcionProducto(o.Grupo, o.Valor)).ToList());
 
     // Quien no es de gestion solo ve lo que se ofrece: activo y de una categoria activa.
     public Task<ResultadoPaginado<FichaProducto>> ListarAsync(ParametrosListado parametros, bool? activo, bool soloOfrecidos, int? idCategoria,
@@ -285,6 +285,69 @@ public sealed class ServicioProductos(LetrerosHerreradbContext db)
         return new ResultadoGestion<FichaProducto>.Correcto((await ObtenerAsync(id, false, CancellationToken.None))!);
     }
 
+    // Fase 12D (decision 6): los limites de medida, las medidas fijas y las opciones de un producto. Se reemplaza el
+    // conjunto completo, pero solo se tocan las filas que cambian (asi la bitacora registra lo que cambio de verdad).
+    // Las solicitudes ya hechas guardan lo que el cliente eligio (JSON en el item), no apuntan a estas filas.
+    public async Task<ResultadoGestion<FichaProducto>> EditarMedidasYOpcionesAsync(int id, EntradaMedidasYOpciones entrada, byte[]? version,
+        CancellationToken ct)
+    {
+        if (version is not { Length: > 0 })
+            return new ResultadoGestion<FichaProducto>.SinVersion();
+        var errores = ValidacionMedidasYOpciones.Validar(entrada);
+        if (errores.Count > 0)
+            return new ResultadoGestion<FichaProducto>.Invalido(errores);
+        var producto = await db.Productos.Include(p => p.MedidasFijas).Include(p => p.Opciones).AsSplitQuery()
+            .FirstOrDefaultAsync(p => p.IdProducto == id, ct);
+        if (producto is null)
+            return new ResultadoGestion<FichaProducto>.NoEncontrado();
+        if (!Versiones.Iguales(version, producto.RowVersion))
+            return new ResultadoGestion<FichaProducto>.VersionObsoleta();
+
+        producto.AnchoMinMm = entrada.AnchoMinMm;
+        producto.AnchoMaxMm = entrada.AnchoMaxMm;
+        producto.AltoMinMm = entrada.AltoMinMm;
+        producto.AltoMaxMm = entrada.AltoMaxMm;
+
+        var fijas = (entrada.MedidasFijas ?? []).Select(m => (Ancho: m.AnchoMm!.Value, Alto: m.AltoMm!.Value)).ToHashSet();
+        foreach (var existente in producto.MedidasFijas.Where(m => !fijas.Contains((m.AnchoMm, m.AltoMm))).ToList())
+            producto.MedidasFijas.Remove(existente);
+        foreach (var (ancho, alto) in fijas.Where(f => !producto.MedidasFijas.Any(m => m.AnchoMm == f.Ancho && m.AltoMm == f.Alto)))
+            producto.MedidasFijas.Add(new ProductoMedidaFija { AnchoMm = ancho, AltoMm = alto });
+
+        // Orden global, en el orden en que llegan los grupos y sus valores: la lectura (Orden, IdOpcion) conserva asi
+        // el orden de los grupos y no los intercala.
+        var deseadas = new List<(string Grupo, string Valor, int Orden)>();
+        var orden = 0;
+        foreach (var grupo in entrada.Opciones ?? [])
+        {
+            var valores = (grupo.Valores ?? []).Select(v => v?.Trim() ?? "").Where(v => v.Length > 0).ToList();
+            foreach (var valor in valores)
+                deseadas.Add((grupo.Grupo!.Trim(), valor, ++orden));
+        }
+        bool Misma(ProductoOpcion o, (string Grupo, string Valor, int Orden) d) =>
+            string.Equals(o.Grupo, d.Grupo, StringComparison.OrdinalIgnoreCase) && string.Equals(o.Valor, d.Valor, StringComparison.OrdinalIgnoreCase);
+        foreach (var existente in producto.Opciones.Where(o => !deseadas.Any(d => Misma(o, d))).ToList())
+            producto.Opciones.Remove(existente);
+        foreach (var deseada in deseadas)
+        {
+            if (producto.Opciones.FirstOrDefault(o => Misma(o, deseada)) is { } actual)
+            {
+                actual.Grupo = deseada.Grupo;
+                actual.Valor = deseada.Valor;
+                actual.Orden = deseada.Orden;
+            }
+            else
+                producto.Opciones.Add(new ProductoOpcion { Grupo = deseada.Grupo, Valor = deseada.Valor, Orden = deseada.Orden });
+        }
+
+        // Aunque solo cambien las filas hijas, la version del producto debe renovarse: fuerza la actualizacion de la fila.
+        db.Entry(producto).Property(p => p.AnchoMinMm).IsModified = true;
+        db.Entry(producto).Property(p => p.RowVersion).OriginalValue = version;
+        if (await GuardarAsync(ct) is { } conflicto)
+            return conflicto;
+        return new ResultadoGestion<FichaProducto>.Correcto((await ObtenerAsync(id, false, CancellationToken.None))!);
+    }
+
     // La base no admite dos tipos de letrero con el mismo nombre, aunque sean de categorias distintas.
     private static ResultadoGestion<FichaProducto> YaExiste(bool desdeLaBase = false) =>
         new ResultadoGestion<FichaProducto>.Conflicto(CodigosMantenedores.YaExiste, "Ya existe un tipo de letrero con ese nombre.", desdeLaBase);
@@ -303,6 +366,15 @@ public sealed class ServicioProductos(LetrerosHerreradbContext db)
         catch (DbUpdateException e) when (ErroresSql.EsDuplicado(e, IndiceNombre))
         {
             return YaExiste(desdeLaBase: true);
+        }
+        // La base compara con su colacion («Straße» = «Strasse»): lo que .NET ve distinto puede chocar aqui.
+        catch (DbUpdateException e) when (ErroresSql.EsDuplicado(e, "uq_producto_opciones"))
+        {
+            return new ResultadoGestion<FichaProducto>.Invalido(new Dictionary<string, string[]> { ["opciones"] = ["Hay un valor repetido dentro de un grupo."] });
+        }
+        catch (DbUpdateException e) when (ErroresSql.EsDuplicado(e, "uq_producto_medidas_fijas"))
+        {
+            return new ResultadoGestion<FichaProducto>.Invalido(new Dictionary<string, string[]> { ["medidasFijas"] = ["Hay una medida fija repetida."] });
         }
     }
 }
@@ -541,6 +613,8 @@ public sealed class ServicioEmpleados(
         if (cambiaCorreo)
         {
             await codigos.AnularPendientesAsync(TitularSesion.DeEmpleado(id), ct);
+            // Fase 14C: su Google se vinculo con el correo anterior, que ya no es el suyo: se desvincula (la bitacora lo registra).
+            db.IdentidadesExternas.RemoveRange(await db.IdentidadesExternas.Where(i => i.IdEmpleado == id).ToListAsync(ct));
             if (Reglas.EsCorreo(correoAnterior))
                 await cola.EncolarAsync(CorreosDeCuenta.AvisoCambioCorreoPersonal(correoAnterior, empleado.Nombre,
                     CorreosDestinosAvisos.Enmascarar(empleado.Email), opcionesCorreo.Value.ContactoTaller), ct);
@@ -577,6 +651,10 @@ public sealed class ServicioEmpleados(
             return conflicto;
         if (seDesactiva)
         {
+            // Fase 14C: su Google tambien se desvincula (un desactivado no entra, y al reactivarlo debe volver a vincularlo con su contraseña:
+            // un Google que quiza ya no controla el taller no debe volver a abrir el panel solo). Queda en la bitacora.
+            db.IdentidadesExternas.RemoveRange(await db.IdentidadesExternas.Where(i => i.IdEmpleado == id).ToListAsync(ct));
+            await db.SaveChangesAsync(ct);
             var ahora = reloj.GetUtcNow();
             // Fase 10: tambien las tres muestras (DatosRostro.Borrado borra las cuatro columnas cifradas). Fase 11: queda
             // en la bitacora, en la misma transaccion (el interceptor no ve el ExecuteUpdate).

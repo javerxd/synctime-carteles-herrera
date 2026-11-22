@@ -34,6 +34,7 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<ConsultaContacto> ConsultasContacto { get; set; } = null!;
     public DbSet<TokenRenovacion> TokensRenovacion { get; set; } = null!;
     public DbSet<CodigoCuenta> CodigosCuenta { get; set; } = null!;
+    public DbSet<IdentidadExterna> IdentidadesExternas { get; set; } = null!;
     public DbSet<AdjuntoSolicitud> AdjuntosSolicitud { get; set; } = null!;
     public DbSet<SolicitudHistorial> SolicitudesHistorial { get; set; } = null!;
     public DbSet<PedidoHistorial> PedidosHistorial { get; set; } = null!;
@@ -44,6 +45,7 @@ public class LetrerosHerreradbContext : DbContext
     public DbSet<MedicionCalibracionRostro> CalibracionRostro { get; set; } = null!;
     public DbSet<RegistroAuditoria> Auditoria { get; set; } = null!;
     public DbSet<ClaveIdempotencia> ClavesIdempotencia { get; set; } = null!;
+    public DbSet<TrabajoExportacion> TrabajosExportacion { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,7 +75,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.Registrado).HasColumnName("registrado")
                 .HasComputedColumnSql("CONVERT(BIT, CASE WHEN password_hash IS NOT NULL THEN 1 ELSE 0 END)", stored: true);
             entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
             entity.Property(e => e.FechaVerificacionCorreo).HasColumnName("fecha_verificacion_correo").HasColumnType("datetimeoffset(0)");
             // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
@@ -227,7 +229,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.AltoMm).HasColumnName("alto_mm");
             entity.Property(e => e.PrecioReferencial).HasColumnName("precio_referencial").HasColumnType("decimal(12,2)");
             entity.Property(e => e.FechaPublicacion).HasColumnName("fecha_publicacion").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.Visible).HasColumnName("visible").HasDefaultValue(true).HasSentinel(true);
             entity.Property(e => e.IdImagen).HasColumnName("id_imagen");
             entity.Property(e => e.IncluyeLogoCliente).HasColumnName("incluye_logo_cliente").HasDefaultValue(false);
@@ -276,7 +278,7 @@ public class LetrerosHerreradbContext : DbContext
             // Fase 7: hasta 2000 caracteres (antes 500); ampliar una columna no pierde datos.
             entity.Property(e => e.DescripcionGeneral).HasColumnName("descripcion_general").HasMaxLength(2000);
             entity.Property(e => e.FechaSolicitud).HasColumnName("fecha_solicitud").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(15).HasDefaultValue("solicitado");
             // Fase 7: el motivo admite hasta 500 caracteres, igual que en el historial.
             entity.Property(e => e.MotivoRechazo).HasColumnName("motivo_rechazo").HasMaxLength(500);
@@ -391,7 +393,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdSolicitud).HasColumnName("id_solicitud");
             entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
             entity.Property(e => e.FechaCotizacion).HasColumnName("fecha_cotizacion").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             // Fase 8: hasta 2000 caracteres (antes 500); ampliar una columna no pierde datos. Las ve el cliente.
             entity.Property(e => e.Observaciones).HasColumnName("observaciones").HasMaxLength(2000);
             entity.Property(e => e.CostoMaterialesTotal).HasColumnName("costo_materiales_total").HasColumnType("decimal(12,2)")
@@ -507,7 +509,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.Origen).HasColumnName("origen").HasMaxLength(15).HasDefaultValue("cotizacion");
             entity.Property(e => e.IdEmpleadoResponsable).HasColumnName("id_empleado_responsable");
             entity.Property(e => e.FechaPedido).HasColumnName("fecha_pedido").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.FechaEntregaEstimada).HasColumnName("fecha_entrega_estimada").HasColumnType("datetime2(0)");
             entity.Property(e => e.FechaEntregaReal).HasColumnName("fecha_entrega_real").HasColumnType("datetime2(0)");
             entity.Property(e => e.ModalidadEntrega).HasColumnName("modalidad_entrega").HasMaxLength(25)
@@ -602,12 +604,12 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
             entity.Property(e => e.Monto).HasColumnName("monto");
             entity.Property(e => e.FechaPago).HasColumnName("fecha_pago").HasColumnType("date")
-                .HasDefaultValueSql("CONVERT(DATE, SYSDATETIME())");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Hoy);
             entity.Property(e => e.MedioPago).HasColumnName("medio_pago").HasMaxLength(15);
             entity.Property(e => e.Observacion).HasColumnName("observacion").HasMaxLength(300);
             entity.Property(e => e.IdEmpleadoRegistra).HasColumnName("id_empleado_registra");
             entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.Anulado).HasColumnName("anulado").HasDefaultValue(false);
             entity.Property(e => e.MotivoAnulacion).HasColumnName("motivo_anulacion").HasMaxLength(300);
             entity.Property(e => e.IdEmpleadoAnula).HasColumnName("id_empleado_anula");
@@ -717,7 +719,7 @@ public class LetrerosHerreradbContext : DbContext
             // Fase 9: hasta 100 caracteres (antes 80).
             entity.Property(e => e.TiempoEstimadoRegreso).HasColumnName("tiempo_estimado_regreso").HasMaxLength(100);
             entity.Property(e => e.FechaUltimaModificacion).HasColumnName("fecha_ultima_modificacion").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.IdEmpleadoModifica).HasColumnName("id_empleado_modifica");
             // Fase 11: version para guardar el cartel con If-Match.
             entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();
@@ -936,6 +938,38 @@ public class LetrerosHerreradbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_codigos_cuenta_cliente");
             entity.HasOne(e => e.Empleado).WithMany().HasForeignKey(e => e.IdEmpleado)
                 .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_codigos_cuenta_empleado");
+        });
+
+        // ── identidades_externas (fase 14A) ──
+        modelBuilder.Entity<IdentidadExterna>(entity =>
+        {
+            entity.ToTable("identidades_externas", t =>
+            {
+                t.HasCheckConstraint("ck_identidades_externas_proveedor", "proveedor IN ('google')");
+                // Fase 14C: la identidad es de un cliente o de un empleado, nunca de ninguno ni de ambos.
+                t.HasCheckConstraint("ck_identidades_externas_destino",
+                    "(CASE WHEN id_cliente IS NULL THEN 0 ELSE 1 END) + (CASE WHEN id_empleado IS NULL THEN 0 ELSE 1 END) = 1");
+            });
+            entity.HasKey(e => e.IdIdentidad).HasName("pk_identidades_externas");
+            entity.Property(e => e.IdIdentidad).HasColumnName("id_identidad");
+            entity.Property(e => e.IdCliente).HasColumnName("id_cliente");
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.Proveedor).HasColumnName("proveedor").HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.Sub).HasColumnName("sub").HasMaxLength(255).IsUnicode(false).UseCollation("Latin1_General_BIN2");
+            entity.Property(e => e.Correo).HasColumnName("correo").HasMaxLength(254);
+            entity.Property(e => e.FechaVinculacion).HasColumnName("fecha_vinculacion").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaUltimoIngreso).HasColumnName("fecha_ultimo_ingreso").HasColumnType("datetimeoffset(0)");
+
+            // Un mismo Google no puede estar en dos cuentas, ni una cuenta tener dos Google (por proveedor).
+            entity.HasIndex(e => new { e.Proveedor, e.Sub }).IsUnique().HasDatabaseName("uq_identidades_externas_sub");
+            // Fase 14C: los indices por cuenta son FILTRADOS (los clientes tienen id_empleado nulo y los empleados, id_cliente nulo).
+            entity.HasIndex(e => new { e.IdCliente, e.Proveedor }).IsUnique().HasDatabaseName("uq_identidades_externas_cliente").HasFilter("[id_cliente] IS NOT NULL");
+            entity.HasIndex(e => new { e.IdEmpleado, e.Proveedor }).IsUnique().HasDatabaseName("uq_identidades_externas_empleado").HasFilter("[id_empleado] IS NOT NULL");
+
+            entity.HasOne(e => e.Cliente).WithMany(c => c.IdentidadesExternas).HasForeignKey(e => e.IdCliente)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_identidades_externas_cliente");
+            entity.HasOne(e => e.Empleado).WithMany(c => c.IdentidadesExternas).HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_identidades_externas_empleado");
         });
 
         // ── adjuntos_solicitud (fase 7) ──
@@ -1266,6 +1300,52 @@ public class LetrerosHerreradbContext : DbContext
 
             entity.HasIndex(e => new { e.Clave, e.Ambito, e.TipoUsuario, e.IdUsuario }).IsUnique().HasDatabaseName("uq_claves_idempotencia");
             entity.HasIndex(e => e.Vence).HasDatabaseName("ix_claves_idempotencia_vence");
+        });
+
+        // ── trabajos_exportacion (fase 13A, migracion ExportacionesDeReportes) ──
+        // Las exportaciones de reportes en segundo plano. Un solo trabajo activo por persona lo garantiza la base (indice unico filtrado).
+        modelBuilder.Entity<TrabajoExportacion>(entity =>
+        {
+            entity.ToTable("trabajos_exportacion", t =>
+            {
+                t.HasCheckConstraint("ck_trabajos_exportacion_reporte", "reporte IN ('operativo', 'gerencial', 'parametrizable')");
+                t.HasCheckConstraint("ck_trabajos_exportacion_formato", "formato IN ('xlsx', 'csv', 'pdf')");
+                t.HasCheckConstraint("ck_trabajos_exportacion_estado", "estado IN ('pendiente', 'procesando', 'listo', 'fallido')");
+                t.HasCheckConstraint("ck_trabajos_exportacion_intentos", "intentos >= 0");
+                t.HasCheckConstraint("ck_trabajos_exportacion_listo", "estado <> 'listo' OR (fecha_termino IS NOT NULL AND fecha_vencimiento IS NOT NULL AND nombre_archivo IS NOT NULL AND filas IS NOT NULL)");
+                t.HasCheckConstraint("ck_trabajos_exportacion_fallido", "estado <> 'fallido' OR error IS NOT NULL");
+            });
+            entity.HasKey(e => e.IdTrabajo).HasName("pk_trabajos_exportacion");
+            entity.Property(e => e.IdTrabajo).HasColumnName("id_trabajo").ValueGeneratedNever();
+            entity.Property(e => e.Reporte).HasColumnName("reporte").HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.Formato).HasColumnName("formato").HasMaxLength(5).IsUnicode(false);
+            entity.Property(e => e.Filtros).HasColumnName("filtros").HasMaxLength(1000).IsUnicode(false);
+            entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(12).IsUnicode(false).HasDefaultValue(EstadosExportacion.Pendiente);
+            entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
+            entity.Property(e => e.RolSolicitante).HasColumnName("rol_solicitante").HasMaxLength(20);
+            entity.Property(e => e.FechaPedido).HasColumnName("fecha_pedido").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaInicio).HasColumnName("fecha_inicio").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaTermino).HasColumnName("fecha_termino").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.FechaVencimiento).HasColumnName("fecha_vencimiento").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.BloqueadoHasta).HasColumnName("bloqueado_hasta").HasColumnType("datetimeoffset(0)");
+            entity.Property(e => e.Intentos).HasColumnName("intentos").HasDefaultValue((byte)0);
+            entity.Property(e => e.NombreArchivo).HasColumnName("nombre_archivo").HasMaxLength(80).IsUnicode(false);
+            entity.Property(e => e.TamanoBytes).HasColumnName("tamano_bytes");
+            entity.Property(e => e.Filas).HasColumnName("filas");
+            entity.Property(e => e.Error).HasColumnName("error").HasMaxLength(300);
+            entity.Property(e => e.ArchivoBorradoEn).HasColumnName("archivo_borrado_en").HasColumnType("datetimeoffset(0)");
+            entity.HasOne(e => e.Empleado).WithMany()
+                .HasForeignKey(e => e.IdEmpleado)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("fk_trabajos_exportacion_empleado");
+            // Un solo trabajo pendiente o en proceso por persona (RNFP18): la base lo impone, no solo la API.
+            entity.HasIndex(e => e.IdEmpleado).IsUnique().HasFilter("[estado] IN ('pendiente', 'procesando')").HasDatabaseName("ux_trabajos_exportacion_activo");
+            // La cola: lo pendiente en orden de llegada, y lo que quedo «procesando» de un proceso que se cayo.
+            entity.HasIndex(e => new { e.Estado, e.FechaPedido }).HasDatabaseName("ix_trabajos_exportacion_estado");
+            // La purga: los archivos que vencieron y todavia no se borraron.
+            entity.HasIndex(e => e.FechaVencimiento).HasFilter("[estado] = 'listo' AND [archivo_borrado_en] IS NULL").HasDatabaseName("ix_trabajos_exportacion_vencimiento");
+            // La persona consulta sus trabajos.
+            entity.HasIndex(e => new { e.IdEmpleado, e.FechaPedido }).HasDatabaseName("ix_trabajos_exportacion_empleado");
         });
 
         // ── vistas del dashboard (las crea la migracion IndicadoresDashboard) ──

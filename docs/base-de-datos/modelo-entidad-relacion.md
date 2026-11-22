@@ -53,6 +53,8 @@ erDiagram
     empleados |o--o{ tokens_renovacion : "tiene sesiones"
     clientes |o--o{ codigos_cuenta : "recibe enlace o código"
     empleados |o--o{ codigos_cuenta : "recibe código de recuperación"
+    clientes |o--o| identidades_externas : "vincula su Google"
+    empleados |o--o| identidades_externas : "vincula su Google (fase 14C)"
 
     empleados |o--o{ horarios_atencion : "modifica (fase 9)"
     empleados ||--o{ disponibilidad_empleados : "tiene sus franjas"
@@ -336,6 +338,16 @@ erDiagram
         datetimeoffset fecha_uso
         int intentos
     }
+    identidades_externas {
+        int id_identidad PK
+        int id_cliente FK "nulo si es de un empleado"
+        int id_empleado FK "nulo si es de un cliente (fase 14C)"
+        varchar proveedor "google"
+        varchar sub "único por proveedor"
+        nvarchar correo
+        datetimeoffset fecha_vinculacion
+        datetimeoffset fecha_ultimo_ingreso
+    }
     correos_salientes {
         bigint id_correo PK
         varchar tipo
@@ -377,11 +389,11 @@ erDiagram
     }
 ```
 
-`horarios_atencion` se relaciona solo con `empleados`, por quién lo cambió por última vez. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`.
+`horarios_atencion` se relaciona solo con `empleados`, por quién lo cambió por última vez. `correos_salientes` tampoco: es la cola de salida del correo, y cada fila dice a qué se refiere en `referencia`. `consultas_contacto` tampoco: es la bandeja del formulario de contacto de la portada, y su consentimiento de privacidad queda en `consentimientos` con la referencia `contacto:{id}`. La vista `vw_metricas_conversion_online` se calcula a partir de `solicitudes` y `pedidos`. `trabajos_exportacion` (fase 13A) guarda los archivos de reportes que se preparan en segundo plano y se relaciona solo con `empleados`, por quién los pidió; el contenido del reporte no se guarda en la base, solo el archivo temporal en `almacen/exportaciones/`.
 
 `adjuntos_solicitud` guarda los logos y diseños que acompañan a una solicitud. Mientras no tiene solicitud es un borrador del cliente, y se vincula al enviarla. Sus archivos son privados (carpeta `Adjuntos:Carpeta`, fuera del repositorio). `solicitudes_historial` guarda cada cambio de estado de una solicitud, con quién lo hizo: un empleado, el cliente o, si ninguno, el sistema.
 
-`tokens_renovacion` y `codigos_cuenta` son de la cuenta: cada fila pertenece a un cliente o a un empleado, nunca a los dos, y se borran con su titular. `clientes.fecha_verificacion_correo` dice si el correo del cliente está confirmado.
+`tokens_renovacion` y `codigos_cuenta` son de la cuenta: cada fila pertenece a un cliente o a un empleado, nunca a los dos, y se borran con su titular. `clientes.fecha_verificacion_correo` dice si el correo del cliente está confirmado. `identidades_externas` (fase 14A) guarda la cuenta de Google vinculada a un cliente: a lo más una por cliente (`uq_identidades_externas_cliente`) y un mismo `sub` de Google en una sola cuenta (`uq_identidades_externas_sub`); se borra con su cliente. Una cuenta creada con Google no tiene contraseña (`clientes.password_hash` nulo). Desde la fase 14C la identidad también puede ser de un empleado (`id_empleado`): `ck_identidades_externas_destino` exige exactamente uno de los dos (cliente o empleado), a lo más una por empleado (`uq_identidades_externas_empleado`), y el `sub` sigue siendo único entre las dos clases de cuenta.
 
 `pedidos_historial` guarda cada cambio de estado de un pedido, con quién lo hizo (fase 8). Una cotización o un pedido eliminados no se borran: se marcan con `eliminado_logico`, y el pedido eliminado sigue ocupando su cotización (`uq_pedidos_cotizacion`). Un abono anulado tampoco se borra: queda en `pagos` con `anulado = 1`.
 

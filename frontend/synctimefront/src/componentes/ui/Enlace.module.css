@@ -1,4 +1,4 @@
-/* Los enlaces son tinta subrayada: el ámbar queda para las acciones principales y lo activo */
+/* Los enlaces son tinta subrayada: el naranja queda para las acciones principales y lo activo */
 .enlace {
   display: inline;
   color: var(--color-texto);
