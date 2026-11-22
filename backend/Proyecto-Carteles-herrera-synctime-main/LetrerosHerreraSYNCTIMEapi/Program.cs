@@ -35,9 +35,29 @@ var nombreBase = BasesDeDatos.Nombre(connectionString);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.IActorActual, ActorHttp>();
 builder.Services.AddSingleton<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.InterceptorAuditoria>();
+// Fase 16A (H7): Azure SQL gratuita se pausa sola; los fallos transitorios se reintentan (ver EstrategiaDeReintentos).
+// BaseDeDatos:ReintentosMaximos = 0 los apaga. Un valor fuera de rango impide arrancar.
+var reintentosBase = builder.Configuration.GetValue("BaseDeDatos:ReintentosMaximos", 5);
+var retardoMaximoBase = builder.Configuration.GetValue("BaseDeDatos:RetardoMaximoSegundos", 30);
+if (reintentosBase is < 0 or > 10)
+    throw new InvalidOperationException($"BaseDeDatos:ReintentosMaximos debe estar entre 0 y 10 y es {reintentosBase}.");
+if (retardoMaximoBase is < 1 or > 120)
+    throw new InvalidOperationException($"BaseDeDatos:RetardoMaximoSegundos debe estar entre 1 y 120 y es {retardoMaximoBase}.");
 builder.Services.AddDbContext<LetrerosHerreradbContext>((servicios, options) =>
-    options.UseSqlServer(connectionString)
+    options.UseSqlServer(connectionString, sql =>
+        {
+            if (reintentosBase > 0)
+                sql.ExecutionStrategy(dependencias => new LetrerosHerreraSYNCTIMEapi.Datos.EstrategiaDeReintentos(
+                    dependencias, reintentosBase, TimeSpan.FromSeconds(retardoMaximoBase)));
+        })
         .AddInterceptors(servicios.GetRequiredService<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.InterceptorAuditoria>()));
+
+// Fase 16A: detras de un proxy (Render, nginx de compose) la IP y el protocolo del visitante vienen en X-Forwarded-*.
+// Solo se leen si se declaran los proxies de confianza (ForwardedHeaders:*): de otro modo cualquiera podria falsearlas.
+var opcionesDeReenvio = LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.OpcionesDeReenvio(builder.Configuration);
+// Fuera de desarrollo, el sitio publico y los origenes CORS son obligatorios y se revisan al arrancar.
+LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.ValidarUrlPublica(builder.Configuration, builder.Environment);
+var origenesCors = LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.OrigenesCors(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.IAuditoria, LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.Auditoria>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -188,8 +208,8 @@ builder.Services.AddHealthChecks()
 // Controles transversales: solo el frontend permitido y limites contra abuso.
 builder.Services.AddCors(options =>
 {
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-        ?? new[] { "https://localhost:3000" };
+    // Fase 16A: fuera de desarrollo la lista es obligatoria y se valida (ConfiguracionDespliegue.OrigenesCors).
+    var allowedOrigins = origenesCors;
     // Con credenciales (la cookie de renovacion): solo orígenes explicitos, nunca "*" (RNFP29).
     options.AddPolicy("FrontendPermitido", policy =>
         policy.WithOrigins(allowedOrigins)
@@ -350,6 +370,10 @@ if (!app.Services.GetRequiredService<RostroFacialService>().Configurado)
     app.Logger.LogWarning("RostroFacial:ClaveCifrado falta o no es valida: el login facial queda deshabilitado.");
 
 // El orden importa: cada paso envuelve a los que vienen despues.
+// Primero se aprende la IP y el protocolo reales del visitante: los limites de tasa, la redireccion a HTTPS, la bitacora y
+// la regla contra solicitudes falsas leen la conexion, y detras de un proxy esta trae la del proxy.
+if (opcionesDeReenvio is not null)
+    app.UseForwardedHeaders(opcionesDeReenvio);
 app.UseResponseCompression();
 app.UseCabecerasDeSeguridad(politicaDeContenidoEstricta: !app.Environment.IsDevelopment());
 // Los errores tambien deben llevar las cabeceras de CORS, o el navegador no dejaria que el frontend

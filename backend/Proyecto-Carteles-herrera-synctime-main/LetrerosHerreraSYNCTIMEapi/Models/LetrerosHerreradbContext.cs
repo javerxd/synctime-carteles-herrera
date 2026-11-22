@@ -75,7 +75,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.Registrado).HasColumnName("registrado")
                 .HasComputedColumnSql("CONVERT(BIT, CASE WHEN password_hash IS NOT NULL THEN 1 ELSE 0 END)", stored: true);
             entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.Activo).HasColumnName("activo").HasDefaultValue(true).HasSentinel(true);
             entity.Property(e => e.FechaVerificacionCorreo).HasColumnName("fecha_verificacion_correo").HasColumnType("datetimeoffset(0)");
             // Fase 9 (RNFP10): version para el control de concurrencia de los mantenedores.
@@ -229,7 +229,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.AltoMm).HasColumnName("alto_mm");
             entity.Property(e => e.PrecioReferencial).HasColumnName("precio_referencial").HasColumnType("decimal(12,2)");
             entity.Property(e => e.FechaPublicacion).HasColumnName("fecha_publicacion").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.Visible).HasColumnName("visible").HasDefaultValue(true).HasSentinel(true);
             entity.Property(e => e.IdImagen).HasColumnName("id_imagen");
             entity.Property(e => e.IncluyeLogoCliente).HasColumnName("incluye_logo_cliente").HasDefaultValue(false);
@@ -278,7 +278,7 @@ public class LetrerosHerreradbContext : DbContext
             // Fase 7: hasta 2000 caracteres (antes 500); ampliar una columna no pierde datos.
             entity.Property(e => e.DescripcionGeneral).HasColumnName("descripcion_general").HasMaxLength(2000);
             entity.Property(e => e.FechaSolicitud).HasColumnName("fecha_solicitud").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(15).HasDefaultValue("solicitado");
             // Fase 7: el motivo admite hasta 500 caracteres, igual que en el historial.
             entity.Property(e => e.MotivoRechazo).HasColumnName("motivo_rechazo").HasMaxLength(500);
@@ -393,7 +393,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdSolicitud).HasColumnName("id_solicitud");
             entity.Property(e => e.IdEmpleado).HasColumnName("id_empleado");
             entity.Property(e => e.FechaCotizacion).HasColumnName("fecha_cotizacion").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             // Fase 8: hasta 2000 caracteres (antes 500); ampliar una columna no pierde datos. Las ve el cliente.
             entity.Property(e => e.Observaciones).HasColumnName("observaciones").HasMaxLength(2000);
             entity.Property(e => e.CostoMaterialesTotal).HasColumnName("costo_materiales_total").HasColumnType("decimal(12,2)")
@@ -509,7 +509,7 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.Origen).HasColumnName("origen").HasMaxLength(15).HasDefaultValue("cotizacion");
             entity.Property(e => e.IdEmpleadoResponsable).HasColumnName("id_empleado_responsable");
             entity.Property(e => e.FechaPedido).HasColumnName("fecha_pedido").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.FechaEntregaEstimada).HasColumnName("fecha_entrega_estimada").HasColumnType("datetime2(0)");
             entity.Property(e => e.FechaEntregaReal).HasColumnName("fecha_entrega_real").HasColumnType("datetime2(0)");
             entity.Property(e => e.ModalidadEntrega).HasColumnName("modalidad_entrega").HasMaxLength(25)
@@ -604,12 +604,12 @@ public class LetrerosHerreradbContext : DbContext
             entity.Property(e => e.IdPedido).HasColumnName("id_pedido");
             entity.Property(e => e.Monto).HasColumnName("monto");
             entity.Property(e => e.FechaPago).HasColumnName("fecha_pago").HasColumnType("date")
-                .HasDefaultValueSql("CONVERT(DATE, SYSDATETIME())");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Hoy);
             entity.Property(e => e.MedioPago).HasColumnName("medio_pago").HasMaxLength(15);
             entity.Property(e => e.Observacion).HasColumnName("observacion").HasMaxLength(300);
             entity.Property(e => e.IdEmpleadoRegistra).HasColumnName("id_empleado_registra");
             entity.Property(e => e.FechaRegistro).HasColumnName("fecha_registro").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.Anulado).HasColumnName("anulado").HasDefaultValue(false);
             entity.Property(e => e.MotivoAnulacion).HasColumnName("motivo_anulacion").HasMaxLength(300);
             entity.Property(e => e.IdEmpleadoAnula).HasColumnName("id_empleado_anula");
@@ -719,7 +719,7 @@ public class LetrerosHerreradbContext : DbContext
             // Fase 9: hasta 100 caracteres (antes 80).
             entity.Property(e => e.TiempoEstimadoRegreso).HasColumnName("tiempo_estimado_regreso").HasMaxLength(100);
             entity.Property(e => e.FechaUltimaModificacion).HasColumnName("fecha_ultima_modificacion").HasColumnType("datetime2(0)")
-                .HasDefaultValueSql("SYSDATETIME()");
+                .HasDefaultValueSql(LetrerosHerreraSYNCTIMEapi.Datos.HoraChileSql.Ahora);
             entity.Property(e => e.IdEmpleadoModifica).HasColumnName("id_empleado_modifica");
             // Fase 11: version para guardar el cartel con If-Match.
             entity.Property(e => e.RowVersion).HasColumnName("row_version").IsRowVersion();

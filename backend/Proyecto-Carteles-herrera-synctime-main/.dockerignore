@@ -1,0 +1,40 @@
+# Fase 16A: lo que NO entra al contexto de construccion de la API. El contexto es esta carpeta.
+# Menos archivos = construccion mas rapida, capas que no cambian sin motivo y ningun secreto dentro de la imagen.
+
+# Resultados de compilacion y de editores
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo
+**/TestResults/
+
+# Pruebas: la imagen de ejecucion no las necesita
+LetrerosHerreraSYNCTIMEapi.Tests/
+LetrerosHerreraSYNCTIMEapi.UnitTests/
+
+# Datos locales de la API: archivos de los clientes y correos de desarrollo. NUNCA van a una imagen.
+**/almacen/
+**/bandeja-correo/
+
+# Secretos y configuracion local
+**/.env
+**/.env.*
+!**/.env.example
+**/appsettings.*.local.json
+**/secrets.json
+**/*.pfx
+**/*.pem
+**/*.key
+**/*.bak
+**/*.bacpac
+**/*.mdf
+**/*.ldf
+
+# Control de versiones y documentacion
+.git
+.gitignore
+.gitattributes
+**/*.md
+Dockerfile
+.dockerignore

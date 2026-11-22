@@ -1,0 +1,31 @@
+{
+  // Fase 16A: entorno de GitHub Codespaces (y VS Code «Dev Containers») con Docker listo, para verificar `docker compose up`
+  // sin instalar nada en el equipo del usuario (RNFO14). Lo usa scripts/verificar-compose.sh.
+  "name": "SyncTime (compose)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true
+    }
+  },
+  // SQL Server en contenedor necesita al menos 2 GB libres; con la API, el frontend y las compilaciones, 8 GB.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  // El sitio y el buzon de correo de desarrollo. Los puertos son privados: solo los ve quien abrio el Codespace.
+  "forwardPorts": [8080, 8025],
+  "portsAttributes": {
+    "8080": { "label": "SyncTime (sitio)", "onAutoForward": "notify", "visibility": "private" },
+    "8025": { "label": "Correos de prueba (Mailpit)", "onAutoForward": "silent", "visibility": "private" }
+  },
+  // Crea el .env con claves al azar (no sobrescribe uno existente). Nada secreto vive en este archivo ni en el repositorio.
+  "postCreateCommand": "chmod +x scripts/*.sh && ./scripts/crear-env.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-azuretools.vscode-docker"]
+    }
+  }
+}

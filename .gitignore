@@ -78,3 +78,7 @@ $RECYCLE.BIN/
 
 # Fotos de trabajos del taller: se quedan en este equipo (decisión del usuario, 13-11-2026)
 docs/imagenes-trabajos/
+
+# Python (scripts de validacion)
+__pycache__/
+*.pyc

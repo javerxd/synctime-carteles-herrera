@@ -304,7 +304,8 @@ public static class SemillaDemo
                 clientes[telefono] = cliente;
         }
 
-        var hoy = DateTime.Today;
+        // Fecha de Chile, no la del servidor (en un contenedor o en Render es UTC).
+        var hoy = Negocio.Local.HoraChile.Convertir(DateTimeOffset.UtcNow).Date;
         DateTime Tope(DateTime fecha) => fecha > hoy ? hoy : fecha;
         // Fase 8: las fechas con zona (respuesta, anulacion, historial) en hora de Chile.
         DateTimeOffset ConZona(DateTime chile) => new(chile, Negocio.Local.HoraChile.ZonaHoraria.GetUtcOffset(chile));

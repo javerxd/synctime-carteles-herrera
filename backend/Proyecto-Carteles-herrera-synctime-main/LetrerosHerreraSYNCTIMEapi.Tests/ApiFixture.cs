@@ -282,6 +282,41 @@ public sealed class ApiFixture : IAsyncLifetime
         return new ApiTemporal(otra);
     }
 
+    // Fase 16A: otra API sobre la misma base, en el entorno indicado (por ejemplo «Production») y con la IP elegida por la cabecera
+    // X-Prueba-Ip, como la API principal de las pruebas. Es lo que permite probar lo que cambia segun el entorno: el CORS, la URL
+    // publica y la lectura de las cabeceras de un proxy.
+    public ApiTemporal ConEntorno(string entorno, IReadOnlyDictionary<string, string> variables)
+    {
+        var anteriores = variables.Keys.ToDictionary(v => v, Environment.GetEnvironmentVariable);
+        foreach (var (variable, valor) in variables)
+            Environment.SetEnvironmentVariable(variable, valor);
+
+        var otra = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
+        {
+            host.UseEnvironment(entorno);
+            host.ConfigureServices(services =>
+            {
+                services.AddTransient<IStartupFilter, IpDePrueba>();
+                services.AddSingleton<Negocio.IngresoGoogle.IVerificadorGoogle>(Google);
+            });
+        });
+        try
+        {
+            _ = otra.Server;
+        }
+        catch
+        {
+            otra.Dispose();
+            throw;
+        }
+        finally
+        {
+            foreach (var (variable, valor) in anteriores)
+                Environment.SetEnvironmentVariable(variable, valor);
+        }
+        return new ApiTemporal(otra);
+    }
+
     public sealed class ApiTemporal(WebApplicationFactory<Program> factory) : IAsyncDisposable
     {
         public IServiceProvider Services => factory.Services;
@@ -292,6 +327,12 @@ public sealed class ApiFixture : IAsyncLifetime
             if (token is not null)
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             return client;
+        }
+
+        public async Task<T> ConsultarAsync<T>(Func<LetrerosHerreradbContext, Task<T>> consulta)
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            return await consulta(scope.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>());
         }
 
         public ValueTask DisposeAsync() => factory.DisposeAsync();

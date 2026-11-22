@@ -1,0 +1,83 @@
+# Fase 16A (RNFO14, RNFO15, RNFP04): Blueprint de Render para la API (Docker). NO crea nada por si solo: Render lo lee cuando
+# se crea el Blueprint desde el panel, y la creacion de servicios, discos y planes de pago la hace el usuario en la fase 16C.
+#
+# Reglas de este archivo:
+#  - Ningun secreto ni valor propio del despliegue: los que dependen de la cuenta se declaran con `sync: false` (Render pide el valor
+#    al crear el Blueprint y nunca lo guarda aqui). Lo que es publico y fijo (entorno, hora, reintentos) va con su valor.
+#  - El frontend NO esta aqui: va en Vercel (frontend/synctimefront/vercel.json), que reenvia /api a este servicio.
+#  - La base de datos NO esta aqui: es Azure SQL Database (cadena de conexion en ConnectionStrings__DefaultConnection).
+#  - Las migraciones NO corren al desplegar (a proposito): se aplican a mano, con respaldo, con el migrador (docs/despliegue).
+
+services:
+  - type: web
+    name: synctime-api
+    runtime: docker
+    dockerfilePath: ./backend/Proyecto-Carteles-herrera-synctime-main/Dockerfile
+    dockerContext: ./backend/Proyecto-Carteles-herrera-synctime-main
+    # D2 (decidido por el usuario): plan de pago, para que el servicio no se duerma (RNFP04). Se parte del plan de pago mas chico;
+    # la 16C mide la memoria con la prueba de carga y lo sube (por ejemplo a 1c-2g) si se queda corto.
+    plan: 0.5c-512mb
+    # D5: provisional. Debe estar lo mas cerca posible de la region de Azure SQL; se confirma en la 16C ANTES de crear el servicio
+    # (la region no se puede cambiar despues).
+    region: virginia
+    # Comprueba solo que el proceso responde. NO se usa /salud/lista: consultaria la base cada pocos segundos, gastaria la cuota
+    # gratuita de Azure SQL y la mantendria despierta para siempre.
+    healthCheckPath: /salud
+    # Un despliegue nuevo NO sale solo: una version nueva puede exigir migraciones que se aplican antes y a mano.
+    autoDeployTrigger: "off"
+    maxShutdownDelaySeconds: 60
+    # Archivos de los clientes (adjuntos privados, imagenes de la vitrina, reportes): el disco de Render es efimero salvo este (D1).
+    # Un disco impide los despliegues sin interrupcion y limita el servicio a una sola instancia: aceptado para este taller.
+    disk:
+      name: synctime-almacen
+      mountPath: /app/almacen
+      sizeGB: 5
+    envVars:
+      # --- Fijos y publicos ---
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: TZ
+        value: America/Santiago
+      - key: Jwt__Issuer
+        value: synctime
+      - key: Jwt__Audience
+        value: synctime
+      # Reintentos para la pausa automatica de Azure SQL gratuita (fase 16A).
+      - key: BaseDeDatos__ReintentosMaximos
+        value: "5"
+      - key: Correo__Modo
+        value: Smtp
+      # La API ve a Render y a Vercel como proxies: lee la IP y el protocolo reales solo de ellos. PROVISIONAL: la 16C mide que
+      # direcciones y cuantos saltos llegan de verdad (ingresar desde el sitio y mirar la IP guardada en Auditoria) y ajusta estas dos.
+      - key: ForwardedHeaders__Habilitado
+        value: "true"
+      - key: ForwardedHeaders__RedesDeConfianza__0
+        value: 10.0.0.0/8
+      - key: ForwardedHeaders__LimiteDeSaltos
+        value: "1"
+      # --- Los carga el usuario en el panel de Render (no son secretos, pero dependen de su cuenta y de la fase 16C) ---
+      - key: Cors__AllowedOrigins__0      # origen del sitio en Vercel, sin barra final: https://...vercel.app
+        sync: false
+      - key: Sitio__UrlPublica            # direccion del sitio para los enlaces de los correos y el QR
+        sync: false
+      - key: Correo__AvisosTaller         # casilla que recibe los avisos del taller
+        sync: false
+      - key: Correo__Remitente__Direccion
+        sync: false
+      - key: Google__ClientId             # ID de cliente OAuth de Google (no es un secreto)
+        sync: false
+      # --- SECRETOS: los carga el usuario en el panel de Render; nunca pasan por el repositorio ---
+      - key: ConnectionStrings__DefaultConnection   # Azure SQL; con «Connect Timeout=60» para la pausa automatica
+        sync: false
+      - key: Jwt__Key
+        sync: false
+      - key: RostroFacial__ClaveCifrado
+        sync: false
+      - key: Bootstrap__Admin__Email      # solo para el primer arranque; despues se puede quitar
+        sync: false
+      - key: Bootstrap__Admin__Password
+        sync: false
+      - key: Correo__Smtp__Usuario
+        sync: false
+      - key: Correo__Smtp__Password
+        sync: false

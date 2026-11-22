@@ -132,7 +132,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_ultima_modificacion")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<int?>("IdEmpleadoModifica")
                         .HasColumnType("int")
@@ -209,7 +209,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_publicacion")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<int?>("IdEmpleadoAutorizaLogo")
                         .HasColumnType("int")
@@ -474,7 +474,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_registro")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<DateTimeOffset?>("FechaVerificacionCorreo")
                         .HasColumnType("datetimeoffset(0)")
@@ -964,7 +964,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_cotizacion")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<DateTimeOffset?>("FechaEliminacionLogica")
                         .HasColumnType("datetimeoffset(0)")
@@ -1935,13 +1935,13 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("date")
                         .HasColumnName("fecha_pago")
-                        .HasDefaultValueSql("CONVERT(DATE, SYSDATETIME())");
+                        .HasDefaultValueSql("CONVERT(date, SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<DateTime>("FechaRegistro")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_registro")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<int?>("IdEmpleadoAnula")
                         .HasColumnType("int")
@@ -2062,7 +2062,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_pedido")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<int?>("IdCotizacion")
                         .HasColumnType("int")
@@ -3418,7 +3418,7 @@ namespace LetrerosHerreraSYNCTIMEapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
                         .HasColumnName("fecha_solicitud")
-                        .HasDefaultValueSql("SYSDATETIME()");
+                        .HasDefaultValueSql("CONVERT(datetime2(0), SYSDATETIMEOFFSET() AT TIME ZONE 'Pacific SA Standard Time')");
 
                     b.Property<string>("HuellaIp")
                         .HasMaxLength(64)
