@@ -47,6 +47,7 @@ entorno=(
     --env "ConnectionStrings__DefaultConnection=Server=127.0.0.1,1;Database=SyncTime_Fallo;User Id=sa;Password=${clave_sql};TrustServerCertificate=True;Connect Timeout=3"
     --env "Jwt__Key=${clave_jwt}" --env "Jwt__Issuer=synctime" --env "Jwt__Audience=synctime"
     --env "Cors__AllowedOrigins__0=http://localhost:8080" --env "Sitio__UrlPublica=http://localhost:8080"
+    --env "Almacen__Modo=Disco"
 )
 
 echo "== Construyendo la imagen sana (control)"
