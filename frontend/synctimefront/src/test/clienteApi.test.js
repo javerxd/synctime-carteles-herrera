@@ -15,7 +15,8 @@ describe('cliente de la API', () => {
     fetchSimulado = vi.fn();
     vi.stubGlobal('fetch', fetchSimulado);
     alSesionVencida = vi.fn();
-    configurarClienteApi({ obtenerToken: () => null, alSesionVencida });
+    // Fase 16C-1: un 502 de una lectura se repite solo mientras el servidor despierta; aquí no se espera (eso se prueba en fase16cDespertar).
+    configurarClienteApi({ obtenerToken: () => null, alSesionVencida, esperasDespertar: [] });
   });
 
   afterEach(() => vi.unstubAllGlobals());

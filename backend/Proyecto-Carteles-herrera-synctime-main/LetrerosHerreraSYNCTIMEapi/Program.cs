@@ -6,6 +6,7 @@ using LetrerosHerreraSYNCTIMEapi.Datos;
 using LetrerosHerreraSYNCTIMEapi.Datos.Correo;
 using LetrerosHerreraSYNCTIMEapi.Endpoints;
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Adjuntos;
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Almacen;
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Correo;
 using LetrerosHerreraSYNCTIMEapi.Infraestructura.Imagenes;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Correo;
@@ -60,6 +61,18 @@ LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.ValidarUrlPublica(builder
 var origenesCors = LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.OrigenesCors(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.IAuditoria, LetrerosHerreraSYNCTIMEapi.Datos.Auditoria.Auditoria>();
 
+// Fase 16C-1 (H12): los archivos de los clientes van a disco (desarrollo y compose) o a Azure Blob Storage (la nube gratuita, sin disco).
+// Fuera de desarrollo, Almacen:Modo es obligatorio y con Blob se revisa la cadena de conexion al arrancar (ConfiguracionDespliegue).
+var opcionesAlmacen = LetrerosHerreraSYNCTIMEapi.Api.ConfiguracionDespliegue.OpcionesDeAlmacen(builder.Configuration, builder.Environment);
+builder.Services.AddSingleton<IOptions<OpcionesAlmacen>>(Options.Create(opcionesAlmacen));
+if (opcionesAlmacen.EsBlob)
+    builder.Services.AddSingleton<IAlmacenArchivos, AlmacenEnBlob>();
+else
+    builder.Services.AddSingleton<IAlmacenArchivos>(sp => AlmacenEnDisco.Desde(
+        sp.GetRequiredService<IOptions<OpcionesAdjuntos>>(), sp.GetRequiredService<IOptions<OpcionesImagenes>>(),
+        sp.GetRequiredService<IOptions<LetrerosHerreraSYNCTIMEapi.Infraestructura.Reportes.OpcionesReportes>>(),
+        sp.GetRequiredService<IHostEnvironment>()));
+
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("No se configuro Jwt:Key.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]
@@ -96,7 +109,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 // Un valor mal escrito impide arrancar: es preferible a una API que acepta solicitudes y nunca avisa.
 builder.Services.AddOptions<OpcionesCorreo>()
     .Bind(builder.Configuration.GetSection(OpcionesCorreo.Seccion))
-    .Validate(o => o.ModoValido, "Correo:Modo debe ser Smtp o Bandeja.")
+    .Validate(o => o.ModoValido, "Correo:Modo debe ser Smtp, Api o Bandeja.")
+    .Validate(o => !o.EsApi || o.Api.ProveedorValido, "Correo:Api:Proveedor debe ser Brevo.")
+    .Validate(o => !o.EsApi || !o.ContactoIgualAlRemitente,
+        "Correo:ContactoTaller no puede ser la casilla automatica que envia los avisos (Correo:Remitente:Direccion).")
     .Validate(o => LetrerosHerreraSYNCTIMEapi.Negocio.Reglas.EsCorreo(o.ContactoTaller), "Correo:ContactoTaller debe ser el correo publico de contacto del taller.")
     .Validate(o => !string.Equals(o.ContactoTaller.Trim(), o.Smtp.Usuario?.Trim(), StringComparison.OrdinalIgnoreCase),
         "Correo:ContactoTaller no puede ser la casilla automatica que envia los avisos (Correo:Smtp:Usuario).")
@@ -109,9 +125,18 @@ builder.Services.AddSingleton<TablaDestinosAusente>();
 builder.Services.AddScoped<IDestinatariosAvisos, DestinatariosAvisosDesdeBaseYConfiguracion>();
 builder.Services.AddSingleton<EnviadorSmtp>();
 builder.Services.AddSingleton<EnviadorBandejaLocal>();
-builder.Services.AddSingleton<IEnviadorCorreo>(sp => sp.GetRequiredService<IOptions<OpcionesCorreo>>().Value.EsBandeja
-    ? sp.GetRequiredService<EnviadorBandejaLocal>()
-    : sp.GetRequiredService<EnviadorSmtp>());
+// Fase 16C-1 (H11): Render gratuito bloquea el SMTP; en la nube el correo sale por HTTPS (Correo:Modo = Api). Sin seguir redirecciones: la
+// clave del proveedor viaja en una cabecera propia que .NET no retira al redirigir a otro servidor.
+builder.Services.AddSingleton<EnviadorCorreoApi>();
+builder.Services.AddHttpClient(EnviadorCorreoApi.NombreDelCliente)
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, PooledConnectionLifetime = TimeSpan.FromMinutes(2) });
+builder.Services.AddSingleton<IEnviadorCorreo>(sp =>
+{
+    var modo = sp.GetRequiredService<IOptions<OpcionesCorreo>>().Value;
+    return modo.EsBandeja ? sp.GetRequiredService<EnviadorBandejaLocal>()
+        : modo.EsApi ? sp.GetRequiredService<EnviadorCorreoApi>()
+        : sp.GetRequiredService<EnviadorSmtp>();
+});
 builder.Services.AddSingleton<TrabajadorColaCorreo>();
 builder.Services.AddHostedService<ProcesadorColaCorreo>();
 builder.Services.AddScoped<IAvisosDelTaller, AvisosDelTaller>();
@@ -311,6 +336,39 @@ builder.Services.AddSingleton(new LimitadorPorCuenta(builder.Configuration.GetVa
 builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
 
+// Fase 16C-1 (H14): fuera de desarrollo, lo que toca la base al arrancar corre en segundo plano y reintenta mientras la base despierta (Azure SQL
+// gratuita se pausa sola; Render gratuito se duerme). El servidor abre el puerto de inmediato y /salud responde; /salud/lista la despierta.
+// Lo que no necesita la base (revisar la configuracion del primer administrador) sigue impidiendo arrancar si esta mal escrito.
+if (!builder.Environment.IsDevelopment())
+{
+    AdminBootstrapper.ValidarConfiguracion(builder.Configuration);
+    var opcionesDeArranque = OpcionesArranqueBase.Desde(builder.Configuration);
+    builder.Services.AddHostedService(sp => new TareasDeArranqueDeLaBase(
+        [
+            // Una base atrasada debe notarse (fuera de desarrollo tampoco se migra sola): sin la tabla de la cola, por ejemplo, ninguna
+            // solicitud avisaria al taller.
+            new PasoDeArranque("migraciones pendientes", async ct =>
+            {
+                await using var ambito = sp.CreateAsyncScope();
+                var db = ambito.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
+                if ((await db.Database.GetPendingMigrationsAsync(ct)).Any())
+                    sp.GetRequiredService<ILoggerFactory>().CreateLogger("Arranque").LogCritical(
+                        "La base {Base} tiene migraciones pendientes: partes de la API (como los avisos por correo) fallaran hasta aplicarlas con respaldo previo.", nombreBase);
+            }),
+            // A quien avisar de las solicitudes nuevas: si no hay nadie, se dice al arrancar (y lo muestra /salud/correo).
+            new PasoDeArranque("destinatarios de los avisos", async ct =>
+            {
+                await using var ambito = sp.CreateAsyncScope();
+                await ambito.ServiceProvider.GetRequiredService<IDestinatariosAvisos>().ObtenerAsync(ct);
+            }),
+            // La base de demostracion recibe sus usuarios de la semilla, no de Bootstrap:Admin.
+            new PasoDeArranque("primer administrador", _ => BasesDeDatos.EsDemo(nombreBase)
+                ? Task.CompletedTask
+                : AdminBootstrapper.CrearPrimerAdministradorAsync(sp, sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<ILoggerFactory>().CreateLogger("Arranque")))
+        ],
+        opcionesDeArranque, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IHostApplicationLifetime>(), sp.GetRequiredService<ILogger<TareasDeArranqueDeLaBase>>()));
+}
+
 var app = builder.Build();
 
 // Siempre a la vista: la conexion puede venir de un perfil, de una variable de entorno o de User Secrets,
@@ -348,23 +406,18 @@ if (app.Environment.IsDevelopment())
     else if ((await db.Database.GetPendingMigrationsAsync()).Any())
         app.Logger.LogWarning("La base {Base} tiene migraciones pendientes. No se aplican solas: respalde la base y ejecute 'dotnet ef database update'.", nombreBase);
 }
-else
+// Fuera de desarrollo (fase 16C-1, H14) estos mismos pasos corren en segundo plano, con reintentos, para que una base en pausa (Azure SQL
+// gratuita) no impida que la API levante: ver TareasDeArranqueDeLaBase, registrada antes de construir la aplicacion.
+if (app.Environment.IsDevelopment())
 {
-    // Fuera de desarrollo tampoco se migra sola, pero una base atrasada debe notarse: sin la tabla de la
-    // cola, por ejemplo, ninguna solicitud avisaria al taller.
-    await using var scope = app.Services.CreateAsyncScope();
-    var db = scope.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();
-    if ((await db.Database.GetPendingMigrationsAsync()).Any())
-        app.Logger.LogCritical("La base {Base} tiene migraciones pendientes: partes de la API (como los avisos por correo) fallaran hasta aplicarlas con respaldo previo.", nombreBase);
+    // A quien avisar de las solicitudes nuevas: si no hay nadie, se dice al arrancar (y lo muestra /salud/correo).
+    await using (var scope = app.Services.CreateAsyncScope())
+        await scope.ServiceProvider.GetRequiredService<IDestinatariosAvisos>().ObtenerAsync(CancellationToken.None);
+
+    // La base de demostracion recibe sus usuarios de la semilla, no de Bootstrap:Admin.
+    if (!BasesDeDatos.EsDemo(nombreBase))
+        await AdminBootstrapper.CrearPrimerAdministradorAsync(app.Services, app.Configuration, app.Logger);
 }
-
-// A quien avisar de las solicitudes nuevas: si no hay nadie, se dice al arrancar (y lo muestra /salud/correo).
-await using (var scope = app.Services.CreateAsyncScope())
-    await scope.ServiceProvider.GetRequiredService<IDestinatariosAvisos>().ObtenerAsync(CancellationToken.None);
-
-// La base de demostracion recibe sus usuarios de la semilla, no de Bootstrap:Admin.
-if (!BasesDeDatos.EsDemo(nombreBase))
-    await AdminBootstrapper.CrearPrimerAdministradorAsync(app.Services, app.Configuration, app.Logger);
 
 if (!app.Services.GetRequiredService<RostroFacialService>().Configurado)
     app.Logger.LogWarning("RostroFacial:ClaveCifrado falta o no es valida: el login facial queda deshabilitado.");

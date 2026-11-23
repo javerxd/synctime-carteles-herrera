@@ -13,11 +13,14 @@ public sealed class OpcionesCorreo
     public const string Seccion = "Correo";
     public const string ModoSmtp = "Smtp";
     public const string ModoBandeja = "Bandeja";
+    public const string ModoApi = "Api";
 
-    // Smtp: envio real. Bandeja: archivos .eml en una carpeta (solo para desarrollo).
+    // Smtp: envio real por SMTP (compose y desarrollo). Api: envio real por HTTPS con la API de un proveedor (la nube gratuita: Render
+    // bloquea el SMTP). Bandeja: archivos .eml en una carpeta (solo para desarrollo).
     public string Modo { get; set; } = ModoSmtp;
     public OpcionesRemitente Remitente { get; set; } = new();
     public OpcionesSmtp Smtp { get; set; } = new();
+    public OpcionesApiCorreo Api { get; set; } = new();
     public OpcionesBandeja Bandeja { get; set; } = new();
     public OpcionesCola Cola { get; set; } = new();
 
@@ -34,9 +37,17 @@ public sealed class OpcionesCorreo
     // la casilla automatica de avisos y dicen que se responda aqui; nunca se publica la casilla de avisos.
     public string ContactoTaller { get; set; } = "contacto.letrerosherrera@gmail.com";
 
-    public bool ModoValido => string.Equals(Modo, ModoSmtp, StringComparison.OrdinalIgnoreCase) || EsBandeja;
+    public bool ModoValido => string.Equals(Modo, ModoSmtp, StringComparison.OrdinalIgnoreCase) || EsBandeja || EsApi;
 
     public bool EsBandeja => string.Equals(Modo, ModoBandeja, StringComparison.OrdinalIgnoreCase);
+
+    // Fase 16C-1 (H11): correo por HTTPS con la API de un proveedor (la nube gratuita bloquea el SMTP).
+    public bool EsApi => string.Equals(Modo, ModoApi, StringComparison.OrdinalIgnoreCase);
+
+    // Con la API, la direccion que envia es Remitente:Direccion (verificada en el proveedor) y debe ser distinta del contacto publico del taller.
+    public bool ContactoIgualAlRemitente =>
+        !string.IsNullOrWhiteSpace(Remitente.Direccion)
+        && string.Equals(ContactoTaller.Trim(), Remitente.Direccion.Trim(), StringComparison.OrdinalIgnoreCase);
 
     // Gmail solo permite enviar como la cuenta autenticada (o un alias verificado de ella). En la bandeja
     // local, mientras no haya cuenta configurada, se usa una direccion que no existe fuera del equipo.
@@ -82,6 +93,36 @@ public sealed class OpcionesSmtp
     internal bool ServidorLocal =>
         string.Equals(Servidor, "localhost", StringComparison.OrdinalIgnoreCase)
         || (IPAddress.TryParse(Servidor, out var ip) && IPAddress.IsLoopback(ip));
+}
+
+// Correo por HTTPS (fase 16C-1, D8). La clave se carga como variable de entorno (Correo__Api__Clave, secreto de Render): nunca en un archivo
+// ni en un registro. ToString no la incluye.
+public sealed class OpcionesApiCorreo
+{
+    public const string ProveedorBrevo = "Brevo";
+
+    public string Proveedor { get; set; } = ProveedorBrevo;
+
+    // Direccion de la API de envio. Solo https (la clave viaja en una cabecera); http se admite unicamente para un servidor simulado local.
+    public string Url { get; set; } = "https://api.brevo.com/v3/smtp/email";
+
+    public string? Clave { get; set; }
+
+    // Brevo no admite imagenes incrustadas (cid:): el logotipo se pide por una direccion publica. Por omision, Sitio:UrlPublica + /marca/icono-192.png.
+    public string? UrlLogo { get; set; }
+
+    // Tiempo maximo de cada envio (RNFP17): un proveedor que no responde no deja al trabajador esperando para siempre.
+    public int TiempoEsperaSegundos { get; set; } = 20;
+
+    public bool ProveedorValido => string.Equals(Proveedor, ProveedorBrevo, StringComparison.OrdinalIgnoreCase);
+    internal bool TieneClave => !string.IsNullOrWhiteSpace(Clave);
+
+    internal bool UrlSegura =>
+        Uri.TryCreate(Url, UriKind.Absolute, out var uri)
+        && string.IsNullOrEmpty(uri.UserInfo)
+        && (uri.Scheme == Uri.UriSchemeHttps || (uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback));
+
+    public override string ToString() => Proveedor;
 }
 
 public sealed class OpcionesBandeja

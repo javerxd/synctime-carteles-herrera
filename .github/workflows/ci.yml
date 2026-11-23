@@ -39,9 +39,9 @@ env:
   API_DIR: backend/Proyecto-Carteles-herrera-synctime-main
   WEB_DIR: frontend/synctimefront
   # Pisos de pruebas: una suite que se saltea pruebas en silencio no puede dar verde (scripts/ci-resumen.py). Se suben cuando se agregan pruebas.
-  MINIMO_UNITARIAS: "749"
-  MINIMO_INTEGRACION: "768"
-  MINIMO_VITEST: "981"
+  MINIMO_UNITARIAS: "874"
+  MINIMO_INTEGRACION: "785"
+  MINIMO_VITEST: "998"
 
 jobs:
   estatica:
@@ -87,6 +87,27 @@ jobs:
         run: |
           dotnet restore "$API_DIR/LetrerosHerreraSYNCTIMEapi.slnx"
           dotnet build "$API_DIR/LetrerosHerreraSYNCTIMEapi.slnx" --configuration Release --no-restore
+      # Fase 16C-1 (H12): las pruebas del almacen de archivos en Blob corren contra Azurite, el emulador OFICIAL de Microsoft, en un contenedor de
+      # version fija (nunca la nube). No se omite ninguna (omitirlas solo se pide a mano en un equipo sin Azurite): si Azurite no responde, FALLAN. La cadena de
+      # conexion por omision de las pruebas («UseDevelopmentStorage=true») apunta a 127.0.0.1:10000 y no lleva ninguna clave escrita.
+      - name: Azurite (emulador de Azure Blob Storage, versión fija)
+        run: |
+          docker run --detach --name azurite-pruebas --publish 127.0.0.1:10000:10000 \
+            mcr.microsoft.com/azure-storage/azurite:3.38.0 \
+            azurite-blob --blobHost 0.0.0.0 --skipApiVersionCheck
+          listo=0
+          for intento in $(seq 1 30); do
+            if (exec 3<>/dev/tcp/127.0.0.1/10000) 2>/dev/null; then
+              listo=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$listo" != "1" ]; then
+            echo "::error::Azurite no quedó listo a tiempo"
+            docker logs --tail 80 azurite-pruebas
+            exit 1
+          fi
       - name: Pruebas unitarias
         run: >-
           dotnet test "$API_DIR/LetrerosHerreraSYNCTIMEapi.UnitTests" --configuration Release --no-build
@@ -139,9 +160,12 @@ jobs:
       - name: Registro de SQL Server si algo falló
         if: failure()
         run: docker logs --tail 120 sql-pruebas || true
-      - name: Apagar SQL Server
+      - name: Registro de Azurite si algo falló
+        if: failure()
+        run: docker logs --tail 120 azurite-pruebas || true
+      - name: Apagar SQL Server y Azurite
         if: ${{ !cancelled() }}
-        run: docker rm --force sql-pruebas || true
+        run: docker rm --force sql-pruebas azurite-pruebas || true
       - name: Guardar los resultados de las pruebas
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

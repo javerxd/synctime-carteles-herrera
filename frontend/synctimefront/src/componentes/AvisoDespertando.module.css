@@ -1,0 +1,60 @@
+/* Fase 16C-1: aviso fijo ABAJO a la izquierda (la pila de avisos va abajo a la derecha y las barras arriba), sin capturar clics: la página
+   sigue usable mientras se espera. Solo tokens del sistema. */
+.contenedor {
+  position: fixed;
+  inset: auto var(--margen-pagina) var(--espacio-4);
+  z-index: var(--capa-flotante);
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+  max-width: 32rem;
+  padding: var(--espacio-4);
+  border: 1px solid var(--tono-info-borde);
+  border-radius: var(--radio-lg);
+  background: var(--tono-info-fondo);
+  color: var(--color-texto);
+  box-shadow: var(--sombra-flotante);
+}
+
+.giro {
+  flex: none;
+  margin-top: 0.1rem;
+  color: var(--tono-info-texto);
+  animation: girar 1.2s linear infinite;
+}
+
+.cuerpo {
+  display: grid;
+  gap: var(--espacio-1);
+  min-width: 0;
+}
+
+.titulo {
+  color: var(--tono-info-texto);
+  font-weight: var(--peso-seminegrita);
+  line-height: var(--interlineado-compacto);
+}
+
+.texto {
+  color: var(--color-texto-secundario);
+  font-size: var(--tamano-sm);
+  line-height: var(--interlineado-texto);
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .giro {
+    animation: none;
+  }
+}

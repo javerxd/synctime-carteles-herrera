@@ -57,7 +57,8 @@ public static class ReportesApi
                 case ResultadoDescarga.Archivo archivo:
                     // Un reporte lleva datos de clientes: nada se guarda en caches intermedias.
                     http.Response.Headers.CacheControl = "no-store";
-                    return Results.File(archivo.Ruta, archivo.TipoMime, archivo.Nombre);
+                    // Fase 16C-1: el reporte sale como flujo (en la nube vive en Blob). ASP.NET cierra el flujo al terminar.
+                    return Results.Stream(archivo.Contenido.Flujo, archivo.TipoMime, archivo.Nombre);
                 case ResultadoDescarga.Vencido:
                     return ErrorApi.Crear(StatusCodes.Status410Gone, "exportacion_vencida", "El archivo venció y ya no está disponible. Vuelve a pedirlo.");
                 case ResultadoDescarga.NoListo { Estado: "fallido" } fallido:

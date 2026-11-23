@@ -96,8 +96,9 @@ public static class AdjuntoApi
         http.Response.Headers.XContentTypeOptions = "nosniff";
         if (archivo is null)
             return Results.NotFound();
+        // Fase 16C-1: el archivo sale como flujo (en la nube vive en Blob, no hay ruta de disco). ASP.NET cierra el flujo al terminar.
         return archivo.NombreDescarga is { } nombre
-            ? Results.File(archivo.Ruta, archivo.TipoContenido, fileDownloadName: nombre)
-            : Results.File(archivo.Ruta, archivo.TipoContenido);
+            ? Results.Stream(archivo.Archivo.Flujo, archivo.TipoContenido, fileDownloadName: nombre)
+            : Results.Stream(archivo.Archivo.Flujo, archivo.TipoContenido);
     }
 }

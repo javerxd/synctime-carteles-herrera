@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ProveedorAvisos } from './avisos/Avisos';
+import AvisoDespertando from './componentes/AvisoDespertando';
 import ErrorBoundary from './componentes/ErrorBoundary';
 import { Esqueleto } from './componentes/ui';
 import { EstructuraCuenta } from './estructuras/EstructuraCuenta';
@@ -74,6 +75,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <ProveedorAvisos>
+        {/* Fase 16C-1: «el sistema está despertando» mientras Render y la base de datos gratuitos salen del reposo. */}
+        <AvisoDespertando />
         <ErrorBoundary recargar>
           <Routes>
             <Route element={<EstructuraPublica />}>

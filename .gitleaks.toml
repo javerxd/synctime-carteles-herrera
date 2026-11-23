@@ -22,6 +22,8 @@ description = "Archivos de PRUEBAS que contienen a proposito claves inventadas: 
 targetRules = ["generic-api-key"]
 paths = [
   '''ConexionDePruebasTests\.cs$''',
+  # Fase 16C-1: la cadena de conexion INVENTADA (cuenta «cuentafalsa», clave en base64 de un texto de prueba) de la prueba «la nube no responde».
+  '''AlmacenArchivosTests\.cs$''',
   '''scripts/test_validar_contenedores\.py$''',
   '''scripts/test_validar_workflows\.py$''',
 ]

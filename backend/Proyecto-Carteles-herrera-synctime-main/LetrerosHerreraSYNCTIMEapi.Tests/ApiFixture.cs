@@ -104,6 +104,8 @@ public sealed class ApiFixture : IAsyncLifetime
             ["Correo__Smtp__Password"] = "sin-uso",
             ["Correo__Remitente__Direccion"] = "synctime@test.local",
             ["Sitio__UrlPublica"] = "https://synctime.test",
+            // Fase 16C-1: fuera de desarrollo el modo del almacen se declara (Almacen__Modo); las pruebas usan las carpetas temporales de abajo.
+            ["Almacen__Modo"] = "Disco",
             ["Imagenes__Carpeta"] = CarpetaImagenes,
             ["Adjuntos__Carpeta"] = CarpetaAdjuntos,
             // Fase 13A: las exportaciones van a una carpeta temporal y el proceso en segundo plano no corre solo: cada prueba lo ejecuta

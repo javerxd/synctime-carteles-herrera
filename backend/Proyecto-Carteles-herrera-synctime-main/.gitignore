@@ -27,3 +27,6 @@ TestResults/
 # Bandeja local de correo (desarrollo) e imagenes subidas: datos, no codigo
 **/bandeja-correo/
 **/almacen/
+# Fase 16C-1: el CODIGO del almacen de archivos vive en Infraestructura/Almacen/ (en Windows git no distingue mayusculas y la regla de arriba
+# lo ocultaria): no es un dato, es codigo y se sube.
+!**/Infraestructura/Almacen/

@@ -241,7 +241,7 @@ public sealed class ServicioImagenes(LetrerosHerreradbContext db, AlmacenImagene
         catch
         {
             // Sin registro en la base (o si fallo la segunda escritura), los archivos quedarian huerfanos.
-            almacen.Borrar(clave);
+            await almacen.BorrarAsync(clave);
             throw;
         }
 

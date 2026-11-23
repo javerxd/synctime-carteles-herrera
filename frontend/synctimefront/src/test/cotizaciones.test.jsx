@@ -167,8 +167,8 @@ describe('editor de cotización', () => {
     const material = await screen.findByRole('combobox', { name: /^Material/ });
     // Con la máquina cargada (Vitest junto a Playwright, o los 2 núcleos de un ejecutor de CI con 55 archivos en paralelo), el foco y la lista
     // pueden tardar mucho más de 1 s: en la CI de la fase 16B una ejecución falló a los 3 s y otras tres pasaron con el mismo código.
-    await waitFor(() => expect(material).toHaveFocus(), { timeout: 8000 });
-    await waitFor(() => expect(within(material).getByRole('option', { name: 'Vinilo impreso' })).toBeInTheDocument(), { timeout: 8000 });
+    await waitFor(() => expect(material).toHaveFocus(), { timeout: 20000 });
+    await waitFor(() => expect(within(material).getByRole('option', { name: 'Vinilo impreso' })).toBeInTheDocument(), { timeout: 20000 });
     expect(within(material).queryByRole('option', { name: 'Perfil de aluminio' })).not.toBeInTheDocument();
     escribir(material, '2');
     const costo = screen.getByRole('textbox', { name: /^Costo unitario/ });
@@ -191,7 +191,7 @@ describe('editor de cotización', () => {
       materiales: [{ idMaterial: 1, medidaAplicada: null, cantidad: 2.5, costoUnitario: 10500 }], costoManoObra: 30000, otrosCostos: 0, observaciones: null,
     }, { clave: expect.stringMatching(/^[0-9a-f-]{36}$/) }));
     await waitFor(() => expect(screen.getByTestId('ruta')).toHaveTextContent('/panel/cotizaciones/90'));
-  }, 30_000);
+  }, 60_000);
 
   it('sin materiales ni mano de obra no se emite: el error queda en la mano de obra, con el foco', async () => {
     solicitudes.obtener.mockResolvedValue(SOLICITUD);

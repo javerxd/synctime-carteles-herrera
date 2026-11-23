@@ -1,5 +1,11 @@
-# Fase 16A (RNFO14, RNFO15, RNFP04): Blueprint de Render para la API (Docker). NO crea nada por si solo: Render lo lee cuando
-# se crea el Blueprint desde el panel, y la creacion de servicios, discos y planes de pago la hace el usuario en la fase 16C.
+# Fase 16A (RNFO14, RNFO15, RNFP04) y 16C-1 (D1, D2, D8, D12): Blueprint de Render para la API (Docker), en el PLAN GRATUITO. NO crea nada por si
+# solo: Render lo lee cuando se crea el Blueprint desde el panel, y la creacion del servicio la hace el usuario en la fase 16C-3.
+#
+# Lo que el plan gratuito cambia (documentado en docs/despliegue.md):
+#  - NO tiene disco persistente: los archivos de los clientes van a Azure Blob Storage (Almacen__Modo = Blob), no a /app/almacen.
+#  - BLOQUEA el SMTP (puertos 25, 465 y 587): el correo sale por HTTPS con la API de Brevo (Correo__Modo = Api).
+#  - Se duerme tras ~15 minutos sin trafico y despertar tarda cerca de un minuto: la API tolera la base en pausa y el sitio avisa
+#    «el sistema esta despertando» (y se reintenta solo).
 #
 # Reglas de este archivo:
 #  - Ningun secreto ni valor propio del despliegue: los que dependen de la cuenta se declaran con `sync: false` (Render pide el valor
@@ -14,9 +20,9 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Proyecto-Carteles-herrera-synctime-main/Dockerfile
     dockerContext: ./backend/Proyecto-Carteles-herrera-synctime-main
-    # D2 (decidido por el usuario): plan de pago, para que el servicio no se duerma (RNFP04). Se parte del plan de pago mas chico;
-    # la 16C mide la memoria con la prueba de carga y lo sube (por ejemplo a 1c-2g) si se queda corto.
-    plan: 0.5c-512mb
+    # D2 (16C, costo $0): plan gratuito (512 MB y una fraccion de CPU; se duerme sin trafico). La 16C-3 mide la memoria con la prueba de carga
+    # y, si no alcanza, DETIENE el trabajo y pregunta (D16: plan de pago pequeño o Azure Container Apps).
+    plan: free
     # D5: provisional. Debe estar lo mas cerca posible de la region de Azure SQL; se confirma en la 16C ANTES de crear el servicio
     # (la region no se puede cambiar despues).
     region: virginia
@@ -26,12 +32,8 @@ services:
     # Un despliegue nuevo NO sale solo: una version nueva puede exigir migraciones que se aplican antes y a mano.
     autoDeployTrigger: "off"
     maxShutdownDelaySeconds: 60
-    # Archivos de los clientes (adjuntos privados, imagenes de la vitrina, reportes): el disco de Render es efimero salvo este (D1).
-    # Un disco impide los despliegues sin interrupcion y limita el servicio a una sola instancia: aceptado para este taller.
-    disk:
-      name: synctime-almacen
-      mountPath: /app/almacen
-      sizeGB: 5
+    # SIN disco (el plan gratuito no lo admite): el disco de Render es efimero y se borra en cada reinicio o despliegue. Los archivos de los
+    # clientes (adjuntos privados, imagenes de la vitrina, reportes) viven en Azure Blob Storage (D1): Almacen__Modo = Blob, mas abajo.
     envVars:
       # --- Fijos y publicos ---
       - key: ASPNETCORE_ENVIRONMENT
@@ -45,8 +47,16 @@ services:
       # Reintentos para la pausa automatica de Azure SQL gratuita (fase 16A).
       - key: BaseDeDatos__ReintentosMaximos
         value: "5"
+      # Render gratuito bloquea el SMTP: el correo sale por HTTPS con la API de Brevo (D8). La clave va aparte (Correo__Api__Clave).
       - key: Correo__Modo
-        value: Smtp
+        value: Api
+      - key: Correo__Api__Proveedor
+        value: Brevo
+      # Los archivos van a Azure Blob Storage (contenedor privado). El modo se declara siempre: sin el, la API no arranca.
+      - key: Almacen__Modo
+        value: Blob
+      - key: Almacen__Blob__Contenedor
+        value: archivos
       # La API ve a Render y a Vercel como proxies: lee la IP y el protocolo reales solo de ellos. PROVISIONAL: la 16C mide que
       # direcciones y cuantos saltos llegan de verdad (ingresar desde el sitio y mirar la IP guardada en Auditoria) y ajusta estas dos.
       - key: ForwardedHeaders__Habilitado
@@ -62,7 +72,7 @@ services:
         sync: false
       - key: Correo__AvisosTaller         # casilla que recibe los avisos del taller
         sync: false
-      - key: Correo__Remitente__Direccion
+      - key: Correo__Remitente__Direccion   # direccion VERIFICADA como remitente en Brevo (distinta del contacto publico del taller)
         sync: false
       - key: Google__ClientId             # ID de cliente OAuth de Google (no es un secreto)
         sync: false
@@ -77,7 +87,7 @@ services:
         sync: false
       - key: Bootstrap__Admin__Password
         sync: false
-      - key: Correo__Smtp__Usuario
+      - key: Correo__Api__Clave           # clave de la API de Brevo (v3)
         sync: false
-      - key: Correo__Smtp__Password
+      - key: Almacen__Blob__CadenaDeConexion   # cadena de conexion de la cuenta de almacenamiento de Azure (lleva la clave de la cuenta)
         sync: false

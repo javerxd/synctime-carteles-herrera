@@ -31,7 +31,7 @@ public abstract record ResultadoDescarga
     public sealed record NoEncontrado : ResultadoDescarga;
     public sealed record NoListo(string Estado, string? Error) : ResultadoDescarga;
     public sealed record Vencido : ResultadoDescarga;
-    public sealed record Archivo(string Ruta, string TipoMime, string Nombre) : ResultadoDescarga;
+    public sealed record Archivo(LetrerosHerreraSYNCTIMEapi.Infraestructura.Almacen.ArchivoAbierto Contenido, string TipoMime, string Nombre) : ResultadoDescarga;
 }
 
 public sealed class ServicioExportaciones(
@@ -125,9 +125,12 @@ public sealed class ServicioExportaciones(
             return new ResultadoDescarga.NoEncontrado();
         if (trabajo.Estado != EstadosExportacion.Listo)
             return new ResultadoDescarga.NoListo(trabajo.Estado, trabajo.Error);
-        if (EstaVencido(trabajo, reloj.GetUtcNow()) || almacen.Ruta(trabajo.IdTrabajo, trabajo.Formato) is not { } ruta)
+        if (EstaVencido(trabajo, reloj.GetUtcNow()))
             return new ResultadoDescarga.Vencido();
-        return new ResultadoDescarga.Archivo(ruta, FormatosReporte.TipoMime(trabajo.Formato), trabajo.NombreArchivo!);
+        // Quien recibe el Archivo cierra el flujo (el endpoint lo entrega a la respuesta, que lo cierra al terminar).
+        if (await almacen.AbrirAsync(trabajo.IdTrabajo, trabajo.Formato, ct) is not { } contenido)
+            return new ResultadoDescarga.Vencido();
+        return new ResultadoDescarga.Archivo(contenido, FormatosReporte.TipoMime(trabajo.Formato), trabajo.NombreArchivo!);
     }
 
     private static bool EstaVencido(TrabajoExportacion t, DateTimeOffset ahora) =>

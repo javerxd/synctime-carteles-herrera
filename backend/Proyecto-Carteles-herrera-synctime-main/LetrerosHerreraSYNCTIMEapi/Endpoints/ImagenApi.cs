@@ -74,15 +74,16 @@ public static class ImagenApi
         .Produces<ImagenSubida>(StatusCodes.Status201Created);
 
         // Los nombres son aleatorios y nunca se reutilizan, asi que el navegador puede guardarlas un año.
-        grupo.MapGet("/{archivo}", (string archivo, AlmacenImagenes almacen, HttpContext http) =>
+        grupo.MapGet("/{archivo}", async (string archivo, AlmacenImagenes almacen, HttpContext http, CancellationToken ct) =>
         {
-            var ruta = almacen.Ruta(archivo);
-            if (ruta is null)
+            // El archivo sale como flujo (fase 16C-1): en la nube vive en Blob y no hay una ruta de disco que entregar.
+            var imagen = await almacen.AbrirAsync(archivo, ct);
+            if (imagen is null)
                 return Results.NotFound();
 
             http.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-            return Results.File(ruta, "image/webp",
-                lastModified: File.GetLastWriteTimeUtc(ruta),
+            return Results.Stream(imagen.Flujo, "image/webp",
+                lastModified: imagen.UltimaModificacion,
                 entityTag: new EntityTagHeaderValue($"\"{Path.GetFileNameWithoutExtension(archivo)}\""));
         })
         .AllowAnonymous()
