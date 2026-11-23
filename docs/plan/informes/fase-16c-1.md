@@ -1,6 +1,6 @@
 # Informe de la fase 16C-1 — Código y archivos para la nube gratuita
 
-Fecha: 22-11-2026 · Rama `fase-16c-nube-1` (nace de `main`, commit `f8e4999`) · Estado: **construida, en revisión; parada para tu visto bueno.** No existe ningún recurso en la nube.
+Fecha: 22-11-2026 · Rama `fase-16c-nube-1` (nace de `main`, commit `f8e4999`) · Estado: **APROBADA por el usuario el 22-11-2026** (visto bueno formal tras la CI en verde). No existe ningún recurso en la nube.
 
 Requisitos tocados: **RNFP04** (límite documentado de disponibilidad), **RNFP09 y RNFP20** (la base se prepara; respaldo y restauración son de la 16C-2), **RNFE03** (16C-3), **RNFO15/RNFO16** (CI), **RNFP29** (CORS sin cambios).
 
@@ -26,7 +26,14 @@ Requisitos tocados: **RNFP04** (límite documentado de disponibilidad), **RNFP09
 | Lint / build del frontend | sin errores nuevos (avisos previos) / build correcto, presupuesto de peso en verde |
 | `validar-contenedores.py`, `validar-workflows.py` y sus pruebas | **43 / 60 de 60, en verde** (con PyYAML en un entorno temporal) |
 
-**No verificado aquí:** las pruebas de Blob contra Azurite y `docker compose up` con el cambio (no hay Docker): se ejecutan en la CI. El uso del SDK de Blob es por eso **no confirmado hasta la primera ejecución en GitHub**.
+**No verificable en este equipo (no hay Docker), verificado en la CI:** las pruebas de Blob contra Azurite 3.38.0 y `docker compose up` con el cambio.
+
+## 2b. Resultado en la CI de GitHub (rama `fase-16c-nube-1`)
+
+- **Primera ejecución (commit `2bd7ffd`):** en verde `estática`, `backend` (874 unitarias, **con las 11 pruebas de Blob contra Azurite**, y 785 de integración), `imágenes` y `compose`. En rojo, con causa propia y ninguna del código de la fase: (1) `secretos`: gitleaks marcó la cadena de conexión inventada de `AlmacenArchivosTests.cs` (falso positivo); (2) `fallo-tzdata`: el guion no pasaba `Almacen__Modo`, que la API ahora exige, y moría por eso (código 139) en vez de por la zona horaria; (3) `frontend`: una sola prueba, la intermitente conocida del foco de `cotizaciones.test.jsx`.
+- **Corrección (commit `9b87fe7`):** excepción acotada en `.gitleaks.toml` (regla `generic-api-key`, ese archivo, con su motivo), `Almacen__Modo=Disco` en `fallos-a-proposito.sh` y más margen a la prueba del foco (20 s y 60 s).
+- **Segunda ejecución (commit `9b87fe7`): los siete jobs en verde** y `publicar` omitido (correcto en una rama). Con esto queda **confirmado en un entorno real** el uso del SDK de Azure.Storage.Blobs contra el emulador y que la API arranca en compose con `Almacen__Modo: Disco`.
+- Sigue sin verificarse, a propósito, contra la nube real: es trabajo de la 16C-2 (Azure) y la 16C-3.
 
 ## 3. Fallos a propósito (hechos)
 
@@ -38,5 +45,5 @@ Almacén: nombre con `../`, área desconocida, contenedor público (se rechaza y
 
 ## 5. Lo que necesito de ti
 
-1. Mirar el diff y, si estás de acuerdo, **subir la rama**; yo leo la CI con `gh run view` cuando digas «mira tú». Lo importante a vigilar: las 11 pruebas de Blob contra Azurite y `docker compose` (la API ahora exige `Almacen__Modo`).
-2. Tu visto bueno antes de empezar la 16C-2 (Azure).
+1. ~~Subir la rama y revisar la CI~~ — hecho: verde en `9b87fe7`.
+2. **Aprobación formal (22-11-2026):** el usuario aprueba la 16C-1. Queda por hacer, antes de la sesión de la 16C-2, **fusionar `fase-16c-nube-1` a `main`** (Pull request con commit de fusión; la fusión dispara la primera publicación real de imágenes en GHCR). La 16C-2 (Azure) empieza en una sesión nueva con el «Prompt 2» de `fase-16c-prompt.md`.
