@@ -650,7 +650,8 @@ public sealed class ServicioSolicitudes(
 
 public sealed record AdjuntoSubido(int IdAdjunto, string Tipo, string Nombre, int Bytes, int? Ancho, int? Alto, string? UrlMiniatura);
 
-public sealed record ArchivoAdjunto(string Ruta, string TipoContenido, string? NombreDescarga);
+// El archivo ya abierto para enviarlo (fase 16C-1: en la nube vive en Blob y no hay ruta de disco). Quien lo recibe cierra el flujo.
+public sealed record ArchivoAdjunto(LetrerosHerreraSYNCTIMEapi.Infraestructura.Almacen.ArchivoAbierto Archivo, string TipoContenido, string? NombreDescarga);
 
 public abstract record ResultadoAdjunto
 {
@@ -750,7 +751,7 @@ public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjunto
             await BloqueoDeAplicacion.TomarAsync(db, recurso, BloqueoDeAplicacion.Espera(configuracion), ct);
             if (await contar() >= ReglasAdjunto.MaxPorSolicitud)
             {
-                almacen.Borrar(clave);
+                await almacen.BorrarAsync(clave);
                 return new ResultadoAdjunto.Tope();
             }
             db.AdjuntosSolicitud.Add(adjunto);
@@ -765,7 +766,7 @@ public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjunto
         catch
         {
             // Sin registro en la base, los archivos quedarian huerfanos.
-            almacen.Borrar(clave);
+            await almacen.BorrarAsync(clave);
             throw;
         }
     }
@@ -829,7 +830,7 @@ public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjunto
             .ExecuteDeleteAsync(ct);
         if (borrados != 1)
             return false;
-        almacen.Borrar(clave);
+        await almacen.BorrarAsync(clave);
         return true;
     }
 
@@ -861,7 +862,7 @@ public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjunto
             await CambiarVersionAsync(idSolicitud, ct);
             await transaccion.CommitAsync(CancellationToken.None);
         }
-        almacen.Borrar(adjunto.Clave);
+        await almacen.BorrarAsync(adjunto.Clave);
         return new ResultadoAdjunto.Borrado();
     }
 
@@ -899,12 +900,12 @@ public sealed class ServicioAdjuntos(LetrerosHerreradbContext db, AlmacenAdjunto
             return null;
 
         var esPdf = adjunto.Tipo == AdjuntoSolicitud.TipoPdf;
-        var ruta = almacen.Ruta(adjunto.Clave, esPdf, version);
-        if (ruta is null)
+        var archivo = await almacen.AbrirAsync(adjunto.Clave, esPdf, version, ct);
+        if (archivo is null)
             return null;
         return esPdf
-            ? new ArchivoAdjunto(ruta, "application/pdf", ReglasAdjunto.NombreDescargaPdf(adjunto.NombreOriginal))
-            : new ArchivoAdjunto(ruta, "image/webp", null);
+            ? new ArchivoAdjunto(archivo, "application/pdf", ReglasAdjunto.NombreDescargaPdf(adjunto.NombreOriginal))
+            : new ArchivoAdjunto(archivo, "image/webp", null);
     }
 }
 

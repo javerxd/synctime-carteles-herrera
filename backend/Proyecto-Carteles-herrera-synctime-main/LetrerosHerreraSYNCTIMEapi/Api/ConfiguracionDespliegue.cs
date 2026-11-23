@@ -1,4 +1,5 @@
 using System.Net;
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Almacen;
 using Microsoft.AspNetCore.HttpOverrides;
 
 namespace LetrerosHerreraSYNCTIMEapi.Api;
@@ -79,6 +80,35 @@ public static class ConfiguracionDespliegue
         if (b.Length == 16) // IPv6: direcciones locales unicas (fc00::/7)
             return (b[0] & 0xFE) == 0xFC;
         return b[0] == 10 || (b[0] == 172 && b[1] is >= 16 and <= 31) || (b[0] == 192 && b[1] == 168) || (b[0] == 100 && b[1] is >= 64 and <= 127) || (b[0] == 169 && b[1] == 254);
+    }
+
+    // Fase 16C-1 (H12): donde viven los archivos de los clientes. Render gratuito no tiene disco persistente: sin Blob, cada reinicio los borraria.
+    // Por eso, fuera de desarrollo, Almacen:Modo se DECLARA (Disco o Blob): una variable olvidada no puede dejar la API guardando adjuntos en un disco
+    // que se pierde. Con Blob, la cadena de conexion y el nombre del contenedor se revisan al arrancar (el mensaje nunca repite la cadena).
+    public static OpcionesAlmacen OpcionesDeAlmacen(IConfiguration configuracion, IHostEnvironment entorno)
+    {
+        var seccion = configuracion.GetSection(OpcionesAlmacen.Seccion);
+        if (!entorno.IsDevelopment() && string.IsNullOrWhiteSpace(seccion["Modo"]))
+            throw new InvalidOperationException(
+                "Falta Almacen:Modo: declare Disco (carpetas del servidor, para compose) o Blob (Azure Blob Storage, para la nube). " +
+                "Render gratuito no tiene disco persistente: ahi se usa Blob.");
+        var opciones = seccion.Get<OpcionesAlmacen>() ?? new OpcionesAlmacen();
+        if (opciones.Problema() is { } problema)
+            throw new InvalidOperationException(problema);
+        if (opciones.EsBlob)
+        {
+            try
+            {
+                _ = new Azure.Storage.Blobs.BlobServiceClient(opciones.Blob.CadenaDeConexion);
+            }
+            catch (Exception)
+            {
+                // Sin la excepcion original: su texto podria repetir parte de la cadena, que lleva la clave de la cuenta. Se arma el cliente
+                // (no se conecta a nada) para que una cadena mal pegada impida arrancar y no falle recien en la primera subida de un cliente.
+                throw new InvalidOperationException("Almacen:Blob:CadenaDeConexion no es una cadena de conexion valida de Azure Storage.");
+            }
+        }
+        return opciones;
     }
 
     // Los origenes que el navegador puede usar para llamar a la API con credenciales (RNFP29).

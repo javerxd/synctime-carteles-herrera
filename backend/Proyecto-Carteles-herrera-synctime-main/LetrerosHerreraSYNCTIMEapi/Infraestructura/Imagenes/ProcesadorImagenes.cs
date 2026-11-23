@@ -1,8 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using LetrerosHerreraSYNCTIMEapi.Infraestructura.Almacen;
 using LetrerosHerreraSYNCTIMEapi.Negocio.Imagenes;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using SkiaSharp;
 
 namespace LetrerosHerreraSYNCTIMEapi.Infraestructura.Imagenes;
@@ -135,16 +134,15 @@ public sealed class OpcionesImagenes
 {
     public const string Seccion = "Imagenes";
 
-    // Fuera de la carpeta del sitio y del repositorio (.gitignore). Relativa a la carpeta de la API.
+    // Fuera de la carpeta del sitio y del repositorio (.gitignore). Relativa a la carpeta de la API. Solo con Almacen:Modo=Disco.
     public string Carpeta { get; set; } = "almacen/imagenes";
 }
 
 // Archivos de las imagenes: "{clave}-grande.webp" y "{clave}-miniatura.webp". Solo se sirve un nombre
-// que cumpla exactamente ese formato, asi una ruta como "../appsettings.json" nunca llega al disco.
-public sealed partial class AlmacenImagenes(IOptions<OpcionesImagenes> opciones, IHostEnvironment entorno)
+// que cumpla exactamente ese formato, asi una ruta como "../appsettings.json" nunca llega al almacen.
+// Desde la fase 16C-1 el almacen es IAlmacenArchivos (disco o Blob).
+public sealed partial class AlmacenImagenes(IAlmacenArchivos almacen)
 {
-    public string Carpeta => Path.GetFullPath(Path.Combine(entorno.ContentRootPath, opciones.Value.Carpeta));
-
     public static string NuevaClave() => RandomNumberGenerator.GetHexString(32, lowercase: true);
     public static string NombreGrande(string clave) => $"{clave}-grande.webp";
     public static string NombreMiniatura(string clave) => $"{clave}-miniatura.webp";
@@ -157,45 +155,18 @@ public sealed partial class AlmacenImagenes(IOptions<OpcionesImagenes> opciones,
 
     public async Task GuardarAsync(string clave, ImagenProcesada imagen, CancellationToken ct)
     {
-        Directory.CreateDirectory(Carpeta);
-        await EscribirAsync(NombreGrande(clave), imagen.Grande, ct);
-        await EscribirAsync(NombreMiniatura(clave), imagen.Miniatura, ct);
+        await almacen.GuardarAsync(AreasAlmacen.Imagenes, NombreGrande(clave), imagen.Grande, ct);
+        await almacen.GuardarAsync(AreasAlmacen.Imagenes, NombreMiniatura(clave), imagen.Miniatura, ct);
     }
 
-    // Se escribe en un temporal y se renombra: nadie puede leer un archivo a medio escribir.
-    private async Task EscribirAsync(string nombre, byte[] datos, CancellationToken ct)
-    {
-        var final = Path.Combine(Carpeta, nombre);
-        var temporal = final + ".tmp";
-        await File.WriteAllBytesAsync(temporal, datos, ct);
-        File.Move(temporal, final, overwrite: false);
-    }
-
-    // Limpieza tras un fallo al subir: tambien los temporales, y sin lanzar, para no tapar el error original.
-    public void Borrar(string clave)
+    // Limpieza tras un fallo al subir: sin lanzar, para no tapar el error original (y sin cancelacion: debe correr aunque la peticion se cancele).
+    public async Task BorrarAsync(string clave)
     {
         foreach (var nombre in new[] { NombreGrande(clave), NombreMiniatura(clave) })
-        {
-            foreach (var ruta in new[] { Path.Combine(Carpeta, nombre), Path.Combine(Carpeta, nombre + ".tmp") })
-            {
-                try
-                {
-                    File.Delete(ruta);
-                }
-                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-                {
-                    // Queda un archivo sin registro: ocupa espacio, pero nunca se sirve sin su nombre aleatorio.
-                }
-            }
-        }
+            await almacen.BorrarAsync(AreasAlmacen.Imagenes, nombre);
     }
 
-    // Ruta completa del archivo, o null si el nombre no es de una imagen o no existe.
-    public string? Ruta(string archivo)
-    {
-        if (!NombreValido(archivo))
-            return null;
-        var ruta = Path.Combine(Carpeta, archivo);
-        return File.Exists(ruta) ? ruta : null;
-    }
+    // La imagen abierta para enviarla, o null si el nombre no es de una imagen o no existe.
+    public Task<ArchivoAbierto?> AbrirAsync(string archivo, CancellationToken ct) =>
+        NombreValido(archivo) ? almacen.AbrirAsync(AreasAlmacen.Imagenes, archivo, ct) : Task.FromResult<ArchivoAbierto?>(null);
 }

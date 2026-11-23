@@ -218,6 +218,19 @@ class ValidadorDeWorkflows(unittest.TestCase):
         self.cambiar(CI, r"mssql/server:2022-CU28-ubuntu-22\.04", "mssql/server:2019-latest")
         self.assertDetecta("ci-contenido")
 
+    # --- Fase 16C-1: Azurite para el almacen en Blob ---
+    def test_la_ci_no_levanta_azurite(self):
+        self.cambiar(CI, r"azure-storage/azurite:3\.38\.0", "azure-storage/otra-cosa:1")
+        self.assertDetecta("ci-contenido")
+
+    def test_azurite_sin_version_fija(self):
+        self.cambiar(CI, r"azure-storage/azurite:3\.38\.0", "azure-storage/azurite:latest")
+        self.assertDetecta("sin-latest")
+
+    def test_la_ci_omite_las_pruebas_de_blob(self):
+        self.cambiar(CI, r'  DOTNET_NOLOGO: "1"\n', '  DOTNET_NOLOGO: "1"\n  SYNCTIME_OMITIR_BLOB: "1"\n')
+        self.assertDetecta("ci-blob")
+
     # --- Migracion manual con aprobacion ---
     def test_la_migracion_sin_entorno_protegido(self):
         self.cambiar(MIGRAR, r"    environment: [^\n]*\n", "")

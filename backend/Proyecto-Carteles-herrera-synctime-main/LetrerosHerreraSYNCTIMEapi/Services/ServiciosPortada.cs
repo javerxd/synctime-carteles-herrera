@@ -507,18 +507,18 @@ public sealed class PurgaDatosPersonales(LetrerosHerreradbContext db, AlmacenAdj
             borrados = await db.AdjuntosSolicitud.Where(a => ids.Contains(a.IdAdjunto) && a.IdSolicitud == null).ExecuteDeleteAsync(ct);
             var siguen = await db.AdjuntosSolicitud.AsNoTracking().Where(a => ids.Contains(a.IdAdjunto)).Select(a => a.IdAdjunto).ToListAsync(ct);
             foreach (var vencido in vencidos.Where(v => !siguen.Contains(v.IdAdjunto)))
-                almacenAdjuntos.Borrar(vencido.Clave);
+                await almacenAdjuntos.BorrarAsync(vencido.Clave);
         }
 
         // Archivos sin registro (de borradores recien borrados o de solicitudes que borro el procedimiento
         // de depuracion). Solo los de mas de 24 horas: uno mas nuevo puede ser una subida en curso.
-        var enDisco = almacenAdjuntos.ClavesAnterioresA(limite);
-        if (enDisco.Count > 0)
+        var enAlmacen = await almacenAdjuntos.ClavesAnterioresAAsync(limite, ct);
+        if (enAlmacen.Count > 0)
         {
-            var claves = enDisco.ToList();
+            var claves = enAlmacen.ToList();
             var conRegistro = await db.AdjuntosSolicitud.AsNoTracking().Where(a => claves.Contains(a.Clave)).Select(a => a.Clave).ToListAsync(ct);
             foreach (var clave in claves.Except(conRegistro))
-                almacenAdjuntos.Borrar(clave);
+                await almacenAdjuntos.BorrarAsync(clave);
         }
         return borrados;
     }

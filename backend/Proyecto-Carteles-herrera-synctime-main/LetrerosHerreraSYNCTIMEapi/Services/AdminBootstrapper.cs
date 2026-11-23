@@ -8,6 +8,23 @@ namespace LetrerosHerreraSYNCTIMEapi.Services;
 // desde la seccion Bootstrap:Admin, para que la password nunca quede en el codigo ni en una migracion.
 public static class AdminBootstrapper
 {
+    // Lo que se puede revisar SIN tocar la base: una configuracion invalida impide arrancar aunque la base este dormida (fase 16C-1).
+    public static void ValidarConfiguracion(IConfiguration configuration)
+    {
+        var admin = configuration.GetSection("Bootstrap:Admin");
+        if (string.IsNullOrWhiteSpace(admin["Email"]) && string.IsNullOrWhiteSpace(admin["Password"]))
+            return;
+
+        // Despues del primer arranque hay que quitar la password: su ausencia no es un error si ya hay empleados.
+        var passwordConfigurada = admin["Password"];
+        if (!string.IsNullOrWhiteSpace(passwordConfigurada) && !AuthService.EsPasswordValida(passwordConfigurada))
+            throw new InvalidOperationException($"Bootstrap:Admin:Password no es valida. {AuthService.MensajePasswordInvalida}");
+
+        var rol = admin["Rol"] ?? Roles.Administrador;
+        if (!Roles.Empleados.Contains(rol))
+            throw new InvalidOperationException($"Bootstrap:Admin:Rol invalido. Valores validos: {string.Join(", ", Roles.Empleados)}");
+    }
+
     public static async Task CrearPrimerAdministradorAsync(IServiceProvider services, IConfiguration configuration, ILogger logger)
     {
         var admin = configuration.GetSection("Bootstrap:Admin");
@@ -18,14 +35,8 @@ public static class AdminBootstrapper
             ? throw new InvalidOperationException($"Falta Bootstrap:Admin:{clave} en la configuracion.")
             : admin[clave]!;
 
-        // Despues del primer arranque hay que quitar la password: su ausencia no es un error si ya hay empleados.
-        var passwordConfigurada = admin["Password"];
-        if (!string.IsNullOrWhiteSpace(passwordConfigurada) && !AuthService.EsPasswordValida(passwordConfigurada))
-            throw new InvalidOperationException($"Bootstrap:Admin:Password no es valida. {AuthService.MensajePasswordInvalida}");
-
+        ValidarConfiguracion(configuration);
         var rol = admin["Rol"] ?? Roles.Administrador;
-        if (!Roles.Empleados.Contains(rol))
-            throw new InvalidOperationException($"Bootstrap:Admin:Rol invalido. Valores validos: {string.Join(", ", Roles.Empleados)}");
 
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<LetrerosHerreradbContext>();

@@ -220,7 +220,8 @@ public sealed class TrabajadorColaCorreo(
             if (id is null)
                 return null;
 
-            var bloqueo = ahora + TimeSpan.FromSeconds(Math.Clamp(opciones.Value.Smtp.TiempoEsperaSegundos, 1, 300) * 3 + 60);
+            var espera = opciones.Value.EsApi ? opciones.Value.Api.TiempoEsperaSegundos : opciones.Value.Smtp.TiempoEsperaSegundos;
+            var bloqueo = ahora + TimeSpan.FromSeconds(Math.Clamp(espera, 1, 300) * 3 + 60);
             var reclamados = await Disponibles(db, ahora, maximo).Where(c => c.IdCorreo == id)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(c => c.Estado, EstadosCorreo.Enviando)

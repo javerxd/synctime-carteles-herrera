@@ -34,6 +34,9 @@ x-api-entorno: &api-entorno
   # Detras de nginx: la API lee la IP y el protocolo reales solo de la red interna de este compose.
   ForwardedHeaders__Habilitado: "true"
   ForwardedHeaders__RedesDeConfianza__0: ${RED_INTERNA:-172.30.0.0/24}
+  # Archivos de los clientes (fase 16C-1): en compose van al volumen almacen-api (Disco). En la nube gratuita, sin disco, van a Azure Blob Storage.
+  # El modo se declara siempre: la API no arranca sin el.
+  Almacen__Modo: Disco
   # Correo: el buzon de desarrollo (Mailpit); nada sale a internet.
   Correo__Modo: Smtp
   Correo__Smtp__Servidor: correo

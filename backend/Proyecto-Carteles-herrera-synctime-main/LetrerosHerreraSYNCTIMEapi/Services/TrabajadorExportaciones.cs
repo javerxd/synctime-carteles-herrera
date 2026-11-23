@@ -195,7 +195,7 @@ public sealed class TrabajadorExportaciones(
                 // proceso (mismo nombre) y no se toca; solo sobra si el trabajo quedo en otro estado.
                 var actual = await db.TrabajosExportacion.AsNoTracking().Where(t => t.IdTrabajo == trabajo.IdTrabajo).Select(t => t.Estado).FirstOrDefaultAsync(CancellationToken.None);
                 if (actual != EstadosExportacion.Listo)
-                    almacen.Borrar(trabajo.IdTrabajo, trabajo.Formato);
+                    await almacen.BorrarAsync(trabajo.IdTrabajo, trabajo.Formato);
                 return;
             }
             await AuditarAsync(auditoria, trabajo, "listo", documento.TotalDeFilas, motivo: null);
@@ -224,7 +224,7 @@ public sealed class TrabajadorExportaciones(
     private async Task FallarAsync(LetrerosHerreradbContext db, IAuditoria auditoria, TrabajoExportacion trabajo, string motivo)
     {
         var ahora = ServicioExportaciones.EnSegundos(reloj.GetUtcNow());
-        almacen.Borrar(trabajo.IdTrabajo, trabajo.Formato);
+        await almacen.BorrarAsync(trabajo.IdTrabajo, trabajo.Formato);
         var cerrado = await db.TrabajosExportacion
             .Where(t => t.IdTrabajo == trabajo.IdTrabajo && t.Estado == EstadosExportacion.Procesando && t.Intentos == trabajo.Intentos)
             .ExecuteUpdateAsync(s => s
@@ -270,12 +270,12 @@ public sealed class TrabajadorExportaciones(
             .Select(t => new { t.IdTrabajo, t.Formato }).Take(500).ToListAsync(ct);
         foreach (var vencido in vencidos)
         {
-            almacen.Borrar(vencido.IdTrabajo, vencido.Formato);
+            await almacen.BorrarAsync(vencido.IdTrabajo, vencido.Formato);
             await db.TrabajosExportacion.Where(t => t.IdTrabajo == vencido.IdTrabajo && t.ArchivoBorradoEn == null)
                 .ExecuteUpdateAsync(s => s.SetProperty(t => t.ArchivoBorradoEn, ahora), ct);
         }
         // Lo que ya tendria que haber vencido y no tiene registro (el proceso se cayo entre escribirlo y anotarlo).
-        var huerfanos = almacen.PurgarHuerfanos(reloj.GetUtcNow().UtcDateTime.AddHours(-(Math.Max(O.HorasDeVigencia, 1) + 1)));
+        var huerfanos = await almacen.PurgarHuerfanosAsync(reloj.GetUtcNow().UtcDateTime.AddHours(-(Math.Max(O.HorasDeVigencia, 1) + 1)), ct);
         return vencidos.Count + huerfanos;
     }
 

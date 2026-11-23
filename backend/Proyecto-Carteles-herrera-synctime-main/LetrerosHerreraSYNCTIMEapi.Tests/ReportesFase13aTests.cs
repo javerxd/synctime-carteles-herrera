@@ -784,7 +784,8 @@ public sealed class ReportesFase13aTests(ApiFixture api)
         var cliente = api.Cliente(token);
         var (listo, id) = await ExportarAsync(cliente, "operativo", "csv");
         var almacen = api.Services.GetRequiredService<AlmacenExportaciones>();
-        Assert.NotNull(almacen.Ruta(Guid.Parse(id), "csv"));
+        using (var presente = await almacen.AbrirAsync(Guid.Parse(id), "csv", default))
+            Assert.NotNull(presente);
 
         // A las 23 horas todavia se descarga; a las 25, ya no.
         var casiVencido = api.ClienteConReloj(TimeSpan.FromHours(23), token);
@@ -798,7 +799,7 @@ public sealed class ReportesFase13aTests(ApiFixture api)
         var purga = new TrabajadorExportaciones(api.Services.GetRequiredService<IServiceScopeFactory>(), almacen,
             api.Services.GetRequiredService<IOptions<OpcionesReportes>>(), new RelojAdelantado(TimeSpan.FromHours(25)), NullLogger<TrabajadorExportaciones>.Instance);
         Assert.True(await purga.PurgarAsync(default) >= 1);
-        Assert.Null(almacen.Ruta(Guid.Parse(id), "csv"));
+        Assert.Null(await almacen.AbrirAsync(Guid.Parse(id), "csv", default));
         var registro = await api.ConsultarAsync(db => db.TrabajosExportacion.AsNoTracking().SingleAsync(t => t.IdTrabajo == Guid.Parse(id)));
         Assert.Equal(EstadosExportacion.Listo, registro.Estado);
         Assert.NotNull(registro.ArchivoBorradoEn);

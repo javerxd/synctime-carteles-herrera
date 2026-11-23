@@ -40,6 +40,22 @@ public static class ClasificadorFallos
         SmtpCommandException e =>
             new("servidor", "El servidor de correo no aceptó el envío por ahora.", false, true, (int)e.StatusCode),
 
+        // Fase 16C-1: la API HTTPS del proveedor. Solo cuenta el codigo HTTP (el cuerpo del error nunca se conserva).
+        FalloApiCorreoException { Estado: 401 or 403 } e =>
+            new("autenticacion", "El proveedor de correo rechazó la clave de la cuenta.", false, true, e.Estado),
+
+        FalloApiCorreoException { Estado: 429 or >= 500 } e =>
+            new("servidor", "El proveedor de correo no aceptó el envío por ahora.", false, true, e.Estado),
+
+        FalloApiCorreoException { Estado: 400 or 422 } e =>
+            new("mensaje", "El proveedor de correo rechazó el mensaje.", false, false, e.Estado),
+
+        FalloApiCorreoException e =>
+            new("servidor", "El proveedor de correo respondió de forma inesperada.", false, true, e.Estado),
+
+        HttpRequestException =>
+            new("conexion", "No se pudo conectar con el proveedor de correo.", false, true),
+
         SmtpProtocolException =>
             new("servidor", "El servidor de correo respondió de forma inesperada.", false, true),
 

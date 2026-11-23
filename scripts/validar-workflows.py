@@ -219,6 +219,11 @@ def revisar_ci(nombre, texto, workflow, raiz, resultados):
     for cadena, descripcion in exigidos:
         if cadena not in texto:
             resultados.append(f"FALLO [ci-contenido] {nombre}: falta {descripcion} (no aparece «{cadena}»)")
+    # Fase 16C-1: las pruebas del almacen en Blob corren contra Azurite (version fija) y NUNCA se omiten en la CI.
+    if not re.search(r"mcr\.microsoft\.com/azure-storage/azurite:\d+\.\d+\.\d+", texto):
+        resultados.append(f"FALLO [ci-contenido] {nombre}: falta Azurite con version fija (mcr.microsoft.com/azure-storage/azurite:X.Y.Z) para las pruebas del almacen en Blob")
+    if "SYNCTIME_OMITIR_BLOB" in texto:
+        resultados.append(f"FALLO [ci-blob] {nombre}: la CI no puede omitir las pruebas de Blob (SYNCTIME_OMITIR_BLOB): sin Azurite deben FALLAR, no saltarse")
     if "--exit-code 42" not in texto:
         resultados.append(f"FALLO [autoprueba-exacta] {nombre}: la autoprueba del escaner debe exigir un codigo de salida EXACTO (--exit-code 42); si no, cualquier error de gitleaks se confunde con una deteccion")
     if len(re.findall(r"dotnet test", texto)) < 2:

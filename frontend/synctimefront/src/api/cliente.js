@@ -5,6 +5,8 @@
 //   no este archivo. Un 401 sin sesión (por ejemplo, un ingreso fallido) solo se informa.
 // - Las cookies de la sesión (renovación y CSRF) viajan solas: la API se sirve en el mismo origen.
 // - Dos lecturas iguales al mismo tiempo comparten una sola petición.
+import { estadoDespertar } from './despertar';
+
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api/v1`;
 
 const MENSAJES = {
@@ -18,6 +20,7 @@ const MENSAJES = {
   ocupado: 'Estamos recibiendo muchas solicitudes; vuelve a intentarlo en unos segundos.',
   tiempo_agotado: 'La subida tardó demasiado. Revisa tu conexión e inténtalo de nuevo.',
   servidor: 'El servidor tuvo un problema. Inténtalo de nuevo en unos minutos.',
+  despertando: 'El servidor sigue despertando o no está disponible. Espera unos segundos y vuelve a intentarlo.',
 };
 
 /** Valor de una cookie legible por la página (por ejemplo, synctime_csrf), o null. */
@@ -53,11 +56,20 @@ export function esperaReintento(valor) {
 }
 
 const dormir = (ms, senal) => new Promise((resolver, rechazar) => {
-  const temporizador = setTimeout(resolver, ms);
-  senal?.addEventListener('abort', () => {
+  // Una señal que ya se abortó no espera nada (la espera no se queda con el aviso de «despertando» visible).
+  if (senal?.aborted) {
+    rechazar(new DOMException('Cancelada', 'AbortError'));
+    return;
+  }
+  const alAbortar = () => {
     clearTimeout(temporizador);
     rechazar(new DOMException('Cancelada', 'AbortError'));
-  }, { once: true });
+  };
+  const temporizador = setTimeout(() => {
+    senal?.removeEventListener('abort', alAbortar);
+    resolver();
+  }, ms);
+  senal?.addEventListener('abort', alAbortar, { once: true });
 });
 
 // Solo el 503 que la API marca como servicio_ocupado (no una caída del servidor ni las rutas de la sesión).
@@ -66,6 +78,16 @@ const estaOcupado = (estado, cuerpo) => estado === 503 && cuerpo?.codigo === 'se
 function errorOcupado() {
   return new ErrorApi({ estado: 503, codigo: 'servicio_ocupado', mensaje: MENSAJES.ocupado });
 }
+
+// Fase 16C-1 (H13, H14): Render gratuito se duerme tras ~15 minutos sin tráfico y despertar tarda cerca de un minuto (y la base de Azure SQL
+// gratuita también se pausa). Mientras tanto, el proxy (Vercel) o Render responde 502, 503 o 504 SIN el formato de error de la API. Una lectura
+// que recibe eso se repite sola, con espera creciente (~66 s en total), mostrando «el sistema está despertando». Un error de la API (que siempre
+// trae su `codigo`, como google_no_disponible) NO se repite, y un envío (POST, PUT, PATCH, DELETE) tampoco: no se sabe si el servidor alcanzó a
+// procesarlo antes de caer, y repetirlo podría duplicarlo.
+export const ESPERAS_DESPERTAR = [3000, 4000, 5000, 6000, 8000, 10000, 10000, 10000, 10000];
+const ESTADOS_DE_SERVIDOR_DORMIDO = [502, 503, 504];
+
+const esRespuestaDeServidorDormido = (estado, cuerpo) => ESTADOS_DE_SERVIDOR_DORMIDO.includes(estado) && !cuerpo?.codigo;
 
 export class ErrorApi extends Error {
   constructor({ estado = 0, codigo = 'desconocido', mensaje, errores = null, nivel = null }) {
@@ -78,11 +100,38 @@ export class ErrorApi extends Error {
   }
 }
 
-let opciones = { obtenerToken: () => null, renovarSesion: async () => false, alSesionVencida: () => {} };
+let opciones = { obtenerToken: () => null, renovarSesion: async () => false, alSesionVencida: () => {}, esperasDespertar: undefined };
 
 /** La sesión registra aquí cómo leer el token, cómo renovarlo y qué hacer cuando vence. */
 export function configurarClienteApi(nuevas) {
   opciones = { ...opciones, ...nuevas };
+}
+
+const esServidorDormido = (error) =>
+  error instanceof ErrorApi && ESTADOS_DE_SERVIDOR_DORMIDO.includes(error.estado) && error.codigo === `http_${error.estado}`;
+
+/** Las lecturas esperan a que el servidor despierte (ver arriba); todo lo demás va directo. */
+async function pedirConEspera(metodo, ruta, configuracion = {}) {
+  if (metodo !== 'GET') return pedir(metodo, ruta, configuracion);
+  const esperas = opciones.esperasDespertar ?? ESPERAS_DESPERTAR;
+  let esperando = false;
+  try {
+    for (let intento = 0; ; intento += 1) {
+      try {
+        return await pedir(metodo, ruta, configuracion);
+      } catch (error) {
+        if (!esServidorDormido(error) || intento >= esperas.length) throw error;
+        if (!esperando) {
+          estadoDespertar.iniciar();
+          esperando = true;
+        }
+        estadoDespertar.registrarIntento(intento + 1);
+        await dormir(esperas[intento], configuracion.senal);
+      }
+    }
+  } finally {
+    if (esperando) estadoDespertar.terminar();
+  }
 }
 
 const enCurso = new Map();
@@ -111,7 +160,8 @@ async function leerCuerpo(respuesta) {
 
 function errorDesde(respuesta, cuerpo) {
   const estado = respuesta.status;
-  const mensajePorEstado = MENSAJES[estado] ?? (estado >= 500 ? MENSAJES.servidor : MENSAJES[400]);
+  // Un 502/503/504 SIN el formato de la API lo da el proxy o Render (dormido): no es un error de la API.
+  const mensajePorEstado = esRespuestaDeServidorDormido(estado, cuerpo) ? MENSAJES.despertando : MENSAJES[estado] ?? (estado >= 500 ? MENSAJES.servidor : MENSAJES[400]);
   return new ErrorApi({
     estado,
     codigo: cuerpo?.codigo ?? `http_${estado}`,
@@ -257,24 +307,24 @@ export function rutaRelativa(url) {
 
 function leer(ruta, configuracion = {}) {
   // Las lecturas con señal propia no se comparten: cancelar una no debe cancelar la otra.
-  if (configuracion.senal) return pedir('GET', ruta, configuracion);
+  if (configuracion.senal) return pedirConEspera('GET', ruta, configuracion);
   const clave = `${opciones.obtenerToken() ?? ''} ${configuracion.conCabeceras ? 'cabeceras ' : ''}${construirUrl(ruta, configuracion.parametros)}`;
   const existente = enCurso.get(clave);
   if (existente) return existente;
-  const promesa = pedir('GET', ruta, configuracion).finally(() => enCurso.delete(clave));
+  const promesa = pedirConEspera('GET', ruta, configuracion).finally(() => enCurso.delete(clave));
   enCurso.set(clave, promesa);
   return promesa;
 }
 
 export const api = {
   get: leer,
-  post: (ruta, cuerpo, configuracion) => pedir('POST', ruta, { ...configuracion, cuerpo }),
-  put: (ruta, cuerpo, configuracion) => pedir('PUT', ruta, { ...configuracion, cuerpo }),
-  patch: (ruta, cuerpo, configuracion) => pedir('PATCH', ruta, { ...configuracion, cuerpo }),
-  delete: (ruta, configuracion) => pedir('DELETE', ruta, configuracion),
+  post: (ruta, cuerpo, configuracion) => pedirConEspera('POST', ruta, { ...configuracion, cuerpo }),
+  put: (ruta, cuerpo, configuracion) => pedirConEspera('PUT', ruta, { ...configuracion, cuerpo }),
+  patch: (ruta, cuerpo, configuracion) => pedirConEspera('PATCH', ruta, { ...configuracion, cuerpo }),
+  delete: (ruta, configuracion) => pedirConEspera('DELETE', ruta, configuracion),
   /** Descarga un archivo con la sesión (adjuntos privados) y lo entrega como Blob. */
-  archivo: (ruta, configuracion) => pedir('GET', ruta, { ...configuracion, comoArchivo: true }),
+  archivo: (ruta, configuracion) => pedirConEspera('GET', ruta, { ...configuracion, comoArchivo: true }),
   /** Un POST cuya respuesta es un archivo (por ejemplo, «Descargar mis datos», que pide la contraseña en el cuerpo). */
-  postArchivo: (ruta, cuerpo, configuracion) => pedir('POST', ruta, { ...configuracion, cuerpo, comoArchivo: true }),
+  postArchivo: (ruta, cuerpo, configuracion) => pedirConEspera('POST', ruta, { ...configuracion, cuerpo, comoArchivo: true }),
   subir,
 };

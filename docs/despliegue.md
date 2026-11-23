@@ -1,6 +1,6 @@
 # Despliegue de SyncTime
 
-Estado: **fase 16B** (contenedores y ajustes del código de la 16A, más el pipeline de CI/CD de la 16B). La guía completa de la nube (Azure SQL, Render, Vercel, respaldos, rotación de claves, licencias) se escribe en la **16C**, cuando existan los servicios; lo que sigue es lo que ya está construido y lo que cada pieza necesita.
+Estado: **fase 16C-1** (el código y los archivos para la nube gratuita, sin crear ningún servicio), sobre los contenedores de la 16A y el pipeline de la 16B. La guía completa de la nube (Azure SQL, Render, Vercel, respaldos, rotación de claves, licencias) se escribe en la **16C-3**, cuando existan los servicios; lo que sigue es lo que ya está construido y lo que cada pieza necesita.
 
 ## 1. Todo el proyecto en cualquier equipo con Docker (compose)
 
@@ -31,10 +31,17 @@ Los nombres son los de .NET (`__` separa niveles). Los valores **nunca** se escr
 | `Sitio__UrlPublica` | Dirección del sitio para los enlaces de los correos y el QR | sí fuera de desarrollo |
 | `ForwardedHeaders__Habilitado`, `…__RedesDeConfianza__0`, `…__ProxiesDeConfianza__0`, `…__LimiteDeSaltos` | Qué proxies pueden decir la IP y el protocolo reales (ver 3) | sí detrás de un proxy |
 | `BaseDeDatos__ReintentosMaximos` (5), `…__RetardoMaximoSegundos` (30) | Reintentos ante fallos transitorios de Azure SQL; `0` los apaga | no |
+| `BaseDeDatos__ArranqueMinutosMaximos` (30), `…__ArranqueEsperaInicialSegundos` (5), `…__ArranqueEsperaMaximaSegundos` (60) | Cuánto insiste, y con qué espera, el arranque en segundo plano mientras la base despierta (ver 7) | no |
+| `Almacen__Modo` | `Disco` (compose y desarrollo) o `Blob` (la nube: Azure Blob Storage). **Se declara siempre fuera de desarrollo**: sin él la API no arranca (ver 7) | sí fuera de desarrollo |
+| `Almacen__Blob__CadenaDeConexion` | Cadena de conexión de la cuenta de almacenamiento (**secreto**: lleva la clave de la cuenta) | sí con `Blob` |
+| `Almacen__Blob__Contenedor` (`archivos`), `…__TiempoEsperaSegundos` (30), `…__ReintentosMaximos` (3) | Contenedor **privado** y tiempos del SDK | no |
+| `Correo__Modo` | `Smtp` (compose, desarrollo), `Api` (la nube: HTTPS) o `Bandeja` (solo desarrollo) | no |
+| `Correo__Api__Clave` | Clave de la API de Brevo (**secreto**) | sí con `Api` |
+| `Correo__Api__Proveedor` (`Brevo`), `…__Url` (`https://api.brevo.com/v3/smtp/email`), `…__UrlLogo`, `…__TiempoEsperaSegundos` (20) | Proveedor, dirección (solo https), logotipo y plazo de cada envío | no |
 | `Correo__*`, `Google__ClientId`, `RostroFacial__ClaveCifrado`, `Bootstrap__Admin__*` | Como hasta ahora (README del backend) | según el caso |
 | `PORT` | Puerto de escucha (Render lo entrega solo; por omisión 8080) | no |
 
-Fuera de desarrollo, la API **no arranca** si falta `Cors__AllowedOrigins__0` o `Sitio__UrlPublica`, o si están mal escritos: es preferible a un sitio que parece funcionar y falla en el navegador.
+Fuera de desarrollo, la API **no arranca** si falta `Cors__AllowedOrigins__0`, `Sitio__UrlPublica` o `Almacen__Modo`, si están mal escritos, o si `Almacen__Modo=Blob` no trae su cadena de conexión: es preferible a un sitio que parece funcionar y falla en el navegador (o que guarda los adjuntos de los clientes en un disco que se pierde).
 
 ## 3. Detrás de un proxy: IP y protocolo reales
 
@@ -115,6 +122,38 @@ bash scripts/fallos-a-proposito.sh               # imagen de la API sin tzdata: 
 ```
 Los guiones se llaman con `bash` porque git guarda los `.sh` sin bit de ejecución.
 
-## 7. Pendiente de la 16C
+## 7. La nube gratuita (fase 16C-1)
 
-Azure SQL, Render, Vercel, primera ejecución de `migrar.yml` y `respaldo.yml`, restauración probada en `localhost\SQLEXPRESS`, carga y Lighthouse contra la nube, IP real del visitante con Vercel → Render, guía completa de despliegue e inventario de licencias.
+Render gratuito cambia tres cosas del diseño original; las tres están resueltas **en el código** (sin crear ningún servicio todavía):
+
+### Archivos de los clientes: disco o Azure Blob Storage (H12)
+
+Adjuntos privados, imágenes de la vitrina y reportes exportados pasan por una interfaz (`IAlmacenArchivos`) con dos implementaciones que cumplen **las mismas pruebas de contrato**:
+
+- `Almacen__Modo=Disco`: las carpetas de siempre (`Adjuntos__Carpeta`, `Imagenes__Carpeta`, `Reportes__Carpeta`), escribiendo en un temporal y renombrando. Es lo que usan compose y el desarrollo.
+- `Almacen__Modo=Blob`: **un único contenedor privado** (`archivos`) con tres prefijos (`adjuntos/`, `imagenes/`, `exportaciones/`). El nombre del archivo es el mismo `{32 hex}.ext` aleatorio de siempre: ningún dato del cliente va en la dirección. Si el contenedor existe con acceso público (anónimo), la API **se niega a usarlo**; si no existe, lo crea privado. No hay direcciones firmadas ni enlaces directos: los archivos solo salen por la API, que sigue exigiendo sesión y permiso.
+- Las descargas son **flujos** (`Results.Stream`): la API no entrega rutas de disco. Las purgas (adjuntos sin registro, exportaciones vencidas) usan la fecha del objeto.
+- Render gratuito **no tiene disco persistente**: con `Disco` los archivos se perderían en cada reinicio. Por eso `render.yaml` declara `Almacen__Modo=Blob` y el validador exige que así sea.
+- Las pruebas de Blob corren contra **Azurite** (el emulador oficial de Microsoft, `3.38.0`, en un contenedor de la CI), nunca contra la nube. En un equipo sin Azurite se omiten **solo** con `SYNCTIME_OMITIR_BLOB=1`; la CI no lo define y las exige (`validar-workflows.py` lo vigila).
+- Paquete nuevo: solo `Azure.Storage.Blobs` (decisión D7).
+
+### Correo por HTTPS (H11, D8)
+
+Render gratuito **bloquea los puertos SMTP 25, 465 y 587**. Con `Correo__Modo=Api` los correos salen por la API transaccional de **Brevo** (`POST https://api.brevo.com/v3/smtp/email`, clave en la cabecera `api-key`), detrás de la misma interfaz (`IEnviadorCorreo`) y de la misma cola con reintentos que el SMTP. Lo que se sabe de Brevo (documentación oficial):
+
+- **No admite imágenes incrustadas (`cid:`)**: el logotipo se pide por una dirección pública (`Correo__Api__UrlLogo`, o por omisión `Sitio__UrlPublica` + `/marca/icono-192.png`); sin dirección, se quita la imagen y el correo sale igual.
+- **No se puede autenticar (DKIM/DMARC) un remitente `@gmail.com`**: Brevo cambia esa dirección por una propia para cumplir las reglas de Gmail. Es el riesgo de entregabilidad previsto en D8 (puede caer en spam). Lo ideal es un remitente de un dominio propio; si no se tiene, queda como **límite documentado** y el plan B es Azure Communication Services Email. El remitente (`Correo__Remitente__Direccion`) debe estar **verificado en Brevo** y ser distinto del contacto público del taller.
+- **Sin clave de idempotencia**: si la respuesta se pierde después de aceptado el envío, el reintento podría entregar el aviso dos veces. Se prefiere a perderlo.
+- Los fallos se clasifican solo por su código HTTP (nunca se guarda el cuerpo del error, que repite el correo del destinatario): 401/403 y 429/5xx detienen el lote y se reintentan sin agotarse; 400 cuenta intentos. `/salud/correo` queda «degradado» si falta la clave.
+- El cliente HTTP **no sigue redirecciones** (la clave viaja en una cabecera propia que .NET no retira al redirigir) y `Correo__Api__Url` solo admite `https` (o `http` de localhost, para el servidor simulado de las pruebas). No se hace ninguna llamada real al proveedor en las pruebas.
+
+### Base en pausa y servicio dormido (H13, H14, D10)
+
+- Azure SQL gratuita se **pausa sola** (y, al agotar la cuota, hasta el mes siguiente: D10). Render gratuito **se duerme tras ~15 minutos sin tráfico y despertar tarda cerca de un minuto**, y mientras duerme no corren la cola de correo, las exportaciones ni las purgas. **Límite documentado de RNFP04** (99 % de disponibilidad): no se cumple con un servicio que duerme; D9 propone un monitor externo gratuito (se crea en la 16C-3, con permiso) que lo despierte cada 5 a 10 minutos y que **no** despierta la base (`/salud` no la consulta).
+- **Arranque tolerante.** Antes, la API se conectaba a la base al arrancar y con la base dormida no levantaba. Ahora, fuera de desarrollo, la revisión de migraciones pendientes, la lectura de los destinatarios de los avisos y la creación del primer administrador corren **en segundo plano**: el puerto se abre de inmediato, `/salud` responde y `/salud/lista` (que sí consulta la base) la despierta. Los pasos reintentan con espera creciente (5, 10, 20, 40 y 60 s) hasta `BaseDeDatos__ArranqueMinutosMaximos` (30); si no despierta, lo registra (solo el tipo del error) y la API **sigue en pie**. Una configuración inválida (por ejemplo la clave del primer administrador) sigue impidiendo arrancar, porque no necesita la base para saberlo.
+- **Sitio.** Si el sitio recibe un 502, 503 o 504 **sin el formato de error de la API** (lo que responden Vercel o Render dormido), repite las **lecturas** solo (3, 4, 5, 6, 8 y 10 s…, unos 66 s en total) y muestra «El sistema está despertando» (región viva para lectores de pantalla). Los **envíos** (POST, PUT, PATCH, DELETE) no se repiten solos: no se sabe si el servidor alcanzó a procesarlos y podrían duplicarse. Un error de la API con su código (por ejemplo `google_no_disponible`) no se confunde con un servidor dormido.
+- **Pendiente de medir en la 16C-3**: el tiempo real del despertar (Render dormido + base en pausa) y si 512 MB de memoria alcanzan (D16).
+
+## 8. Pendiente de la 16C-2 y la 16C-3
+
+**16C-2 (Azure):** presupuesto y alertas, SQL Database gratuita, Blob Storage (contenedores `archivos` y `respaldos`, ciclo de vida de 30 días), identidad de GitHub (OIDC), entornos de GitHub, primera ejecución de `migrar.yml` y `respaldo.yml` y restauración probada en `localhost\SQLEXPRESS`. **16C-3 (Render y Vercel):** crear los servicios desde `render.yaml`, enlaces (CORS, Google, correo), IP real del visitante con Vercel → Render, pruebas de humo, carga de 20 usuarios y Lighthouse contra la nube, tiempo de despertar medido, guía completa de despliegue e inventario de licencias.

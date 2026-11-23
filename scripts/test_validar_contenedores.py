@@ -180,6 +180,51 @@ class ValidadorDeContenedores(unittest.TestCase):
         self.estropear("render.yaml", "healthCheckPath: /salud\n", "healthCheckPath: /salud/lista\n")
         self.assertDetecta("render")
 
+    # --- render.yaml gratuito (fase 16C-1: D1, D2, D8) ---
+    def test_render_con_disco_persistente(self):
+        # El plan gratuito no tiene disco: un Blueprint con disco no se puede crear sin pagar, y los archivos se perderian si se ignorara.
+        self.estropear("render.yaml", "    plan: free\n", "    plan: free\n    disk:\n      name: synctime-almacen\n      mountPath: /app/almacen\n      sizeGB: 5\n")
+        self.assertDetecta("render")
+
+    def test_render_con_un_plan_de_pago(self):
+        self.estropear("render.yaml", "    plan: free\n", "    plan: starter\n")
+        self.assertDetecta("render")
+
+    def test_render_sin_plan(self):
+        self.estropear("render.yaml", "    plan: free\n", "")
+        self.assertDetecta("render")
+
+    def test_render_guarda_los_archivos_en_disco(self):
+        self.estropear("render.yaml", "      - key: Almacen__Modo\n        value: Blob", "      - key: Almacen__Modo\n        value: Disco")
+        self.assertDetecta("render")
+
+    def test_render_sin_declarar_el_modo_del_almacen(self):
+        self.estropear("render.yaml", "      - key: Almacen__Modo\n        value: Blob\n", "")
+        self.assertDetecta("render")
+
+    def test_render_envia_el_correo_por_smtp(self):
+        # Render gratuito bloquea los puertos 25, 465 y 587.
+        self.estropear("render.yaml", "      - key: Correo__Modo\n        value: Api", "      - key: Correo__Modo\n        value: Smtp")
+        self.assertDetecta("render")
+
+    def test_render_con_la_cadena_de_blob_escrita(self):
+        self.estropear("render.yaml", "      - key: Almacen__Blob__CadenaDeConexion", "      - key: Almacen__Blob__CadenaDeConexion\n        value: DefaultEndpointsProtocol=https;AccountName=x")
+        self.assertDetecta("render-secretos")
+
+    def test_render_con_la_clave_del_proveedor_de_correo_escrita(self):
+        self.estropear("render.yaml", "      - key: Correo__Api__Clave", "      - key: Correo__Api__Clave\n        value: xkeysib-no-es-real")
+        self.assertDetecta("render-secretos")
+
+    def test_render_con_la_cadena_de_blob_sin_sync_false(self):
+        self.estropear("render.yaml", "      - key: Almacen__Blob__CadenaDeConexion   # cadena de conexion de la cuenta de almacenamiento de Azure (lleva la clave de la cuenta)\n        sync: false",
+                       "      - key: Almacen__Blob__CadenaDeConexion\n        sync: true")
+        self.assertDetecta("render-secretos")
+
+    def test_render_con_un_secreto_de_smtp_que_ya_no_corresponde(self):
+        # Quedaba de la 16A: una clave de SMTP en el Blueprint de la nube sugiere que el correo seguiria por un puerto bloqueado.
+        self.estropear("render.yaml", "      - key: Correo__Api__Clave", "      - key: Correo__Smtp__Password\n        sync: false\n      - key: Correo__Api__Clave")
+        self.assertDetecta("render")
+
     # --- vercel.json y nginx ---
     def test_vercel_con_cross_origin_opener_policy(self):
         self.estropear(f"{WEB}/vercel.json", '{ "key": "X-Frame-Options", "value": "DENY" },',

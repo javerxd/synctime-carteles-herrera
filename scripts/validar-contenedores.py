@@ -18,7 +18,7 @@ import yaml
 
 API = "backend/Proyecto-Carteles-herrera-synctime-main"
 WEB = "frontend/synctimefront"
-NOMBRE_SECRETO = re.compile(r"(PASSWORD|SECRET|TOKEN|CLAVE|_KEY$|__KEY$|APIKEY|CONNECTIONSTRING)", re.IGNORECASE)
+NOMBRE_SECRETO = re.compile(r"(PASSWORD|SECRET|TOKEN|CLAVE|_KEY$|__KEY$|APIKEY|CONNECTIONSTRING|CADENADECONEXION)", re.IGNORECASE)
 # Variables cuyo nombre parece un secreto pero que NO lo son (version, nombre de un archivo, etc.).
 NO_SECRETO = re.compile(r"(PUBLIC|ISSUER|AUDIENCE)", re.IGNORECASE)
 
@@ -240,12 +240,25 @@ def revisar_render(raiz, resultados):
         resultados.append("FALLO [render] la API debe ser runtime: docker")
     if api.get("healthCheckPath") != "/salud":
         resultados.append("FALLO [render] healthCheckPath debe ser /salud (no /salud/lista: consultaria la base cada pocos segundos)")
-    if (api.get("disk") or {}).get("mountPath") != "/app/almacen":
-        resultados.append("FALLO [render] el disco persistente debe montarse en /app/almacen")
+    # Fase 16C-1 (D2, costo $0): plan gratuito. Ese plan NO tiene disco persistente: un Blueprint con disco no se puede crear sin pagar, y los
+    # archivos de los clientes van a Azure Blob Storage (D1).
+    if str(api.get("plan")) != "free":
+        resultados.append("FALLO [render] el plan debe ser free (D2: costo $0); un plan de pago se decide con la medicion de memoria de la 16C-3 (D16)")
+    if api.get("disk"):
+        resultados.append("FALLO [render] el plan gratuito no tiene disco persistente: quite disk (los archivos van a Azure Blob Storage)")
     if str(api.get("autoDeployTrigger")) != "off":
         resultados.append("FALLO [render] autoDeployTrigger debe ser off: una version nueva puede exigir migraciones previas")
+    variables_con_valor = {v.get("key", ""): str(v.get("value")) for v in api.get("envVars") or [] if "value" in v}
+    # Los archivos NO pueden ir a disco (se pierde en cada reinicio) y el modo se declara siempre (la API no arranca sin el).
+    if variables_con_valor.get("Almacen__Modo") != "Blob":
+        resultados.append("FALLO [render] Almacen__Modo debe declararse con valor Blob: el disco de Render gratuito se borra en cada reinicio")
+    # Render gratuito bloquea el SMTP (puertos 25, 465 y 587): el correo sale por HTTPS.
+    if variables_con_valor.get("Correo__Modo") != "Api":
+        resultados.append("FALLO [render] Correo__Modo debe ser Api: Render gratuito bloquea el SMTP (puertos 25, 465 y 587)")
     for variable in api.get("envVars") or []:
         clave = variable.get("key", "")
+        if clave.startswith("Correo__Smtp__"):
+            resultados.append(f"FALLO [render] {clave}: el correo de la nube sale por la API (Correo__Modo=Api); el SMTP esta bloqueado en Render gratuito")
         if es_secreto(clave) or clave.startswith("ConnectionStrings") or clave.startswith("Bootstrap__Admin"):
             if "value" in variable or variable.get("sync") is not False:
                 resultados.append(f"FALLO [render-secretos] render.yaml: {clave} debe declararse con sync: false y sin valor")
