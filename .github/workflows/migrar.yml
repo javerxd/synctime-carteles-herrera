@@ -183,7 +183,7 @@ jobs:
       - name: Cerrar el cortafuegos de Azure SQL (siempre)
         if: always()
         run: |
-          az sql server firewall-rule delete --resource-group "$GRUPO" --server "$SERVIDOR" --name "migracion-${GITHUB_RUN_ID}" --yes \
+          az sql server firewall-rule delete --resource-group "$GRUPO" --server "$SERVIDOR" --name "migracion-${GITHUB_RUN_ID}" \
             || { echo "::error::No se pudo borrar la regla migracion-${GITHUB_RUN_ID}: la IP de esta máquina sigue autorizada. Bórrela a mano en Azure YA."; exit 1; }
       - name: Cerrar la sesión del registro
         if: always()

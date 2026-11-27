@@ -269,6 +269,15 @@ class ValidadorDeWorkflows(unittest.TestCase):
         self.cambiar(RESPALDO, r'\|\| \{ echo "::error::[^\n]*exit 1; \}', '|| echo "::warning::no se borro"')
         self.assertDetecta("cortafuegos")
 
+    # --- 16C-2: visto en la ejecucion real, «az» no acepta --yes al borrar la regla y el cortafuegos quedaria abierto ---
+    def test_la_migracion_borra_la_regla_con_un_argumento_que_az_rechaza(self):
+        self.cambiar(MIGRAR, r"(firewall-rule delete [^\n]*?)(?: --yes)?( \\\n)", r"\1 --yes\2")
+        self.assertDetecta("cortafuegos")
+
+    def test_el_respaldo_borra_la_regla_con_un_argumento_que_az_rechaza(self):
+        self.cambiar(RESPALDO, r"(firewall-rule delete [^\n]*?)(?: --yes)?( \\\n)", r"\1 --yes\2")
+        self.assertDetecta("cortafuegos")
+
     def test_la_autoprueba_acepta_cualquier_error_como_deteccion(self):
         self.cambiar(CI, r"--exit-code 42", "--exit-code 1")
         self.assertDetecta("autoprueba-exacta")
