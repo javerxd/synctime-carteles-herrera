@@ -241,6 +241,10 @@ def revisar_trabajo_con_azure(nombre, trabajo, resultados):
     ejecuta = str((cierre or {}).get("run", ""))
     if cierre is not None and not ("::error::" in ejecuta and "exit 1" in ejecuta):
         resultados.append(f"FALLO [cortafuegos] {nombre}: si la regla del cortafuegos no se puede borrar, el job debe quedar en ROJO (::error:: y exit 1), no solo avisar")
+    # «az sql server firewall-rule delete» no admite --yes: lo rechaza y la regla queda abierta (visto el 26-11-2026).
+    sin_continuaciones = ejecuta.replace("\\\n", " ")
+    if re.search(r"firewall-rule delete[^\n|;]*\s--yes\b", sin_continuaciones):
+        resultados.append(f"FALLO [cortafuegos] {nombre}: «az sql server firewall-rule delete» no admite «--yes»; el comando falla y la regla queda abierta")
     nombres = nombres_de_pasos(trabajo)
     instalar = next((i for i, n in enumerate(nombres) if "Instalar sqlpackage" in n), None)
     iniciar = next((i for i, p in enumerate(pasos_de(trabajo)) if str(p.get("uses", "")).startswith("azure/login@")), None)
